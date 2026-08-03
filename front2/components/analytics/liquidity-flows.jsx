@@ -1,0 +1,934 @@
+"use client"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import MultiLineChart from "../charts/multi-line-chart"
+import MiniChart from "./mini-chart"
+import FullScreenChart from './fullscreen-chart'
+import { Droplets, TrendingUp, TrendingDown, Activity, Users, ArrowUpDown, Target, Brain, Zap, Info, ExternalLink, Maximize2, Minimize2, ChevronLeft, ChevronRight, Grid3X3 } from "lucide-react"
+import useLiquidityData from "../../hooks/useLiquidityData"
+import { 
+  getLatestValue, 
+  calculateChange,
+  getDataForPeriod,
+  calculateChangeForPeriod
+} from "../../hooks/monetaryDataUtils"
+import useUpdateInfo from "../../hooks/useUpdateInfo"
+import { analyticsCategories, getCategoryByName, getCategoryIndex } from "../../lib/analytics-utils"
+import '../../styles/analytics-animations.css'
+
+export default function LiquidityFlows() {
+  const router = useRouter()
+  const [selectedFactor, setSelectedFactor] = useState('money-supply-m2')
+  const [selectedPeriod, setSelectedPeriod] = useState('5Y')
+  const [isFullScreen, setIsFullScreen] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState('Liquidity Flows')
+  const [showCategoryGrid, setShowCategoryGrid] = useState(false)
+  const [isTransitioning, setIsTransitioning] = useState(false)
+
+  // Use imported categories from utils
+  const categories = analyticsCategories
+  
+  // Use update info hook
+  const { processUpdateInfo } = useUpdateInfo()
+
+  // Find current category based on page
+  const getCurrentCategory = () => {
+    return categories.find(cat => cat.page === 'liquidity-flows') || categories[0]
+  }
+  
+  // Use custom hooks to fetch data - now with metadata
+  const { data: liquidityData, metadata: liquidityMetadata, loading, error } = useLiquidityData()
+  
+  // Process data
+  const processLiquidityData = (data) => {
+    if (!data || data.length === 0) return []
+    return data.map(item => ({
+      time: item.time,
+      value: item.value
+    })).sort((a, b) => new Date(a.time) - new Date(b.time))
+  }
+
+  // Process liquidity data
+  const processedM2Data = liquidityData?.m2 ? processLiquidityData(liquidityData.m2) : []
+  const processedReverseRepoData = liquidityData?.reverseRepo ? processLiquidityData(liquidityData.reverseRepo) : []
+  const processedEquityFlowsData = liquidityData?.equityFlows ? processLiquidityData(liquidityData.equityFlows) : []
+  const processedETFInflowsData = liquidityData?.etfInflows ? processLiquidityData(liquidityData.etfInflows) : []
+  const processedMarginDebtData = liquidityData?.marginDebt ? processLiquidityData(liquidityData.marginDebt) : []
+  const processedInstitutionalFlowsData = liquidityData?.institutionalFlows ? processLiquidityData(liquidityData.institutionalFlows) : []
+
+  // Get current values and changes
+  const latestM2 = processedM2Data.length > 0 ? processedM2Data[processedM2Data.length - 1].value : 0
+  const latestReverseRepo = processedReverseRepoData.length > 0 ? processedReverseRepoData[processedReverseRepoData.length - 1].value : 0
+  const latestEquityFlows = processedEquityFlowsData.length > 0 ? processedEquityFlowsData[processedEquityFlowsData.length - 1].value : 0
+  const latestETFInflows = processedETFInflowsData.length > 0 ? processedETFInflowsData[processedETFInflowsData.length - 1].value : 0
+  const latestMarginDebt = processedMarginDebtData.length > 0 ? processedMarginDebtData[processedMarginDebtData.length - 1].value : 0
+  const latestInstitutionalFlows = processedInstitutionalFlowsData.length > 0 ? processedInstitutionalFlowsData[processedInstitutionalFlowsData.length - 1].value : 0
+
+  const m2Change = processedM2Data.length > 0 ? calculateChangeForPeriod(processedM2Data, selectedPeriod) : { direction: 'neutral', change: 0 }
+  const reverseRepoChange = processedReverseRepoData.length > 0 ? calculateChangeForPeriod(processedReverseRepoData, selectedPeriod) : { direction: 'neutral', change: 0 }
+  const equityFlowsChange = processedEquityFlowsData.length > 0 ? calculateChangeForPeriod(processedEquityFlowsData, selectedPeriod) : { direction: 'neutral', change: 0 }
+  const etfInflowsChange = processedETFInflowsData.length > 0 ? calculateChangeForPeriod(processedETFInflowsData, selectedPeriod) : { direction: 'neutral', change: 0 }
+  const marginDebtChange = processedMarginDebtData.length > 0 ? calculateChangeForPeriod(processedMarginDebtData, selectedPeriod) : { direction: 'neutral', change: 0 }
+  const institutionalFlowsChange = processedInstitutionalFlowsData.length > 0 ? calculateChangeForPeriod(processedInstitutionalFlowsData, selectedPeriod) : { direction: 'neutral', change: 0 }
+
+  // Format values helper
+  const formatValue = (value, type = 'billions') => {
+    if (!value) return 'N/A'
+    if (type === 'billions') {
+      return `$${(value / 1000).toFixed(1)}T` // Convert billions to trillions for display
+    }
+    if (type === 'millions') {
+      return `$${(value / 1000).toFixed(1)}B` // Convert millions to billions for display
+    }
+    return `$${value.toFixed(1)}B`
+  }
+
+  // Create liquidity factors with real-time data from APIs and update info
+  const liquidityFlowsFactors = [
+    {
+      id: "money-supply-m2",
+      title: "Money Supply (M2)",
+      category: "Liquidity",
+      currentValue: loading ? "Loading..." : error ? "Error" : formatValue(latestM2, 'billions'),
+      change: loading ? "Loading..." : error ? "Error" : `${m2Change.direction === 'up' ? '+' : ''}${m2Change.change.toFixed(2)}%`,
+      trend: loading || error ? "neutral" : m2Change.direction,
+      description: "Broader money supply including savings and time deposits",
+      data: processedM2Data,
+      source: "Federal Reserve Board",
+      score: 7.5,
+      impact: "High",
+      updateInfo: processUpdateInfo(liquidityMetadata?.m2)
+    },
+    {
+      id: "reverse-repo",
+      title: "Reverse Repo Operations",
+      category: "Liquidity",
+      currentValue: loading ? "Loading..." : error ? "Error" : formatValue(latestReverseRepo),
+      change: loading ? "Loading..." : error ? "Error" : `${reverseRepoChange.direction === 'up' ? '+' : ''}${reverseRepoChange.change.toFixed(2)}%`,
+      trend: loading || error ? "neutral" : reverseRepoChange.direction,
+      description: "Federal Reserve Overnight Reverse Repurchase Operations",
+      data: processedReverseRepoData,
+      source: "Federal Reserve Bank of New York",
+      score: 6.8,
+      impact: "Medium",
+      updateInfo: processUpdateInfo(liquidityMetadata?.reverseRepo)
+    },
+    {
+      id: "equity-fund-flows",
+      title: "Equity Fund Flows",
+      category: "Fund Flows",
+      currentValue: loading ? "Loading..." : error ? "Error" : formatValue(latestEquityFlows),
+      change: loading ? "Loading..." : error ? "Error" : `${equityFlowsChange.direction === 'up' ? '+' : ''}${equityFlowsChange.change.toFixed(2)}%`,
+      trend: loading || error ? "neutral" : equityFlowsChange.direction,
+      description: "Weekly net flows into equity mutual funds and ETFs",
+      data: processedEquityFlowsData,
+      source: "ICI / Morningstar",
+      score: 8.3,
+      impact: "High",
+      updateInfo: processUpdateInfo(liquidityMetadata?.equityFlows)
+    },
+    {
+      id: "etf-inflows",
+      title: "ETF Inflows",
+      category: "Fund Flows",
+      currentValue: loading ? "Loading..." : error ? "Error" : formatValue(latestETFInflows),
+      change: loading ? "Loading..." : error ? "Error" : `${etfInflowsChange.direction === 'up' ? '+' : ''}${etfInflowsChange.change.toFixed(2)}%`,
+      trend: loading || error ? "neutral" : etfInflowsChange.direction,
+      description: "Monthly net inflows to U.S. equity ETFs",
+      data: processedETFInflowsData,
+      source: "Bloomberg",
+      score: 8.7,
+      impact: "High",
+      updateInfo: processUpdateInfo(liquidityMetadata?.etfInflows)
+    },
+    {
+      id: "margin-debt",
+      title: "Margin Debt",
+      category: "Leverage",
+      currentValue: loading ? "Loading..." : error ? "Error" : formatValue(latestMarginDebt),
+      change: loading ? "Loading..." : error ? "Error" : `${marginDebtChange.direction === 'up' ? '+' : ''}${marginDebtChange.change.toFixed(2)}%`,
+      trend: loading || error ? "neutral" : marginDebtChange.direction,
+      description: "Total margin debt outstanding (NYSE)",
+      data: processedMarginDebtData,
+      source: "NYSE",
+      score: 5.8,
+      impact: "Medium",
+      updateInfo: processUpdateInfo(liquidityMetadata?.marginDebt)
+    },
+    {
+      id: "institutional-flows",
+      title: "Institutional Flows",
+      category: "Professional Money",
+      currentValue: loading ? "Loading..." : error ? "Error" : formatValue(latestInstitutionalFlows),
+      change: loading ? "Loading..." : error ? "Error" : `${institutionalFlowsChange.direction === 'up' ? '+' : ''}${institutionalFlowsChange.change.toFixed(2)}%`,
+      trend: loading || error ? "neutral" : institutionalFlowsChange.direction,
+      description: "Net institutional equity flows (13F filings)",
+      data: processedInstitutionalFlowsData,
+      source: "SEC 13F Filings",
+      score: 7.9,
+      impact: "High",
+      updateInfo: processUpdateInfo(liquidityMetadata?.institutionalFlows)
+    }
+  ]
+
+  // Calculate overall score
+  const overallScore = (liquidityFlowsFactors.reduce((sum, factor) => sum + (factor.score || 7), 0) / liquidityFlowsFactors.length).toFixed(1)
+  
+  const getScoreColor = (score) => {
+    if (score >= 8) return "text-green-600"
+    if (score >= 6) return "text-yellow-600"  
+    return "text-red-600"
+  }
+
+  const getScoreBadge = (score) => {
+    if (score >= 8) return { label: "Strong", color: "bg-green-100 text-green-800" }
+    if (score >= 6) return { label: "Moderate", color: "bg-yellow-100 text-yellow-800" }
+    return { label: "Weak", color: "bg-red-100 text-red-800" }
+  }
+
+  const getTrendIcon = (trend) => {
+    switch (trend) {
+      case "up":
+        return <TrendingUp className="h-4 w-4 text-green-500" />
+      case "down":
+        return <TrendingDown className="h-4 w-4 text-red-500" />
+      default:
+        return <Activity className="h-4 w-4 text-gray-400" />
+    }
+  }
+
+  const getTrendColor = (trend) => {
+    switch (trend) {
+      case "up":
+        return "text-green-600 dark:text-green-400"
+      case "down":
+        return "text-red-600 dark:text-red-400"
+      default:
+        return "text-gray-600 dark:text-gray-400"
+    }
+  }
+
+  const handleFactorClick = (factor) => {
+    if (isTransitioning) return
+    setSelectedFactor(factor.id)
+  }
+
+  // Handle period change with smooth transition
+  const handlePeriodChange = (period) => {
+    if (isTransitioning || selectedPeriod === period) return
+    
+    setIsTransitioning(true)
+    setSelectedPeriod(period)
+    
+    // Reset transition state after animation completes
+    setTimeout(() => {
+      setIsTransitioning(false)
+    }, 300)
+  }
+
+  // Get selected factor data
+  const getSelectedFactor = () => {
+    return liquidityFlowsFactors.find(factor => factor.id === selectedFactor) || liquidityFlowsFactors[0]
+  }
+
+  // Navigation functions for factor switching
+  const navigateToNextFactor = () => {
+    if (isTransitioning) return
+    const currentIndex = liquidityFlowsFactors.findIndex(factor => factor.id === selectedFactor)
+    const nextIndex = (currentIndex + 1) % liquidityFlowsFactors.length
+    setSelectedFactor(liquidityFlowsFactors[nextIndex].id)
+  }
+
+  const navigateToPrevFactor = () => {
+    if (isTransitioning) return
+    const currentIndex = liquidityFlowsFactors.findIndex(factor => factor.id === selectedFactor)
+    const prevIndex = currentIndex === 0 ? liquidityFlowsFactors.length - 1 : currentIndex - 1
+    setSelectedFactor(liquidityFlowsFactors[prevIndex].id)
+  }
+
+  // Category navigation functions
+  const navigateToNextCategory = () => {
+    const currentIndex = categories.findIndex(cat => cat.name === selectedCategory)
+    const nextIndex = (currentIndex + 1) % categories.length
+    const nextCategory = categories[nextIndex]
+    router.push(`/analytics/${nextCategory.page}`)
+  }
+
+  const navigateToPrevCategory = () => {
+    const currentIndex = categories.findIndex(cat => cat.name === selectedCategory)
+    const prevIndex = currentIndex === 0 ? categories.length - 1 : currentIndex - 1
+    const prevCategory = categories[prevIndex]
+    router.push(`/analytics/${prevCategory.page}`)
+  }
+
+  // Get category info for display
+  const currentCategory = getCurrentCategory()
+  const currentCategoryIndex = categories.findIndex(cat => cat.name === selectedCategory)
+  const totalCategories = categories.length
+
+  const selectedFactorObject = getSelectedFactor()
+  const selectedFactorData = selectedFactorObject && Array.isArray(selectedFactorObject.data) && selectedFactorObject.data.length > 0 ? 
+    [getDataForPeriod(selectedFactorObject.data, selectedPeriod)] : []
+
+  // Add source details for each factor
+  const getSourceDetails = (factorId) => {
+    switch (factorId) {
+      case "money-supply-m2":
+        return {
+          title: "Money Supply (M2)",
+          description: "M2 is a measure of the money supply that includes cash, checking deposits, and easily convertible near money. M2 is a broader measure than M1 and includes savings deposits, time deposits, and money market funds.",
+          provider: "Federal Reserve Board",
+          frequency: "Monthly",
+          availability: "1959 to Present",
+          methodology: "M2 = M1 + savings deposits + small-denomination time deposits + money market deposit accounts + money market mutual fund shares held by individuals.",
+          url: "https://fred.stlouisfed.org/series/M2SL",
+          lastUpdated: "Updated monthly"
+        }
+      case "reverse-repo":
+        return {
+          title: "Reverse Repo Operations",
+          description: "The overnight reverse repurchase agreement facility (ON RRP) helps provide a floor for short-term interest rates by offering an alternative investment option for money market funds and other eligible counterparties.",
+          provider: "Federal Reserve Bank of New York",
+          frequency: "Daily",
+          availability: "2013 to Present",
+          methodology: "Total value of outstanding overnight reverse repurchase agreements between the Federal Reserve and eligible counterparties.",
+          url: "https://www.newyorkfed.org/markets/rrp_counterparties",
+          lastUpdated: "Updated daily"
+        }
+      case "equity-fund-flows":
+        return {
+          title: "Equity Fund Flows",
+          description: "Net new cash flow to equity mutual funds and ETFs, representing investor sentiment and allocation decisions toward equity markets.",
+          provider: "Investment Company Institute (ICI)",
+          frequency: "Weekly",
+          availability: "1984 to Present",
+          methodology: "Net new cash flow calculated as total subscriptions minus redemptions for all equity mutual funds and ETFs.",
+          url: "https://www.ici.org/research/stats/flows",
+          lastUpdated: "Updated weekly on Wednesdays"
+        }
+      case "etf-inflows":
+        return {
+          title: "ETF Inflows",
+          description: "Net inflows to Exchange Traded Funds, providing insight into institutional and retail investor allocation preferences and market sentiment.",
+          provider: "Bloomberg Terminal",
+          frequency: "Daily",
+          availability: "1993 to Present",
+          methodology: "Net inflows calculated as creations minus redemptions of ETF shares, converted to dollar amounts using net asset value.",
+          url: "https://www.bloomberg.com/professional/",
+          lastUpdated: "Updated daily after market close"
+        }
+      case "margin-debt":
+        return {
+          title: "Margin Debt",
+          description: "Total credit extended by NYSE member firms to customers for the purchase of securities, serving as an indicator of leverage and speculative activity in the market.",
+          provider: "New York Stock Exchange (NYSE)",
+          frequency: "Monthly",
+          availability: "1959 to Present",
+          methodology: "Total debit balances in margin accounts of customers of NYSE member firms carrying margin accounts.",
+          url: "https://www.nyse.com/publicdocs/nyse/data/Margin_Statistics.pdf",
+          lastUpdated: "Updated monthly with 2-week lag"
+        }
+      case "institutional-flows":
+        return {
+          title: "Institutional Flows",
+          description: "Net equity flows from institutional investors based on 13F filings, representing the investment activity of large asset managers, pension funds, and other institutions.",
+          provider: "SEC 13F Filings",
+          frequency: "Quarterly",
+          availability: "1978 to Present",
+          methodology: "Aggregated net purchases/sales of equity securities by institutions managing over $100 million in assets, derived from quarterly 13F filings.",
+          url: "https://www.sec.gov/divisions/investment/13ffaq.htm",
+          lastUpdated: "Updated quarterly, 45 days after quarter end"
+        }
+      default:
+        return {
+          title: "Liquidity Data",
+          description: "Market liquidity and fund flow metrics",
+          provider: "Federal Reserve Economic Data",
+          frequency: "Varies",
+          availability: "Historical data available",
+          methodology: "Standard liquidity measurement techniques",
+          url: "#",
+          lastUpdated: "Updated regularly"
+        }
+    }
+  }
+
+  const getIconComponent = (factorId) => {
+    switch (factorId) {
+      case "money-supply-m2":
+        return Droplets
+      case "reverse-repo":
+        return ArrowUpDown
+      case "equity-fund-flows":
+        return TrendingUp
+      case "etf-inflows":
+        return Activity
+      case "margin-debt":
+        return Target
+      case "institutional-flows":
+        return Users
+      default:
+        return Droplets
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6 bg-white dark:bg-[#0F0F12]">
+        <div className="animate-pulse">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-10 w-10 bg-gray-200 dark:bg-gray-600 rounded-xl animate-pulse"></div>
+            <div className="h-8 bg-gray-200 dark:bg-gray-600 rounded-lg w-64 animate-pulse"></div>
+          </div>
+          <div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-96 mb-2 animate-pulse"></div>
+          <div className="flex gap-4 mb-8">
+            <div className="h-8 bg-gray-100 dark:bg-gray-700 rounded-lg w-48 animate-pulse"></div>
+            <div className="h-8 bg-gray-100 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
+          </div>
+          
+          {/* Top Section: Score + Main Chart */}
+          <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 mb-8">
+            {/* Score Card Loading */}
+            <div className="bg-white dark:bg-[#1F1F23] border border-gray-200 dark:border-[#2B2B30] rounded-xl shadow-lg lg:col-span-2 p-6 space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="h-6 w-6 bg-gray-200 dark:bg-gray-600 rounded-lg animate-pulse"></div>
+                <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-24 animate-pulse"></div>
+              </div>
+              <div className="text-center space-y-3 p-4 bg-gray-50 dark:bg-[#0F0F12] rounded-xl">
+                <div className="h-16 w-16 bg-gray-200 dark:bg-gray-600 rounded-full mx-auto animate-pulse"></div>
+                <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded w-16 mx-auto animate-pulse"></div>
+                <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-20 mx-auto animate-pulse"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-20 animate-pulse"></div>
+                <div className="space-y-1">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#0F0F12] rounded-lg">
+                      <div className="h-2 w-2 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse"></div>
+                      <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded flex-1 animate-pulse"></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            {/* Main Chart Loading */}
+            <div className="bg-white dark:bg-[#1F1F23] border border-gray-200 dark:border-[#2B2B30] rounded-xl shadow-lg lg:col-span-5 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-48 animate-pulse"></div>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                    <div key={i} className="h-8 w-12 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
+                  ))}
+                </div>
+              </div>
+              <div className="h-4 bg-gray-100 dark:bg-gray-700 rounded w-64 mb-4 animate-pulse"></div>
+              <div className="h-80 bg-gray-100 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+            </div>
+          </div>
+          
+          {/* Bottom Section: Factor Grid */}
+          <div className="space-y-4">
+            <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded-lg w-48 animate-pulse"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="bg-white dark:bg-[#1F1F23] border border-gray-200 dark:border-[#2B2B30] rounded-xl shadow-lg p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
+                      <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-32 animate-pulse"></div>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="h-4 w-4 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
+                      <div className="h-4 w-4 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="h-8 bg-gray-200 dark:bg-gray-600 rounded w-20 animate-pulse"></div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 bg-gray-100 dark:bg-gray-700 rounded w-12 animate-pulse"></div>
+                      <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-12 animate-pulse"></div>
+                    </div>
+                  </div>
+                  <div className="h-20 bg-gray-100 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+                  <div className="space-y-2">
+                    <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-full animate-pulse"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-3/4 animate-pulse"></div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-16 animate-pulse"></div>
+                    <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded w-24 animate-pulse"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state if there's an error
+  if (error) {
+    return (
+      <div className="p-6 space-y-6 bg-white dark:bg-[#0F0F12]">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+          <div className="text-red-600 dark:text-red-400 text-lg font-semibold mb-2">
+            Unable to load liquidity data
+          </div>
+          <p className="text-red-600 dark:text-red-400">
+            Please check your internet connection and try again.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6 space-y-6 fade-in bg-white dark:bg-[#0F0F12]">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-cyan-600 to-blue-700 rounded-xl shadow-lg">
+            <Droplets className="h-6 w-6 text-white" />
+          </div>
+          Liquidity & Fund Flows
+        </h1>
+        <div className="flex flex-wrap justify-between items-center gap-4">
+          <p className="text-gray-600 dark:text-gray-400">
+            Market liquidity conditions, money supply, and capital flow patterns
+          </p>
+          
+          {/* Minimal Category Navigation */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={navigateToPrevCategory}
+                className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-800"
+                title="Previous"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCategoryGrid(!showCategoryGrid)}
+                className={`h-6 w-6 p-0 ${showCategoryGrid ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                title="All Categories"
+              >
+                <Grid3X3 className="h-4 w-4" />
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={navigateToNextCategory}
+                className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-800"
+                title="Next"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Minimal Category Grid */}
+      {showCategoryGrid && (
+        <div className="mb-6 animate-in slide-in-from-top-2 duration-200">
+          <Card className="border border-gray-200 dark:border-[#2B2B30] bg-white dark:bg-[#1F1F23]">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                {categories.map((category, index) => (
+                  <Button
+                    key={category.page}
+                    variant={index === currentCategoryIndex ? "secondary" : "ghost"}
+                    size="sm"
+                    className={`h-auto p-2 justify-start gap-2 ${
+                      index === currentCategoryIndex ? 'bg-blue-50 dark:bg-blue-950/20' : ''
+                    }`}
+                    onClick={() => {
+                      router.push(`/analytics/${category.page}`)
+                      setShowCategoryGrid(false)
+                    }}
+                  >
+                    <div className={`p-1 bg-gradient-to-r ${category.color} rounded`}>
+                      <category.icon className="h-3 w-3 text-white" />
+                    </div>
+                    <span className="text-xs font-medium truncate">{category.name}</span>
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Top Section: Score + Main Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 mb-8">
+        {/* Left: Score & Analysis (1/4 width) */}
+        <Card className="lg:col-span-2 slide-in-left stagger-1 hover:shadow-lg transition-all duration-200 cursor-pointer group border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23] card-glow">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 group-hover:text-cyan-600 transition-all duration-200 text-base font-semibold">
+              <div className="p-1.5 bg-gradient-to-br from-cyan-600 to-blue-700 rounded-lg shadow-md group-hover:scale-105 transition-transform duration-200">
+                <Activity className="h-4 w-4 text-white" />
+              </div>
+              Liquidity Health
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 flex flex-col space-y-4">
+            {/* Enhanced Score Display */}
+            <div className="text-center group-hover:scale-105 transition-transform duration-300 p-3 bg-gray-50 dark:bg-[#0F0F12] rounded-xl border border-gray-200 dark:border-[#2B2B30]">
+              <div className={`text-4xl font-black ${getScoreColor(parseFloat(overallScore))} drop-shadow-lg mb-2 tracking-tight`}>
+                {overallScore}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">Liquidity Score</div>
+              <Badge className={`mt-1 px-3 py-1 text-xs font-semibold ${getScoreBadge(parseFloat(overallScore)).color} group-hover:shadow-md transition-all duration-300 hover:scale-105`}>
+                {getScoreBadge(parseFloat(overallScore)).label}
+              </Badge>
+            </div>
+
+            {/* Key Insights */}
+            <div className="space-y-2">
+              <h4 className="font-semibold text-gray-900 dark:text-white text-xs">Key Indicators</h4>
+              <div className="space-y-1 text-xs">
+                <div className="flex items-start gap-2 hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
+                  <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
+                    m2Change.direction === 'up' ? 'bg-green-500' : m2Change.direction === 'down' ? 'bg-red-500' : 'bg-yellow-500'
+                  }`}></div>
+                  <span className="leading-tight">
+                    M2 Money Supply {m2Change.direction === 'up' ? 'expanding' : m2Change.direction === 'down' ? 'contracting' : 'stable'}
+                  </span>
+                </div>
+                <div className="flex items-start gap-2 hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
+                  <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
+                    reverseRepoChange.direction === 'down' ? 'bg-green-500' : reverseRepoChange.direction === 'up' ? 'bg-yellow-500' : 'bg-blue-500'
+                  }`}></div>
+                  <span className="leading-tight">
+                    Reverse Repo {reverseRepoChange.direction === 'down' ? 'declining' : reverseRepoChange.direction === 'up' ? 'increasing' : 'stable'}
+                  </span>
+                </div>
+                <div className="flex items-start gap-2 hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                  <span className="leading-tight">Fund flows positive</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Flow Outlook */}
+            <div className="space-y-2 flex-1">
+              <h4 className="font-semibold text-gray-900 dark:text-white text-xs">Flow Outlook</h4>
+              <div className="space-y-1 text-xs">
+                <div className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
+                  <span>Liquidity</span>
+                  <Badge className={`${
+                    (m2Change.direction === 'up' && reverseRepoChange.direction === 'down') ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                    (m2Change.direction === 'down' || reverseRepoChange.direction === 'up') ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                    'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                  } text-xs hover:shadow-md transition-all duration-200 hover:scale-105`}>
+                    {(m2Change.direction === 'up' && reverseRepoChange.direction === 'down') ? 'Strong' :
+                     (m2Change.direction === 'down' || reverseRepoChange.direction === 'up') ? 'Moderate' : 'Weak'}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
+                  <span>Fund Flows</span>
+                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs hover:shadow-md transition-all duration-200 hover:scale-105">Strong</Badge>
+                </div>
+                <div className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
+                  <span>Leverage</span>
+                  <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 text-xs hover:shadow-md transition-all duration-200 hover:scale-105">Elevated</Badge>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Right: Main Chart (3/4 width) */}
+        <Card className="lg:col-span-5 slide-in-right stagger-2 hover:shadow-lg transition-all duration-200 border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23] card-glow">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-lg font-semibold">
+              <div className="flex items-center gap-3">
+                {selectedFactorObject ? (
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const IconComponent = getIconComponent(selectedFactorObject.id)
+                      return <IconComponent className="h-5 w-5 text-cyan-600" />
+                    })()}
+                    {selectedFactorObject.title}
+                  </div>
+                ) : (
+                  <span>Select a factor to view detailed chart</span>
+                )}
+                {selectedFactorObject && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsFullScreen(true)}
+                    className="h-8 w-8 p-0 ml-2 hover:bg-cyan-50 dark:hover:bg-cyan-900 hover:scale-105 transition-all duration-200 hover:shadow-md"
+                    title="Full Screen"
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {['1M', '6M', '1Y', '5Y', '10Y', '25Y', 'MAX'].map((period) => (
+                  <Button
+                    key={period}
+                    variant={selectedPeriod === period ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handlePeriodChange(period)}
+                    className={`timeframe-button transition-all text-xs duration-200 hover:scale-105 hover:shadow-md ${
+                      selectedPeriod === period ? 'bg-cyan-500 hover:bg-cyan-600 text-white shadow-lg' : 'hover:bg-cyan-50 dark:hover:bg-cyan-950/30'
+                    } ${isTransitioning ? 'pointer-events-none opacity-70' : ''}`}
+                    disabled={isTransitioning}
+                  >
+                    {period}
+                  </Button>
+                ))}
+              </div>
+            </CardTitle>
+            {selectedFactorObject && (
+              <CardDescription className="flex flex-wrap items-center gap-4 text-sm mt-2">
+                <span>
+                  Current: {selectedFactorObject.currentValue} | 
+                  <span className={`ml-1 ${getTrendColor(selectedFactorObject.trend)}`}>
+                    {selectedFactorObject.change}
+                  </span>
+                </span>
+                <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                  <span>Source: {selectedFactorObject.source}</span>
+                </div>
+              </CardDescription>
+            )}
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className={`h-80 w-full chart-transition ${isTransitioning ? 'transitioning' : ''}`}>
+              {selectedFactorData && selectedFactorData.length > 0 && selectedFactorData[0].length > 0 ? (
+                <MultiLineChart dataSets={selectedFactorData} />
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
+                      <span>Loading chart data...</span>
+                    </div>
+                  ) : (
+                    <span>No data available for this factor</span>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {/* Updated info with navigation buttons */}
+            <div className="flex justify-between items-center mt-4">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                {selectedFactorObject?.updateInfo && (
+                  <>
+                    <span className={`flex items-center gap-1 px-2 py-1 bg-gray-50 dark:bg-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#2B2B30] ${selectedFactorObject.updateInfo.statusColor}`}>
+                      <Info className="h-4 w-4" />
+                      Updated: {selectedFactorObject.updateInfo.lastUpdate}
+                    </span>
+                    <span className="flex items-center gap-1 px-2 py-1 bg-gray-50 dark:bg-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#2B2B30]">
+                      <Target className="h-4 w-4" />
+                      Next Release: {selectedFactorObject.updateInfo.nextRelease}
+                    </span>
+                  </>
+                )}
+                {!selectedFactorObject?.updateInfo && (
+                  <>
+                    <span className="flex items-center gap-1 px-2 py-1 bg-gray-50 dark:bg-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#2B2B30]">
+                      <Info className="h-4 w-4" />
+                      Updated: Loading...
+                    </span>
+                    <span className="flex items-center gap-1 px-2 py-1 bg-gray-50 dark:bg-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#2B2B30]">
+                      <Target className="h-4 w-4" />
+                      Next Release: TBD
+                    </span>
+                  </>
+                )}
+              </div>
+              
+              {/* Factor Navigation Buttons */}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={navigateToPrevFactor}
+                  className="h-8 w-8 p-0 hover:bg-cyan-50 dark:hover:bg-cyan-950/30"
+                  title="Previous Factor"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={navigateToNextFactor}
+                  className="h-8 w-8 p-0 hover:bg-cyan-50 dark:hover:bg-cyan-950/30"
+                  title="Next Factor"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bottom Section: Factor Grid */}
+      <div className="slide-in-up">
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Liquidity & Flow Factors</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {liquidityFlowsFactors.map((factor, index) => {
+            const IconComponent = getIconComponent(factor.id)
+            return (
+              <Card
+                key={factor.id}
+                className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:-translate-y-1 ${
+                  selectedFactor === factor.id ? 'ring-2 ring-cyan-500 shadow-lg scale-[1.02] bg-cyan-50 dark:bg-cyan-950/30' : ''
+                } slide-in-up stagger-${(index % 6) + 1} border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23] group card-glow h-full flex flex-col`}
+                onClick={() => handleFactorClick(factor)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <IconComponent className="h-4 w-4" />
+                      {factor.title}
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      {getTrendIcon(factor.trend)}
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-[#0F0F12]"
+                            title="View Source Details"
+                          >
+                            <Info className="h-3 w-3" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-lg bg-white dark:bg-[#1F1F23] border border-gray-200 dark:border-[#2B2B30]">
+                          <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                              {(() => {
+                                const IconComponent = getIconComponent(factor.id)
+                                return <IconComponent className="h-5 w-5 text-cyan-600" />
+                              })()}
+                              {getSourceDetails(factor.id).title}
+                            </DialogTitle>
+                            <DialogDescription asChild>
+                              <div className="space-y-4 text-left">
+                                <p className="text-sm text-gray-700 dark:text-gray-300">
+                                  {getSourceDetails(factor.id).description}
+                                </p>
+                                <div className="space-y-3 text-sm">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <div className="font-semibold text-gray-900 dark:text-white">Provider</div>
+                                      <div className="text-gray-600 dark:text-gray-400">{getSourceDetails(factor.id).provider}</div>
+                                    </div>
+                                    <div>
+                                      <div className="font-semibold text-gray-900 dark:text-white">Frequency</div>
+                                      <div className="text-gray-600 dark:text-gray-400">{getSourceDetails(factor.id).frequency}</div>
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <div className="font-semibold text-gray-900 dark:text-white">Data Range</div>
+                                      <div className="text-gray-600 dark:text-gray-400">{getSourceDetails(factor.id).availability}</div>
+                                    </div>
+                                    <div>
+                                      <div className="font-semibold text-gray-900 dark:text-white">Updates</div>
+                                      <div className="text-gray-600 dark:text-gray-400">{getSourceDetails(factor.id).lastUpdated}</div>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="font-semibold text-gray-900 dark:text-white">Methodology</div>
+                                    <div className="text-gray-600 dark:text-gray-400 text-xs leading-relaxed">{getSourceDetails(factor.id).methodology}</div>
+                                  </div>
+                                  <div className="pt-2 border-t border-gray-200 dark:border-[#2B2B30]">
+                                    <a 
+                                      href={getSourceDetails(factor.id).url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline text-sm font-medium"
+                                    >
+                                      <ExternalLink className="h-4 w-4" />
+                                      View Original Data Source
+                                    </a>
+                                  </div>
+                                </div>
+                              </div>
+                            </DialogDescription>
+                          </DialogHeader>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {factor.currentValue}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-base font-medium ${getTrendColor(factor.trend)}`}>
+                        {factor.change}
+                      </span>
+                      <Badge className="text-sm bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200 px-2 py-1">
+                        {factor.score}/10
+                      </Badge>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0 flex-1 flex flex-col">
+                  <div className={`h-20 mb-4 p-2 bg-transparent rounded-lg transition-all duration-300 mini-chart-container ${
+                    selectedFactor === factor.id ? 'selected' : ''
+                  }`}>
+                    <MiniChart 
+                      key={`${factor.id}-${selectedPeriod}`}
+                      data={getDataForPeriod(factor.data, selectedPeriod)}
+                      trend={factor.trend} 
+                      selectedPeriod={selectedPeriod}
+                    />
+                  </div>
+                  <div className="text-base text-gray-600 dark:text-gray-400 line-clamp-3 mb-3 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors duration-300 leading-relaxed flex-1">
+                    {factor.description}
+                  </div>
+                  
+                  {/* Update Information */}
+                  
+                  <div className="flex items-center justify-between text-sm text-gray-500 mt-auto pt-2">
+                    <div className="flex items-center gap-1">
+                      <Badge className={`text-sm transition-all duration-300 hover:scale-105 ${factor.impact === 'High' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 hover:bg-red-200' : factor.impact === 'Medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 hover:bg-yellow-200' : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-200'} px-2 py-1`}>
+                        {factor.impact}
+                      </Badge>
+                      <span>Impact</span>
+                    </div>
+                    <span className="truncate text-sm group-hover:text-gray-600 dark:group-hover:text-gray-400 transition-colors duration-300">{factor.source}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Full Screen Chart Modal */}
+      <FullScreenChart
+        isOpen={isFullScreen}
+        onClose={() => setIsFullScreen(false)}
+        selectedFactor={selectedFactorObject}
+        getIconComponent={getIconComponent}
+      />
+    </div>
+  )
+}

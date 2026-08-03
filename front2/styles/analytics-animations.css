@@ -1,0 +1,189 @@
+/* Smooth transition animations for monetary policy page */
+
+/* Chart container transitions */
+.chart-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chart-fade-in {
+  animation: fadeInChart 0.4s ease-out forwards;
+}
+
+.chart-fade-out {
+  animation: fadeOutChart 0.2s ease-out forwards;
+}
+
+@keyframes fadeInChart {
+  0% {
+    opacity: 0.8;
+    transform: translateY(5px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fadeOutChart {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0.9;
+    transform: translateY(-2px) scale(0.99);
+  }
+}
+
+/* Timeframe button transitions */
+.timeframe-button {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.timeframe-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transition: left 0.5s ease;
+}
+
+.timeframe-button:hover::before {
+  left: 100%;
+}
+
+.timeframe-button:active {
+  transform: scale(0.95);
+}
+
+/* Mini chart smooth transitions */
+.mini-chart-container {
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Data value transitions */
+.value-transition {
+  transition: color 0.2s ease-out, transform 0.2s ease-out;
+}
+
+.value-update {
+  animation: valueUpdate 0.4s ease-out;
+}
+
+@keyframes valueUpdate {
+  0% {
+    transform: translateX(0);
+    color: inherit;
+  }
+  50% {
+    transform: translateX(2px);
+    color: #3b82f6;
+  }
+  100% {
+    transform: translateX(0);
+    color: inherit;
+  }
+}
+
+/* Card selection animations */
+.factor-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.factor-card:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.factor-card.selected {
+  animation: cardSelect 0.4s ease-out;
+}
+
+@keyframes cardSelect {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.15);
+  }
+  100% {
+    transform: scale(1.02);
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.15);
+  }
+}
+
+/* Loading state animations */
+.chart-loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.chart-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Smooth period transition for main chart */
+.main-chart-container {
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  position: relative;
+}
+
+/* Subtle chart updating state */
+.chart-updating {
+  opacity: 0.92;
+  transform: scale(0.998);
+}
+
+/* Stagger animations for factor cards */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+.stagger-6 { animation-delay: 0.6s; }
+
+/* Responsive transitions */
+@media (prefers-reduced-motion: reduce) {
+  .chart-transition,
+  .timeframe-button,
+  .mini-chart-container,
+  .value-transition,
+  .factor-card,
+  .main-chart-container {
+    transition: none;
+    animation: none;
+  }
+  
+  .chart-fade-in,
+  .chart-fade-out,
+  .mini-chart-update,
+  .value-update,
+  .factor-card.selected,
+  .chart-loading::after,
+  .period-change-overlay {
+    animation: none;
+  }
+}

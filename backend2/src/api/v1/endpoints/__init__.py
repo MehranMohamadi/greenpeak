@@ -1,0 +1,14 @@
+"""Endpoints package initialization."""
+
+from .market import router as market_router
+from .monetary import router as monetary_router
+from .economic import router as economic_router
+from .system import router as system_router
+from .systemrisk import router as systemrisk_router
+from .liquidity import router as liquidity_router
+from .macroeco import router as macroeco_router
+from .corporate import router as corporate_router
+from .valuation import router as valuation_router
+from .sectors import router as sectors_router
+
+__all__ = ["market_router", "monetary_router", "economic_router", "system_router", "systemrisk_router", "liquidity_router", "macroeco_router", "corporate_router", "valuation_router", "sectors_router"]

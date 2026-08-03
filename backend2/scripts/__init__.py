@@ -1,0 +1,1 @@
+"""Script for fetching and updating economic data from various sources."""

@@ -1,0 +1,32 @@
+# FastAPI and server
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+
+# Data processing
+pandas==2.2.3
+numpy==2.1.1
+
+# Date/time handling
+pytz==2024.2
+
+# Configuration management
+pydantic==2.9.2
+pydantic-settings==2.6.0
+
+# Data update dependencies
+requests==2.32.3
+yfinance==0.2.46
+curl-cffi>=0.13.0
+fredapi==0.5.2
+pymongo==4.9.1
+motor==3.6.0
+apscheduler==3.10.4
+click==8.1.7
+
+# Development dependencies (optional)
+pytest==8.3.3
+pytest-asyncio==0.24.0
+httpx==0.27.2
+
+# Production dependencies (optional)
+gunicorn==23.0.0

@@ -1,0 +1,56 @@
+# SP500 Dashboard Systemd Service Configuration
+# This service file enables automatic startup and management of the SP500 Dashboard
+
+[Unit]
+Description=SP500 Dashboard - Financial Analytics Platform
+Documentation=https://github.com/a0x0h/sp500-dashboard
+After=docker.service
+Wants=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/sp500-dashboard
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
+ExecReload=/usr/bin/docker compose restart
+TimeoutStartSec=300
+TimeoutStopSec=120
+
+# Restart policy
+Restart=on-failure
+RestartSec=30
+
+# Security settings
+User=sp500user
+Group=docker
+UMask=0027
+
+# Environment
+Environment=COMPOSE_PROJECT_NAME=sp500-dashboard
+EnvironmentFile=/opt/sp500-dashboard/.env
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sp500-dashboard
+
+[Install]
+WantedBy=multi-user.target
+
+# Installation Instructions:
+# 1. Copy this file to /etc/systemd/system/sp500-dashboard.service
+# 2. Create dedicated user: sudo useradd -r -s /bin/false -G docker sp500user
+# 3. Set ownership: sudo chown -R sp500user:docker /opt/sp500-dashboard
+# 4. Reload systemd: sudo systemctl daemon-reload
+# 5. Enable service: sudo systemctl enable sp500-dashboard
+# 6. Start service: sudo systemctl start sp500-dashboard
+# 7. Check status: sudo systemctl status sp500-dashboard
+#
+# Management commands:
+# - Start:   sudo systemctl start sp500-dashboard
+# - Stop:    sudo systemctl stop sp500-dashboard
+# - Restart: sudo systemctl restart sp500-dashboard
+# - Status:  sudo systemctl status sp500-dashboard
+# - Logs:    sudo journalctl -u sp500-dashboard -f

@@ -1,0 +1,81 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    branches:
+      - master
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: delivery-master
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Package release artifacts
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout validated revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: front2/package-lock.json
+
+      - name: Build frontend artifact
+        working-directory: front2
+        run: |
+          npm ci
+          npm run build
+
+      - name: Package frontend
+        shell: bash
+        run: |
+          tar \
+            --exclude='front2/.next/cache' \
+            -czf greenpeak-frontend-${{ github.event.workflow_run.head_sha }}.tar.gz \
+            front2/.next \
+            front2/public \
+            front2/package.json \
+            front2/package-lock.json \
+            docs/AI_MARKET_ANALYSIS_ARCHITECTURE.md
+
+      - name: Package backend
+        shell: bash
+        run: |
+          tar \
+            --exclude='**/__pycache__' \
+            --exclude='backend2/src/data/raw' \
+            -czf greenpeak-backend-${{ github.event.workflow_run.head_sha }}.tar.gz \
+            backend2/main.py \
+            backend2/requirements.txt \
+            backend2/src
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: greenpeak-frontend-${{ github.event.workflow_run.head_sha }}
+          path: greenpeak-frontend-${{ github.event.workflow_run.head_sha }}.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: greenpeak-backend-${{ github.event.workflow_run.head_sha }}
+          path: greenpeak-backend-${{ github.event.workflow_run.head_sha }}.tar.gz
+          if-no-files-found: error
+          retention-days: 14
