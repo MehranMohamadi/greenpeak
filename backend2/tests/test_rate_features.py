@@ -18,6 +18,7 @@ from src.services.rate_features.engine import calculate_fed_change, calculate_pa
 from src.services.rate_features.job import run_feature_job
 from src.main import app
 from src.services.rate_features.repository import MongoFeatureRepository
+from src.services.data_service import DataService
 
 
 def canonical(values, start=date(2024, 1, 1), indicator="test"):
@@ -102,6 +103,20 @@ def test_snapshot_quality_stale_schema_and_determinism():
     assert first.quality.status == "ok"
     stale, _ = build_snapshot(definition, frame, latest_date + timedelta(days=8), "run", "git:test", calculated)
     assert stale.quality.status == "stale"
+    assert stale.features["mean_30d_pct"] is not None
+    assert stale.features["zscore_365d"] is not None
+    assert stale.features == first.features
+
+
+def test_ten_year_fallback_is_daily_not_monthly_gs10():
+    service = DataService.__new__(DataService)
+    service.mongodb = None
+    response = service.get_10year_data(start_date="2024-01-01")
+    assert response.metadata.fred_series == "DGS10"
+    assert response.metadata.frequency == "daily"
+    assert len(response.data) > 200
+    assert response.data[-1].date == "2025-07-08"
+    assert response.data[-1].value == pytest.approx(4.42)
 
 
 class FakeRepository:

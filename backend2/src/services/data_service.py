@@ -20,6 +20,7 @@ from ..utils.data_utils import (
 )
 from .mongodb_service import MongoDBService
 import logging
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -508,19 +509,39 @@ class DataService:
             except Exception as e:
                 logger.warning(f"MongoDB failed for ten_year_treasury: {e}. Falling back to CSV.")
         
-        # Fallback to CSV
-        return self.get_economic_data(
-            filename="GS10.csv",
-            date_column="Date",
-            value_column="GS10",
-            limit=limit,
-            start_date=start_date,
-            end_date=end_date,
-            description="10-Year Treasury Constant Maturity Rate",
-            unit="percent",
-            frequency="daily",
-            source="Board of Governors of the Federal Reserve System (US)",
-            fred_series="DGS10"
+        # The GS10.csv fallback is monthly and must not be presented as daily DGS10.
+        # Use the checked-in daily Treasury curve export and its 10-year maturity.
+        df = load_csv_data("merged-treasury-rates-2000-2025.csv", "Date", sort_by_date=False)
+        df["parsed_date"] = pd.to_datetime(df["Date"], format="%m/%d/%Y", errors="coerce")
+        df = df.dropna(subset=["parsed_date", "10 Yr"]).sort_values("parsed_date")
+        if start_date:
+            df = df[df["parsed_date"] >= pd.Timestamp(start_date)]
+        if end_date:
+            df = df[df["parsed_date"] <= pd.Timestamp(end_date)]
+        df = apply_limit(df, limit)
+
+        result = []
+        values = []
+        for _, row in df.iterrows():
+            value = safe_float(row["10 Yr"])
+            if value is None:
+                continue
+            date_str = row["parsed_date"].strftime("%Y-%m-%d")
+            values.append(value)
+            result.append(EconomicDataPoint(time=safe_timestamp(date_str), date=date_str, rate=value, value=value))
+
+        return DataResponse(
+            data=result,
+            metadata=DataMetadata(
+                latest_value=values[-1] if values else None,
+                latest_date=result[-1].date if result else None,
+                total_records=len(result),
+                description="10-Year Treasury Constant Maturity Rate",
+                unit="percent",
+                frequency="daily",
+                source="U.S. Department of the Treasury daily yield curve",
+                fred_series="DGS10",
+            ),
         )
 
     def get_sofr_data(

@@ -107,7 +107,7 @@ def calculate_pair_features(ten_year: pd.DataFrame, fed_funds: pd.DataFrame, as_
     if current is None:
         return {"spread_to_fed_funds_bp": None, "spread_delta_90d_bp": None, "spread_common_date": None, "spread_prior_common_date": None}, {"spread_to_fed_funds_bp": "no_common_date", "spread_delta_90d_bp": "no_common_date"}
     current_spread = (float(current.ten_year) - float(current.fed_funds)) * 100
-    prior = _lookup(common, as_of_date - timedelta(days=90))
+    prior = _lookup(common, current.observation_date - timedelta(days=90))
     result = {"spread_to_fed_funds_bp": current_spread, "spread_common_date": current.observation_date.isoformat(), "spread_prior_common_date": None, "spread_delta_90d_bp": None}
     reasons = {}
     if prior is None:
