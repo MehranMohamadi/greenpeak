@@ -28,7 +28,6 @@ export default function TopNav() {
     "/analytics/sentiment": "Sentiment",
     "/analytics/macro-calendar": "Macro Calendar & News",
     "/analytics/institutional": "Institutional",
-    "/analytics/analysis-pipeline": "Analysis Pipeline",
     "/analytics/feature-pipeline-debug": "Feature Pipeline JSON",
     "/settings": "Settings",
     "/help": "Help",

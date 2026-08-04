@@ -19,9 +19,6 @@ export const endpoints = {
         updateData: `${API_BASE}/system/update-data`,
         updateSchedule: `${API_BASE}/system/update-schedule`,
     },
-    analysis: {
-        prepare: `${API_BASE}/analysis/prepare`,
-    },
     indicatorFeatures: {
         latest: (indicatorId, debug = false) => `${API_BASE}/indicators/${indicatorId}/features/latest${debug ? "?mode=debug" : ""}`,
         pipelineDebug: (indicatorId) => `${API_BASE}/indicators/${indicatorId}/features/pipeline-debug`,
