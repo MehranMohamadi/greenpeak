@@ -28,6 +28,124 @@ The product groups analytics into monetary policy, corporate earnings, sector pe
 - `nginx.conf` and `nginx-complete.conf`: reverse-proxy configuration for the frontend on port 3000 and the backend on port 8000.
 - `sp500-dashboard.service`: optional systemd unit that invokes Docker Compose under the dedicated `sp500user` account.
 
+## Rate feature pipeline architecture
+
+GreenPeak Technical Step 1 implements a deterministic, versioned feature pipeline for exactly two rate indicators:
+
+- `us_10y_treasury_yield`: primary raw indicator `ten_year_treasury`, FRED series `DGS10`, daily percent values.
+- `federal_funds_rate`: primary raw indicator `federal_funds_rate`, FRED series `DFF`, daily percent values. Do not silently replace it with monthly `FEDFUNDS`.
+
+The production-oriented flow is:
+
+```text
+MongoDB monetary_policy raw observations
+  -> canonical Python adapter
+  -> validation, sorting, and de-duplication
+  -> deterministic Python rate features
+  -> Pydantic-validated versioned snapshot
+  -> gp_indicator_feature_snapshots
+  -> FastAPI latest-snapshot endpoint
+  -> Next.js monetary-policy analysis card
+```
+
+The browser must not calculate z-scores, percentiles, slopes, volatility, historical deltas, or cross-series spreads. Python in `backend2/src/services/rate_features/` is the sole source of truth for financial feature formulas. No LLM or ML model is part of this pipeline.
+
+### Rate feature files
+
+- `backend2/src/services/rate_features/config.py`: indicator definitions, series IDs, semantic text, versions, windows, minimum counts, stale thresholds, and the experimental direction threshold.
+- `backend2/src/services/rate_features/cleaning.py`: raw-document adapter and canonical observation cleaning.
+- `backend2/src/services/rate_features/engine.py`: single-series rate features, DFF last-change features, and DGS10/DFF common-date spread features.
+- `backend2/src/services/rate_features/builder.py`: quality evaluation, provenance, deterministic Persian context, and final snapshot construction.
+- `backend2/src/services/rate_features/schemas.py`: Pydantic snapshot and feature-run contracts.
+- `backend2/src/services/rate_features/repository.py`: read-only raw access plus definitions, snapshots, run records, and indexes.
+- `backend2/src/services/rate_features/job.py`: batch orchestration and pair-feature coordination.
+- `backend2/src/services/rate_features/cli.py`: dry-run and MongoDB-write command entry point.
+- `backend2/src/api/v1/endpoints/features.py`: latest snapshot, raw pipeline inspection, and API-backed preview endpoints.
+- `backend2/tests/test_rate_features.py`: unit and offline vertical-slice tests.
+- `front2/components/analytics/rate-feature-card.jsx`: stored feature card shown for the two rate charts.
+- `front2/components/analytics/feature-pipeline-debug.jsx`: public stage-by-stage JSON viewer.
+- `front2/app/analytics/feature-pipeline-debug/page.jsx`: route `/analytics/feature-pipeline-debug`.
+- `front2/app/settings/page.jsx`: contains the navigation button to the pipeline JSON viewer.
+
+The earlier generic `/analytics/analysis-pipeline`, `/api/v1/analysis/prepare`, and `backend2/src/services/analysis/` architecture was removed. Do not restore or build new work on that deleted path unless the user explicitly requests a separate generic pipeline.
+
+### Raw and canonical contracts
+
+The primary MongoDB raw collection is `monetary_policy`. Existing ETL documents use:
+
+```text
+date, indicator, value, fred_series_id, updated_at, metadata
+```
+
+The adapter maps them into:
+
+```text
+indicator_id, observation_date, value_pct, source_provider,
+source_series_id, ingested_at, raw_document_id, is_valid, validation_flags
+```
+
+Raw records are immutable input. Feature code must never update, delete, interpolate, or add analytical fields to raw documents. Invalid values remain represented through flags; duplicate dates select the latest valid ingestion record and create a quality flag.
+
+MongoDB is the primary source. When it is unavailable, the existing monetary API can serve checked-in files. DFF falls back to daily `DFF.csv`. The 10-year display/preview fallback uses the daily `10 Yr` column in `merged-treasury-rates-2000-2025.csv`; it is a U.S. Treasury daily curve export, not the monthly `GS10.csv`. Do not present monthly `GS10.csv` as daily DGS10 or use the fallback to write production feature snapshots.
+
+### Feature calculation rules
+
+- Rate levels remain in percent. Rate-level changes are expressed in basis points; one percentage point equals 100 bp.
+- Required shared outputs include current value; 7/30/90/180/365-day deltas; 30/90/365-day means; distance to the annual mean; annual z-score; five-year empirical mid-rank percentile; 90-day calendar-day OLS slope; and 90-day consecutive-change volatility.
+- Historical lookups select the latest valid observation on or before the target calendar date. Do not forward-fill raw data.
+- Feature windows are anchored to the latest valid observation date, so stale data still produces meaningful historical features. `freshness_days` and `quality.status` are evaluated against the requested `as_of_date`; stale data must remain visibly stale.
+- Missing history produces `null` plus a `feature_reasons` code. Never convert missing values to zero.
+- `direction_90d` is experimental and uses the configurable basis-point threshold in `config.py`; it is not investment advice.
+- DGS10/DFF spread calculations use the latest valid common date. The 90-day spread comparison is anchored to that common date.
+- Keep full floating-point precision internally. Display rounding belongs in serializers or UI formatting.
+- Formula or threshold changes require an intentional `feature_version` update. Source/frequency/meaning changes require a `definition_version` update. Breaking JSON changes require a `schema_version` update.
+
+### Storage and idempotency
+
+Analytical output is separate from raw data:
+
+- `gp_indicator_definitions`: versioned indicator definitions.
+- `gp_indicator_feature_snapshots`: validated feature snapshots.
+- `gp_feature_runs`: batch execution records.
+
+Snapshot identity is `(indicator_id, as_of_date, feature_version, definition_version)`. Repeated identical work returns `already_exists`; changed code/config under the same identity returns `version_conflict`. Increment the relevant version rather than overwriting incompatible results.
+
+Run the job from `backend2/`:
+
+```powershell
+$env:DEBUG = "false"
+.\.venv\Scripts\python.exe -m src.services.rate_features.cli build `
+  --indicators us_10y_treasury_yield,federal_funds_rate `
+  --as-of latest --dry-run --output-json .\artifacts\feature_preview.json
+
+.\.venv\Scripts\python.exe -m src.services.rate_features.cli build `
+  --indicators us_10y_treasury_yield,federal_funds_rate `
+  --as-of latest --write-mongo
+```
+
+CLI exit codes are `0` for success, `2` for partial output, and `1` for failure. Never print connection strings or credentials in run errors.
+
+### Feature API and UI contracts
+
+FastAPI endpoints under `/api/v1` are:
+
+```text
+GET  /indicators/{indicator_id}/features/latest
+GET  /indicators/{indicator_id}/features/pipeline-debug
+POST /indicators/features/pipeline-preview
+```
+
+`latest` reads stored snapshots. `pipeline-debug` inspects Mongo-backed intermediate stages. `pipeline-preview` accepts observations already returned by the existing monetary endpoints and runs the same Python adapter/builder without persisting them. The public frontend viewer uses `pipeline-preview` so it still works when local MongoDB is unavailable. Both inspection endpoints are intentionally public in production per product-owner decision; keep raw samples sanitized and never include secrets, arbitrary collections, stack traces, or MongoDB connection details.
+
+The public viewer is `/analytics/feature-pipeline-debug` and shows sampled JSON for:
+
+```text
+raw_input -> canonical_adapter -> cleaned_series
+-> calculated_features -> validated_snapshot
+```
+
+Use only whitelisted indicator IDs and require exact series matches (`DGS10` or `DFF`). The frontend may select, fetch, format, and display stages, but calculations must remain in Python.
+
 ## Setup and local development
 
 Run frontend commands from `front2/`, not from the repository root:
