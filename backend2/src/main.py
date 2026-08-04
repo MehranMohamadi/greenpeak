@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .core.config import get_settings
-from .api.v1.endpoints import market_router, monetary_router, economic_router, system_router, systemrisk_router, liquidity_router, macroeco_router, corporate_router, valuation_router, sectors_router
+from .api.v1.endpoints import analysis_router, features_router, market_router, monetary_router, economic_router, system_router, systemrisk_router, liquidity_router, macroeco_router, corporate_router, valuation_router, sectors_router
 
 
 def create_app() -> FastAPI:
@@ -54,6 +54,8 @@ def create_app() -> FastAPI:
     app.include_router(corporate_router, prefix="/api/v1")
     app.include_router(valuation_router, prefix="/api/v1")
     app.include_router(sectors_router, prefix="/api/v1")
+    app.include_router(analysis_router, prefix="/api/v1")
+    app.include_router(features_router, prefix="/api/v1")
 
     return app
 

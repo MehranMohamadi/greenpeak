@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import MultiLineChart from "../charts/multi-line-chart"
 import MiniChart from "./mini-chart"
 import FullScreenChart from './fullscreen-chart'
+import RateFeatureCard from "./rate-feature-card"
 import { DollarSign, TrendingUp, TrendingDown, Activity, Target, ExternalLink, Info, Maximize2, Minimize2, ChevronLeft, ChevronRight, Grid3X3, Zap, Brain } from "lucide-react"
 import CategoryGrid from "../analytics/category-grid"
 import MainLoading from '@/components/ui/MainLoading'
@@ -28,7 +29,6 @@ import {
 } from "../../hooks/monetaryDataUtils"
 import useUpdateInfo from "../../hooks/useUpdateInfo"
 import { analyticsCategories } from "../../lib/analytics-utils"
-import '../../styles/analytics-animations.css'
 
 export default function MonetaryPolicy() {
   const router = useRouter()
@@ -37,8 +37,6 @@ export default function MonetaryPolicy() {
   const [isFullScreen, setIsFullScreen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('Monetary Policy')
   const [showCategoryGrid, setShowCategoryGrid] = useState(false)
-  const [isTransitioning, setIsTransitioning] = useState(false)
-  const [prevPeriod, setPrevPeriod] = useState('MAX')
 
   // Use imported categories from utils
   const categories = analyticsCategories
@@ -201,34 +199,10 @@ export default function MonetaryPolicy() {
     setSelectedFactor(factor.id)
   }
 
-  // Smooth transition handler for period changes
   const handlePeriodChange = (newPeriod) => {
     if (newPeriod === selectedPeriod) return
-    
-    setIsTransitioning(true)
-    setPrevPeriod(selectedPeriod)
-    
-    // Faster, more seamless transition
-    setTimeout(() => {
-      setSelectedPeriod(newPeriod)
-      setTimeout(() => {
-        setIsTransitioning(false)
-      }, 200) // Reduced from 400ms for faster response
-    }, 50) // Reduced from 100ms for immediate response
+    setSelectedPeriod(newPeriod)
   }
-
-  // Effect to handle smooth data transitions
-  React.useEffect(() => {
-    if (isTransitioning) {
-      // Add any additional logic needed during transitions
-      const timer = setTimeout(() => {
-        // Ensure transition state is cleared even if something goes wrong
-        setIsTransitioning(false)
-      }, 1000) // Fallback timeout
-      
-      return () => clearTimeout(timer)
-    }
-  }, [isTransitioning])
 
   // Get selected factor data
   const getSelectedFactor = () => {
@@ -310,7 +284,7 @@ export default function MonetaryPolicy() {
           frequency: "Daily",
           availability: "1962 to Present", 
           methodology: "Yields are interpolated by the U.S. Treasury from the daily yield curve based on closing market bid yields on actively traded Treasury securities.",
-          url: "https://fred.stlouisfed.org/series/GS10",
+          url: "https://fred.stlouisfed.org/series/DGS10",
           lastUpdated: "Updated daily"
         }
       case "fed-balance-sheet":
@@ -398,7 +372,7 @@ export default function MonetaryPolicy() {
   }
 
   return (
-    <div className="p-6 space-y-6 fade-in bg-white dark:bg-[#0F0F12]">
+    <div className="p-6 space-y-6 bg-white dark:bg-[#0F0F12]">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
@@ -462,10 +436,10 @@ export default function MonetaryPolicy() {
       {/* Top Section: Score + Main Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 mb-8">
         {/* Left: Score & Analysis (2/7 width) */}
-        <Card className="lg:col-span-2 slide-in-left stagger-1 hover:shadow-lg transition-all duration-200 cursor-pointer group border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23] card-glow">
+        <Card className="lg:col-span-2 cursor-pointer border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23]">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 group-hover:text-blue-600 transition-all duration-200 text-base font-semibold">
-              <div className="p-1.5 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg shadow-md group-hover:scale-105 transition-transform duration-200">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+              <div className="p-1.5 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg shadow-md">
                 <Target className="h-4 w-4 text-white" />
               </div>
               Policy Stance
@@ -473,12 +447,12 @@ export default function MonetaryPolicy() {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Enhanced Score Display */}
-            <div className="text-center group-hover:scale-105 transition-transform duration-300 p-3 bg-gray-50 dark:bg-[#0F0F12] rounded-xl border border-gray-200 dark:border-[#2B2B30]">
-              <div className={`text-4xl font-black ${getScoreColor(parseFloat(overallScore))} drop-shadow-lg mb-2 tracking-tight`}>
+            <div className="text-center p-3 bg-gray-50 dark:bg-[#0F0F12] rounded-xl border border-gray-200 dark:border-[#2B2B30]">
+                  <div className={`text-4xl font-black ${getScoreColor(parseFloat(overallScore))} mb-2 tracking-tight`}>
                 {overallScore}
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">out of 10</div>
-              <Badge className={`mt-1 px-3 py-1 text-xs font-semibold ${getScoreBadge(parseFloat(overallScore)).color} group-hover:shadow-md transition-all duration-300 hover:scale-105`}>
+              <Badge className={`mt-1 px-3 py-1 text-xs font-semibold ${getScoreBadge(parseFloat(overallScore)).color}`}>
                 {getScoreBadge(parseFloat(overallScore)).label}
               </Badge>
             </div>
@@ -487,15 +461,15 @@ export default function MonetaryPolicy() {
             <div className="space-y-2">
               <h4 className="font-semibold text-gray-900 dark:text-white text-xs">Key Insights</h4>
               <div className="space-y-1 text-xs">
-                <div className="flex items-start gap-2 hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
+                <div className="flex items-start gap-2 p-1.5 rounded-lg">
                   <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>
                   <span className="leading-tight">Fed funds rate restrictive</span>
                 </div>
-                <div className="flex items-start gap-2 hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
+                <div className="flex items-start gap-2 p-1.5 rounded-lg">
                   <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mt-1.5 flex-shrink-0"></div>
                   <span className="leading-tight">Balance sheet normalization</span>
                 </div>
-                <div className="flex items-start gap-2 hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
+                <div className="flex items-start gap-2 p-1.5 rounded-lg">
                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full mt-1.5 flex-shrink-0"></div>
                   <span className="leading-tight">Real rates positive</span>
                 </div>
@@ -506,17 +480,17 @@ export default function MonetaryPolicy() {
             <div className="space-y-2">
               <h4 className="font-semibold text-gray-900 dark:text-white text-xs">Policy Outlook</h4>
               <div className="space-y-1 text-xs">
-                <div className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
+                <div className="flex items-center justify-between p-1.5 rounded-lg">
                   <span>Rate Cuts</span>
-                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs hover:shadow-md transition-all duration-200 hover:scale-105">Yes</Badge>
+                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs">Yes</Badge>
                 </div>
-                <div className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
+                <div className="flex items-center justify-between p-1.5 rounded-lg">
                   <span>QT Continue</span>
-                  <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 text-xs hover:shadow-md transition-all duration-200 hover:scale-105">Likely</Badge>
+                  <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 text-xs">Likely</Badge>
                 </div>
-                <div className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
+                <div className="flex items-center justify-between p-1.5 rounded-lg">
                   <span>Policy Risk</span>
-                  <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs hover:shadow-md transition-all duration-200 hover:scale-105">Medium</Badge>
+                  <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs">Medium</Badge>
                 </div>
               </div>
             </div>
@@ -524,7 +498,7 @@ export default function MonetaryPolicy() {
         </Card>
 
         {/* Right: Main Chart (5/7 width) */}
-        <Card className="lg:col-span-5 slide-in-right stagger-2 hover:shadow-lg transition-all duration-200 border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23] card-glow">
+        <Card className="lg:col-span-5 border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23]">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between text-lg font-semibold">
               <div className="flex items-center gap-3">
@@ -544,7 +518,7 @@ export default function MonetaryPolicy() {
                     variant="outline"
                     size="sm"
                     onClick={() => setIsFullScreen(true)}
-                    className="h-8 w-8 p-0 ml-2 hover:bg-blue-50 dark:hover:bg-blue-900 hover:scale-105 transition-all duration-200 hover:shadow-md"
+                    className="h-8 w-8 p-0 ml-2"
                     title="Full Screen"
                   >
                     <Maximize2 className="h-4 w-4" />
@@ -558,10 +532,9 @@ export default function MonetaryPolicy() {
                     variant={selectedPeriod === period ? "default" : "outline"}
                     size="sm"
                     onClick={() => handlePeriodChange(period)}
-                    className={`timeframe-button transition-all  text-xs duration-200 hover:scale-105 hover:shadow-md ${
+                    className={`timeframe-button text-xs ${
                       selectedPeriod === period ? 'bg-blue-600 text-white shadow-lg' : ''
-                    } ${isTransitioning ? 'pointer-events-none opacity-70' : ''}`}
-                    disabled={isTransitioning}
+                    }`}
                   >
                     {period}
                   </Button>
@@ -583,11 +556,9 @@ export default function MonetaryPolicy() {
             )}
           </CardHeader>
           <CardContent className="pt-0">
-            <div className={`h-80 w-full main-chart-container ${isTransitioning ? 'chart-updating' : ''}`}>
+            <div className="h-80 w-full main-chart-container">
               {selectedFactorData && selectedFactorData.length > 0 && selectedFactorData[0].length > 0 ? (
-                <div className="chart-fade-in">
-                  <MultiLineChart dataSets={selectedFactorData} isTransitioning={isTransitioning} />
-                </div>
+                <MultiLineChart dataSets={selectedFactorData} isTransitioning={false} />
               ) : (
                 <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
                   {loading ? (
@@ -657,8 +628,10 @@ export default function MonetaryPolicy() {
         </Card>
       </div>
 
+      <RateFeatureCard factorId={selectedFactorObject?.id} />
+
       {/* Bottom Section: Factor Grid */}
-      <div className="slide-in-up">
+      <div>
         <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Monetary Policy Factors</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {monetaryFactors.map((factor, index) => {
@@ -666,9 +639,9 @@ export default function MonetaryPolicy() {
             return (
               <Card
                 key={factor.id}
-                className={`cursor-pointer factor-card transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:-translate-y-1 ${
-                  selectedFactor === factor.id ? 'ring-2 ring-blue-500 shadow-lg scale-[1.02] bg-blue-50 dark:bg-blue-950/30 selected' : ''
-                } slide-in-up stagger-${(index % 6) + 1} border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23] group card-glow h-full flex flex-col`}
+                className={`cursor-pointer factor-card ${
+                  selectedFactor === factor.id ? 'ring-2 ring-blue-500 shadow-lg bg-blue-50 dark:bg-blue-950/30 selected' : ''
+                } border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23] h-full flex flex-col`}
                 onClick={() => handleFactorClick(factor)}
               >
                 <CardHeader className="pb-3">
@@ -749,11 +722,11 @@ export default function MonetaryPolicy() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-2">
-                    <span className={`text-2xl font-bold text-gray-900 dark:text-white value-transition`}>
+                    <span className="text-2xl font-bold text-gray-900 dark:text-white">
                       {factor.currentValue}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className={`text-base font-medium ${getTrendColor(factor.trend)} value-transition`}>
+                      <span className={`text-base font-medium ${getTrendColor(factor.trend)}`}>
                         {factor.change}
                       </span>
                       <Badge className="text-sm bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-2 py-1">
@@ -763,16 +736,14 @@ export default function MonetaryPolicy() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0 flex-1 flex flex-col">
-                  <div className={`h-20 mb-4 p-2 bg-transparent rounded-lg mini-chart-container transition-all duration-200 ${
-                    isTransitioning ? 'opacity-95' : ''
-                  }`}>
+                  <div className="h-20 mb-4 p-2 bg-transparent rounded-lg mini-chart-container">
                     <MiniChart 
                       data={factor.data} 
                       trend={factor.trend} 
-                      isTransitioning={isTransitioning}
+                      isTransitioning={false}
                     />
                   </div>
-                  <div className="text-base text-gray-600 dark:text-gray-400 line-clamp-3 mb-3 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors duration-300 leading-relaxed flex-1">
+                  <div className="text-base text-gray-600 dark:text-gray-400 line-clamp-3 mb-3 leading-relaxed flex-1">
                     {factor.description}
                   </div>
                   
@@ -780,12 +751,12 @@ export default function MonetaryPolicy() {
                   
                   <div className="flex items-center justify-between text-sm text-gray-500 mt-auto pt-2">
                     <div className="flex items-center gap-1">
-                      <Badge className={`text-sm transition-all duration-300 hover:scale-105 ${factor.impact === 'High' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 hover:bg-red-200' : factor.impact === 'Medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 hover:bg-yellow-200' : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-200'} px-2 py-1`}>
+                      <Badge className={`text-sm ${factor.impact === 'High' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : factor.impact === 'Medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'} px-2 py-1`}>
                         {factor.impact}
                       </Badge>
                       <span>Impact</span>
                     </div>
-                    <span className="truncate text-sm group-hover:text-gray-600 dark:group-hover:text-gray-400 transition-colors duration-300">{factor.source}</span>
+                    <span className="truncate text-sm">{factor.source}</span>
                   </div>
                 </CardContent>
               </Card>

@@ -302,3 +302,47 @@ ENVIRONMENT="development"
 4. **Add Websockets**: Real-time data streaming
 5. **Add Database**: PostgreSQL for persistent storage
 6. **Add Monitoring**: Prometheus/Grafana integration
+
+## GreenPeak Technical Step 1 Preflight
+
+- **Repository:** the Python/FastAPI application lives in `backend2`; the Next.js App Router frontend and JavaScript hooks live in `front2`.
+- **Raw ingestion:** `src/ETL/monetary_policy_fetcher.py` writes observations to `monetary_policy` with `date`, `indicator`, `value`, `fred_series_id`, `updated_at`, and nested `metadata`.
+- **Selected series:** production ingestion and consumers use daily `DGS10` (`ten_year_treasury`) and daily `DFF` (`federal_funds_rate`). Step 1 preserves them.
+- **Database:** settings default to `sp500_dashboard`, overridden by root `.env`. MongoDB was unavailable during the 2026-08-04 preflight, so live counts and null/duplicate prevalence could not be verified. No credentials were printed.
+- **Existing API/UI:** FastAPI serves `/api/v1/monetary/10year` and `/api/v1/monetary/dff`; the matching frontend hooks feed the shared monetary-policy chart page.
+- **Adapter:** `date -> observation_date`, `value -> value_pct`, `metadata.source -> source_provider`, `fred_series_id -> source_series_id`, `updated_at -> ingested_at`, and `_id -> raw_document_id`. Invalid records retain flags; duplicate dates select the latest valid ingestion.
+- **Execution/secrets:** dependencies are pinned in `requirements.txt`; configuration and secrets come from root `.env`. Feature calculation is an explicit Python batch job, never a browser request calculation.
+
+### Deviations from Specification
+
+- There is no separate JavaScript backend; the established backend is FastAPI, so latest-snapshot reads are implemented there and Next.js remains display-only.
+- The checked-in Treasury fallback is `GS10.csv`, while the active contract is daily `DGS10`. The feature job does not silently relabel or use that monthly fallback as DGS10.
+- The existing monetary-policy UI source link mentions `GS10`; Step 1 feature metadata uses the actual ingestion series `DGS10`.
+- Live inspection and real development snapshots require reachable MongoDB. Offline fixtures are never represented as market observations.
+- The requested `rtk` command was unavailable in this Windows environment; standard commands were used as fallback.
+
+## Rate Feature Job v0.1
+
+The job reads `monetary_policy` without updating it and writes only to:
+
+- `gp_indicator_definitions`
+- `gp_indicator_feature_snapshots`
+- `gp_feature_runs`
+
+Indexes are created repeatably by `--write-mongo`. Snapshot identity is `(indicator_id, as_of_date, feature_version, definition_version)`. A repeat returns `already_exists`; changed code/config under the same identity returns `version_conflict` and requires a version increment.
+
+```powershell
+cd backend2
+$env:DEBUG = "false"
+.\.venv\Scripts\python.exe -m src.services.rate_features.cli build `
+  --indicators us_10y_treasury_yield,federal_funds_rate `
+  --as-of latest --dry-run --output-json .\artifacts\feature_preview.json
+
+.\.venv\Scripts\python.exe -m src.services.rate_features.cli build `
+  --indicators us_10y_treasury_yield,federal_funds_rate `
+  --as-of latest --write-mongo
+```
+
+Exit codes are `0` for success, `2` for partial output, and `1` for failure. Required environment variables are the existing `MONGODB_URL` and `MONGODB_DATABASE`; no FRED key is needed because the job reads stored raw observations. The latest stored result is available at `GET /api/v1/indicators/{indicator_id}/features/latest`; development debug mode adds `?mode=debug`.
+
+Missing history is serialized as `null` with a `feature_reasons` code. The percentile uses mid-rank ties. Population standard deviation (`ddof=0`) is used for z-score and consecutive-change volatility. Direction is experimental with a configurable 15 bp threshold. No LLM or ML service is called.
