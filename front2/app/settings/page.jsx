@@ -2,8 +2,10 @@ import Layout from "@/components/kokonutui/layout"
 import CustomizationPanel from "@/components/dashboard/customization-panel"
 import WatchlistManager from "@/components/dashboard/watchlist-manager"
 import DashboardThemes from "@/components/dashboard/dashboard-themes"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Settings, LayoutIcon, Star } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Settings, LayoutIcon, Star, Database } from "lucide-react"
 
 export default function SettingsPage() {
   return (
@@ -36,6 +38,21 @@ export default function SettingsPage() {
 
           {/* Theme Selection */}
           <DashboardThemes />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Feature Pipeline
+              </CardTitle>
+              <CardDescription>View raw rate data and each transformation stage as JSON</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild>
+                <Link href="/analytics/feature-pipeline-debug">Open Pipeline JSON</Link>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Watchlist Manager */}

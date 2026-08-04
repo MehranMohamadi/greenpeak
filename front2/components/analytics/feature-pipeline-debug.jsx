@@ -65,7 +65,7 @@ export default function FeaturePipelineDebug() {
             <h1 className="text-3xl font-bold">Rate Feature Pipeline JSON</h1>
             <p className="mt-2 text-muted-foreground">دادهٔ موجود پروژه وارد Python می‌شود و خروجی هر تبدیل را مرحله‌به‌مرحله می‌بینی؛ فرانت فقط نمایش می‌دهد.</p>
           </div>
-          <Badge variant="outline">development only</Badge>
+          <Badge variant="outline">live pipeline view</Badge>
         </div>
 
         <Card>

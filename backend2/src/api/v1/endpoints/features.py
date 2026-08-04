@@ -113,8 +113,6 @@ async def latest_indicator_features(indicator_id: str, mode: str | None = Query(
 async def indicator_feature_pipeline_debug(indicator_id: str, as_of: date | None = None):
     """Return sampled intermediate stages; available only outside production."""
     settings = get_settings()
-    if settings.environment == "production":
-        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Development endpoint is disabled."})
     if indicator_id not in DEFINITIONS:
         raise HTTPException(status_code=404, detail={"code": "INDICATOR_NOT_FOUND", "message": "Unknown feature indicator."})
 
@@ -138,8 +136,6 @@ async def indicator_feature_pipeline_debug(indicator_id: str, as_of: date | None
 async def indicator_feature_pipeline_preview(request: PipelinePreviewRequest, as_of: date | None = None):
     """Build development stages from existing API observations without persisting them."""
     settings = get_settings()
-    if settings.environment == "production":
-        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Development endpoint is disabled."})
     if request.indicator_id not in DEFINITIONS:
         raise HTTPException(status_code=404, detail={"code": "INDICATOR_NOT_FOUND", "message": "Unknown feature indicator."})
     definition = get_definition(request.indicator_id)
