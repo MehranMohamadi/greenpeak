@@ -89,11 +89,20 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
-          test -n "$DEPLOY_HOST"
-          test -n "$DEPLOY_USER"
-          test -n "$DEPLOY_PORT"
-          test -n "$DEPLOY_SSH_KEY"
-          test -n "$DEPLOY_KNOWN_HOSTS"
+          missing=0
+          for secret_name in \
+            DEPLOY_HOST \
+            DEPLOY_USER \
+            DEPLOY_PORT \
+            DEPLOY_SSH_KEY \
+            DEPLOY_KNOWN_HOSTS
+          do
+            if [[ -z "${!secret_name:-}" ]]; then
+              echo "::error::Missing GitHub Actions secret: $secret_name"
+              missing=1
+            fi
+          done
+          exit "$missing"
 
       - name: Configure deployment SSH key
         env:
