@@ -135,7 +135,7 @@ GET  /indicators/{indicator_id}/features/pipeline-debug
 POST /indicators/features/pipeline-preview
 ```
 
-`latest` reads stored snapshots. `pipeline-debug` inspects Mongo-backed intermediate stages. `pipeline-preview` accepts observations already returned by the existing monetary endpoints and runs the same Python adapter/builder without persisting them. The public frontend viewer uses `pipeline-preview` so it still works when local MongoDB is unavailable. Both inspection endpoints are intentionally public in production per product-owner decision; keep raw samples sanitized and never include secrets, arbitrary collections, stack traces, or MongoDB connection details.
+`latest` reads stored snapshots. `pipeline-debug` inspects Mongo-backed intermediate stages. `pipeline-preview` accepts observations already returned by the existing monetary endpoints and runs the same Python adapter/builder without persisting them. The public frontend viewer uses `pipeline-preview` so it still works when local MongoDB is unavailable. The monetary-policy rate card tries `latest` first and automatically falls back to `pipeline-preview` on any unavailable/missing stored snapshot; do not show users an instruction to start MongoDB when the API-backed preview can succeed. Both inspection endpoints are intentionally public in production per product-owner decision; keep raw samples sanitized and never include secrets, arbitrary collections, stack traces, or MongoDB connection details.
 
 The public viewer is `/analytics/feature-pipeline-debug` and shows sampled JSON for:
 
