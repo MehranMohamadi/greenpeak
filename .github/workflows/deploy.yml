@@ -17,19 +17,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  package:
-    name: Package release artifacts
+  deploy:
+    name: Package and deploy release
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
       - name: Checkout validated revision
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
@@ -65,7 +66,7 @@ jobs:
             backend2/src
 
       - name: Upload frontend artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: greenpeak-frontend-${{ github.event.workflow_run.head_sha }}
           path: greenpeak-frontend-${{ github.event.workflow_run.head_sha }}.tar.gz
@@ -73,9 +74,106 @@ jobs:
           retention-days: 14
 
       - name: Upload backend artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: greenpeak-backend-${{ github.event.workflow_run.head_sha }}
           path: greenpeak-backend-${{ github.event.workflow_run.head_sha }}.tar.gz
           if-no-files-found: error
           retention-days: 14
+
+      - name: Validate deployment secrets
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_USER"
+          test -n "$DEPLOY_PORT"
+          test -n "$DEPLOY_SSH_KEY"
+          test -n "$DEPLOY_KNOWN_HOSTS"
+
+      - name: Configure deployment SSH key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/greenpeak_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/greenpeak_deploy ~/.ssh/known_hosts
+
+      - name: Upload release to production
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+          RELEASE_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          remote_dir="/tmp/greenpeak-deploy-${RELEASE_RUN}"
+          ssh_options=(
+            -i ~/.ssh/greenpeak_deploy
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+            -p "$DEPLOY_PORT"
+          )
+          scp_options=(
+            -i ~/.ssh/greenpeak_deploy
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+            -P "$DEPLOY_PORT"
+          )
+          ssh "${ssh_options[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "install -d -m 700 '$remote_dir'"
+          scp "${scp_options[@]}" \
+            "greenpeak-frontend-${RELEASE_SHA}.tar.gz" \
+            "greenpeak-backend-${RELEASE_SHA}.tar.gz" \
+            deploy/deploy-production.sh \
+            "$DEPLOY_USER@$DEPLOY_HOST:$remote_dir/"
+
+      - name: Activate production release
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+          RELEASE_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          remote_dir="/tmp/greenpeak-deploy-${RELEASE_RUN}"
+          release_id="${RELEASE_SHA}-${RELEASE_RUN}"
+          ssh_options=(
+            -i ~/.ssh/greenpeak_deploy
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+            -p "$DEPLOY_PORT"
+          )
+          ssh "${ssh_options[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "bash '$remote_dir/deploy-production.sh' \
+              '$release_id' \
+              '$remote_dir/greenpeak-frontend-${RELEASE_SHA}.tar.gz' \
+              '$remote_dir/greenpeak-backend-${RELEASE_SHA}.tar.gz'"
+
+      - name: Remove temporary deployment files
+        if: always()
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          RELEASE_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          test -n "$DEPLOY_HOST" || exit 0
+          test -n "$DEPLOY_USER" || exit 0
+          test -n "$DEPLOY_PORT" || exit 0
+          ssh -i ~/.ssh/greenpeak_deploy \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -p "$DEPLOY_PORT" \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "rm -rf '/tmp/greenpeak-deploy-${RELEASE_RUN}'" || true
