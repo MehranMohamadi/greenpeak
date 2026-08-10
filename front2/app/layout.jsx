@@ -8,7 +8,7 @@ import { ClientShell } from "@/components/layout/client-shell";
 export const metadata = {
   title: "GreenPeak Dashboard",
   description: "A comprehensive S&P 500 analytics and trading dashboard",
-  generator: "Mohammad Shabani",
+  generator: "Mohamad Shabani",
   icons: {
     icon: "/favico.svg",
   },
