@@ -10,7 +10,7 @@ data_service = DataService()
 
 
 @router.get("/dff", response_model=DataResponse)
-async def get_dff_data(
+def get_dff_data(
     limit: Optional[int] = Query(None, description="Limit number of records"),
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
@@ -27,7 +27,7 @@ async def get_dff_data(
 
 
 @router.get("/10year", response_model=DataResponse)
-async def get_10year_data(
+def get_10year_data(
     limit: Optional[int] = Query(None, description="Limit number of records"),
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),

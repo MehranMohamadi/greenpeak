@@ -87,7 +87,7 @@ def _build_pipeline_stages(indicator_id: str, definition: dict, raw_documents: l
 
 
 @router.get("/{indicator_id}/features/latest")
-async def latest_indicator_features(indicator_id: str, mode: str | None = Query(None, pattern="^(debug)?$")):
+def latest_indicator_features(indicator_id: str, mode: str | None = Query(None, pattern="^(debug)?$")):
     if indicator_id not in DEFINITIONS:
         raise HTTPException(status_code=404, detail={"code": "INDICATOR_NOT_FOUND", "message": "Unknown feature indicator."})
     settings = get_settings()
@@ -110,7 +110,7 @@ async def latest_indicator_features(indicator_id: str, mode: str | None = Query(
 
 
 @router.get("/{indicator_id}/features/pipeline-debug")
-async def indicator_feature_pipeline_debug(indicator_id: str, as_of: date | None = None):
+def indicator_feature_pipeline_debug(indicator_id: str, as_of: date | None = None):
     """Return sampled intermediate stages; available only outside production."""
     settings = get_settings()
     if indicator_id not in DEFINITIONS:
@@ -133,7 +133,7 @@ async def indicator_feature_pipeline_debug(indicator_id: str, as_of: date | None
 
 
 @router.post("/features/pipeline-preview")
-async def indicator_feature_pipeline_preview(request: PipelinePreviewRequest, as_of: date | None = None):
+def indicator_feature_pipeline_preview(request: PipelinePreviewRequest, as_of: date | None = None):
     """Build development stages from existing API observations without persisting them."""
     settings = get_settings()
     if request.indicator_id not in DEFINITIONS:
