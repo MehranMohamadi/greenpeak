@@ -52,3 +52,7 @@ jspm_packages/
 # FastAPI specific
 *.db
 instance/
+
+# Local MongoDB runtime used for development only
+/tools/mongodb*/
+/tools/mongodb*.zip
