@@ -52,3 +52,8 @@ class MongoFeatureRepository:
         return self.db.gp_indicator_feature_snapshots.find_one(
             {"indicator_id": indicator_id}, sort=[("as_of_date", DESCENDING), ("calculated_at", DESCENDING)], projection={"_id": False}
         )
+
+    def snapshot_for_as_of(self, indicator_id: str, as_of_date: date) -> dict[str, Any] | None:
+        return self.db.gp_indicator_feature_snapshots.find_one(
+            {"indicator_id": indicator_id, "as_of_date": as_of_date.isoformat()}, sort=[("calculated_at", DESCENDING)], projection={"_id": False}
+        )

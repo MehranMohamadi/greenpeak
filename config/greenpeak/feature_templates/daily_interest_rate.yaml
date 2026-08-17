@@ -1,0 +1,19 @@
+template_id: daily_interest_rate
+feature_config_version: "0.2.0"
+calendar_offsets_days: [7, 30, 90, 180, 365]
+zscore_window_days: 365
+percentile_window_days: 1826
+slope_window_days: 90
+volatility_window_days: 90
+trend_threshold_bp: 15.0
+stale_after_calendar_days: 7
+minimum_observation_counts:
+  mean_30d: 10
+  mean_90d: 30
+  mean_365d: 120
+  zscore_365d: 120
+  percentile_5y: 500
+  slope_90d: 30
+  volatility_90d: 30
+required_features: [current_value_pct, delta_30d_bp, delta_90d_bp]
+optional_features: [delta_180d_bp, delta_365d_bp, zscore_365d, percentile_5y, slope_90d_bp_per_30d, volatility_90d_bp]

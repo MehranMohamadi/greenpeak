@@ -1,0 +1,11 @@
+rule_set_id: monetary_liquidity_v0_1
+version: "0.1.0"
+enabled: true
+subject_id: monetary_liquidity
+rules:
+  - rule_id: example_dff_change
+    enabled: false
+    inputs: [{indicator_id: federal_funds_rate, feature: delta_90d_bp}]
+    condition: {operator: gt, value: 40}
+    score_effect: -0.4
+    rationale: "Example only; disabled until approved by GreenPeak."

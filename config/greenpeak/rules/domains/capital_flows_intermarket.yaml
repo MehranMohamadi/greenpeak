@@ -1,0 +1,11 @@
+rule_set_id: capital_flows_intermarket_v0_1
+version: "0.1.0"
+enabled: true
+subject_id: capital_flows_intermarket
+rules:
+  - rule_id: example_dgs10_change
+    enabled: false
+    inputs: [{indicator_id: us_10y_treasury_yield, feature: delta_90d_bp}]
+    condition: {operator: gt, value: 40}
+    score_effect: -0.4
+    rationale: "Example only; disabled until approved by GreenPeak."

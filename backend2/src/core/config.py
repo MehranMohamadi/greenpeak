@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     api_description: str = "FastAPI backend for S&P 500 financial data dashboard"
     api_version: str = "2.0.0"
     debug: bool = False
+    greenpeak_enable_pipeline_preview: bool = False
+    greenpeak_llm_provider: str = "disabled"
+    greenpeak_llm_model: str = ""
+    greenpeak_llm_api_key: str = ""
+    greenpeak_llm_base_url: str = "https://api.openai.com/v1"
 
     # Server Configuration
     host: str = "0.0.0.0"

@@ -1,0 +1,10 @@
+config_version: "0.2.0"
+domains:
+  - {id: monetary_liquidity, name_en: "Monetary Policy & Liquidity", name_fa: "سیاست پولی و نقدینگی", expected_indicator_count: 14}
+  - {id: growth_inflation_labor, name_en: "Growth, Inflation & Labor", name_fa: "رشد، تورم و بازار کار", expected_indicator_count: 7}
+  - {id: credit_financial_risk, name_en: "Credit & Financial Risk", name_fa: "اعتبار و ریسک مالی", expected_indicator_count: 6}
+  - {id: corporate_fundamentals, name_en: "Corporate Fundamentals", name_fa: "بنیادهای شرکتی", expected_indicator_count: 7}
+  - {id: valuation, name_en: "Valuation", name_fa: "ارزش‌گذاری", expected_indicator_count: 6}
+  - {id: market_internals_sectors, name_en: "Market Internals & Sectors", name_fa: "درون‌داد بازار و بخش‌ها", expected_indicator_count: 16}
+  - {id: positioning_sentiment_derivatives_volatility, name_en: "Positioning, Sentiment, Derivatives & Volatility", name_fa: "موقعیت‌گیری، احساسات، مشتقات و نوسان", expected_indicator_count: 10}
+  - {id: capital_flows_intermarket, name_en: "Capital Flows & Intermarket", name_fa: "جریان سرمایه و بین‌بازاری", expected_indicator_count: 13}

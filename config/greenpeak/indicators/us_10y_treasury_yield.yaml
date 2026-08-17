@@ -1,0 +1,21 @@
+indicator_id: us_10y_treasury_yield
+definition_version: "1.0"
+enabled: true
+display:
+  name_en: "10-Year Treasury Yield"
+  name_fa: "بازده اوراق خزانه ۱۰ ساله آمریکا"
+  unit: percent
+source: {provider: FRED, series_id: DGS10, frequency: daily}
+raw_indicator: ten_year_treasury
+classification:
+  primary_domain: capital_flows_intermarket
+  related_domains: [monetary_liquidity, credit_financial_risk]
+feature_template: daily_interest_rate
+feature_overrides: {}
+semantics:
+  category: rates_intermarket
+  what_is_fa: "نرخ بازده بازار اوراق خزانه آمریکا با سررسید ثابت ده‌ساله و یکی از نرخ‌های مرجع بلندمدت بازار است."
+  why_it_matters_fa: "در نرخ تنزیل، هزینه سرمایه، شرایط مالی و مقایسه جذابیت اوراق با دارایی‌های ریسکی نقش دارد."
+  relationship_to_sp500_fa: "رابطه آن با سهام ثابت و خطی نیست و باید همراه با رشد، تورم و ارزش‌گذاری تفسیر شود."
+  limitations_fa: ["جهت حرکت نرخ بدون توجه به علت حرکت برای نتیجه‌گیری کافی نیست."]
+llm: {enabled: true, include_in_domain_analysis: true}

@@ -22,6 +22,11 @@ from ....services.rate_features.schemas import IndicatorFeatureSnapshot
 router = APIRouter(prefix="/indicators", tags=["Indicator Features"])
 
 
+def _require_preview_enabled() -> None:
+    if not get_settings().greenpeak_enable_pipeline_preview:
+        raise HTTPException(status_code=404, detail={"code": "PIPELINE_PREVIEW_DISABLED", "message": "Pipeline preview is disabled in this environment."})
+
+
 class PipelinePreviewObservation(BaseModel):
     date: str
     value: Any
@@ -112,6 +117,7 @@ def latest_indicator_features(indicator_id: str, mode: str | None = Query(None, 
 @router.get("/{indicator_id}/features/pipeline-debug")
 def indicator_feature_pipeline_debug(indicator_id: str, as_of: date | None = None):
     """Return sampled intermediate stages; available only outside production."""
+    _require_preview_enabled()
     settings = get_settings()
     if indicator_id not in DEFINITIONS:
         raise HTTPException(status_code=404, detail={"code": "INDICATOR_NOT_FOUND", "message": "Unknown feature indicator."})
@@ -135,6 +141,7 @@ def indicator_feature_pipeline_debug(indicator_id: str, as_of: date | None = Non
 @router.post("/features/pipeline-preview")
 def indicator_feature_pipeline_preview(request: PipelinePreviewRequest, as_of: date | None = None):
     """Build development stages from existing API observations without persisting them."""
+    _require_preview_enabled()
     settings = get_settings()
     if request.indicator_id not in DEFINITIONS:
         raise HTTPException(status_code=404, detail={"code": "INDICATOR_NOT_FOUND", "message": "Unknown feature indicator."})

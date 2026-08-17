@@ -24,6 +24,12 @@ export const endpoints = {
         pipelineDebug: (indicatorId) => `${API_BASE}/indicators/${indicatorId}/features/pipeline-debug`,
         pipelinePreview: `${API_BASE}/indicators/features/pipeline-preview`,
     },
+    analysis: {
+        indicatorLatest: (indicatorId) => `${API_BASE}/indicators/${indicatorId}/analysis/latest`,
+        domainLatest: (domainId) => `${API_BASE}/domains/${domainId}/analysis/latest`,
+        marketLatest: `${API_BASE}/market/analysis/latest`,
+        ruleLatest: (level, subjectId) => `${API_BASE}/rules/${level}/${subjectId}/latest`,
+    },
     market: {
         sp500: `${API_BASE}/market/sp500`,
         sp500Performance: `${API_BASE}/market/sp500/performance`,

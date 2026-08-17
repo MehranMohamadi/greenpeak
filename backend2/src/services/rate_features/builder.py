@@ -9,7 +9,7 @@ from typing import Any
 import pandas as pd
 
 from .cleaning import clean_observations
-from .config import DEFINITION_VERSION, FEATURE_VERSION, SCHEMA_VERSION
+from .config import FEATURE_VERSION, SCHEMA_VERSION
 from .engine import calculate_fed_change, calculate_rate_features
 from .schemas import IndicatorFeatureSnapshot
 
@@ -59,13 +59,13 @@ def build_snapshot(definition: dict, raw_frame: pd.DataFrame, as_of_date: date, 
 
     snapshot = IndicatorFeatureSnapshot(
         indicator_id=definition["indicator_id"], schema_version=SCHEMA_VERSION, feature_version=FEATURE_VERSION,
-        definition_version=DEFINITION_VERSION, as_of_date=as_of_date, calculated_at=calculated_at or datetime.now(UTC), run_id=run_id,
+        definition_version=definition["definition_version"], as_of_date=as_of_date, calculated_at=calculated_at or datetime.now(UTC), run_id=run_id,
         source={"provider": definition["source"]["provider"], "series_id": definition["source"]["series_id"], "latest_observation_date": latest.observation_date},
         current={"value_pct": float(latest.value_pct)}, features=features, feature_reasons=reasons, derived_features=derived,
         state={"direction_90d": direction, "materiality_threshold_bp": definition["feature_config"]["trend_threshold_bp"], "state_is_experimental": True},
         quality={"status": status, "freshness_days": freshness, "missing_ratio_1y": missing_ratio, "observation_count_1y": len(valid_1y), "flags": list(dict.fromkeys(quality_flags))},
         semantics=definition["semantics"],
         llm_context={"language": "fa", "facts": facts, "summary_template_fa": summary, "guardrails_fa": ["بین همبستگی و علیت تفاوت بگذار.", "از یک شاخص به تنهایی توصیه سرمایه‌گذاری تولید نکن.", "هر ادعا را به facts موجود محدود کن.", "در صورت stale یا insufficient_history عدم قطعیت را ذکر کن."]},
-        provenance={"code_version": code_version, "python_version": platform.python_version(), "config_hash": config_hash(definition), "feature_anchor_date": feature_anchor_date.isoformat(), "input_min_date": clean.observation_date.iloc[0].isoformat(), "input_max_date": clean.observation_date.iloc[-1].isoformat(), "received_count": received_count},
+        provenance={"code_version": code_version, "python_version": platform.python_version(), "config_hash": config_hash(definition), "feature_config_version": definition["feature_config_version"], "feature_config_hash": definition["feature_config_hash"], "observation_anchor_date": feature_anchor_date.isoformat(), "feature_anchor_date": feature_anchor_date.isoformat(), "input_min_date": clean.observation_date.iloc[0].isoformat(), "input_max_date": clean.observation_date.iloc[-1].isoformat(), "received_count": received_count},
     )
     return snapshot, clean

@@ -1,0 +1,21 @@
+indicator_id: federal_funds_rate
+definition_version: "1.0"
+enabled: true
+display:
+  name_en: "Federal Funds Rate"
+  name_fa: "نرخ وجوه فدرال"
+  unit: percent
+source: {provider: FRED, series_id: DFF, frequency: daily}
+raw_indicator: federal_funds_rate
+classification:
+  primary_domain: monetary_liquidity
+  related_domains: []
+feature_template: daily_interest_rate
+feature_overrides: {}
+semantics:
+  category: monetary_policy
+  what_is_fa: "نرخ مؤثر معاملات ذخایر بانکی در بازار وجوه فدرال و نماینده موضع کوتاه‌مدت سیاست پولی است."
+  why_it_matters_fa: "بر نرخ‌های کوتاه‌مدت، هزینه تأمین مالی، نقدینگی و شرایط مالی اثر می‌گذارد."
+  relationship_to_sp500_fa: "اثر آن بر بازار به انتظارات، تورم، رشد و آنچه از قبل قیمت‌گذاری شده وابسته است."
+  limitations_fa: ["ثابت‌ماندن نرخ به معنی ثابت‌ماندن انتظارات سیاستی یا شرایط مالی نیست."]
+llm: {enabled: true, include_in_domain_analysis: true}

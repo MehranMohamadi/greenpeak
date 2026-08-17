@@ -10,6 +10,7 @@ import MultiLineChart from "../charts/multi-line-chart"
 import MiniChart from "./mini-chart"
 import FullScreenChart from './fullscreen-chart'
 import RateFeatureCard from "./rate-feature-card"
+import DomainUnderstandingPanel from "./domain-understanding-panel"
 import { DollarSign, TrendingUp, TrendingDown, Activity, Target, ExternalLink, Info, Maximize2, Minimize2, ChevronLeft, ChevronRight, Grid3X3, Zap, Brain } from "lucide-react"
 import CategoryGrid from "../analytics/category-grid"
 import MainLoading from '@/components/ui/MainLoading'
@@ -446,6 +447,7 @@ export default function MonetaryPolicy() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <DomainUnderstandingPanel domainId="monetary_liquidity" />
             {/* Enhanced Score Display */}
             <div className="text-center p-3 bg-gray-50 dark:bg-[#0F0F12] rounded-xl border border-gray-200 dark:border-[#2B2B30]">
                   <div className={`text-4xl font-black ${getScoreColor(parseFloat(overallScore))} mb-2 tracking-tight`}>

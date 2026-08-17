@@ -167,6 +167,8 @@ def test_latest_snapshot_endpoint(monkeypatch):
 
 
 def test_pipeline_debug_endpoint_returns_ordered_stages(monkeypatch):
+    from src.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "greenpeak_enable_pipeline_preview", True)
     documents = [
         {"_id": index, "date": f"2024-01-{index:02d}", "indicator": "federal_funds_rate", "value": 5.25,
          "fred_series_id": "DFF", "updated_at": datetime(2024, 1, index, tzinfo=UTC),
@@ -183,7 +185,9 @@ def test_pipeline_debug_endpoint_returns_ordered_stages(monkeypatch):
     assert data["stages"]["validated_snapshot"]["snapshot"]["source"]["series_id"] == "DFF"
 
 
-def test_pipeline_preview_accepts_existing_api_shape():
+def test_pipeline_preview_accepts_existing_api_shape(monkeypatch):
+    from src.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "greenpeak_enable_pipeline_preview", True)
     observations = [{"date": (date(2024, 1, 1) + timedelta(days=index)).isoformat(), "value": 5.25} for index in range(120)]
     response = TestClient(app).post(
         "/api/v1/indicators/features/pipeline-preview?as_of=2024-04-29",
@@ -200,3 +204,11 @@ def test_pipeline_preview_accepts_existing_api_shape():
         json={"indicator_id": "federal_funds_rate", "source_series_id": "FEDFUNDS", "observations": observations[:1]},
     )
     assert mismatch.status_code == 422
+
+
+def test_pipeline_preview_is_disabled_by_default(monkeypatch):
+    from src.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "greenpeak_enable_pipeline_preview", False)
+    response = TestClient(app).post("/api/v1/indicators/features/pipeline-preview", json={"indicator_id": "federal_funds_rate", "source_series_id": "DFF", "observations": [{"date": "2024-01-01", "value": 5.25}]})
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "PIPELINE_PREVIEW_DISABLED"

@@ -1,15 +1,15 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { AlertTriangle, Beaker, Database } from "lucide-react"
+import { AlertTriangle, Beaker, ChevronDown, Database } from "lucide-react"
 
 import { endpoints } from "@/api/api"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 const indicatorConfigs = {
-  "ten-year-treasury": { id: "us_10y_treasury_yield", series: "DGS10", rawUrl: endpoints.monetaryPolicy.tenYear },
-  "fed-funds-rate": { id: "federal_funds_rate", series: "DFF", rawUrl: endpoints.monetaryPolicy.dff },
+  "ten-year-treasury": { id: "us_10y_treasury_yield" },
+  "fed-funds-rate": { id: "federal_funds_rate" },
 }
 const value = (number, suffix = "") => number == null ? "—" : `${number > 0 && suffix === " bp" ? "+" : ""}${Number(number).toFixed(2)}${suffix}`
 
@@ -20,47 +20,27 @@ export default function RateFeatureCard({ factorId }) {
   const [error, setError] = useState("")
   const [debug, setDebug] = useState(false)
   const [sourceMode, setSourceMode] = useState("")
+  const [narrative, setNarrative] = useState(null)
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     if (!indicatorId) return
     let cancelled = false
     setSnapshot(null); setError(""); setSourceMode("")
 
-    const loadPreview = async () => {
-      const startDate = new Date()
-      startDate.setUTCFullYear(startDate.getUTCFullYear() - 6)
-      const separator = indicatorConfig.rawUrl.includes("?") ? "&" : "?"
-      const rawResponse = await fetch(`${indicatorConfig.rawUrl}${separator}start_date=${startDate.toISOString().slice(0, 10)}`, { cache: "no-store" })
-      const rawBody = await rawResponse.json()
-      if (!rawResponse.ok) throw new Error(rawBody?.detail || `Raw data request failed (${rawResponse.status})`)
-      const observations = (rawBody.data || []).map(item => ({ date: item.date, value: item.value ?? item.rate }))
-      if (!observations.length) throw new Error("No observations are available for this indicator")
-
-      const previewResponse = await fetch(endpoints.indicatorFeatures.pipelinePreview, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          indicator_id: indicatorConfig.id,
-          source_series_id: indicatorConfig.series,
-          source_provider: rawBody.metadata?.source || "GreenPeak existing API",
-          observations,
-        }),
-      })
-      const previewBody = await previewResponse.json()
-      if (!previewResponse.ok) throw new Error(previewBody?.detail?.message || `Pipeline preview failed (${previewResponse.status})`)
-      return previewBody.data.stages.validated_snapshot.snapshot
-    }
-
     const load = async () => {
       try {
-        const storedResponse = await fetch(endpoints.indicatorFeatures.latest(indicatorId, process.env.NODE_ENV !== "production"), { cache: "no-store" })
+        const [storedResponse, narrativeResponse] = await Promise.all([
+          fetch(endpoints.indicatorFeatures.latest(indicatorId), { cache: "no-store" }),
+          fetch(endpoints.analysis.indicatorLatest(indicatorId), { cache: "no-store" }),
+        ])
         const storedBody = await storedResponse.json()
-        if (storedResponse.ok) {
-          if (!cancelled) { setSnapshot(storedBody.data); setSourceMode("stored snapshot") }
-          return
+        const narrativeBody = await narrativeResponse.json()
+        if (!storedResponse.ok) throw new Error(storedBody?.detail?.message || "Analysis has not been generated yet.")
+        if (!cancelled) {
+          setSnapshot(storedBody.data); setSourceMode("stored snapshot")
+          setNarrative(narrativeResponse.ok ? narrativeBody.data : null)
         }
-        const previewSnapshot = await loadPreview()
-        if (!cancelled) { setSnapshot(previewSnapshot); setSourceMode("live Python preview") }
       } catch (requestError) {
         if (!cancelled) setError(requestError instanceof Error ? requestError.message : "Rate analysis is unavailable")
       }
@@ -106,11 +86,33 @@ export default function RateFeatureCard({ factorId }) {
           <p className="mt-2 text-muted-foreground">{snapshot.semantics.why_it_matters_fa}</p>
           <p className="mt-2 text-muted-foreground">{snapshot.llm_context.summary_template_fa}</p>
         </div>
+        <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-4 text-right" dir="rtl">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-semibold">تفسیر هوش مصنوعی</span>
+            {narrative && <Badge variant="outline">امتیاز سایه آزمایشی {narrative.llm_shadow_score}</Badge>}
+          </div>
+          {narrative ? <>
+            <p className="mt-2 leading-7">{narrative.current_state_fa} {narrative.what_changed_fa}</p>
+            <button className="mt-2 inline-flex items-center gap-1 text-xs text-violet-700" onClick={() => setExpanded(!expanded)}><ChevronDown className={`h-4 w-4 transition ${expanded ? "rotate-180" : ""}`} />{expanded ? "کمتر" : "بیشتر"}</button>
+            {expanded && <div className="mt-4 space-y-3 border-t pt-4 leading-7">
+              <p>{narrative.interpretation_fa}</p><p>{narrative.narrative_fa}</p>
+              {!!narrative.key_facts?.length && <Detail title="واقعیت‌های کلیدی" items={narrative.key_facts.map(item => item.fact || String(item))} />}
+              <Detail title="ابهام و ریسک تفسیر" items={[...(narrative.ambiguities_fa || []), ...(narrative.risks_to_interpretation_fa || [])]} />
+              <Detail title="موارد قابل پیگیری" items={narrative.watch_next_fa || []} />
+              <p className="text-xs text-muted-foreground">داده تا {narrative.data_as_of || "—"} · تحلیل {new Date(narrative.analysis_generated_at).toLocaleString("fa-IR")} · پوشش {narrative.coverage.status}</p>
+            </div>}
+          </> : <p className="mt-2 text-sm text-muted-foreground">تحلیل هنوز تولید نشده است.</p>}
+        </div>
         {process.env.NODE_ENV !== "production" && <button className="text-xs text-blue-600" onClick={() => setDebug(!debug)}>{debug ? "بستن JSON توسعه‌دهنده" : "نمایش JSON توسعه‌دهنده"}</button>}
         {debug && <pre dir="ltr" className="max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(snapshot, null, 2)}</pre>}
       </CardContent>
     </Card>
   )
+}
+
+function Detail({ title, items }) {
+  if (!items?.length) return null
+  return <div><h4 className="font-medium">{title}</h4><ul className="list-disc space-y-1 pr-5 text-sm text-muted-foreground">{items.map((item, index) => <li key={index}>{item}</li>)}</ul></div>
 }
 
 function Metric({ label, value: metricValue, title }) {
