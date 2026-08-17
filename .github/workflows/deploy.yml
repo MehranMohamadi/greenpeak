@@ -63,7 +63,9 @@ jobs:
             -czf greenpeak-backend-${{ github.event.workflow_run.head_sha }}.tar.gz \
             backend2/main.py \
             backend2/requirements.txt \
-            backend2/src
+            backend2/src \
+            config/greenpeak \
+            prompts/greenpeak
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v7

@@ -41,6 +41,8 @@ test -f "$release_root/front2/package.json"
 test -d "$release_root/front2/.next"
 test -f "$release_root/backend2/main.py"
 test -f "$release_root/backend2/requirements.txt"
+test -f "$release_root/config/greenpeak/domains.yaml"
+test -f "$release_root/prompts/greenpeak/core_system.md"
 
 # Market source files are production data and are deliberately not shipped in
 # release archives. Keep using the existing server-owned dataset.
