@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { AlertTriangle, Beaker, ChevronDown, Database } from "lucide-react"
 
 import { endpoints } from "@/api/api"
+import AnalysisListCard from "@/components/analytics/analysis-list-card"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -94,11 +95,14 @@ export default function RateFeatureCard({ factorId }) {
           {narrative ? <>
             <p className="mt-2 leading-7">{narrative.current_state_fa} {narrative.what_changed_fa}</p>
             <button className="mt-2 inline-flex items-center gap-1 text-xs text-violet-700" onClick={() => setExpanded(!expanded)}><ChevronDown className={`h-4 w-4 transition ${expanded ? "rotate-180" : ""}`} />{expanded ? "کمتر" : "بیشتر"}</button>
-            {expanded && <div className="mt-4 space-y-3 border-t pt-4 leading-7">
-              <p>{narrative.interpretation_fa}</p><p>{narrative.narrative_fa}</p>
-              {!!narrative.key_facts?.length && <Detail title="واقعیت‌های کلیدی" items={narrative.key_facts.map(item => item.fact || String(item))} />}
-              <Detail title="ابهام و ریسک تفسیر" items={[...(narrative.ambiguities_fa || []), ...(narrative.risks_to_interpretation_fa || [])]} />
-              <Detail title="موارد قابل پیگیری" items={narrative.watch_next_fa || []} />
+            {expanded && <div className="mt-4 space-y-4 border-t pt-4 leading-7">
+              <div className="rounded-xl border bg-background/70 p-4"><h3 className="mb-2 font-semibold">جمع‌بندی تفسیر</h3><p className="text-sm">{narrative.interpretation_fa}</p><p className="mt-2 text-sm text-muted-foreground">{narrative.narrative_fa}</p></div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <AnalysisListCard title="واقعیت‌های کلیدی" items={narrative.key_facts} tone="info" />
+                <AnalysisListCard title="ابهام‌ها" items={narrative.ambiguities_fa} tone="warning" />
+                <AnalysisListCard title="ریسک‌های تفسیر" items={narrative.risks_to_interpretation_fa} tone="negative" />
+                <AnalysisListCard title="موارد قابل پیگیری" items={narrative.watch_next_fa} tone="violet" />
+              </div>
               <p className="text-xs text-muted-foreground">داده تا {narrative.data_as_of || "—"} · تحلیل {new Date(narrative.analysis_generated_at).toLocaleString("fa-IR")} · پوشش {narrative.coverage.status}</p>
             </div>}
           </> : <p className="mt-2 text-sm text-muted-foreground">تحلیل هنوز تولید نشده است.</p>}
@@ -108,11 +112,6 @@ export default function RateFeatureCard({ factorId }) {
       </CardContent>
     </Card>
   )
-}
-
-function Detail({ title, items }) {
-  if (!items?.length) return null
-  return <div><h4 className="font-medium">{title}</h4><ul className="list-disc space-y-1 pr-5 text-sm text-muted-foreground">{items.map((item, index) => <li key={index}>{item}</li>)}</ul></div>
 }
 
 function Metric({ label, value: metricValue, title }) {

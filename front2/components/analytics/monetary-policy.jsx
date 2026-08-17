@@ -435,7 +435,7 @@ export default function MonetaryPolicy() {
       )}
 
       {/* Top Section: Score + Main Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 mb-8">
+      <div className="grid grid-cols-1 items-start gap-6 mb-8 lg:grid-cols-7">
         {/* Left: Score & Analysis (2/7 width) */}
         <Card className="lg:col-span-2 cursor-pointer border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23]">
           <CardHeader className="pb-3">

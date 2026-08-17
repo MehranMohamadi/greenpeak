@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     greenpeak_llm_model: str = ""
     greenpeak_llm_api_key: str = ""
     greenpeak_llm_base_url: str = "https://api.openai.com/v1"
+    greenpeak_analysis_admin_token: str = ""
 
     # Server Configuration
     host: str = "0.0.0.0"

@@ -349,44 +349,36 @@ onMouseLeave={() => {
                 </AnimatePresence>
                 <div className="space-y-1">
                   <NavItem
-                    label="Monetary Policy"
+                    label="Monetary Policy & Liquidity"
                     href="/analytics/monetary-policy"
                     icon={DollarSign}
                     showTick={true}
                   >
-                    Monetary Policy
-                  </NavItem>
-                  <NavItem
-                    href="/analytics/systemic-risk"
-                    icon={Shield}
-                    showTick={true}
-                    label="Systemic Risk"
-                  >
-                    Systemic Risk
-                  </NavItem>
-                  <NavItem
-                    href="/analytics/liquidity-flows"
-                    icon={Activity}
-                    showTick={true}
-                    label="Liquidity Flows"
-                  >
-                    Liquidity Flows
+                    Monetary & Liquidity
                   </NavItem>
                   <NavItem
                     href="/analytics/macroeconomic"
                     icon={BarChart3}
                     showTick={true}
-                    label="Macroeconomic"
+                    label="Growth, Inflation & Labor"
                   >
-                    Macroeconomic
+                    Growth, Inflation & Labor
+                  </NavItem>
+                  <NavItem
+                    href="/analytics/systemic-risk"
+                    icon={Shield}
+                    showTick={true}
+                    label="Credit & Financial Risk"
+                  >
+                    Credit & Financial Risk
                   </NavItem>
                   <NavItem
                     href="/analytics/corporate-earnings"
                     icon={Building2}
                     showTick={true}
-                    label="Corporate Earnings"
+                    label="Corporate Fundamentals"
                   >
-                    Corporate Earnings
+                    Corporate Fundamentals
                   </NavItem>
                   <NavItem
                     href="/analytics/valuation"
@@ -397,60 +389,28 @@ onMouseLeave={() => {
                     Valuation
                   </NavItem>
                   <NavItem
-                    href="/analytics/sector-performance"
-                    icon={PieChart}
-                    comingSoon={true}
-                    label="Sector Performance"
-                  >
-                    Sector Performance
-                  </NavItem>
-                  <NavItem
-                    href="/analytics/derivatives"
-                    icon={Zap}
-                    comingSoon={true}
-                    label="Derivatives"
-                  >
-                    Derivatives
-                  </NavItem>
-                  <NavItem
                     href="/analytics/market-internals"
                     icon={Users}
                     comingSoon={true}
-                    label="Market Internals"
+                    label="Market Internals & Sectors"
                   >
-                    Market Internals
-                  </NavItem>
-                  <NavItem
-                    href="/analytics/intermarket"
-                    icon={Globe}
-                    comingSoon={true}
-                    label="Intermarket"
-                  >
-                    Intermarket
+                    Internals & Sectors
                   </NavItem>
                   <NavItem
                     href="/analytics/sentiment"
                     icon={MessageSquare}
                     comingSoon={true}
-                    label="Sentiment"
+                    label="Positioning, Sentiment, Derivatives & Volatility"
                   >
-                    Sentiment
+                    Positioning & Sentiment
                   </NavItem>
                   <NavItem
-                    href="/analytics/macro-calendar"
-                    icon={Calendar}
+                    href="/analytics/intermarket"
+                    icon={Globe}
                     comingSoon={true}
-                    label="Macro Calendar & News"
+                    label="Capital Flows & Intermarket"
                   >
-                    Macro Calendar & News
-                  </NavItem>
-                  <NavItem
-                    href="/analytics/institutional"
-                    icon={Brain}
-                    comingSoon={true}
-                    label="Institutional"
-                  >
-                    Institutional
+                    Capital Flows & Intermarket
                   </NavItem>
                 </div>
               </div>

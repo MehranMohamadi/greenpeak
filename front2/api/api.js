@@ -29,6 +29,8 @@ export const endpoints = {
         domainLatest: (domainId) => `${API_BASE}/domains/${domainId}/analysis/latest`,
         marketLatest: `${API_BASE}/market/analysis/latest`,
         ruleLatest: (level, subjectId) => `${API_BASE}/rules/${level}/${subjectId}/latest`,
+        runManual: `${API_BASE}/admin/analysis/run`,
+        manualRunStatus: (runId) => `${API_BASE}/admin/analysis/runs/${runId}`,
     },
     market: {
         sp500: `${API_BASE}/market/sp500`,

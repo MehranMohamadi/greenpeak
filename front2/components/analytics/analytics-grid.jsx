@@ -91,7 +91,7 @@ export default function AnalyticsGrid() {
     }
   }
 
-  const analyticsCategories = [
+  const legacyAnalyticsCategories = [
     {
       id: "monetary-policy",
       title: "Monetary Policy",
@@ -269,6 +269,28 @@ export default function AnalyticsGrid() {
       subscribers: "1.4k"
     }
   ]
+
+  const domainRoutes = [
+    { id: "monetary_liquidity", title: "Monetary Policy & Liquidity", description: "Policy rates, central-bank balance sheet, money and liquidity conditions", href: "/analytics/monetary-policy", icon: Zap, color: "blue", category: "macro" },
+    { id: "growth_inflation_labor", title: "Growth, Inflation & Labor", description: "Growth, prices, employment and economic activity", href: "/analytics/macroeconomic", icon: BarChart3, color: "cyan", category: "macro" },
+    { id: "credit_financial_risk", title: "Credit & Financial Risk", description: "Credit conditions, yield curves and systemic financial stress", href: "/analytics/systemic-risk", icon: Target, color: "red", category: "macro" },
+    { id: "corporate_fundamentals", title: "Corporate Fundamentals", description: "Earnings, margins, profitability, dividends and corporate health", href: "/analytics/corporate-earnings", icon: Building2, color: "purple", category: "fundamental" },
+    { id: "valuation", title: "Valuation", description: "Market multiples, pricing and long-horizon valuation context", href: "/analytics/valuation", icon: BarChart3, color: "indigo", category: "fundamental" },
+    { id: "market_internals_sectors", title: "Market Internals & Sectors", description: "Breadth, leadership, sector rotation, momentum and volume", href: "/analytics/market-internals", icon: Activity, color: "orange", category: "technical" },
+    { id: "positioning_sentiment_derivatives_volatility", title: "Positioning, Sentiment & Volatility", description: "Positioning, investor psychology, derivatives and volatility", href: "/analytics/sentiment", icon: MessageSquare, color: "purple", category: "behavioral" },
+    { id: "capital_flows_intermarket", title: "Capital Flows & Intermarket", description: "Fund flows and relationships across rates, currencies and commodities", href: "/analytics/intermarket", icon: Globe, color: "teal", category: "macro" },
+  ]
+
+  const analyticsCategories = domainRoutes.map(domain => ({
+    ...domain,
+    status: "active",
+    metrics: "Domain view",
+    lastUpdated: "Persisted analysis",
+    trend: "neutral",
+    trendValue: "—",
+    priority: "high",
+    subscribers: "",
+  }))
 
   const categories = [
     { id: "all", name: "All Categories", count: analyticsCategories.length },

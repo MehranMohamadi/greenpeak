@@ -29,7 +29,7 @@ class MemoryRepository:
 
 def test_persian_prompts_load_as_utf8():
     prompt = load_prompt("indicator")
-    assert prompt.version == "0.1.0+0.1.0"
+    assert prompt.version == "0.2.0+0.2.0"
     assert "Persian" in prompt.content
 
 

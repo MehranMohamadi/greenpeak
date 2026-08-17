@@ -34,9 +34,12 @@ GREENPEAK_LLM_PROVIDER=disabled | openai-compatible
 GREENPEAK_LLM_MODEL=<provider model ID>
 GREENPEAK_LLM_API_KEY=<secret>
 GREENPEAK_LLM_BASE_URL=https://api.openai.com/v1
+GREENPEAK_ANALYSIS_ADMIN_TOKEN=<strong random operator token for production>
 ```
 
 Preview/debug endpoints return 404 unless explicitly enabled. Normal GET endpoints never calculate features, execute rules, or call an LLM. LLM calls use persisted feature snapshots for the exact requested `as_of_date`, and inputs never contain Rule Engine outputs.
+
+The market report includes an explicit manual-analysis button. It calls `POST /api/v1/admin/analysis/run`; page load never calls this endpoint. Development permits the local operator action directly. Production requires `GREENPEAK_ANALYSIS_ADMIN_TOKEN` as a Bearer token. Identical prompt/model/evidence inputs reuse persisted narratives instead of spending another LLM call.
 
 ## Persisted collections
 
