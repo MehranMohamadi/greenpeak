@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Calendar, ChevronUp, ChevronDown, Info, ExternalLink, Clock, AlertTriangle, TrendingUp, BarChart3, Activity, Database } from "lucide-react"
 import dynamic from 'next/dynamic'
+import EconomicCalendarWidget from "./economic-calendar-widget"
 
 const MultiLineChart = dynamic(() => import('../charts/multi-line-chart'), { ssr: false })
 const FullScreenChart = dynamic(() => import('./fullscreen-chart'), { ssr: false })
@@ -244,6 +245,21 @@ export default function MacroCalendar() {
                     </div>
                 </div>
             </div>
+
+            <Card className="overflow-hidden border-slate-200 dark:border-slate-800">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-slate-600" />
+                        Live Economic Calendar
+                    </CardTitle>
+                    <CardDescription>
+                        Real-time economic releases, forecasts, previous values, and market impact
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="p-0 sm:p-6 sm:pt-0">
+                    <EconomicCalendarWidget />
+                </CardContent>
+            </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 {/* Score Card - 1/4 width */}
