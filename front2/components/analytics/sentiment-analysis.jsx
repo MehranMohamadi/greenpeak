@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { MessageSquare, TrendingUp, TrendingDown, Users, Activity, Brain, Target, Gauge, Info, ExternalLink, BarChart3 } from "lucide-react"
 import MultiLineChart from "../charts/multi-line-chart"
 import InteractiveSidebar from "./interactive-sidebar"
+import AlphaVantageNews from "./alpha-vantage-news"
 
 // Real-time Fear & Greed Index Component
 function FearGreedIndex({ value = 65 }) {
@@ -312,6 +313,8 @@ export default function SentimentAnalysis() {
           </div>
         </CardContent>
       </Card>
+
+      <AlphaVantageNews />
 
       {/* Main Charts - Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6">
