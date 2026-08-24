@@ -1369,8 +1369,11 @@ class DataService:
         """Get monetary policy data from the unified monetary_policy collection."""
         if not self.mongodb:
             raise RuntimeError("MongoDB connection not available")
-        
-        collection = self.mongodb.db["monetary_policy"]
+
+        # MongoDBService connects lazily. Resolving the collection through the
+        # accessor ensures the first request does not fall through to a stale
+        # local file simply because ``db`` has not been initialized yet.
+        collection = self.mongodb.get_collection("monetary_policy")
         
         # Build query filter
         query_filter = {"indicator": indicator_name}

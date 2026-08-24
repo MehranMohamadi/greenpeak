@@ -115,3 +115,22 @@ def test_valuation_data_uses_lazy_collection_accessor():
     assert service.mongodb.requested == ["valuation"]
     assert response.data[0].value == 24.75
     assert response.metadata.total_records == 1
+
+
+def test_ten_year_data_uses_lazy_monetary_policy_collection():
+    service = make_service({
+        "monetary_policy": FakeCollection([
+            {
+                "indicator": "ten_year_treasury",
+                "date": "2026-08-21",
+                "value": 4.26,
+            }
+        ])
+    })
+
+    response = service.get_10year_data()
+
+    assert service.mongodb.requested == ["monetary_policy"]
+    assert response.data[0].date == "2026-08-21"
+    assert response.data[0].value == 4.26
+    assert response.metadata.fred_series == "DGS10"
