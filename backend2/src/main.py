@@ -1,15 +1,29 @@
 """FastAPI application factory and configuration."""
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .core.config import get_settings
 from .api.v1.endpoints import analysis_router, rules_router, features_router, market_router, monetary_router, economic_router, system_router, systemrisk_router, liquidity_router, macroeco_router, corporate_router, valuation_router, sectors_router
+from .services.daily_analysis import create_daily_analysis_scheduler
 
 
 def create_app() -> FastAPI:
     """Create and configure FastAPI application."""
     settings = get_settings()
     
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        scheduler = create_daily_analysis_scheduler()
+        if scheduler is not None:
+            scheduler.start()
+        try:
+            yield
+        finally:
+            if scheduler is not None:
+                scheduler.shutdown(wait=False)
+
     app = FastAPI(
         title=settings.api_title,
         description=settings.api_description,
@@ -17,6 +31,7 @@ def create_app() -> FastAPI:
         debug=settings.debug,
         docs_url="/docs" if settings.environment != "development" else None,
         redoc_url="/redoc" if settings.environment != "development" else None,
+        lifespan=lifespan,
     )
     
     # Add CORS middleware

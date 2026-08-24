@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     greenpeak_llm_api_key: str = ""
     greenpeak_llm_base_url: str = "https://api.openai.com/v1"
     greenpeak_analysis_admin_token: str = ""
+    greenpeak_daily_analysis_enabled: bool = True
+    greenpeak_daily_analysis_hour: int = 4
+    greenpeak_daily_analysis_minute: int = 0
+    greenpeak_daily_analysis_timezone: str = "Asia/Tehran"
 
     # Server Configuration
     host: str = "0.0.0.0"

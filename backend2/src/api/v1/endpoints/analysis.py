@@ -92,7 +92,7 @@ def _execute_manual_analysis(run_id: str, force_llm: bool) -> None:
 
 
 @router.post("/admin/analysis/run", status_code=202)
-def run_manual_analysis(background_tasks: BackgroundTasks, force_llm: bool = False, authorization: str | None = Header(default=None)):
+def run_manual_analysis(background_tasks: BackgroundTasks, force_llm: bool = True, authorization: str | None = Header(default=None)):
     """Queue an explicit operator action; normal page reads never execute analysis."""
     _authorize_manual_run(authorization)
     settings = get_settings()
