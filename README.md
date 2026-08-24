@@ -10,7 +10,7 @@
 
 **🚀 A professional-grade, real-time financial analytics platform for S&P 500 market analysis**
 
-[Live Demo](https://greenpeak.tech) • [Documentation](https://your-docs-link.com) • [Report Bug](https://github.com/a0x0h/sp500-dashboard/issues) • [Request Feature](https://github.com/a0x0h/sp500-dashboard/issues)
+[Live Demo](https://greenpeak.ir) • [Documentation](https://your-docs-link.com) • [Report Bug](https://github.com/a0x0h/sp500-dashboard/issues) • [Request Feature](https://github.com/a0x0h/sp500-dashboard/issues)
 
 </div>
 

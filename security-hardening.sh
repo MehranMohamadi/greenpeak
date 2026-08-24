@@ -15,7 +15,7 @@ YELLO# Create environment file with secure MongoDB connection
 log "Updating environment configuration..."
 cat > /tmp/secure-env << 'EOF'
 # MongoDB Configuration - SECURED with admin user
-MONGODB_URL=mongodb://admin:4s/mCjf+n1lBWrCjuCP2mw==@localhost:27017/sp500_dashboard?authSource=admin
+MONGODB_URL=replace_with_secure_mongodb_connection
 MONGODB_DATABASE=sp500_dashboard
 
 # Security Settings
@@ -192,8 +192,8 @@ sudo tee /etc/fail2ban/jail.local > /dev/null << 'EOF'
 bantime = 3600
 findtime = 600
 maxretry = 5
-destemail = admin@greenpeak.tech
-sender = fail2ban@greenpeak.tech
+destemail = admin@greenpeak.ir
+sender = fail2ban@greenpeak.ir
 
 [nginx-http-auth]
 enabled = true
@@ -328,7 +328,7 @@ sudo systemctl restart fail2ban
 log "Updating environment configuration..."
 cat > /tmp/secure-env << 'EOF'
 # MongoDB Configuration - SECURED
-MONGODB_URL=mongodb://sp500_user:SP500SecurePass456!@localhost:27017/sp500_dashboard?authSource=sp500_dashboard
+MONGODB_URL=replace_with_secure_mongodb_connection
 MONGODB_DATABASE=sp500_dashboard
 
 # Security Settings
@@ -386,7 +386,7 @@ echo "  ✓ Security monitoring enabled"
 echo "  ✓ Nginx security headers enhanced"
 echo ""
 warn "IMPORTANT: Update your application's MongoDB connection string!"
-warn "New connection string: mongodb://admin:4s/mCjf+n1lBWrCjuCP2mw==@localhost:27017/sp500_dashboard"
+warn "Set MONGODB_URL in the protected production environment file."
 echo ""
 log "Review the generated backup at: /usr/local/bin/sp500-backup.sh"
 log "Monitor security logs at: /var/log/sp500-security.log"

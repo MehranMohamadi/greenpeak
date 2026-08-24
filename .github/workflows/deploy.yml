@@ -38,6 +38,9 @@ jobs:
 
       - name: Build frontend artifact
         working-directory: front2
+        env:
+          NEXT_PUBLIC_APP_URL: https://greenpeak.ir
+          NEXT_PUBLIC_API_BASE_URL: https://greenpeak.ir/api/v1
         run: |
           npm ci
           npm run build

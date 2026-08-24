@@ -58,6 +58,13 @@ if [[ -f "$legacy_root/.env" ]]; then
   ln -s "$legacy_root/.env" "$release_root/.env"
 fi
 
+# Next.js route handlers need their server-only provider keys at runtime.
+# Keep the server-owned frontend env outside release archives and link it into
+# every release without exposing secrets to GitHub Actions.
+if [[ -f "$legacy_root/front2/.env" ]]; then
+  ln -s "$legacy_root/front2/.env" "$release_root/front2/.env.production.local"
+fi
+
 echo "Installing frontend runtime dependencies"
 npm ci --omit=dev --prefix "$release_root/front2"
 

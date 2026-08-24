@@ -32,7 +32,8 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:3001",
-        "*",
+        "https://greenpeak.ir",
+        "https://www.greenpeak.ir",
     ]
     cors_allow_credentials: bool = True
     cors_allow_methods: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
@@ -113,6 +114,7 @@ class Settings(BaseSettings):
         "env_file": str(Path(__file__).parent.parent.parent.parent / ".env"),
         "env_file_encoding": "utf-8",
         "case_sensitive": False,
+        "extra": "ignore",
     }
 
 

@@ -1,14 +1,12 @@
-// Use environment variable or fallback to production URL
-// Check multiple conditions to ensure proper environment detection
-const isProduction = process.env.NODE_ENV === 'production' || 
-                     typeof window !== 'undefined' && window.location.hostname !== 'localhost';
+const isProduction = process.env.NODE_ENV === "production" ||
+                     typeof window !== "undefined" && !["localhost", "127.0.0.1"].includes(window.location.hostname);
 
-// For production with nginx proxy, use relative paths
+const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
-// For development, use localhost directly
-const API_BASE = isProduction
-    ? "https://greenpeak.tech/api/v1"  // Use production domain
-    : "http://localhost:8000/api/v1";
+// Production deployments should set NEXT_PUBLIC_API_BASE_URL explicitly.
+const API_BASE = configuredApiBase || (isProduction
+    ? "https://greenpeak.ir/api/v1"
+    : "http://localhost:8000/api/v1");
 
 export { API_BASE };
 
