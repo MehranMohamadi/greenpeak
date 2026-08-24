@@ -153,7 +153,6 @@ export default function Sidebar() {
     children,
     onClick,
     label,
-    showTick = false,
   }) {
     const isActive = pathname === href;
 
@@ -205,24 +204,6 @@ onMouseLeave={() => {
                 className="ml-3 whitespace-nowrap overflow-hidden flex items-center justify-between w-full"
               >
                 <span>{children}</span>
-                <div className="flex items-center gap-2 ml-2">
-                  {showTick && (
-                    <svg
-                      viewBox="0 0 20 20"
-                      fill="none"
-                      aria-hidden="true"
-                      className="w-4 h-4 flex-shrink-0 text-green-600 dark:text-green-400"
-                    >
-                      <path
-                        d="M6 10l3 3 5-5"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  )}
-                </div>
               </span>
             )}
           </AnimatePresence>
@@ -346,7 +327,6 @@ onMouseLeave={() => {
                       key={category.page}
                       href={`/analytics/${category.page}`}
                       icon={category.icon}
-                      showTick={true}
                       label={category.name}
                     >
                       {category.shortName}
