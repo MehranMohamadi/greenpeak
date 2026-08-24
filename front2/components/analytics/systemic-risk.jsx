@@ -1,14 +1,12 @@
 "use client"
 
 import React, { useState } from "react"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import MultiLineChart from "../charts/multi-line-chart"
-import MiniChart from "./mini-chart"
-import FullScreenChart from './fullscreen-chart'
 import { Shield, AlertTriangle, TrendingUp, TrendingDown, Activity, Target, ExternalLink, Info, Maximize2, Minimize2, ChevronLeft, ChevronRight, Grid3X3, Zap, Brain } from "lucide-react"
 import useSystemicRiskData from "../../hooks/useSystemicRiskData"
 import { 
@@ -19,6 +17,11 @@ import {
 } from "../../hooks/monetaryDataUtils"
 import useUpdateInfo from "../../hooks/useUpdateInfo"
 import { analyticsCategories, getCategoryByName, getCategoryIndex } from "../../lib/analytics-utils"
+import { AnalysisPageHeader, AnalysisPageShell } from "./analysis-page"
+
+const MultiLineChart = dynamic(() => import("../charts/multi-line-chart"), { ssr: false })
+const MiniChart = dynamic(() => import("./mini-chart"), { ssr: false })
+const FullScreenChart = dynamic(() => import("./fullscreen-chart"), { ssr: false })
 import '../../styles/analytics-animations.css'
 
 export default function SystemicRisk() {
@@ -479,9 +482,10 @@ export default function SystemicRisk() {
   }
 
   return (
-    <div className="p-6 space-y-6 fade-in bg-white dark:bg-[#0F0F12]">
+    <AnalysisPageShell className="fade-in">
+      <AnalysisPageHeader page="systemic-risk" title="Systemic Risk Analysis" />
       {/* Header */}
-      <div className="mb-8">
+      <div className="hidden">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
           <div className="p-2 bg-gradient-to-br from-red-600 to-orange-600 rounded-xl shadow-lg">
             <Shield className="h-6 w-6 text-white" />
@@ -678,9 +682,9 @@ export default function SystemicRisk() {
                     {selectedFactorObject.change} over {getPeriodDescription(selectedPeriod)}
                   </span>
                 </span>
-                <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                <span className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                   <span>Source: {selectedFactorObject.source}</span>
-                </div>
+                </span>
               </CardDescription>
             )}
           </CardHeader>
@@ -899,12 +903,12 @@ export default function SystemicRisk() {
       </div>
 
       {/* Full Screen Chart Modal */}
-      <FullScreenChart
+      {isFullScreen && <FullScreenChart
         isOpen={isFullScreen}
         onClose={() => setIsFullScreen(false)}
         selectedFactor={selectedFactorObject}
         getIconComponent={getIconComponent}
-      />
-    </div>
+      />}
+    </AnalysisPageShell>
   )
 }

@@ -1,14 +1,17 @@
 "use client"
 
 import { useState } from "react"
+import dynamic from "next/dynamic"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import MultiLineChart from "../charts/multi-line-chart"
-import MiniChart from "./mini-chart"
-import FullScreenChart from './fullscreen-chart'
 import { TrendingUp, TrendingDown, Activity, Info, ExternalLink, Maximize2, Target, PieChart, BarChart3, Zap } from "lucide-react"
+import { AnalysisFactorGrid, AnalysisOverviewGrid, AnalysisPageHeader, AnalysisPageShell } from "./analysis-page"
+
+const MultiLineChart = dynamic(() => import("../charts/multi-line-chart"), { ssr: false })
+const MiniChart = dynamic(() => import("./mini-chart"), { ssr: false })
+const FullScreenChart = dynamic(() => import("./fullscreen-chart"), { ssr: false })
 
 export default function MarketInternals() {
     const [selectedFactor, setSelectedFactor] = useState('breadth-ratio')
@@ -222,36 +225,13 @@ export default function MarketInternals() {
     }
 
     return (
-        <div className="p-6 space-y-6 fade-in bg-white dark:bg-[#0F0F12]">
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-orange-600 to-amber-600 rounded-xl shadow-lg">
-                        <Activity className="h-6 w-6 text-white" />
-                    </div>
-                    Market Internals Analysis
-                </h1>
-                <div className="flex flex-wrap justify-between items-center">
-                    <p className="text-gray-600 dark:text-gray-400">
-                        Market breadth, volume analysis, technical momentum, and trend indicators
-                    </p>
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mt-2 lg:mt-0">
-                        <span className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-[#1F1F23] rounded-lg border border-gray-200 dark:border-[#2B2B30]">
-                            <Info className="h-4 w-4" />
-                            Updated: Aug 3, 2025 9:15 AM EDT
-                        </span>
-                        <span className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-[#1F1F23] rounded-lg border border-gray-200 dark:border-[#2B2B30]">
-                            <Target className="h-4 w-4" />
-                            Next Release: Aug 4, 2025
-                        </span>
-                    </div>
-                </div>
-            </div>
+        <AnalysisPageShell className="fade-in">
+            <AnalysisPageHeader page="market-internals" title="Market Internals Analysis" />
 
             {/* Top Section: Corporate Earnings Factor + Main Chart */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+            <AnalysisOverviewGrid className="mb-8">
                 {/* Left: Selected Market Internals Factor (1/4 width) */}
-                <Card className="lg:col-span-1 slide-in-left stagger-1 hover:shadow-lg transition-all duration-200 cursor-pointer group border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23] card-glow">
+                <Card className="lg:col-span-2 slide-in-left stagger-1 hover:shadow-lg transition-all duration-200 cursor-pointer group border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23] card-glow">
                     <CardHeader className="pb-3">
                         <CardTitle className="flex items-center gap-2 group-hover:text-orange-600 transition-all duration-200 text-base font-semibold">
                             <div className="p-1.5 bg-gradient-to-br from-orange-600 to-amber-600 rounded-lg shadow-md group-hover:scale-105 transition-transform duration-200">
@@ -312,7 +292,7 @@ export default function MarketInternals() {
                 </Card>
 
                 {/* Right: Main Chart (3/4 width) */}
-                <Card className="lg:col-span-3 slide-in-right stagger-2 hover:shadow-lg transition-all duration-200 border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23] card-glow">
+                <Card className="lg:col-span-5 slide-in-right stagger-2 hover:shadow-lg transition-all duration-200 border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23] card-glow">
                     <CardHeader className="pb-3">
                         <CardTitle className="flex items-center justify-between text-lg font-semibold">
                             <div className="flex items-center gap-3">
@@ -377,12 +357,10 @@ export default function MarketInternals() {
                         </div>
                     </CardContent>
                 </Card>
-            </div>
+            </AnalysisOverviewGrid>
 
             {/* Bottom Section: Market Internals Factors Grid */}
-            <div className="slide-in-up">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Market Internals Factors</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <AnalysisFactorGrid title="Market Internals Factors" className="gap-6 slide-in-up">
                     {marketInternalsFactors.map((factor, index) => {
                         const IconComponent = getIconComponent(factor.id)
                         return (
@@ -510,15 +488,14 @@ export default function MarketInternals() {
                             </Card>
                         )
                     })}
-                </div>
-            </div>
+            </AnalysisFactorGrid>
 
             {/* Full Screen Chart Modal */}
-            <FullScreenChart
+            {isFullScreen && <FullScreenChart
                 isOpen={isFullScreen}
                 onClose={() => setIsFullScreen(false)}
                 selectedFactor={selectedFactorObject}
-            />
-        </div>
+            />}
+        </AnalysisPageShell>
     )
 }

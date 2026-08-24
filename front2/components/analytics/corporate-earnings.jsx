@@ -1,14 +1,12 @@
 "use client"
 
 import React, { useState } from "react"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import MultiLineChart from "@/components/charts/multi-line-chart"
-import MiniChart from "@/components/analytics/mini-chart"
-import FullScreenChart from '@/components/analytics/fullscreen-chart'
 import { DollarSign, TrendingUp, TrendingDown, Activity, Target, PieChart, BarChart3, Calculator, Building2, Zap, Info, ExternalLink, Maximize2, Minimize2, ChevronLeft, ChevronRight, Grid3X3 } from "lucide-react"
 import useCorporateEarningsData from "@/hooks/useCorporateEarningsData"
 import { 
@@ -18,6 +16,11 @@ import {
 } from "@/hooks/macroeconomicDataUtils"
 import useUpdateInfo from "@/hooks/useUpdateInfo"
 import { analyticsCategories, getCategoryByName, getCategoryIndex } from "@/lib/analytics-utils"
+import { AnalysisPageHeader, AnalysisPageShell } from "./analysis-page"
+
+const MultiLineChart = dynamic(() => import("@/components/charts/multi-line-chart"), { ssr: false })
+const MiniChart = dynamic(() => import("@/components/analytics/mini-chart"), { ssr: false })
+const FullScreenChart = dynamic(() => import("@/components/analytics/fullscreen-chart"), { ssr: false })
 import '@/styles/analytics-animations.css'
 
 function CorporateEarnings() {
@@ -483,87 +486,8 @@ function CorporateEarnings() {
   }
 
   return (
-    <div className="p-6 space-y-6 fade-in bg-white dark:bg-[#0F0F12]">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-lg">
-            <DollarSign className="h-6 w-6 text-white" />
-          </div>
-          Corporate Earnings Analysis
-        </h1>
-        <div className="flex flex-wrap justify-between items-center gap-4">
-          <p className="text-gray-600 dark:text-gray-400">
-            S&P 500 earnings, revenue growth, margins, and corporate profitability metrics
-          </p>
-          
-          {/* Minimal Category Navigation */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={navigateToPrevCategory}
-                className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-800"
-                title="Previous"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowCategoryGrid(!showCategoryGrid)}
-                className={`h-6 w-6 p-0 ${showCategoryGrid ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-                title="All Categories"
-              >
-                <Grid3X3 className="h-4 w-4" />
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={navigateToNextCategory}
-                className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-800"
-                title="Next"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Minimal Category Grid */}
-      {showCategoryGrid && (
-        <div className="mb-6 animate-in slide-in-from-top-2 duration-200">
-          <Card className="border border-gray-200 dark:border-[#2B2B30] bg-white dark:bg-[#1F1F23]">
-            <CardContent className="p-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-                {categories.map((category, index) => (
-                  <Button
-                    key={category.page}
-                    variant={index === currentCategoryIndex ? "secondary" : "ghost"}
-                    size="sm"
-                    className={`h-auto p-2 justify-start gap-2 ${
-                      index === currentCategoryIndex ? 'bg-blue-50 dark:bg-blue-950/20' : ''
-                    }`}
-                    onClick={() => {
-                      router.push(`/analytics/${category.page}`)
-                      setShowCategoryGrid(false)
-                    }}
-                  >
-                    <div className={`p-1 bg-gradient-to-r ${category.color} rounded`}>
-                      <category.icon className="h-3 w-3 text-white" />
-                    </div>
-                    <span className="text-xs font-medium truncate">{category.name}</span>
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+    <AnalysisPageShell className="fade-in">
+      <AnalysisPageHeader page="corporate-earnings" title="Corporate Earnings Analysis" />
 
       {/* Top Section: Score + Main Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 mb-8">
@@ -682,9 +606,9 @@ function CorporateEarnings() {
                     {selectedFactorObject.change}
                   </span>
                 </span>
-                <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                <span className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                   <span>Source: {selectedFactorObject.source}</span>
-                </div>
+                </span>
               </CardDescription>
             )}
           </CardHeader>
@@ -896,13 +820,13 @@ function CorporateEarnings() {
       </div>
 
       {/* Full Screen Chart Modal */}
-      <FullScreenChart
+      {isFullScreen && <FullScreenChart
         isOpen={isFullScreen}
         onClose={() => setIsFullScreen(false)}
         selectedFactor={selectedFactorObject}
         getIconComponent={getIconComponent}
-      />
-    </div>
+      />}
+    </AnalysisPageShell>
   )
 }
 

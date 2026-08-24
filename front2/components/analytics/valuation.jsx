@@ -1,14 +1,12 @@
 "use client"
 
 import React, { useState } from "react"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import MultiLineChart from "@/components/charts/multi-line-chart"
-import MiniChart from "@/components/analytics/mini-chart"
-import FullScreenChart from '@/components/analytics/fullscreen-chart'
 import { TrendingUp, TrendingDown, Activity, Target, PieChart, BarChart3, Calculator, Building2, Zap, Info, ExternalLink, Maximize2, Minimize2, ChevronLeft, ChevronRight, Grid3X3, DollarSign, Percent, Scale, Award } from "lucide-react"
 import useValuationData from "@/hooks/useValuationData"
 import { 
@@ -18,6 +16,11 @@ import {
 } from "@/hooks/macroeconomicDataUtils"
 import useUpdateInfo from "@/hooks/useUpdateInfo"
 import { analyticsCategories, getCategoryByName, getCategoryIndex } from "@/lib/analytics-utils"
+import { AnalysisPageHeader, AnalysisPageShell } from "./analysis-page"
+
+const MultiLineChart = dynamic(() => import("@/components/charts/multi-line-chart"), { ssr: false })
+const MiniChart = dynamic(() => import("@/components/analytics/mini-chart"), { ssr: false })
+const FullScreenChart = dynamic(() => import("@/components/analytics/fullscreen-chart"), { ssr: false })
 import '@/styles/analytics-animations.css'
 
 function Valuation() {
@@ -483,9 +486,10 @@ function Valuation() {
   }
 
   return (
-    <div className="p-6 space-y-6 fade-in bg-white dark:bg-[#0F0F12]">
+    <AnalysisPageShell className="fade-in">
+      <AnalysisPageHeader page="valuation" title="Valuation Analysis" />
       {/* Header */}
-      <div className="mb-8">
+      <div className="hidden">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
           <div className="p-2 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl shadow-lg">
             <Scale className="h-6 w-6 text-white" />
@@ -682,9 +686,9 @@ function Valuation() {
                     {selectedFactorObject.change}
                   </span>
                 </span>
-                <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                <span className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                   <span>Source: {selectedFactorObject.source}</span>
-                </div>
+                </span>
               </CardDescription>
             )}
           </CardHeader>
@@ -896,13 +900,13 @@ function Valuation() {
       </div>
 
       {/* Full Screen Chart Modal */}
-      <FullScreenChart
+      {isFullScreen && <FullScreenChart
         isOpen={isFullScreen}
         onClose={() => setIsFullScreen(false)}
         selectedFactor={selectedFactorObject}
         getIconComponent={getIconComponent}
-      />
-    </div>
+      />}
+    </AnalysisPageShell>
   )
 }
 

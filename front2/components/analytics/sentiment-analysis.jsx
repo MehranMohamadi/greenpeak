@@ -9,6 +9,7 @@ import { MessageSquare, TrendingUp, TrendingDown, Users, Activity, Brain, Target
 import MultiLineChart from "../charts/multi-line-chart"
 import InteractiveSidebar from "./interactive-sidebar"
 import AlphaVantageNews from "./alpha-vantage-news"
+import { AnalysisPageHeader, AnalysisPageShell, TimeframeSelector } from "./analysis-page"
 
 // Real-time Fear & Greed Index Component
 function FearGreedIndex({ value = 65 }) {
@@ -247,34 +248,19 @@ export default function SentimentAnalysis() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-full overflow-hidden">
-      <div className="mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-            <Brain className="h-6 w-6 md:h-8 md:w-8 text-pink-600" />
-            Market Sentiment & Psychology
-          </h1>
-          
-          {/* Time Frame Selector */}
-          <div className="flex gap-2 flex-wrap">
-            {timeFrameButtons.map(button => (
-              <Button
-                key={button.value}
-                variant={selectedPeriod === button.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedPeriod(button.value)}
-                className="min-w-[3rem]"
-              >
-                {button.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-        
-        <p className="text-gray-600 dark:text-gray-400">
-          Real-time market sentiment analysis, investor psychology, and behavioral indicators
-        </p>
-      </div>
+    <AnalysisPageShell className="max-w-full overflow-hidden">
+      <AnalysisPageHeader
+        page="sentiment"
+        title="Market Sentiment & Psychology"
+        actions={
+          <TimeframeSelector
+            periods={timeFrameButtons.map((button) => button.value)}
+            value={selectedPeriod}
+            onChange={setSelectedPeriod}
+            accentClass="bg-pink-600 text-white"
+          />
+        }
+      />
 
       {/* Overall Sentiment Status Banner */}
       <Card className="border-l-4 border-l-pink-500 bg-gradient-to-r from-pink-50 to-transparent dark:from-pink-950">
@@ -337,7 +323,8 @@ export default function SentimentAnalysis() {
                       <Brain className="h-5 w-5 text-pink-600" />
                       {dataSources.fearGreed.title}
                     </DialogTitle>
-                    <DialogDescription className="space-y-3 text-left">
+                    <DialogDescription asChild>
+                      <div className="space-y-3 text-left">
                       <p>{dataSources.fearGreed.description}</p>
                       <div className="space-y-2 text-sm">
                         <div><strong>Source:</strong> {dataSources.fearGreed.source}</div>
@@ -351,6 +338,7 @@ export default function SentimentAnalysis() {
                         >
                           View Original Data <ExternalLink className="h-3 w-3" />
                         </a>
+                      </div>
                       </div>
                     </DialogDescription>
                   </DialogHeader>
@@ -394,7 +382,8 @@ export default function SentimentAnalysis() {
                       <Target className="h-5 w-5 text-purple-600" />
                       {dataSources.putCall.title}
                     </DialogTitle>
-                    <DialogDescription className="space-y-3 text-left">
+                    <DialogDescription asChild>
+                      <div className="space-y-3 text-left">
                       <p>{dataSources.putCall.description}</p>
                       <div className="space-y-2 text-sm">
                         <div><strong>Source:</strong> {dataSources.putCall.source}</div>
@@ -408,6 +397,7 @@ export default function SentimentAnalysis() {
                         >
                           View Original Data <ExternalLink className="h-3 w-3" />
                         </a>
+                      </div>
                       </div>
                     </DialogDescription>
                   </DialogHeader>
@@ -440,6 +430,6 @@ export default function SentimentAnalysis() {
           category="sentiment-analysis"
         />
       </div>
-    </div>
+    </AnalysisPageShell>
   )
 }

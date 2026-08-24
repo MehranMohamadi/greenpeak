@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-  Grid3X3,
   ChevronRight,
   ChevronLeft,
   DollarSign,
@@ -19,10 +18,10 @@ import {
   Globe,
 } from "lucide-react"
 
-import CategoryGrid from "../analytics/category-grid"
 import MiniChart from "./mini-chart"
 import MainLoading from "@/components/ui/MainLoading"
 import useIntermarketSymbol from "@/hooks/useIntermarketSymbol"
+import { AnalysisFactorGrid, AnalysisOverviewGrid, AnalysisPageHeader, AnalysisPageShell, AnalysisState } from "./analysis-page"
 
 const MultiLineChart = dynamic(() => import("../charts/multi-line-chart"), { ssr: false })
 const FullScreenChart = dynamic(() => import("./fullscreen-chart"), { ssr: false })
@@ -31,8 +30,6 @@ export default function Intermarket() {
   // UI States
   const [selectedFactor, setSelectedFactor] = useState("dxy")
   const [isFullScreen, setIsFullScreen] = useState(false)
-  const [showCategoryGrid, setShowCategoryGrid] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState("Intermarket")
 
   const intermarketFactors = [
     { id: "dxy", series: "DTWEXBGS", name: "Dollar Index (DXY)" },
@@ -227,59 +224,14 @@ const chartDataForChart = selectedFactorData.map(series =>
   if (chartLoading) return <MainLoading />
 
   // Error state
-  if (error) return <div className="p-8 text-red-500">Error: {error.message}</div>
+  if (error) return <AnalysisPageShell><AnalysisState title="Unable to load intermarket data" description={error.message} /></AnalysisPageShell>
 
   return (
-    <div className="p-6 space-y-6 fade-in bg-white dark:bg-[#0F0F12]">
-
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-teal-600 to-cyan-600 rounded-xl shadow-lg">
-            <Globe className="h-6 w-6 text-white" />
-          </div>
-          Intermarket Analysis
-        </h1>
-
-        <div className="flex justify-between items-center">
-          <p className="text-gray-600 dark:text-gray-400">
-            Cross‑asset relationships between currencies, commodities, bonds & credit markets
-          </p>
-
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm "          className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-gray-800"
->
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowCategoryGrid(!showCategoryGrid)}
-              
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </Button>
-
-            <Button variant="ghost" size="sm"           className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-gray-800"
->
-              <ChevronRight className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Category Grid */}
-      {showCategoryGrid && (
-        <CategoryGrid
-          selectedCategory={selectedCategory}
-          show={showCategoryGrid}
-          onClose={() => setShowCategoryGrid(false)}
-        />
-      )}
+    <AnalysisPageShell className="fade-in">
+      <AnalysisPageHeader page="intermarket" title="Intermarket Analysis" />
 
       {/* MAIN GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
+      <AnalysisOverviewGrid>
 
         {/* SCORE CARD */}
         <Card className="lg:col-span-2 card-glow">
@@ -486,9 +438,9 @@ const chartDataForChart = selectedFactorData.map(series =>
           </span>
         </span>
 
-        <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+        <span className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
           <span>Source: FRED</span>
-        </div>
+        </span>
       </CardDescription>
     )}
   </CardHeader>
@@ -556,10 +508,10 @@ const chartDataForChart = selectedFactorData.map(series =>
     </div>
   </CardContent>
 </Card>
-      </div>
+      </AnalysisOverviewGrid>
 
       {/* FACTOR CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+      <AnalysisFactorGrid title="Intermarket Factors" className="gap-6">
         {intermarketFactors.map((factor) => {
           const Icon = getIconComponent(factor.id)
           const isSelected = selectedFactor === factor.id
@@ -605,15 +557,15 @@ const chartDataForChart = selectedFactorData.map(series =>
             </Card>
           )
         })}
-      </div>
+      </AnalysisFactorGrid>
 
       {/* FULL SCREEN CHART */}
-      <FullScreenChart
+      {isFullScreen && <FullScreenChart
         isOpen={isFullScreen}
         onClose={() => setIsFullScreen(false)}
         selectedFactor={selectedFactorObject}
         chartData={chartData}
-      />
-    </div>
+      />}
+    </AnalysisPageShell>
   )
 }

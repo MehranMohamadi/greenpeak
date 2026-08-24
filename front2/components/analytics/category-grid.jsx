@@ -4,18 +4,16 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Grid3X3 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { analyticsCategories, getCategoryByName, getCategoryIndex } from "../../lib/analytics-utils"
-
-
-const categories = analyticsCategories
+import { marketAnalysisCategories } from "@/lib/analytics-registry"
 
 export default function CategoryGrid({
-  selectedCategory,
+  currentPage,
   show,
   onClose,
+  categories = marketAnalysisCategories,
 }) {
   const router = useRouter()
-const currentCategoryIndex = categories.findIndex(cat => cat.name === selectedCategory)
+  const currentCategoryIndex = categories.findIndex(cat => cat.page === currentPage)
 
   if (!show) return null
 

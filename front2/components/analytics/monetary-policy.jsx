@@ -1,18 +1,14 @@
 "use client"
 
 import React, { useState } from "react"
-import { useRouter } from "next/navigation"
+import dynamic from "next/dynamic"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import MultiLineChart from "../charts/multi-line-chart"
-import MiniChart from "./mini-chart"
-import FullScreenChart from './fullscreen-chart'
 import RateFeatureCard from "./rate-feature-card"
 import DomainUnderstandingPanel from "./domain-understanding-panel"
-import { DollarSign, TrendingUp, TrendingDown, Activity, Target, ExternalLink, Info, Maximize2, Minimize2, ChevronLeft, ChevronRight, Grid3X3, Zap, Brain } from "lucide-react"
-import CategoryGrid from "../analytics/category-grid"
+import { DollarSign, TrendingUp, TrendingDown, Activity, Target, ExternalLink, Info, Maximize2, Minimize2, ChevronLeft, ChevronRight, Zap, Brain } from "lucide-react"
 import MainLoading from '@/components/ui/MainLoading'
 import useDFFData from "../../hooks/useDFFData"
 import useTenYearData from "../../hooks/useTenYearData"
@@ -29,27 +25,19 @@ import {
   getDataForPeriod
 } from "../../hooks/monetaryDataUtils"
 import useUpdateInfo from "../../hooks/useUpdateInfo"
-import { analyticsCategories } from "../../lib/analytics-utils"
+import { AnalysisFactorCard, AnalysisFactorGrid, AnalysisOverviewGrid, AnalysisPageHeader, AnalysisPageShell, AnalysisScoreCard } from "./analysis-page"
+
+const MultiLineChart = dynamic(() => import("../charts/multi-line-chart"), { ssr: false })
+const MiniChart = dynamic(() => import("./mini-chart"), { ssr: false })
+const FullScreenChart = dynamic(() => import("./fullscreen-chart"), { ssr: false })
 
 export default function MonetaryPolicy() {
-  const router = useRouter()
   const [selectedFactor, setSelectedFactor] = useState('ten-year-treasury')
   const [selectedPeriod, setSelectedPeriod] = useState('5Y')
   const [isFullScreen, setIsFullScreen] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState('Monetary Policy')
-  const [showCategoryGrid, setShowCategoryGrid] = useState(false)
-
-  // Use imported categories from utils
-  const categories = analyticsCategories
-  
   // Use update info hook
   const { processUpdateInfo } = useUpdateInfo()
 
-  // Find current category based on page
-  const getCurrentCategory = () => {
-    return categories.find(cat => cat.page === 'monetary-policy') || categories[0]
-  }
-  
   // Use custom hooks to fetch data - now with metadata
   const { data: dffData, metadata: dffMetadata, loading: dffLoading, error: dffError } = useDFFData()
   const { data: tenYearData, metadata: tenYearMetadata, loading: tenYearLoading, error: tenYearError } = useTenYearData()
@@ -238,26 +226,6 @@ export default function MonetaryPolicy() {
     }
   }
 
-  // Category navigation functions
-  const navigateToNextCategory = () => {
-    const currentIndex = categories.findIndex(cat => cat.name === selectedCategory)
-    const nextIndex = (currentIndex + 1) % categories.length
-    const nextCategory = categories[nextIndex]
-    router.push(`/analytics/${nextCategory.page}`)
-  }
-
-  const navigateToPrevCategory = () => {
-    const currentIndex = categories.findIndex(cat => cat.name === selectedCategory)
-    const prevIndex = currentIndex === 0 ? categories.length - 1 : currentIndex - 1
-    const prevCategory = categories[prevIndex]
-    router.push(`/analytics/${prevCategory.page}`)
-  }
-
-  // Get category info for display
-  const currentCategory = getCurrentCategory()
-  const currentCategoryIndex = categories.findIndex(cat => cat.name === selectedCategory)
-  const totalCategories = categories.length
-
   const selectedFactorObject = getSelectedFactor()
   // Fix timeframe synchronization for selected factor data
   const selectedFactorData = selectedFactorObject && Array.isArray(selectedFactorObject.data) && selectedFactorObject.data.length > 0 ? 
@@ -373,80 +341,13 @@ export default function MonetaryPolicy() {
   }
 
   return (
-    <div className="p-6 space-y-6 bg-white dark:bg-[#0F0F12]">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-lg">
-            <DollarSign className="h-6 w-6 text-white" />
-          </div>
-          Monetary Policy Analysis
-        </h1>
-        <div className="flex flex-wrap justify-between items-center gap-4">
-          <p className="text-gray-600 dark:text-gray-400">
-            Federal Reserve policy tools, interest rates, and monetary conditions
-          </p>
-          
-          {/* Minimal Category Navigation */}
-          <div className="flex items-center gap-2">
-
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={navigateToPrevCategory}
-                className="h-15 w-15 p-0 hover:bg-gray-100 dark:hover:bg-gray-800"
-                title="Previous"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowCategoryGrid(!showCategoryGrid)}
-                className={`h-6 w-6 p-0 ${showCategoryGrid ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-                title="All Categories"
-              >
-                <Grid3X3 className="h-4 w-4" />
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={navigateToNextCategory}
-                className="h-15 w-15 p-0 hover:bg-gray-100 dark:hover:bg-gray-800"
-                title="Next"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Minimal Category Grid */}
-      {showCategoryGrid && (
-     <CategoryGrid
-  selectedCategory={selectedCategory}
-  show={showCategoryGrid}
-  onClose={() => setShowCategoryGrid(false)}
-/>
-      )}
+    <AnalysisPageShell>
+      <AnalysisPageHeader page="monetary-policy" title="Monetary Policy Analysis" />
 
       {/* Top Section: Score + Main Chart */}
-      <div className="grid grid-cols-1 items-start gap-6 mb-8 lg:grid-cols-7">
+      <AnalysisOverviewGrid className="mb-8">
         {/* Left: Score & Analysis (2/7 width) */}
-        <Card className="lg:col-span-2 cursor-pointer border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23]">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base font-semibold">
-              <div className="p-1.5 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg shadow-md">
-                <Target className="h-4 w-4 text-white" />
-              </div>
-              Policy Stance
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <AnalysisScoreCard title="Policy Stance" icon={Target} className="cursor-pointer">
             <DomainUnderstandingPanel domainId="monetary_liquidity" />
             {/* Enhanced Score Display */}
             <div className="text-center p-3 bg-gray-50 dark:bg-[#0F0F12] rounded-xl border border-gray-200 dark:border-[#2B2B30]">
@@ -496,8 +397,7 @@ export default function MonetaryPolicy() {
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+        </AnalysisScoreCard>
 
         {/* Right: Main Chart (5/7 width) */}
         <Card className="lg:col-span-5 border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23]">
@@ -551,9 +451,9 @@ export default function MonetaryPolicy() {
                     {selectedFactorObject.change} over {getPeriodDescription(selectedPeriod)}
                   </span>
                 </span>
-                <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                <span className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                   <span>Source: {selectedFactorObject.source}</span>
-                </div>
+                </span>
               </CardDescription>
             )}
           </CardHeader>
@@ -628,22 +528,19 @@ export default function MonetaryPolicy() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </AnalysisOverviewGrid>
 
       <RateFeatureCard factorId={selectedFactorObject?.id} />
 
       {/* Bottom Section: Factor Grid */}
-      <div>
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Monetary Policy Factors</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <AnalysisFactorGrid title="Monetary Policy Factors" className="gap-6">
           {monetaryFactors.map((factor, index) => {
             const IconComponent = getIconComponent(factor.id)
             return (
-              <Card
+              <AnalysisFactorCard
                 key={factor.id}
-                className={`cursor-pointer factor-card ${
-                  selectedFactor === factor.id ? 'ring-2 ring-blue-500 shadow-lg bg-blue-50 dark:bg-blue-950/30 selected' : ''
-                } border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23] h-full flex flex-col`}
+                selected={selectedFactor === factor.id}
+                className="factor-card flex flex-col"
                 onClick={() => handleFactorClick(factor)}
               >
                 <CardHeader className="pb-3">
@@ -761,19 +658,18 @@ export default function MonetaryPolicy() {
                     <span className="truncate text-sm">{factor.source}</span>
                   </div>
                 </CardContent>
-              </Card>
+              </AnalysisFactorCard>
             )
           })}
-        </div>
-      </div>
+      </AnalysisFactorGrid>
 
       {/* Full Screen Chart Modal */}
-      <FullScreenChart
+      {isFullScreen && <FullScreenChart
         isOpen={isFullScreen}
         onClose={() => setIsFullScreen(false)}
         selectedFactor={selectedFactorObject}
         getIconComponent={getIconComponent}
-      />
-    </div>
+      />}
+    </AnalysisPageShell>
   )
 }

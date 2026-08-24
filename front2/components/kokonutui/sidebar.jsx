@@ -28,6 +28,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
+import { marketAnalysisCategories } from "@/lib/analytics-registry";
 
 import { useSidebarHover } from "../../app/context/sidebar-hover-context";
 
@@ -153,7 +154,6 @@ export default function Sidebar() {
     onClick,
     label,
     showTick = false,
-    comingSoon = false,
   }) {
     const isActive = pathname === href;
 
@@ -222,18 +222,11 @@ onMouseLeave={() => {
                       />
                     </svg>
                   )}
-                  {comingSoon && (
-                    <div className="absolute -right-1 -top-1 w-2 h-2 bg-amber-500 rounded-full" />
-                  )}
                 </div>
               </span>
             )}
           </AnimatePresence>
 
-          {/* Coming Soon indicator for collapsed state */}
-          {comingSoon && !shouldExpand && (
-            <div className="absolute -right-1 top-2 w-2 h-2 bg-amber-500 rounded-full" />
-          )}
         </div>
       </Link>
     );
@@ -348,70 +341,17 @@ onMouseLeave={() => {
                   )}
                 </AnimatePresence>
                 <div className="space-y-1">
-                  <NavItem
-                    label="Monetary Policy & Liquidity"
-                    href="/analytics/monetary-policy"
-                    icon={DollarSign}
-                    showTick={true}
-                  >
-                    Monetary & Liquidity
-                  </NavItem>
-                  <NavItem
-                    href="/analytics/macroeconomic"
-                    icon={BarChart3}
-                    showTick={true}
-                    label="Growth, Inflation & Labor"
-                  >
-                    Growth, Inflation & Labor
-                  </NavItem>
-                  <NavItem
-                    href="/analytics/systemic-risk"
-                    icon={Shield}
-                    showTick={true}
-                    label="Credit & Financial Risk"
-                  >
-                    Credit & Financial Risk
-                  </NavItem>
-                  <NavItem
-                    href="/analytics/corporate-earnings"
-                    icon={Building2}
-                    showTick={true}
-                    label="Corporate Fundamentals"
-                  >
-                    Corporate Fundamentals
-                  </NavItem>
-                  <NavItem
-                    href="/analytics/valuation"
-                    icon={LineChart}
-                    showTick={true}
-                    label="Valuation"
-                  >
-                    Valuation
-                  </NavItem>
-                  <NavItem
-                    href="/analytics/market-internals"
-                    icon={Users}
-                    comingSoon={true}
-                    label="Market Internals & Sectors"
-                  >
-                    Internals & Sectors
-                  </NavItem>
-                  <NavItem
-                    href="/analytics/sentiment"
-                    icon={MessageSquare}
-                    comingSoon={true}
-                    label="Positioning, Sentiment, Derivatives & Volatility"
-                  >
-                    Positioning & Sentiment
-                  </NavItem>
-                  <NavItem
-                    href="/analytics/intermarket"
-                    icon={Globe}
-                    comingSoon={true}
-                    label="Capital Flows & Intermarket"
-                  >
-                    Capital Flows & Intermarket
-                  </NavItem>
+                  {marketAnalysisCategories.map((category) => (
+                    <NavItem
+                      key={category.page}
+                      href={`/analytics/${category.page}`}
+                      icon={category.icon}
+                      showTick={true}
+                      label={category.name}
+                    >
+                      {category.shortName}
+                    </NavItem>
+                  ))}
                 </div>
               </div>
             </div>

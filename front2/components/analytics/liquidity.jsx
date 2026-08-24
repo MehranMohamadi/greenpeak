@@ -266,7 +266,8 @@ export default function Liquidity() {
                         <Activity className="h-5 w-5 text-cyan-600" />
                         {indicator.title}
                       </DialogTitle>
-                      <DialogDescription className="space-y-3 text-left">
+                      <DialogDescription asChild>
+                        <div className="space-y-3 text-left">
                         <p>{indicator.description}</p>
                         <div className="space-y-2 text-sm">
                           <div><strong>Category:</strong> {indicator.category}</div>
@@ -278,6 +279,7 @@ export default function Liquidity() {
                           >
                             View Data Source <ExternalLink className="h-3 w-3" />
                           </a>
+                        </div>
                         </div>
                       </DialogDescription>
                     </DialogHeader>

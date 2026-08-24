@@ -410,7 +410,8 @@ export default function Institutional() {
                                                             <IconComponent className="h-5 w-5 text-emerald-600" />
                                                             {sourceDetails.title}
                                                         </DialogTitle>
-                                                        <DialogDescription className="text-left space-y-4">
+                                                        <DialogDescription asChild>
+                                                          <div className="text-left space-y-4">
                                                             <p className="text-gray-600 dark:text-gray-400">
                                                                 {sourceDetails.description}
                                                             </p>
@@ -471,6 +472,7 @@ export default function Institutional() {
                                                                     View Official Source
                                                                 </a>
                                                             </div>
+                                                          </div>
                                                         </DialogDescription>
                                                     </DialogHeader>
                                                 </DialogContent>
