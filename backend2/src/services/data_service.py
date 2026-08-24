@@ -1878,6 +1878,10 @@ class DataService:
             raise Exception("MongoDB not available for corporate earnings data")
         
         try:
+            # Resolve the collection through MongoDBService so its lazy
+            # connection is established before the first query.
+            collection = self.mongodb.get_collection("corporate_earnings")
+
             # Query corporate_earnings collection
             query = {"indicator": indicator_name}
             
@@ -1891,7 +1895,7 @@ class DataService:
                 query["date"] = date_filter
             
             # Get data from MongoDB
-            cursor = self.mongodb.db.corporate_earnings.find(query).sort("date", 1)
+            cursor = collection.find(query).sort("date", 1)
             
             if limit:
                 cursor = cursor.limit(limit)
@@ -1903,12 +1907,14 @@ class DataService:
                 return DataResponse(
                     data=[],
                     metadata=DataMetadata(
-                        count=0,
-                        start_date=None,
-                        end_date=None,
-                        indicators=[],
+                        latest_value=None,
+                        latest_date=None,
+                        total_records=0,
+                        description=description,
+                        unit=unit,
+                        frequency=frequency,
                         source="Corporate Earnings Database",
-                        last_updated=datetime.now().isoformat()
+                        fred_series=symbol,
                     )
                 )
             
@@ -2077,6 +2083,10 @@ class DataService:
             raise Exception("MongoDB not available for valuation data")
         
         try:
+            # MongoDBService connects lazily, so always resolve collections
+            # through its accessor instead of reading the uninitialized db.
+            collection = self.mongodb.get_collection("valuation")
+
             # Query valuation_metrics collection
             query = {"indicator": indicator_name}
             
@@ -2090,7 +2100,7 @@ class DataService:
                 query["date"] = date_filter
             
             # Get data from MongoDB
-            cursor = self.mongodb.db.valuation.find(query).sort("date", 1)
+            cursor = collection.find(query).sort("date", 1)
             
             if limit:
                 cursor = cursor.limit(limit)
@@ -2274,6 +2284,10 @@ class DataService:
             raise Exception("MongoDB not available for sector performance data")
         
         try:
+            # Resolve the collection through MongoDBService so its lazy
+            # connection is established before the first query.
+            collection = self.mongodb.get_collection("sector_performance")
+
             # Query sector_performance collection
             query = {"metric": metric_name}
             
@@ -2291,7 +2305,7 @@ class DataService:
                 query["date"] = date_filter
             
             # Get data from MongoDB
-            cursor = self.mongodb.db.sector_performance.find(query).sort([("date", 1), ("sector", 1)])
+            cursor = collection.find(query).sort([("date", 1), ("sector", 1)])
             
             if limit and sector_name:
                 # Only apply limit if sector is specified
@@ -2435,8 +2449,10 @@ class DataService:
             raise Exception("MongoDB not available for sector performance data")
         
         try:
+            collection = self.mongodb.get_collection("sector_performance")
+
             # Get the latest date
-            latest_date_doc = self.mongodb.db.sector_performance.find_one(
+            latest_date_doc = collection.find_one(
                 {"metric": metric_name},
                 sort=[("date", -1)]
             )
@@ -2447,7 +2463,7 @@ class DataService:
             latest_date = latest_date_doc["date"]
             
             # Get all sectors for the latest date
-            cursor = self.mongodb.db.sector_performance.find({
+            cursor = collection.find({
                 "metric": metric_name,
                 "date": latest_date
             })
@@ -2478,6 +2494,8 @@ class DataService:
             raise Exception("MongoDB not available for sector performance data")
         
         try:
+            collection = self.mongodb.get_collection("sector_performance")
+
             # Query sector_performance collection
             query = {"metric": metric_name}
                 
@@ -2491,7 +2509,7 @@ class DataService:
                 query["date"] = date_filter
             
             # Get data from MongoDB
-            cursor = self.mongodb.db.sector_performance.find(query).sort([("date", 1), ("sector", 1)])
+            cursor = collection.find(query).sort([("date", 1), ("sector", 1)])
             
             documents = list(cursor)
             
