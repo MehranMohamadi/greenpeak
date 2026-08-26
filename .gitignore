@@ -12,6 +12,7 @@ venv/
 # Build output
 dist/
 build/
+.cache/
 
 # Logs
 *.log
