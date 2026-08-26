@@ -49,7 +49,7 @@ export default function DailyMarketReport() {
       const runId = body?.data?.run_id
       if (!runId) throw new Error("شناسه اجرای تحلیل دریافت نشد.")
       let completed = false
-      for (let attempt = 0; attempt < 120; attempt += 1) {
+      for (let attempt = 0; attempt < 180; attempt += 1) {
         await new Promise(resolve => setTimeout(resolve, 2500))
         const statusResponse = await fetch(endpoints.analysis.manualRunStatus(runId), { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: "no-store" })
         const statusBody = await statusResponse.json()

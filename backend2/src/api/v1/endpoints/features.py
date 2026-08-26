@@ -141,7 +141,6 @@ def indicator_feature_pipeline_debug(indicator_id: str, as_of: date | None = Non
 @router.post("/features/pipeline-preview")
 def indicator_feature_pipeline_preview(request: PipelinePreviewRequest, as_of: date | None = None):
     """Build development stages from existing API observations without persisting them."""
-    _require_preview_enabled()
     settings = get_settings()
     if request.indicator_id not in DEFINITIONS:
         raise HTTPException(status_code=404, detail={"code": "INDICATOR_NOT_FOUND", "message": "Unknown feature indicator."})

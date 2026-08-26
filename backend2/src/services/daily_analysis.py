@@ -10,10 +10,8 @@ from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 
 from ..core.config import get_settings
-from .llm_engine.job import run_llm_pipeline
 from .llm_engine.provider import OpenAICompatibleProvider
-from .llm_engine.repository import MongoNarrativeRepository
-from .rate_features.repository import MongoFeatureRepository
+from .persisted_analysis import run_persisted_analysis
 
 logger = logging.getLogger(__name__)
 RUN_COLLECTION = "gp_scheduled_analysis_runs"
@@ -52,12 +50,12 @@ def run_daily_analysis() -> None:
             settings.greenpeak_llm_base_url,
             timeout=180,
         )
-        result = run_llm_pipeline(
-            MongoFeatureRepository(client, settings.mongodb_database),
-            MongoNarrativeRepository(client, settings.mongodb_database),
+        result = run_persisted_analysis(
+            client,
+            settings.mongodb_database,
             provider,
             local_day,
-            force=True,
+            force_llm=True,
         )
         runs.update_one(
             {"run_key": run_key},

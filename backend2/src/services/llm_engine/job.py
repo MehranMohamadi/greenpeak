@@ -6,13 +6,24 @@ import json
 from typing import Any
 from uuid import uuid4
 
+from pydantic import ValidationError
+
 from ..greenpeak_config import load_registry
 from ..rate_features.job import code_version
 from .prompts import load_prompt
 from .schemas import DomainNarrative, IndicatorNarrative, MarketNarrative
 
-ANALYSIS_VERSION = "0.1.0"
+ANALYSIS_VERSION = "0.2.0"
 MODELS = {"indicator": IndicatorNarrative, "domain": DomainNarrative, "market": MarketNarrative}
+
+
+def domain_indicator_ids(domain_id: str, indicators: dict) -> list[str]:
+    return [
+        item.indicator_id
+        for item in indicators.values()
+        if item.llm.include_in_domain_analysis
+        and (item.classification.primary_domain == domain_id or domain_id in item.classification.related_domains)
+    ]
 
 
 def input_hash(level: str, subject_id: str, as_of: date, evidence: dict, prompt_hash: str, provider, versions: dict) -> str:
@@ -28,14 +39,38 @@ def _analyze(repository, provider, level: str, subject_id: str, as_of: date, evi
         existing = repository.find_reusable(level, digest, provider.model_id)
         if existing:
             return MODELS[level].model_validate(existing), "reused"
-    generated = provider.generate_json(prompt.content, {"contract_level": level, "output_contract": MODELS[level].model_json_schema(), "evidence": evidence, "coverage": coverage})
     metadata = {
         "level": level, "subject_id": subject_id, "as_of_date": as_of, "data_as_of": data_as_of,
         "analysis_version": ANALYSIS_VERSION, "analysis_generated_at": datetime.now(UTC), "coverage": coverage,
         "provenance": {"prompt_version": prompt.version, "prompt_hash": prompt.hash, "model": provider.model_id, "provider": provider.provider_id, "input_hash": digest, "code_version": code_version()},
         "revision_id": str(uuid4()),
     }
-    value = MODELS[level].model_validate({**generated, **metadata})
+    request = {"contract_level": level, "output_contract": MODELS[level].model_json_schema(), "evidence": evidence, "coverage": coverage}
+    validation_error = None
+    for attempt in range(2):
+        generated = provider.generate_json(prompt.content, request)
+        allowed_fields = MODELS[level].model_fields
+        generated = {key: value for key, value in generated.items() if key in allowed_fields}
+        try:
+            value = MODELS[level].model_validate({**generated, **metadata})
+            break
+        except ValidationError as exc:
+            validation_error = exc
+            if attempt == 1:
+                existing = repository.find_reusable(level, digest, provider.model_id)
+                if existing:
+                    return MODELS[level].model_validate(existing), "reused_after_validation_error"
+                raise
+            request = {
+                **request,
+                "validation_feedback": {
+                    "instruction": "Correct the JSON so it matches the output contract exactly.",
+                    "errors": [
+                        {"location": list(item["loc"]), "type": item["type"], "message": item["msg"]}
+                        for item in validation_error.errors(include_input=False)
+                    ],
+                },
+            }
     repository.save(level, value.model_dump(mode="json"))
     return value, "generated"
 
@@ -64,7 +99,7 @@ def run_llm_pipeline(feature_repository, narrative_repository, provider, as_of: 
 
     domain_outputs = {}
     for domain in domains.domains:
-        configured = [item.indicator_id for item in indicators.values() if item.classification.primary_domain == domain.id and item.llm.include_in_domain_analysis]
+        configured = domain_indicator_ids(domain.id, indicators)
         available = [indicator_outputs[item] for item in configured if item in indicator_outputs]
         if not available:
             continue

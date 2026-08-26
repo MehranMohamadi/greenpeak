@@ -10,9 +10,8 @@ from ....core.config import get_settings
 from ....services.greenpeak_config import load_registry
 from ....services.llm_engine.repository import MongoNarrativeRepository
 from ....services.llm_engine.schemas import DomainNarrative, IndicatorNarrative, MarketNarrative
-from ....services.llm_engine.job import run_llm_pipeline
 from ....services.llm_engine.provider import OpenAICompatibleProvider
-from ....services.rate_features.repository import MongoFeatureRepository
+from ....services.persisted_analysis import run_persisted_analysis
 
 router = APIRouter(tags=["Persisted GreenPeak Analysis"])
 
@@ -70,12 +69,12 @@ def _execute_manual_analysis(run_id: str, force_llm: bool) -> None:
             {"run_id": run_id}, {"$set": {"status": "running", "started_at": datetime.now(UTC)}}
         )
         provider = OpenAICompatibleProvider(settings.greenpeak_llm_api_key, settings.greenpeak_llm_model, settings.greenpeak_llm_base_url, timeout=180)
-        result = run_llm_pipeline(
-            MongoFeatureRepository(client, settings.mongodb_database),
-            MongoNarrativeRepository(client, settings.mongodb_database),
+        result = run_persisted_analysis(
+            client,
+            settings.mongodb_database,
             provider,
             date.today(),
-            force=force_llm,
+            force_llm=force_llm,
         )
         status = "partial" if result["errors"] else "success"
         client[settings.mongodb_database].gp_manual_analysis_runs.update_one(

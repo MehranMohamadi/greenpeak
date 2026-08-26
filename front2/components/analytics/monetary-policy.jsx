@@ -147,21 +147,6 @@ export default function MonetaryPolicy() {
     }
   ]
 
-  // Calculate overall score
-  const overallScore = (monetaryFactors.reduce((sum, factor) => sum + (factor.score || 7), 0) / monetaryFactors.length).toFixed(1)
-  
-  const getScoreColor = (score) => {
-    if (score >= 8) return "text-green-600"
-    if (score >= 6) return "text-yellow-600"  
-    return "text-red-600"
-  }
-
-  const getScoreBadge = (score) => {
-    if (score >= 8) return { label: "Accommodative", color: "bg-green-100 text-green-800" }
-    if (score >= 6) return { label: "Neutral", color: "bg-yellow-100 text-yellow-800" }
-    return { label: "Restrictive", color: "bg-red-100 text-red-800" }
-  }
-
   const getTrendIcon = (trend) => {
     switch (trend) {
       case "up":
@@ -347,62 +332,15 @@ export default function MonetaryPolicy() {
       {/* Top Section: Score + Main Chart */}
       <AnalysisOverviewGrid className="mb-8">
         {/* Left: Score & Analysis (2/7 width) */}
-        <AnalysisScoreCard title="Policy Stance" icon={Target} className="cursor-pointer">
-            <DomainUnderstandingPanel domainId="monetary_liquidity" />
-            {/* Enhanced Score Display */}
-            <div className="text-center p-3 bg-gray-50 dark:bg-[#0F0F12] rounded-xl border border-gray-200 dark:border-[#2B2B30]">
-                  <div className={`text-4xl font-black ${getScoreColor(parseFloat(overallScore))} mb-2 tracking-tight`}>
-                {overallScore}
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">out of 10</div>
-              <Badge className={`mt-1 px-3 py-1 text-xs font-semibold ${getScoreBadge(parseFloat(overallScore)).color}`}>
-                {getScoreBadge(parseFloat(overallScore)).label}
-              </Badge>
-            </div>
-
-            {/* Key Insights */}
-            <div className="space-y-2">
-              <h4 className="font-semibold text-gray-900 dark:text-white text-xs">Key Insights</h4>
-              <div className="space-y-1 text-xs">
-                <div className="flex items-start gap-2 p-1.5 rounded-lg">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>
-                  <span className="leading-tight">Fed funds rate restrictive</span>
-                </div>
-                <div className="flex items-start gap-2 p-1.5 rounded-lg">
-                  <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mt-1.5 flex-shrink-0"></div>
-                  <span className="leading-tight">Balance sheet normalization</span>
-                </div>
-                <div className="flex items-start gap-2 p-1.5 rounded-lg">
-                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full mt-1.5 flex-shrink-0"></div>
-                  <span className="leading-tight">Real rates positive</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Policy Outlook */}
-            <div className="space-y-2">
-              <h4 className="font-semibold text-gray-900 dark:text-white text-xs">Policy Outlook</h4>
-              <div className="space-y-1 text-xs">
-                <div className="flex items-center justify-between p-1.5 rounded-lg">
-                  <span>Rate Cuts</span>
-                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs">Yes</Badge>
-                </div>
-                <div className="flex items-center justify-between p-1.5 rounded-lg">
-                  <span>QT Continue</span>
-                  <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 text-xs">Likely</Badge>
-                </div>
-                <div className="flex items-center justify-between p-1.5 rounded-lg">
-                  <span>Policy Risk</span>
-                  <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs">Medium</Badge>
-                </div>
-              </div>
-            </div>
+        <AnalysisScoreCard title="Policy Stance" icon={Target} className="lg:col-span-7">
+          <DomainUnderstandingPanel domainId="monetary_liquidity" />
         </AnalysisScoreCard>
 
         {/* Right: Main Chart (5/7 width) */}
-        <Card className="lg:col-span-5 border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23]">
+        <Card className="min-w-0 border border-gray-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23] lg:col-span-7">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center justify-between text-lg font-semibold">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <CardTitle className="flex min-w-0 items-center text-lg font-semibold">
               <div className="flex items-center gap-3">
                 {selectedFactorObject ? (
                   <div className="flex items-center gap-2">
@@ -427,7 +365,8 @@ export default function MonetaryPolicy() {
                   </Button>
                 )}
               </div>
-              <div className="flex gap-2">
+            </CardTitle>
+              <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
                 {['1M', '6M', '1Y', '5Y', '10Y', '25Y', 'MAX'].map((period) => (
                   <Button
                     key={period}
@@ -442,7 +381,7 @@ export default function MonetaryPolicy() {
                   </Button>
                 ))}
               </div>
-            </CardTitle>
+            </div>
             {selectedFactorObject && (
               <CardDescription className="flex flex-wrap items-center gap-4 text-sm mt-2">
                 <span>
@@ -458,7 +397,7 @@ export default function MonetaryPolicy() {
             )}
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="h-80 w-full main-chart-container">
+            <div className="h-[420px] w-full main-chart-container">
               {selectedFactorData && selectedFactorData.length > 0 && selectedFactorData[0].length > 0 ? (
                 <MultiLineChart dataSets={selectedFactorData} isTransitioning={false} />
               ) : (

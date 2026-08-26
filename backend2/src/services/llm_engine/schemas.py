@@ -30,7 +30,7 @@ class NarrativeBase(StrictModel):
     subject_id: str
     as_of_date: date
     data_as_of: date | None = None
-    analysis_version: str = "0.1.0"
+    analysis_version: str = "0.2.0"
     analysis_generated_at: datetime
     narrative_fa: str
     llm_shadow_score: float = Field(ge=0, le=10)
@@ -53,8 +53,17 @@ class IndicatorNarrative(NarrativeBase):
     watch_next_fa: list[str] = Field(default_factory=list)
 
 
+class DomainOutlookItem(StrictModel):
+    label_fa: str
+    value_fa: str
+    tone: Literal["positive", "warning", "negative", "neutral", "info"] = "neutral"
+
+
 class DomainNarrative(NarrativeBase):
     level: Literal["domain"] = "domain"
+    stance_label_fa: str = ""
+    key_insights_fa: list[str] = Field(default_factory=list)
+    outlook_items: list[DomainOutlookItem] = Field(default_factory=list)
     dominant_story_fa: str
     top_drivers: list[dict[str, Any] | str] = Field(default_factory=list)
     supporting_evidence: list[dict[str, Any] | str] = Field(default_factory=list)

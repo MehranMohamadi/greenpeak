@@ -9,10 +9,44 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 const indicatorConfigs = {
-  "ten-year-treasury": { id: "us_10y_treasury_yield" },
-  "fed-funds-rate": { id: "federal_funds_rate" },
+  "ten-year-treasury": { id: "us_10y_treasury_yield", seriesId: "DGS10", rawUrl: endpoints.monetaryPolicy.tenYear },
+  "fed-funds-rate": { id: "federal_funds_rate", seriesId: "DFF", rawUrl: endpoints.monetaryPolicy.dff },
 }
 const value = (number, suffix = "") => number == null ? "—" : `${number > 0 && suffix === " bp" ? "+" : ""}${Number(number).toFixed(2)}${suffix}`
+
+async function loadPreviewSnapshot(indicatorConfig, signal) {
+  const startDate = new Date()
+  startDate.setUTCFullYear(startDate.getUTCFullYear() - 6)
+  const separator = indicatorConfig.rawUrl.includes("?") ? "&" : "?"
+  const rawResponse = await fetch(
+    `${indicatorConfig.rawUrl}${separator}start_date=${startDate.toISOString().slice(0, 10)}`,
+    { cache: "no-store", signal }
+  )
+  const rawBody = await rawResponse.json()
+  if (!rawResponse.ok) throw new Error(rawBody?.detail || "Rate source data is unavailable.")
+
+  const observations = (rawBody.data || [])
+    .map((item) => ({ date: item.date, value: item.value ?? item.rate }))
+    .filter((item) => item.date && item.value != null)
+  if (!observations.length) throw new Error("No rate observations are available for analysis.")
+
+  const previewResponse = await fetch(endpoints.indicatorFeatures.pipelinePreview, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      indicator_id: indicatorConfig.id,
+      source_series_id: indicatorConfig.seriesId,
+      source_provider: rawBody.metadata?.source || "GreenPeak existing API",
+      observations,
+    }),
+    signal,
+  })
+  const previewBody = await previewResponse.json()
+  if (!previewResponse.ok) {
+    throw new Error(previewBody?.detail?.message || "Rate feature preview is unavailable.")
+  }
+  return previewBody.data?.stages?.validated_snapshot?.snapshot
+}
 
 export default function RateFeatureCard({ factorId }) {
   const indicatorConfig = indicatorConfigs[factorId]
@@ -26,30 +60,36 @@ export default function RateFeatureCard({ factorId }) {
 
   useEffect(() => {
     if (!indicatorId) return
-    let cancelled = false
+    const controller = new AbortController()
     setSnapshot(null); setError(""); setSourceMode("")
 
     const load = async () => {
       try {
         const [storedResponse, narrativeResponse] = await Promise.all([
-          fetch(endpoints.indicatorFeatures.latest(indicatorId), { cache: "no-store" }),
-          fetch(endpoints.analysis.indicatorLatest(indicatorId), { cache: "no-store" }),
+          fetch(endpoints.indicatorFeatures.latest(indicatorId), { cache: "no-store", signal: controller.signal }),
+          fetch(endpoints.analysis.indicatorLatest(indicatorId), { cache: "no-store", signal: controller.signal }),
         ])
         const storedBody = await storedResponse.json()
         const narrativeBody = await narrativeResponse.json()
-        if (!storedResponse.ok) throw new Error(storedBody?.detail?.message || "Analysis has not been generated yet.")
-        if (!cancelled) {
-          setSnapshot(storedBody.data); setSourceMode("stored snapshot")
+        let nextSnapshot = storedBody.data
+        let nextSourceMode = "stored snapshot"
+        if (!storedResponse.ok) {
+          nextSnapshot = await loadPreviewSnapshot(indicatorConfig, controller.signal)
+          nextSourceMode = "live API preview"
+        }
+        if (!nextSnapshot) throw new Error("Rate analysis did not return a validated snapshot.")
+        if (!controller.signal.aborted) {
+          setSnapshot(nextSnapshot); setSourceMode(nextSourceMode)
           setNarrative(narrativeResponse.ok ? narrativeBody.data : null)
         }
       } catch (requestError) {
-        if (!cancelled) setError(requestError instanceof Error ? requestError.message : "Rate analysis is unavailable")
+        if (!controller.signal.aborted) setError(requestError instanceof Error ? requestError.message : "Rate analysis is unavailable")
       }
     }
 
     load()
-    return () => { cancelled = true }
-  }, [indicatorConfig, indicatorId])
+    return () => controller.abort()
+  }, [indicatorId])
 
   if (!indicatorId) return null
   if (error) return (

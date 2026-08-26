@@ -206,9 +206,13 @@ def test_pipeline_preview_accepts_existing_api_shape(monkeypatch):
     assert mismatch.status_code == 422
 
 
-def test_pipeline_preview_is_disabled_by_default(monkeypatch):
+def test_pipeline_preview_remains_public_when_debug_inspection_is_disabled(monkeypatch):
     from src.core.config import get_settings
     monkeypatch.setattr(get_settings(), "greenpeak_enable_pipeline_preview", False)
-    response = TestClient(app).post("/api/v1/indicators/features/pipeline-preview", json={"indicator_id": "federal_funds_rate", "source_series_id": "DFF", "observations": [{"date": "2024-01-01", "value": 5.25}]})
-    assert response.status_code == 404
-    assert response.json()["detail"]["code"] == "PIPELINE_PREVIEW_DISABLED"
+    observations = [{"date": (date(2024, 1, 1) + timedelta(days=index)).isoformat(), "value": 5.25} for index in range(120)]
+    response = TestClient(app).post(
+        "/api/v1/indicators/features/pipeline-preview?as_of=2024-04-29",
+        json={"indicator_id": "federal_funds_rate", "source_series_id": "DFF", "observations": observations},
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["source_stage"] == "existing_api_fallback"
