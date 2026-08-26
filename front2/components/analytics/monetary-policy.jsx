@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import RateFeatureCard from "./rate-feature-card"
 import DomainUnderstandingPanel from "./domain-understanding-panel"
 import { DollarSign, TrendingUp, TrendingDown, Activity, Target, ExternalLink, Info, Maximize2, Minimize2, ChevronLeft, ChevronRight, Zap, Brain } from "lucide-react"
-import MainLoading from '@/components/ui/MainLoading'
+import MonetaryPolicyLoadingSkeleton from "./monetary-policy-loading"
 import useDFFData from "../../hooks/useDFFData"
 import useTenYearData from "../../hooks/useTenYearData"
 import useWALCLData from "../../hooks/useWALCLData"
@@ -306,7 +306,7 @@ export default function MonetaryPolicy() {
   }
 
   if (loading) {
-     return <MainLoading />
+    return <MonetaryPolicyLoadingSkeleton />
   }
 
   // Show error state if there's an error
