@@ -3,6 +3,8 @@ import {
   ensureDailyNewsRefresh,
   filterNewsItems,
   getNewsCache,
+  getNewsCacheProgressively,
+  mergeTopicFeeds,
 } from "@/lib/news-sentiment-cache.mjs"
 
 export const runtime = "nodejs"
@@ -31,6 +33,67 @@ function isValidApiTime(value) {
     date.getUTCDate() === day && date.getUTCHours() === hour && date.getUTCMinutes() === minute
 }
 
+function cacheMetadata(cache, stale, refreshError = null) {
+  return {
+    refreshedAt: cache.refreshedAt,
+    expiresAt: cache.expiresAt,
+    stale,
+    complete: cache.complete,
+    topicStatus: cache.topicStatus,
+    refreshWarning: refreshError,
+  }
+}
+
+function progressiveResponse({ apiKey, topics, timeFrom, timeTo, sort, limit }) {
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream({
+    start(controller) {
+      const topicFeeds = new Map()
+      const send = (value) => controller.enqueue(encoder.encode(`${JSON.stringify(value)}\n`))
+      const filteredItems = () => filterNewsItems(
+        mergeTopicFeeds([...topicFeeds].map(([topic, items]) => ({ topic, items }))),
+        { topics, timeFrom, timeTo, sort, limit }
+      )
+
+      getNewsCacheProgressively({ apiKey }, ({ topic, items, status }) => {
+        if (!topics.includes(topic)) return
+        topicFeeds.set(topic, items)
+        const combined = filteredItems()
+        send({
+          type: "topic",
+          topic,
+          topicStatus: status,
+          completedTopics: topicFeeds.size,
+          totalTopics: topics.length,
+          items: combined,
+          count: combined.length,
+        })
+      }).then(({ cache, stale, refreshError }) => {
+        const items = filterNewsItems(cache.items, { topics, timeFrom, timeTo, sort, limit })
+        send({
+          type: "complete",
+          completedTopics: topics.length,
+          totalTopics: topics.length,
+          items,
+          count: items.length,
+          cache: cacheMetadata(cache, stale, refreshError || null),
+        })
+        controller.close()
+      }).catch(() => {
+        send({ type: "error", error: "Failed to load Alpha Vantage news sentiment" })
+        controller.close()
+      })
+    },
+  })
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  })
+}
+
 export async function GET(request) {
   const apiKey = process.env.ALPHA_VANTAGE_KEY
   if (!apiKey) {
@@ -44,6 +107,7 @@ export async function GET(request) {
   const sort = (searchParams.get("sort") || "LATEST").trim().toUpperCase()
   const rawLimit = searchParams.get("limit")
   const limit = rawLimit ? Number(rawLimit) : null
+  const progressive = searchParams.get("stream") === "1"
 
   if (!topics.length || topics.some((topic) => !TOPIC_OPTIONS.has(topic))) {
     return Response.json({ error: "Invalid topics" }, { status: 400 })
@@ -61,6 +125,10 @@ export async function GET(request) {
 
   ensureDailyNewsRefresh(apiKey)
 
+  if (progressive) {
+    return progressiveResponse({ apiKey, topics, timeFrom, timeTo, sort, limit })
+  }
+
   try {
     const { cache, stale, refreshError } = await getNewsCache({ apiKey })
     const items = filterNewsItems(cache.items, { topics, timeFrom, timeTo, sort, limit })
@@ -69,14 +137,7 @@ export async function GET(request) {
       filters: { topics, timeFrom: timeFrom || null, timeTo: timeTo || null, sort, limit },
       items,
       count: items.length,
-      cache: {
-        refreshedAt: cache.refreshedAt,
-        expiresAt: cache.expiresAt,
-        stale,
-        complete: cache.complete,
-        topicStatus: cache.topicStatus,
-        refreshWarning: refreshError || null,
-      },
+      cache: cacheMetadata(cache, stale, refreshError || null),
       sentimentScoreDefinition: cache.sentimentScoreDefinition,
       relevanceScoreDefinition: cache.relevanceScoreDefinition,
     })

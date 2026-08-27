@@ -13,6 +13,17 @@ const DEFAULT_PER_TOPIC_LIMIT = 1000
 const schedulerKey = Symbol.for("greenpeak.newsSentimentRefreshTimer")
 
 let refreshPromise = null
+const refreshListeners = new Set()
+
+function publishTopic(event) {
+  for (const listener of refreshListeners) {
+    try {
+      listener(event)
+    } catch {
+      // A disconnected streaming client must not interrupt the server refresh.
+    }
+  }
+}
 
 function positiveInteger(value, fallback, maximum) {
   const parsed = Number(value)
@@ -194,6 +205,7 @@ export async function refreshNewsCache({
       sentimentScoreDefinition ||= result.sentimentScoreDefinition
       relevanceScoreDefinition ||= result.relevanceScoreDefinition
       successfulTopics += 1
+      publishTopic({ topic, items: result.items, status: topicStatus[topic] })
     } catch {
       const fallbackItems = previousTopicItems(previous, topic)
       topicFeeds.push({ topic, items: fallbackItems })
@@ -202,6 +214,7 @@ export async function refreshNewsCache({
         count: fallbackItems.length,
         lastAttemptAt: now.toISOString(),
       }
+      publishTopic({ topic, items: fallbackItems, status: topicStatus[topic] })
     }
   }
 
@@ -259,6 +272,34 @@ export async function getNewsCache(options) {
   } catch (error) {
     if (cached) return { cache: cached, stale: true, refreshError: error.message }
     throw error
+  }
+}
+
+export async function getNewsCacheProgressively(options, onTopic) {
+  const seenTopics = new Set()
+  const listener = (event) => {
+    seenTopics.add(event.topic)
+    onTopic(event)
+  }
+  refreshListeners.add(listener)
+
+  try {
+    const result = await getNewsCache(options)
+    for (const topic of DEFAULT_NEWS_TOPICS) {
+      if (seenTopics.has(topic)) continue
+      const items = previousTopicItems(result.cache, topic)
+      onTopic({
+        topic,
+        items,
+        status: result.cache.topicStatus?.[topic] || {
+          status: items.length ? "stale" : "unavailable",
+          count: items.length,
+        },
+      })
+    }
+    return result
+  } finally {
+    refreshListeners.delete(listener)
   }
 }
 

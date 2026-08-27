@@ -8,6 +8,7 @@ import {
   DEFAULT_NEWS_TOPICS,
   filterNewsItems,
   getNewsCache,
+  getNewsCacheProgressively,
   refreshNewsCache,
 } from "../lib/news-sentiment-cache.mjs"
 
@@ -119,6 +120,26 @@ test("keeps saved topic data when one daily topic refresh fails", async (context
   assert.deepEqual(retriedTopics, [failedTopic])
   assert.equal(recovered.cache.complete, true)
   assert.ok(recovered.cache.items.some((item) => item.url === `https://example.com/${failedTopic}/recovered`))
+})
+
+test("publishes each topic as soon as its upstream request finishes", async (context) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "greenpeak-news-"))
+  context.after(() => rm(directory, { recursive: true, force: true }))
+  const cachePath = path.join(directory, "news.json")
+  const published = []
+
+  await getNewsCacheProgressively({
+    apiKey: "test-key",
+    cachePath,
+    fetchImpl: async (requestUrl) => {
+      const topic = new URL(requestUrl).searchParams.get("topics")
+      return response({ feed: [upstreamArticle(`${topic} live`, `https://example.com/${topic}/live`)] })
+    },
+  }, (event) => published.push(event))
+
+  assert.deepEqual(published.map((event) => event.topic), DEFAULT_NEWS_TOPICS)
+  assert.ok(published.every((event) => event.items.length === 1))
+  assert.ok(published.every((event) => event.status.status === "fresh"))
 })
 
 test("filters the aggregate by topic and inclusive minute range", () => {

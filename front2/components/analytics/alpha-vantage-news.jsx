@@ -48,6 +48,7 @@ export default function AlphaVantageNews() {
   const [cache, setCache] = useState(null)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [progress, setProgress] = useState({ completed: 0, total: DEFAULT_NEWS_TOPICS.length, topic: null })
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [visibleCount, setVisibleCount] = useState(12)
 
@@ -56,16 +57,44 @@ export default function AlphaVantageNews() {
     async function loadNews() {
       setIsLoading(true)
       setError("")
+      setItems([])
+      setCache(null)
+      setProgress({ completed: 0, total: filters.topics.length, topic: null })
       setVisibleCount(12)
       try {
         const params = new URLSearchParams({ topics: filters.topics.join(","), sort: filters.sort })
+        params.set("stream", "1")
         if (filters.timeFrom) params.set("time_from", toApiTime(filters.timeFrom))
         if (filters.timeTo) params.set("time_to", toApiTime(filters.timeTo))
         const response = await fetch(`/api/market/news-sentiment?${params}`, { signal: controller.signal })
-        const payload = await response.json()
-        if (!response.ok) throw new Error(payload.error || "Unable to load news")
-        setItems(payload.items || [])
-        setCache(payload.cache || null)
+        if (!response.ok) {
+          const payload = await response.json()
+          throw new Error(payload.error || "Unable to load news")
+        }
+        if (!response.body) throw new Error("Streaming news response is unavailable")
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+        while (true) {
+          const { value, done } = await reader.read()
+          buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
+          const lines = buffer.split("\n")
+          buffer = lines.pop() || ""
+          for (const line of lines) {
+            if (!line.trim()) continue
+            const payload = JSON.parse(line)
+            if (payload.type === "error") throw new Error(payload.error || "Unable to load news")
+            setItems(payload.items || [])
+            setProgress({
+              completed: payload.completedTopics || 0,
+              total: payload.totalTopics || filters.topics.length,
+              topic: payload.topic || null,
+            })
+            if (payload.type === "complete") setCache(payload.cache || null)
+          }
+          if (done) break
+        }
       } catch (requestError) {
         if (requestError.name !== "AbortError") {
           setItems([])
@@ -170,10 +199,18 @@ export default function AlphaVantageNews() {
           </div>
         )}
 
-        {isLoading && <div className="flex min-h-40 items-center justify-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Loading news sentiment...</div>}
-        {!isLoading && error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">{error}</div>}
+        {isLoading && (
+          <div className="mb-3 flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-sm text-muted-foreground" aria-live="polite">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>
+              Loaded {progress.completed} of {progress.total} topic feeds
+              {progress.topic ? ` · Latest: ${NEWS_TOPIC_LABELS[progress.topic] || progress.topic}` : ""}
+            </span>
+          </div>
+        )}
+        {error && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">{error}</div>}
         {!isLoading && !error && items.length === 0 && <div className="py-10 text-center text-sm text-muted-foreground">No matching news found.</div>}
-        {!isLoading && !error && items.length > 0 && (
+        {items.length > 0 && (
           <>
             <div className="mb-3 text-sm text-muted-foreground">Showing {Math.min(visibleCount, items.length)} of {items.length} combined results</div>
             <div className="space-y-3">
