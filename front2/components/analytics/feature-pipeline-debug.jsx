@@ -7,11 +7,9 @@ import { endpoints } from "@/api/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { indicatorFeatureConfigs } from "./indicator-feature-card"
 
-const indicators = [
-  { id: "us_10y_treasury_yield", label: "10-Year Treasury Yield (DGS10)", series: "DGS10", rawUrl: endpoints.monetaryPolicy.tenYear },
-  { id: "federal_funds_rate", label: "Federal Funds Rate (DFF)", series: "DFF", rawUrl: endpoints.monetaryPolicy.dff },
-]
+const indicators = indicatorFeatureConfigs
 
 const stageTitles = {
   raw_input: "1. Raw Input",
@@ -23,20 +21,21 @@ const stageTitles = {
 
 const createMockPayload = selected => {
   const isTreasury = selected.id === "us_10y_treasury_yield"
-  const currentValue = isTreasury ? 4.18 : 5.33
+  const isRate = isTreasury || selected.id === "federal_funds_rate" || selected.id.endsWith("_spread") || selected.id === "sofr_rate"
+  const currentValue = isTreasury ? 4.18 : isRate ? 5.33 : 100
   const observations = [
     { date: "2025-01-02", value: isTreasury ? 4.57 : 5.33 },
     { date: "2025-02-03", value: isTreasury ? 4.54 : 5.33 },
     { date: "2025-03-03", value: currentValue },
   ]
-  const features = {
+  const features = isRate ? {
     current_value_pct: currentValue,
     delta_30d_bp: isTreasury ? -36 : 0,
     mean_30d_pct: isTreasury ? 4.31 : 5.33,
     z_score_1y: isTreasury ? 0.42 : 1.16,
     percentile_5y: isTreasury ? 78.4 : 96.2,
     slope_90d_bp_per_day: isTreasury ? -0.31 : 0,
-  }
+  } : { current_value: currentValue, delta_90d: 2.5, delta_90d_pct: 2.56, zscore_window: 0.42, percentile_window: 64.2, observation_count_window: 36 }
   const snapshot = {
     schema_version: "mock-1.0",
     feature_version: "mock-demo",
@@ -44,7 +43,7 @@ const createMockPayload = selected => {
     indicator_id: selected.id,
     as_of_date: "2025-03-03",
     source: { provider: "Mock data", series_id: selected.series, is_mock: true },
-    current: { observation_date: "2025-03-03", value_pct: currentValue },
+    current: { observation_date: "2025-03-03", value: currentValue, value_pct: isRate ? currentValue : null, unit: isRate ? "percent" : "native_unit" },
     features,
     feature_reasons: {},
     derived_features: {},
@@ -84,7 +83,7 @@ export default function FeaturePipelineDebug() {
     const selected = indicators.find(item => item.id === indicator)
     try {
       const startDate = new Date()
-      startDate.setUTCFullYear(startDate.getUTCFullYear() - 6)
+      startDate.setUTCFullYear(startDate.getUTCFullYear() - 11)
       const separator = selected.rawUrl.includes("?") ? "&" : "?"
       const rawResponse = await fetch(`${selected.rawUrl}${separator}start_date=${startDate.toISOString().slice(0, 10)}`, { cache: "no-store", signal: controller.signal })
       const rawBody = await rawResponse.json()
@@ -110,7 +109,7 @@ export default function FeaturePipelineDebug() {
           ...body.data.stages,
           raw_input: {
             ...body.data.stages.raw_input,
-            description: "Complete read-only observations received from the existing monetary API.",
+            description: "Complete read-only observations received from the existing indicator API.",
             total_count: rawRecords.length,
             sample_last_10: undefined,
             records: rawRecords,

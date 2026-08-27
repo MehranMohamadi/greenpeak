@@ -85,7 +85,7 @@ def _build_pipeline_stages(indicator_id: str, definition: dict, raw_documents: l
             "raw_input": {"description": f"Read-only observations received from {source_stage}.", "total_count": len(raw_documents), "sample_last_10": [_safe_raw_document(item) for item in raw_documents[-10:]]},
             "canonical_adapter": {"description": "Raw fields mapped to the canonical internal contract.", "total_count": len(canonical), "sample_last_10": _json_records(canonical)},
             "cleaned_series": {"description": "Valid, sorted, de-duplicated observations used by calculations.", "received_count": received_count, "valid_count": len(cleaned), "flags": cleaning_flags, "sample_last_10": _json_records(cleaned)},
-            "calculated_features": {"description": "Deterministic Python output; rate changes are basis points.", "features": payload["features"], "feature_reasons": payload["feature_reasons"], "derived_features": payload["derived_features"], "state": payload["state"], "quality": payload["quality"]},
+            "calculated_features": {"description": "Deterministic, unit-aware Python output; only rate-template changes use basis points.", "features": payload["features"], "feature_reasons": payload["feature_reasons"], "derived_features": payload["derived_features"], "state": payload["state"], "quality": payload["quality"]},
             "validated_snapshot": {"description": "Final Pydantic-validated, versioned snapshot before persistence.", "snapshot": payload},
         },
     }
@@ -129,7 +129,7 @@ def indicator_feature_pipeline_debug(indicator_id: str, as_of: date | None = Non
     try:
         repository = MongoFeatureRepository(client, settings.mongodb_database)
         raw_documents = repository.load_raw_documents(definition, target_date)
-        return {"ok": True, "data": _build_pipeline_stages(indicator_id, definition, raw_documents, target_date, "mongodb:monetary_policy")}
+        return {"ok": True, "data": _build_pipeline_stages(indicator_id, definition, raw_documents, target_date, f"mongodb:{definition['source']['collection']}")}
     except HTTPException:
         raise
     except PyMongoError:
@@ -157,7 +157,7 @@ def indicator_feature_pipeline_preview(request: PipelinePreviewRequest, as_of: d
             "value": item.value,
             "fred_series_id": request.source_series_id,
             "updated_at": None,
-            "metadata": {"frequency": definition["data"]["frequency"], "unit": "Percent", "source": request.source_provider},
+            "metadata": {"frequency": definition["data"]["frequency"], "unit": definition["data"]["unit"], "source": request.source_provider},
         }
         for item in request.observations
     ]

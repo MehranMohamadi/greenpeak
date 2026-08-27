@@ -1,0 +1,11 @@
+indicator_id: nonfarm_payrolls
+definition_version: "1.0"
+enabled: true
+display: {name_en: "Total Nonfarm Payrolls", name_fa: "Total Nonfarm Payrolls", unit: thousands_persons}
+source: {provider: FRED, series_id: PAYEMS, frequency: monthly, collection: macro_economics}
+raw_indicator: nonfarm_payrolls
+classification: {primary_domain: growth_inflation_labor, related_domains: [corporate_fundamentals]}
+feature_template: monthly_level
+feature_overrides: {trend_threshold_bp: 100.0}
+semantics: {category: labor_market, higher_is: context_dependent, value_meaning: total_payroll_employment_level_not_monthly_jobs_added}
+llm: {enabled: true, include_in_domain_analysis: true}

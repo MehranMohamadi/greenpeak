@@ -12,7 +12,14 @@ from src.services.greenpeak_config import CONFIG_ROOT, load_registry, stable_has
 def test_registry_loads_utf8_and_has_eight_domains():
     domains, templates, indicators = load_registry()
     assert len(domains.domains) == 8
-    assert set(indicators) == {"us_10y_treasury_yield", "federal_funds_rate"}
+    assert {
+        "us_10y_treasury_yield",
+        "federal_funds_rate",
+        "fed_balance_sheet",
+        "sofr_rate",
+        "real_interest_rate_10y",
+    } <= set(indicators)
+    assert len(indicators) == 30
     assert "وجوه فدرال" in indicators["federal_funds_rate"].display.name_fa
     assert "daily_interest_rate" in templates
 

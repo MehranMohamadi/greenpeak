@@ -1,0 +1,11 @@
+indicator_id: valuation_pe_ratio
+definition_version: "1.0"
+enabled: true
+display: {name_en: "S&P 500 P/E Ratio", name_fa: "S&P 500 P/E Ratio", unit: ratio}
+source: {provider: Yahoo Finance, series_id: GSPC_PE, frequency: monthly, collection: valuation}
+raw_indicator: pe_ratio
+classification: {primary_domain: valuation, related_domains: [corporate_fundamentals]}
+feature_template: ratio_level
+feature_overrides: {trend_threshold_bp: 0.5}
+semantics: {category: valuation, higher_is: more_expensive_relative_to_earnings, value_meaning: price_to_earnings_ratio_from_valuation_pipeline}
+llm: {enabled: true, include_in_domain_analysis: true}

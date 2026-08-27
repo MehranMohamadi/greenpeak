@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import RateFeatureCard from "./rate-feature-card"
+import IndicatorFeatureCard from "./indicator-feature-card"
 import DomainUnderstandingPanel from "./domain-understanding-panel"
 import { DollarSign, TrendingUp, TrendingDown, Activity, Target, ExternalLink, Info, Maximize2, Minimize2, ChevronLeft, ChevronRight, Zap, Brain } from "lucide-react"
 import MonetaryPolicyLoadingSkeleton from "./monetary-policy-loading"
@@ -469,7 +469,7 @@ export default function MonetaryPolicy() {
         </Card>
       </AnalysisOverviewGrid>
 
-      <RateFeatureCard factorId={selectedFactorObject?.id} />
+      <IndicatorFeatureCard page="monetary-policy" factorId={selectedFactorObject?.id} />
 
       {/* Bottom Section: Factor Grid */}
       <AnalysisFactorGrid title="Monetary Policy Factors" className="gap-6">

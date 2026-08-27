@@ -1,0 +1,11 @@
+indicator_id: return_on_assets
+definition_version: "1.0"
+enabled: true
+display: {name_en: "Return on Assets", name_fa: "Return on Assets", unit: percent}
+source: {provider: Yahoo Finance, series_id: MULTIPLE_RETURN_ON_ASSETS, frequency: quarterly, collection: corporate_earnings}
+raw_indicator: return_on_assets
+classification: {primary_domain: corporate_fundamentals, related_domains: [valuation]}
+feature_template: quarterly_level
+feature_overrides: {family: periodic_percent, trend_threshold_bp: 0.5}
+semantics: {category: profitability, higher_is: stronger_asset_efficiency, value_meaning: aggregate_sample_return_on_assets}
+llm: {enabled: true, include_in_domain_analysis: true}

@@ -1,0 +1,11 @@
+indicator_id: retail_sales
+definition_version: "1.0"
+enabled: true
+display: {name_en: "Advance Retail Sales", name_fa: "Advance Retail Sales", unit: millions_usd}
+source: {provider: FRED, series_id: RSXFS, frequency: monthly, collection: macro_economics}
+raw_indicator: retail_sales
+classification: {primary_domain: growth_inflation_labor, related_domains: [corporate_fundamentals]}
+feature_template: monthly_level
+feature_overrides: {trend_threshold_bp: 1000.0}
+semantics: {category: consumer_spending, higher_is: usually_stronger_nominal_demand, value_meaning: nominal_retail_sales_level}
+llm: {enabled: true, include_in_domain_analysis: true}

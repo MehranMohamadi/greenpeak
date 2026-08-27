@@ -21,7 +21,7 @@ def domain_indicator_ids(domain_id: str, indicators: dict) -> list[str]:
     return [
         item.indicator_id
         for item in indicators.values()
-        if item.llm.include_in_domain_analysis
+        if item.enabled and item.llm.enabled and item.llm.include_in_domain_analysis
         and (item.classification.primary_domain == domain_id or domain_id in item.classification.related_domains)
     ]
 
@@ -83,6 +83,8 @@ def run_llm_pipeline(feature_repository, narrative_repository, provider, as_of: 
     results: dict[str, Any] = {"run_id": run_id, "as_of_date": as_of.isoformat(), "indicator": [], "domain": [], "market": None, "errors": []}
     indicator_outputs = {}
     for indicator_id, config in indicators.items():
+        if not config.enabled or not config.llm.enabled:
+            continue
         feature = feature_repository.snapshot_for_as_of(indicator_id, as_of)
         if not feature:
             results["errors"].append(f"{indicator_id}:feature_snapshot_missing")
@@ -103,11 +105,12 @@ def run_llm_pipeline(feature_repository, narrative_repository, provider, as_of: 
         available = [indicator_outputs[item] for item in configured if item in indicator_outputs]
         if not available:
             continue
-        ratio = len(available) / domain.expected_indicator_count
+        coverage_target = max(domain.expected_indicator_count, len(configured))
+        ratio = len(available) / coverage_target
         missing_inputs = sorted(set(configured) - set(indicator_outputs))
         if len(configured) < domain.expected_indicator_count:
             missing_inputs.append("unregistered_domain_indicators")
-        coverage = {"status": "full" if ratio == 1 else "partial", "ratio": ratio, "configured_count": domain.expected_indicator_count, "available_count": len(available), "missing_inputs": missing_inputs}
+        coverage = {"status": "full" if ratio == 1 else "partial", "ratio": ratio, "configured_count": coverage_target, "available_count": len(available), "missing_inputs": missing_inputs}
         evidence = {"domain": domain.model_dump(mode="json"), "indicator_narratives": [item.model_dump(mode="json") for item in available], "horizontal_evidence": {"news_narratives": [], "events_calendar": []}, "versions": {"domain_config_version": domains.config_version}}
         try:
             value, status = _analyze(narrative_repository, provider, "domain", domain.id, as_of, evidence, coverage, max((item.data_as_of for item in available if item.data_as_of), default=None), force)

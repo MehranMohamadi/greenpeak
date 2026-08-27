@@ -1,0 +1,11 @@
+indicator_id: treasury_2y10y_spread
+definition_version: "1.0"
+enabled: true
+display: {name_en: "10-Year Minus 2-Year Treasury Spread", name_fa: "10-Year Minus 2-Year Treasury Spread", unit: percent}
+source: {provider: FRED, series_id: T10Y2Y, frequency: daily, collection: systemic_risk}
+raw_indicator: yield_curve_2y10y
+classification: {primary_domain: credit_financial_risk, related_domains: [monetary_liquidity, capital_flows_intermarket]}
+feature_template: daily_interest_rate
+feature_overrides: {trend_threshold_bp: 15.0}
+semantics: {category: yield_curve, higher_is: steeper_curve, value_meaning: ten_year_yield_minus_two_year_yield, zero_threshold: inversion}
+llm: {enabled: true, include_in_domain_analysis: true}

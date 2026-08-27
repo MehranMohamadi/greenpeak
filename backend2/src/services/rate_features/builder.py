@@ -11,6 +11,7 @@ import pandas as pd
 from .cleaning import clean_observations
 from .config import FEATURE_VERSION, SCHEMA_VERSION
 from .engine import calculate_fed_change, calculate_rate_features
+from .generic_engine import calculate_generic_features
 from .schemas import IndicatorFeatureSnapshot
 
 
@@ -25,7 +26,12 @@ def build_snapshot(definition: dict, raw_frame: pd.DataFrame, as_of_date: date, 
         return None, clean
     latest = clean.iloc[-1]
     feature_anchor_date = latest.observation_date
-    features, reasons, direction = calculate_rate_features(clean, definition["feature_config"], feature_anchor_date)
+    family = definition["feature_config"].get("family", "daily_rate")
+    is_rate = family == "daily_rate"
+    if is_rate:
+        features, reasons, direction = calculate_rate_features(clean, definition["feature_config"], feature_anchor_date)
+    else:
+        features, reasons, direction = calculate_generic_features(clean, definition["feature_config"], feature_anchor_date)
     derived: dict[str, Any] = {}
     if definition["indicator_id"] == "federal_funds_rate":
         derived, derived_reasons = calculate_fed_change(clean, as_of_date)
@@ -46,14 +52,26 @@ def build_snapshot(definition: dict, raw_frame: pd.DataFrame, as_of_date: date, 
     else:
         status = "ok"
 
+    unit = definition["data"]["unit"]
+    fact_fields = (
+        (("current_value_pct", "percent"), ("delta_90d_bp", "bp"), ("zscore_365d", None))
+        if is_rate
+        else (("current_value", unit), ("delta_90d", unit), ("delta_90d_pct", "percent"), ("zscore_window", None), ("percentile_window", "percentile"))
+    )
     facts = [
-        {"field": name, "value": features[name], "unit": unit, "available": features[name] is not None}
-        for name, unit in (("current_value_pct", "percent"), ("delta_90d_bp", "bp"), ("zscore_365d", None))
+        {"field": name, "value": features.get(name), "unit": fact_unit, "available": features.get(name) is not None}
+        for name, fact_unit in fact_fields
     ]
     facts.append({"field": "quality_status", "value": status, "unit": None, "available": True})
-    delta = features.get("delta_90d_bp")
-    delta_text = "ناموجود" if delta is None else f"{delta:.2f}"
-    summary = f"در تاریخ {feature_anchor_date.isoformat()} مقدار شاخص {features['current_value_pct']:.4g} درصد است؛ نسبت به ۹۰ روز قبل {delta_text} واحد پایه تغییر کرده است."
+    delta = features.get("delta_90d_bp" if is_rate else "delta_90d")
+    delta_text = "unavailable" if delta is None else f"{delta:.4g}"
+    lrm = "\u200e"
+    rlm = "\u200f"
+    summary = (
+        f"{rlm}در تاریخ {lrm}{feature_anchor_date.isoformat()}{lrm}، مقدار {lrm}{definition['name_en']}{lrm} "
+        f"برابر {lrm}{float(latest.value_pct):.6g} {unit}{lrm} است؛ تغییر آن در افق محاسباتی "
+        f"برابر {lrm}{delta_text} {definition['data']['delta_unit']}{lrm} است."
+    )
     if status == "stale":
         summary += " داده فعلی قدیمی است و باید با احتیاط استفاده شود."
 
@@ -61,8 +79,8 @@ def build_snapshot(definition: dict, raw_frame: pd.DataFrame, as_of_date: date, 
         indicator_id=definition["indicator_id"], schema_version=SCHEMA_VERSION, feature_version=FEATURE_VERSION,
         definition_version=definition["definition_version"], as_of_date=as_of_date, calculated_at=calculated_at or datetime.now(UTC), run_id=run_id,
         source={"provider": definition["source"]["provider"], "series_id": definition["source"]["series_id"], "latest_observation_date": latest.observation_date},
-        current={"value_pct": float(latest.value_pct)}, features=features, feature_reasons=reasons, derived_features=derived,
-        state={"direction_90d": direction, "materiality_threshold_bp": definition["feature_config"]["trend_threshold_bp"], "state_is_experimental": True},
+        current={"value": float(latest.value_pct), "value_pct": float(latest.value_pct) if is_rate else None, "unit": unit}, features=features, feature_reasons=reasons, derived_features=derived,
+        state={"direction_90d": direction, "direction_horizon_days": 90 if 90 in definition["feature_config"]["calendar_offsets_days"] else min(definition["feature_config"]["calendar_offsets_days"], key=lambda days: abs(days - 90)), "materiality_threshold": definition["feature_config"]["trend_threshold_bp"], "materiality_threshold_unit": "bp" if is_rate else unit, "materiality_threshold_bp": definition["feature_config"]["trend_threshold_bp"] if is_rate else None, "state_is_experimental": True},
         quality={"status": status, "freshness_days": freshness, "missing_ratio_1y": missing_ratio, "observation_count_1y": len(valid_1y), "flags": list(dict.fromkeys(quality_flags))},
         semantics=definition["semantics"],
         llm_context={"language": "fa", "facts": facts, "summary_template_fa": summary, "guardrails_fa": ["بین همبستگی و علیت تفاوت بگذار.", "از یک شاخص به تنهایی توصیه سرمایه‌گذاری تولید نکن.", "هر ادعا را به facts موجود محدود کن.", "در صورت stale یا insufficient_history عدم قطعیت را ذکر کن."]},

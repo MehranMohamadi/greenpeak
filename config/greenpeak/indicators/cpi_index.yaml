@@ -1,0 +1,11 @@
+indicator_id: cpi_index
+definition_version: "1.0"
+enabled: true
+display: {name_en: "Consumer Price Index", name_fa: "Consumer Price Index", unit: index_1982_84_100}
+source: {provider: FRED, series_id: CPIAUCSL, frequency: monthly, collection: macro_economics}
+raw_indicator: cpi_inflation
+classification: {primary_domain: growth_inflation_labor, related_domains: [monetary_liquidity, valuation]}
+feature_template: monthly_level
+feature_overrides: {trend_threshold_bp: 0.5}
+semantics: {category: inflation, higher_is: higher_price_level, value_meaning: price_level_index_not_inflation_rate}
+llm: {enabled: true, include_in_domain_analysis: true}

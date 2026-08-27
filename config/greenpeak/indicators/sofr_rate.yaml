@@ -1,0 +1,11 @@
+indicator_id: sofr_rate
+definition_version: "1.0"
+enabled: true
+display: {name_en: "Secured Overnight Financing Rate", name_fa: "Secured Overnight Financing Rate", unit: percent}
+source: {provider: FRED, series_id: SOFR, frequency: daily, collection: monetary_policy}
+raw_indicator: sofr_rate
+classification: {primary_domain: monetary_liquidity, related_domains: [credit_financial_risk]}
+feature_template: daily_interest_rate
+feature_overrides: {}
+semantics: {category: money_market_rate, higher_is: context_dependent, value_meaning: secured_overnight_funding_rate}
+llm: {enabled: true, include_in_domain_analysis: true}

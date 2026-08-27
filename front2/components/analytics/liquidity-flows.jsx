@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import MultiLineChart from "../charts/multi-line-chart"
 import MiniChart from "./mini-chart"
 import FullScreenChart from './fullscreen-chart'
+import IndicatorFeatureCard from "./indicator-feature-card"
 import { Droplets, TrendingUp, TrendingDown, Activity, Users, ArrowUpDown, Target, Brain, Zap, Info, ExternalLink, Maximize2, Minimize2, ChevronLeft, ChevronRight, Grid3X3 } from "lucide-react"
 import useLiquidityData from "../../hooks/useLiquidityData"
 import { 
@@ -783,6 +784,8 @@ export default function LiquidityFlows() {
           </CardContent>
         </Card>
       </div>
+
+      <IndicatorFeatureCard page="liquidity-flows" factorId={selectedFactorObject?.id} />
 
       {/* Bottom Section: Factor Grid */}
       <div className="slide-in-up">

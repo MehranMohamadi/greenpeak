@@ -1,0 +1,11 @@
+indicator_id: sp500_eps
+definition_version: "1.0"
+enabled: true
+display: {name_en: "S&P 500 Earnings Per Share", name_fa: "S&P 500 Earnings Per Share", unit: usd_per_share}
+source: {provider: FRED, series_id: SPASTT01USQ661N, frequency: quarterly, collection: corporate_earnings}
+raw_indicator: sp500_eps
+classification: {primary_domain: corporate_fundamentals, related_domains: [valuation]}
+feature_template: quarterly_level
+feature_overrides: {trend_threshold_bp: 1.0}
+semantics: {category: earnings, higher_is: higher_aggregate_earnings, value_meaning: sp500_earnings_per_share}
+llm: {enabled: true, include_in_domain_analysis: true}

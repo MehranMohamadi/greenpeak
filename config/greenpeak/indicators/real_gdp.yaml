@@ -1,0 +1,11 @@
+indicator_id: real_gdp
+definition_version: "1.0"
+enabled: true
+display: {name_en: "Real Gross Domestic Product", name_fa: "Real Gross Domestic Product", unit: billions_chained_2012_usd}
+source: {provider: FRED, series_id: GDPC1, frequency: quarterly, collection: macro_economics}
+raw_indicator: gdp_growth_rate
+classification: {primary_domain: growth_inflation_labor, related_domains: [corporate_fundamentals]}
+feature_template: quarterly_level
+feature_overrides: {trend_threshold_bp: 50.0}
+semantics: {category: economic_growth, higher_is: usually_stronger_growth, value_meaning: real_gdp_level_not_growth_rate}
+llm: {enabled: true, include_in_domain_analysis: true}

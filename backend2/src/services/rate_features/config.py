@@ -4,8 +4,8 @@ from copy import deepcopy
 
 from ..greenpeak_config import load_registry, stable_hash
 
-SCHEMA_VERSION = "1.0"
-FEATURE_VERSION = "0.1.0"
+SCHEMA_VERSION = "1.1"
+FEATURE_VERSION = "0.2.0"
 DEFINITION_VERSION = "1.0"
 
 def _definitions() -> dict:
@@ -16,9 +16,10 @@ def _definitions() -> dict:
         feature_config = template.model_dump(exclude={"template_id", "feature_config_version", "required_features", "optional_features"})
         feature_config.update(item.feature_overrides)
         result[indicator_id] = {
+            "indicator_id": indicator_id,
             "name_en": item.display.name_en, "name_fa": item.display.name_fa,
-            "source": {"provider": item.source.provider, "series_id": item.source.series_id},
-            "data": {"frequency": item.source.frequency, "unit": item.display.unit, "delta_unit": "basis_point", "timezone": "UTC"},
+            "source": {"provider": item.source.provider, "series_id": item.source.series_id, "collection": item.source.collection},
+            "data": {"frequency": item.source.frequency, "unit": item.display.unit, "delta_unit": template.change_unit, "timezone": "UTC"},
             "raw_indicator": item.raw_indicator, "semantics": item.semantics,
             "classification": item.classification.model_dump(), "feature_config": feature_config,
             "feature_config_version": template.feature_config_version,

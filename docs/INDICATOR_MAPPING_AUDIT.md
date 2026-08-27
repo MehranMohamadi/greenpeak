@@ -1,6 +1,8 @@
 # GreenPeak Indicator Mapping Audit
 
-Audit date: 2026-08-17. This inventory covers analytical routes, chart components, hooks, backend endpoint groups, and checked-in fallback-backed series. Only DGS10 and DFF are registered in the versioned GreenPeak feature/analysis pipeline today. Other rows are discovery records, not promises of implemented features.
+Audit date: 2026-08-17. This historical discovery inventory covers analytical routes, chart components, hooks, backend endpoint groups, and checked-in fallback-backed series.
+
+Implementation status moved on after this audit: the production single-series scope, exact 30-indicator registry, feature families, exclusions, and delivery gates now live in [indicator-feature-rollout.md](indicator-feature-rollout.md). The row-level statuses below describe the original discovery pass and must not be used as current implementation status.
 
 | Display / series | Internal ID | Source / current consumer | Route or component | Primary domain | Related domains | Status / notes |
 |---|---|---|---|---|---|---|

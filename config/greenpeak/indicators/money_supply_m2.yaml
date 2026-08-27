@@ -1,0 +1,11 @@
+indicator_id: money_supply_m2
+definition_version: "1.0"
+enabled: true
+display: {name_en: "M2 Money Stock", name_fa: "M2 Money Stock", unit: billions_usd}
+source: {provider: FRED, series_id: M2SL, frequency: monthly, collection: liquidity_flows}
+raw_indicator: money_supply_m2
+classification: {primary_domain: monetary_liquidity, related_domains: [growth_inflation_labor]}
+feature_template: monthly_level
+feature_overrides: {trend_threshold_bp: 100.0}
+semantics: {category: money_supply, higher_is: more_nominal_liquidity, value_meaning: seasonally_adjusted_m2_level}
+llm: {enabled: true, include_in_domain_analysis: true}

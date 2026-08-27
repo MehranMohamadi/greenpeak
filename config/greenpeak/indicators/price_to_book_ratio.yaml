@@ -1,0 +1,11 @@
+indicator_id: price_to_book_ratio
+definition_version: "1.0"
+enabled: true
+display: {name_en: "Price-to-Book Ratio", name_fa: "Price-to-Book Ratio", unit: ratio}
+source: {provider: Yahoo Finance, series_id: MULTIPLE_PRICE_TO_BOOK, frequency: daily, collection: valuation}
+raw_indicator: price_to_book
+classification: {primary_domain: valuation, related_domains: [corporate_fundamentals]}
+feature_template: ratio_level
+feature_overrides: {stale_after_calendar_days: 7, trend_threshold_bp: 0.1}
+semantics: {category: valuation, higher_is: more_expensive_relative_to_book_value, value_meaning: price_to_book_ratio}
+llm: {enabled: true, include_in_domain_analysis: true}

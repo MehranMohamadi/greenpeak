@@ -1,0 +1,11 @@
+indicator_id: forward_pe_ratio
+definition_version: "1.0"
+enabled: true
+display: {name_en: "Forward P/E Ratio", name_fa: "Forward P/E Ratio", unit: ratio}
+source: {provider: Yahoo Finance, series_id: MULTIPLE_FORWARD_PE, frequency: daily, collection: valuation}
+raw_indicator: forward_pe
+classification: {primary_domain: valuation, related_domains: [corporate_fundamentals]}
+feature_template: ratio_level
+feature_overrides: {stale_after_calendar_days: 7, trend_threshold_bp: 0.5}
+semantics: {category: valuation, higher_is: more_expensive_relative_to_expected_earnings, value_meaning: forward_price_to_earnings_ratio}
+llm: {enabled: true, include_in_domain_analysis: true}

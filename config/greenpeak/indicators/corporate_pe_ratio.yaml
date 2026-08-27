@@ -1,0 +1,11 @@
+indicator_id: corporate_pe_ratio
+definition_version: "1.0"
+enabled: true
+display: {name_en: "Corporate S&P 500 P/E Ratio", name_fa: "Corporate S&P 500 P/E Ratio", unit: ratio}
+source: {provider: Yahoo Finance, series_id: GSPC_PE_CALCULATED, frequency: monthly, collection: corporate_earnings}
+raw_indicator: pe_ratio
+classification: {primary_domain: corporate_fundamentals, related_domains: [valuation]}
+feature_template: ratio_level
+feature_overrides: {trend_threshold_bp: 0.5}
+semantics: {category: valuation, higher_is: higher_price_per_unit_of_earnings, value_meaning: price_to_earnings_ratio_from_corporate_pipeline}
+llm: {enabled: true, include_in_domain_analysis: true}

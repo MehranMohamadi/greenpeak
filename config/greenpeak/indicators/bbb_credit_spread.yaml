@@ -1,0 +1,11 @@
+indicator_id: bbb_credit_spread
+definition_version: "1.0"
+enabled: true
+display: {name_en: "BBB Corporate Option-Adjusted Spread", name_fa: "BBB Corporate Option-Adjusted Spread", unit: percent}
+source: {provider: FRED, series_id: BAMLC0A4CBBB, frequency: daily, collection: systemic_risk}
+raw_indicator: cds_spreads_investment_grade
+classification: {primary_domain: credit_financial_risk, related_domains: [corporate_fundamentals]}
+feature_template: daily_interest_rate
+feature_overrides: {trend_threshold_bp: 10.0}
+semantics: {category: credit_spread, higher_is: higher_credit_stress, value_meaning: bbb_option_adjusted_spread_not_single_name_cds}
+llm: {enabled: true, include_in_domain_analysis: true}

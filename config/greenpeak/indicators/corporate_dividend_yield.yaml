@@ -1,0 +1,11 @@
+indicator_id: corporate_dividend_yield
+definition_version: "1.0"
+enabled: true
+display: {name_en: "Corporate S&P 500 Dividend Yield", name_fa: "Corporate S&P 500 Dividend Yield", unit: percent}
+source: {provider: Yahoo Finance, series_id: SPY_DIVIDEND_YIELD, frequency: monthly, collection: corporate_earnings}
+raw_indicator: dividend_yield
+classification: {primary_domain: corporate_fundamentals, related_domains: [valuation]}
+feature_template: monthly_level
+feature_overrides: {family: periodic_percent, trend_threshold_bp: 0.1}
+semantics: {category: shareholder_yield, higher_is: higher_cash_yield, value_meaning: spy_proxy_dividend_yield_from_corporate_pipeline}
+llm: {enabled: true, include_in_domain_analysis: true}

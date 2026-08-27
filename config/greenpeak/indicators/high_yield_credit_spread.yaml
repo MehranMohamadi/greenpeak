@@ -1,0 +1,11 @@
+indicator_id: high_yield_credit_spread
+definition_version: "1.0"
+enabled: true
+display: {name_en: "US High Yield Option-Adjusted Spread", name_fa: "US High Yield Option-Adjusted Spread", unit: percent}
+source: {provider: FRED, series_id: BAMLH0A0HYM2, frequency: daily, collection: systemic_risk}
+raw_indicator: credit_spread_hyg
+classification: {primary_domain: credit_financial_risk, related_domains: [capital_flows_intermarket]}
+feature_template: daily_interest_rate
+feature_overrides: {trend_threshold_bp: 20.0}
+semantics: {category: credit_spread, higher_is: higher_credit_stress, value_meaning: high_yield_option_adjusted_spread}
+llm: {enabled: true, include_in_domain_analysis: true}

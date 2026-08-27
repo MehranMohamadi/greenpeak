@@ -1,0 +1,11 @@
+indicator_id: fed_balance_sheet
+definition_version: "1.0"
+enabled: true
+display: {name_en: "Federal Reserve Balance Sheet", name_fa: "Federal Reserve Balance Sheet", unit: millions_usd}
+source: {provider: FRED, series_id: WALCL, frequency: weekly, collection: monetary_policy}
+raw_indicator: fed_balance_sheet
+classification: {primary_domain: monetary_liquidity, related_domains: [capital_flows_intermarket]}
+feature_template: weekly_level
+feature_overrides: {trend_threshold_bp: 10000.0}
+semantics: {category: central_bank_liquidity, higher_is: context_dependent, value_meaning: total_federal_reserve_assets}
+llm: {enabled: true, include_in_domain_analysis: true}

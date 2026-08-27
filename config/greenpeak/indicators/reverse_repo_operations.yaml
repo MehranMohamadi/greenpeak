@@ -1,0 +1,11 @@
+indicator_id: reverse_repo_operations
+definition_version: "1.0"
+enabled: true
+display: {name_en: "Overnight Reverse Repo Operations", name_fa: "Overnight Reverse Repo Operations", unit: millions_usd}
+source: {provider: FRED, series_id: RRPONTSYD, frequency: daily, collection: liquidity_flows}
+raw_indicator: reverse_repo_operations
+classification: {primary_domain: monetary_liquidity, related_domains: [capital_flows_intermarket]}
+feature_template: daily_level
+feature_overrides: {trend_threshold_bp: 10000.0}
+semantics: {category: federal_reserve_liquidity, higher_is: more_cash_parked_at_fed, value_meaning: overnight_reverse_repo_amount}
+llm: {enabled: true, include_in_domain_analysis: true}

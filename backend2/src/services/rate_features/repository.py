@@ -27,7 +27,8 @@ class MongoFeatureRepository:
 
     def load_raw_documents(self, definition: dict, as_of_date: date) -> list[dict[str, Any]]:
         query = {"indicator": definition["raw_indicator"], "date": {"$lte": as_of_date.isoformat()}}
-        return list(self.db.monetary_policy.find(query).sort([("date", ASCENDING), ("updated_at", ASCENDING)]))
+        collection_name = definition["source"].get("collection", "monetary_policy")
+        return list(self.db[collection_name].find(query).sort([("date", ASCENDING), ("updated_at", ASCENDING)]))
 
     def save_definition(self, definition: dict) -> None:
         identity = {"indicator_id": definition["indicator_id"], "definition_version": definition["definition_version"]}

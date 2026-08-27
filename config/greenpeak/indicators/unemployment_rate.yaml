@@ -1,0 +1,11 @@
+indicator_id: unemployment_rate
+definition_version: "1.0"
+enabled: true
+display: {name_en: "Unemployment Rate", name_fa: "Unemployment Rate", unit: percent}
+source: {provider: FRED, series_id: UNRATE, frequency: monthly, collection: macro_economics}
+raw_indicator: unemployment_rate
+classification: {primary_domain: growth_inflation_labor, related_domains: [corporate_fundamentals]}
+feature_template: monthly_level
+feature_overrides: {family: periodic_percent, trend_threshold_bp: 0.2}
+semantics: {category: labor_market, higher_is: weaker_labor_market, value_meaning: unemployed_share_of_labor_force}
+llm: {enabled: true, include_in_domain_analysis: true}

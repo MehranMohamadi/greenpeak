@@ -1,0 +1,11 @@
+indicator_id: vix
+definition_version: "1.0"
+enabled: true
+display: {name_en: "CBOE Volatility Index", name_fa: "CBOE Volatility Index", unit: index}
+source: {provider: FRED, series_id: VIXCLS, frequency: daily, collection: systemic_risk}
+raw_indicator: vix
+classification: {primary_domain: credit_financial_risk, related_domains: [positioning_sentiment_derivatives_volatility]}
+feature_template: daily_level
+feature_overrides: {family: stress_or_spread, trend_threshold_bp: 2.0}
+semantics: {category: implied_volatility, higher_is: higher_expected_volatility, value_meaning: annualized_sp500_implied_volatility_index}
+llm: {enabled: true, include_in_domain_analysis: true}

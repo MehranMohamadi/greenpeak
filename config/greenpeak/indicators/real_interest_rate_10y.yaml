@@ -1,0 +1,11 @@
+indicator_id: real_interest_rate_10y
+definition_version: "1.0"
+enabled: true
+display: {name_en: "10-Year Real Interest Rate", name_fa: "10-Year Real Interest Rate", unit: percent}
+source: {provider: FRED, series_id: REAINTRATREARAT10Y, frequency: monthly, collection: monetary_policy}
+raw_indicator: real_interest_rate
+classification: {primary_domain: monetary_liquidity, related_domains: [valuation, capital_flows_intermarket]}
+feature_template: monthly_level
+feature_overrides: {family: periodic_percent, trend_threshold_bp: 0.1}
+semantics: {category: real_rate, higher_is: tighter_financial_conditions, value_meaning: inflation_adjusted_10y_rate}
+llm: {enabled: true, include_in_domain_analysis: true}

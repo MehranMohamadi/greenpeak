@@ -1,0 +1,14 @@
+template_id: weekly_level
+feature_config_version: "1.0.0"
+family: positive_level
+change_unit: absolute_and_percent
+calendar_offsets_days: [30, 90, 180, 365]
+zscore_window_days: 365
+percentile_window_days: 1826
+slope_window_days: 180
+volatility_window_days: 180
+trend_threshold_bp: 0.1
+stale_after_calendar_days: 14
+minimum_observation_counts: {zscore: 40, percentile: 150, slope: 12}
+required_features: [current_value, delta_90d, delta_90d_pct]
+optional_features: [delta_365d_pct, zscore_window, percentile_window, slope_per_30d]

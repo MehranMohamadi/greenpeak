@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class SnapshotSource(BaseModel):
@@ -13,14 +13,34 @@ class SnapshotSource(BaseModel):
 
 
 class SnapshotCurrent(BaseModel):
-    value_pct: float
-    unit: Literal["percent"] = "percent"
+    value: float
+    unit: str
+    # Kept during the schema 1.x transition for existing rate-card consumers.
+    value_pct: float | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def upgrade_rate_current(cls, value):
+        if isinstance(value, dict) and "value" not in value and value.get("value_pct") is not None:
+            return {**value, "value": value["value_pct"], "unit": value.get("unit", "percent")}
+        return value
 
 
 class SnapshotState(BaseModel):
     direction_90d: Literal["rising", "falling", "stable", "unknown"]
-    materiality_threshold_bp: float
+    materiality_threshold: float
+    materiality_threshold_unit: str
+    materiality_threshold_bp: float | None = None
+    direction_horizon_days: int = 90
     state_is_experimental: bool = True
+
+    @model_validator(mode="before")
+    @classmethod
+    def upgrade_rate_state(cls, value):
+        if isinstance(value, dict) and "materiality_threshold" not in value:
+            threshold = value.get("materiality_threshold_bp")
+            return {**value, "materiality_threshold": threshold, "materiality_threshold_unit": "bp"}
+        return value
 
 
 class SnapshotQuality(BaseModel):

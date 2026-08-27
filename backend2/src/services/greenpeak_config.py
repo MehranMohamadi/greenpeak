@@ -47,6 +47,7 @@ class Source(StrictModel):
     provider: str
     series_id: str
     frequency: str
+    collection: str = "monetary_policy"
 
 
 class Classification(StrictModel):
@@ -76,6 +77,8 @@ class IndicatorConfig(StrictModel):
 class FeatureTemplate(StrictModel):
     template_id: str
     feature_config_version: str
+    family: str = "daily_rate"
+    change_unit: str = "basis_point"
     calendar_offsets_days: list[int]
     zscore_window_days: int
     percentile_window_days: int

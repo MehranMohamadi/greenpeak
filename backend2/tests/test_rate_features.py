@@ -15,9 +15,11 @@ from src.services.rate_features.builder import build_snapshot
 from src.services.rate_features.cleaning import adapt_mongo_documents, clean_observations
 from src.services.rate_features.config import get_definition
 from src.services.rate_features.engine import calculate_fed_change, calculate_pair_features, calculate_rate_features
+from src.services.rate_features.generic_engine import calculate_generic_features
 from src.services.rate_features.job import run_feature_job
 from src.main import app
 from src.services.rate_features.repository import MongoFeatureRepository
+from src.services.rate_features.schemas import IndicatorFeatureSnapshot
 from src.services.data_service import DataService
 
 
@@ -77,6 +79,50 @@ def test_zero_variance_and_insufficient_history_are_explicit():
     short_features, short_reasons, _ = calculate_rate_features(frame.iloc[:1], get_definition("federal_funds_rate")["feature_config"], frame.observation_date.iloc[0])
     assert short_features["delta_365d_bp"] is None
     assert short_reasons["delta_365d_bp"] == "insufficient_history"
+
+
+def test_generic_level_features_preserve_native_units_and_percent_change():
+    frame = canonical([100.0, 110.0, 121.0], start=date(2024, 1, 1), indicator="fed_balance_sheet")
+    frame["observation_date"] = [date(2024, 1, 1), date(2024, 2, 1), date(2024, 4, 1)]
+    config = get_definition("fed_balance_sheet")["feature_config"]
+    config["minimum_observation_counts"] = {"zscore": 2, "percentile": 2, "slope": 2}
+    config["trend_threshold_bp"] = 1.0
+    features, reasons, direction = calculate_generic_features(frame, config, date(2024, 4, 1))
+    assert features["current_value"] == 121.0
+    assert features["delta_90d"] == 21.0
+    assert features["delta_90d_pct"] == pytest.approx(21.0)
+    assert features["observation_count_window"] == 3
+    assert features["zscore_window"] is not None
+    assert features["mean_window"] == pytest.approx((100 + 110 + 121) / 3)
+    assert features["median_window"] == 110
+    assert features["change_volatility_window"] is not None
+    assert direction == "rising"
+    assert reasons["delta_180d"] == "insufficient_history"
+
+
+def test_generic_snapshot_has_unit_aware_current_contract():
+    definition = get_definition("fed_balance_sheet")
+    frame = canonical([100000.0 + index * 1000 for index in range(80)], date(2023, 1, 1), "fed_balance_sheet")
+    frame["observation_date"] = [date(2023, 1, 1) + timedelta(days=index * 7) for index in range(80)]
+    snapshot, _ = build_snapshot(definition, frame, frame.observation_date.iloc[-1], "run", "git:test")
+    assert snapshot.current.unit == "millions_usd"
+    assert snapshot.current.value == frame.value_pct.iloc[-1]
+    assert snapshot.current.value_pct is None
+    assert snapshot.features["current_value"] == frame.value_pct.iloc[-1]
+    assert snapshot.state.materiality_threshold_unit == "millions_usd"
+
+
+def test_schema_reads_pre_generic_rate_snapshots():
+    definition = get_definition("federal_funds_rate")
+    frame = canonical([5.0] * 120, date(2024, 1, 1), "federal_funds_rate")
+    snapshot, _ = build_snapshot(definition, frame, frame.observation_date.iloc[-1], "run", "git:test")
+    old_document = snapshot.model_dump(mode="json")
+    old_document["current"].pop("value")
+    old_document["state"].pop("materiality_threshold")
+    old_document["state"].pop("materiality_threshold_unit")
+    restored = IndicatorFeatureSnapshot.model_validate(old_document)
+    assert restored.current.value == 5.0
+    assert restored.state.materiality_threshold_unit == "bp"
 
 
 def test_fed_last_change_and_cross_spread_common_dates():
@@ -153,6 +199,29 @@ def test_offline_vertical_slice_and_idempotency():
     assert repository.latest_snapshot("federal_funds_rate")["indicator_id"] == "federal_funds_rate"
 
 
+def test_all_registered_indicators_build_validated_snapshots_offline():
+    from src.services.rate_features.config import DEFINITIONS
+
+    start = date(2020, 1, 1)
+    frames = {
+        indicator_id: canonical(
+            [100.0 + index / 10 for index in range(1500)],
+            start,
+            indicator_id,
+        )
+        for indicator_id in DEFINITIONS
+    }
+    repository = FakeRepository(frames)
+    snapshots, run = run_feature_job(repository, list(DEFINITIONS), date(2024, 2, 8), False)
+    assert len(DEFINITIONS) == 30
+    assert len(snapshots) == 30
+    assert run.status == "success"
+    assert {item["indicator_id"] for item in snapshots} == set(DEFINITIONS)
+    for item in snapshots:
+        assert item["current"]["unit"] == DEFINITIONS[item["indicator_id"]]["data"]["unit"]
+        assert item["llm_context"]["facts"]
+
+
 def test_latest_snapshot_endpoint(monkeypatch):
     definition = get_definition("federal_funds_rate"); definition["indicator_id"] = "federal_funds_rate"
     frame = canonical([5 + index / 10000 for index in range(700)], date(2023, 1, 1), "federal_funds_rate")
@@ -204,6 +273,23 @@ def test_pipeline_preview_accepts_existing_api_shape(monkeypatch):
         json={"indicator_id": "federal_funds_rate", "source_series_id": "FEDFUNDS", "observations": observations[:1]},
     )
     assert mismatch.status_code == 422
+
+
+def test_pipeline_preview_builds_unit_aware_non_rate_snapshot(monkeypatch):
+    observations = [
+        {"date": (date(2015, 1, 1) + timedelta(days=index * 30)).isoformat(), "value": 1000 + index * 10}
+        for index in range(120)
+    ]
+    response = TestClient(app).post(
+        f"/api/v1/indicators/features/pipeline-preview?as_of={observations[-1]['date']}",
+        json={"indicator_id": "money_supply_m2", "source_series_id": "M2SL", "observations": observations},
+    )
+    assert response.status_code == 200
+    snapshot = response.json()["data"]["stages"]["validated_snapshot"]["snapshot"]
+    assert snapshot["current"]["unit"] == "billions_usd"
+    assert snapshot["current"]["value_pct"] is None
+    assert snapshot["features"]["current_value"] == observations[-1]["value"]
+    assert snapshot["features"]["delta_365d_pct"] is not None
 
 
 def test_pipeline_preview_remains_public_when_debug_inspection_is_disabled(monkeypatch):

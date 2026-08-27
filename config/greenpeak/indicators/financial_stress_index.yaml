@@ -1,0 +1,11 @@
+indicator_id: financial_stress_index
+definition_version: "1.0"
+enabled: true
+display: {name_en: "St. Louis Fed Financial Stress Index", name_fa: "St. Louis Fed Financial Stress Index", unit: index}
+source: {provider: FRED, series_id: STLFSI4, frequency: weekly, collection: systemic_risk}
+raw_indicator: financial_stress_index
+classification: {primary_domain: credit_financial_risk, related_domains: [monetary_liquidity]}
+feature_template: weekly_level
+feature_overrides: {family: stress_or_spread, trend_threshold_bp: 0.25}
+semantics: {category: financial_stress, higher_is: higher_financial_stress, value_meaning: standardized_financial_stress_index, zero_threshold: average_stress}
+llm: {enabled: true, include_in_domain_analysis: true}

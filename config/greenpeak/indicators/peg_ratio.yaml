@@ -1,0 +1,11 @@
+indicator_id: peg_ratio
+definition_version: "1.0"
+enabled: true
+display: {name_en: "PEG Ratio", name_fa: "PEG Ratio", unit: ratio}
+source: {provider: Yahoo Finance, series_id: MULTIPLE_PEG, frequency: daily, collection: valuation}
+raw_indicator: peg_ratio
+classification: {primary_domain: valuation, related_domains: [corporate_fundamentals]}
+feature_template: ratio_level
+feature_overrides: {stale_after_calendar_days: 7, trend_threshold_bp: 0.1}
+semantics: {category: valuation, higher_is: context_dependent, value_meaning: price_earnings_to_growth_ratio}
+llm: {enabled: true, include_in_domain_analysis: true}

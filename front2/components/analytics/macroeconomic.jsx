@@ -18,6 +18,7 @@ import {
 import useUpdateInfo from "../../hooks/useUpdateInfo"
 import { analyticsCategories, getCategoryByName, getCategoryIndex } from "../../lib/analytics-utils"
 import { AnalysisPageHeader, AnalysisPageShell } from "./analysis-page"
+import IndicatorFeatureCard from "./indicator-feature-card"
 
 const MultiLineChart = dynamic(() => import("../charts/multi-line-chart"), { ssr: false })
 const MiniChart = dynamic(() => import("./mini-chart"), { ssr: false })
@@ -752,6 +753,8 @@ export default function Macroeconomic() {
           </CardContent>
         </Card>
       </div>
+
+      <IndicatorFeatureCard page="macroeconomic" factorId={selectedFactorObject?.id} />
 
       {/* Bottom Section: Factor Grid */}
       <div className="slide-in-up">
