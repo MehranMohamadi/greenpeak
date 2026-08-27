@@ -9,6 +9,7 @@ import MarketWatch from "../dashboard/market-watch"
 import MarketHours from "../dashboard/market-hours"
 import NewsTicker from "../dashboard/news-ticker"
 import TradingPositions from "./trading-positions"
+import MT5AccountSnapshot from "../dashboard/mt5-account-snapshot"
 import DashboardLoadingSkeleton from "./dashboard-loading"
 // import NotificationSystem from "../ui/notification-system" // Hidden but keeping animations
 
@@ -126,6 +127,10 @@ export default function Content() {
           className="w-full"
         >
           <MarketWatch />
+        </motion.div>
+
+        <motion.div variants={itemVariants} className="w-full">
+          <MT5AccountSnapshot />
         </motion.div>
 
         {/* Main Trading Grid - Responsive Grid */}

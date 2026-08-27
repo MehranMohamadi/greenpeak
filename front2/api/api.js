@@ -17,6 +17,9 @@ export const endpoints = {
         updateData: `${API_BASE}/system/update-data`,
         updateSchedule: `${API_BASE}/system/update-schedule`,
     },
+    mt5: {
+        latestSnapshot: `${API_BASE}/mt5/snapshots/latest`,
+    },
     indicatorFeatures: {
         latest: (indicatorId, debug = false) => `${API_BASE}/indicators/${indicatorId}/features/latest${debug ? "?mode=debug" : ""}`,
         pipelineDebug: (indicatorId) => `${API_BASE}/indicators/${indicatorId}/features/pipeline-debug`,

@@ -13,5 +13,6 @@ from .sectors import router as sectors_router
 from .features import router as features_router
 from .analysis import router as analysis_router
 from .rules import router as rules_router
+from .mt5 import router as mt5_router
 
-__all__ = ["market_router", "monetary_router", "economic_router", "system_router", "systemrisk_router", "liquidity_router", "macroeco_router", "corporate_router", "valuation_router", "sectors_router", "features_router", "analysis_router", "rules_router"]
+__all__ = ["market_router", "monetary_router", "economic_router", "system_router", "systemrisk_router", "liquidity_router", "macroeco_router", "corporate_router", "valuation_router", "sectors_router", "features_router", "analysis_router", "rules_router", "mt5_router"]
