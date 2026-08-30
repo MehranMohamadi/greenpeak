@@ -1,10 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ExternalLink, Loader2, Newspaper } from "lucide-react"
+import { Loader2, Newspaper } from "lucide-react"
 import { endpoints } from "@/api/api"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -96,11 +95,14 @@ export default function AlphaVantageNews() {
                       {article.minimum_backfill && <Badge variant="outline">Top available</Badge>}
                     </>}
                   </div>
-                  <h3 className="font-semibold leading-snug">{article.title}</h3>
-                  <p className="mt-3 whitespace-pre-line text-sm leading-6 text-muted-foreground">{article.summary || "No summary was provided by this source."}</p>
+                  <h3 className="font-semibold leading-snug">
+                    <a className="transition-colors hover:text-primary hover:underline" href={article.url} target="_blank" rel="noopener noreferrer">
+                      {article.title}
+                    </a>
+                  </h3>
+                  {article.summary && <p className="mt-3 whitespace-pre-line text-sm leading-6 text-muted-foreground">{article.summary}</p>}
                   <div className="mt-3 flex flex-wrap gap-1.5">{article.topics?.map((topic) => <Badge key={topic} variant="outline">{topic}</Badge>)}</div>
                   {source.id === "alpha_vantage" && article.alpha_sentiment_score !== null && <div className="mt-3 text-xs text-muted-foreground">News sentiment: {formatScore(article.alpha_sentiment_score)}{article.alpha_sentiment_label ? ` · ${article.alpha_sentiment_label}` : ""}</div>}
-                  <div className="mt-auto pt-4"><Button size="sm" variant="ghost" asChild><a href={article.url} target="_blank" rel="noopener noreferrer">Open article<ExternalLink className="ml-2 h-4 w-4" /></a></Button></div>
                 </article>)}
               </div>
             </>}
