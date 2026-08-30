@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from src.api.v1.endpoints import news as news_endpoint
 from src.main import app
 from src.services.news.feed import alpha_source_score, build_source_feed
+from src.services.news.sources import fetch_rss
 
 NOW = datetime(2026, 8, 30, 12, tzinfo=UTC)
 
@@ -49,6 +50,21 @@ def test_rss_has_no_fabricated_score_and_keeps_full_plain_summary():
     assert feed["items"][0]["source_score"] is None
     assert feed["items"][0]["summary"] == "Full & useful summary."
     assert feed["native_importance_score_available"] is False
+
+
+def test_investing_rss_timestamp_is_parsed_as_utc(monkeypatch):
+    class Response:
+        content = b"""<rss><channel><item><title>Market update</title>
+        <link>https://example.com/market</link>
+        <pubDate>2026-08-30 05:26:18</pubDate></item></channel></rss>"""
+
+        def raise_for_status(self):
+            return None
+
+    monkeypatch.setattr("src.services.news.sources.httpx.get", lambda *args, **kwargs: Response())
+    items = fetch_rss("https://example.com/feed", "investing_rss")
+    assert len(items) == 1
+    assert items[0].published_at == datetime(2026, 8, 30, 5, 26, 18, tzinfo=UTC)
 
 
 class FakeClient:

@@ -28,9 +28,18 @@ def ingest_news(alpha_topics: tuple[str, ...] | None = None, run_prefix: str = "
         if not repository.claim_run(run_key, "ingest"): return
         topics = alpha_topics or (ALPHA_TOPIC_ROTATION[(now.timetuple().tm_yday * 24 + now.hour) % len(ALPHA_TOPIC_ROTATION)],)
         def fetch_alpha_topics():
-            values = []
+            values, last_error = [], None
             if settings.alpha_vantage_key:
-                for topic in topics: values.extend(fetch_alpha(settings.alpha_vantage_key, topic))
+                for topic in topics:
+                    try:
+                        values.extend(fetch_alpha(settings.alpha_vantage_key, topic))
+                    except Exception as exc:
+                        # Keep successful topic feeds. Alpha Vantage may rate-limit
+                        # a later request in the same multi-topic bootstrap.
+                        last_error = exc
+                        logger.warning("Alpha Vantage topic %s failed: %s", topic, type(exc).__name__)
+            if not values and last_error:
+                raise last_error
             return values
         fetches = {
             "alpha_vantage": fetch_alpha_topics,

@@ -54,7 +54,7 @@ def bootstrap_news(background_tasks: BackgroundTasks):
         repository.ensure_indexes()
         counts = {source: len(repository.source_raw(source, datetime.now(UTC) - timedelta(days=7), 1)) for source in SOURCE_IDS}
         if all(counts.values()): return {"ok": True, "data": {"status": "ready", "source_counts": counts}}
-        local_day = datetime.now(ZoneInfo("Asia/Tehran")).date().isoformat(); run_key = f"source-bootstrap-v2:{local_day}"
+        local_day = datetime.now(ZoneInfo("Asia/Tehran")).date().isoformat(); run_key = f"source-bootstrap-v3:{local_day}"
         if repository.claim_run(run_key, "bootstrap"):
             background_tasks.add_task(_run_bootstrap, run_key); status = "queued"
         else: status = "running"

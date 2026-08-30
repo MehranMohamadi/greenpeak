@@ -27,9 +27,15 @@ def fetch_rss(url: str, source: str, timeout: float = 20) -> list[RawNewsItem]:
         title, link = row.findtext("title", "").strip(), row.findtext("link", "").strip()
         if not title or not link: continue
         raw_date = row.findtext("pubDate") or row.findtext("{http://purl.org/dc/elements/1.1/}date")
-        try: published = parsedate_to_datetime(raw_date).astimezone(UTC)
-        except (TypeError, ValueError): continue
+        try:
+            published = parsedate_to_datetime(raw_date).astimezone(UTC)
+        except (TypeError, ValueError):
+            try:
+                # Investing.com uses ``YYYY-MM-DD HH:MM:SS`` rather than an
+                # RFC 2822 date in its RSS feeds. Treat that timestamp as UTC.
+                published = datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
+            except (TypeError, ValueError):
+                continue
         guid = row.findtext("guid")
         result.append(RawNewsItem(source=source, source_item_id=guid, url=link, title=title, summary=row.findtext("description"), published_at=published, fetched_at=fetched, raw_payload={"guid": guid, "pubDate": raw_date}))
     return result
-
