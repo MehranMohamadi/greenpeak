@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     greenpeak_daily_analysis_hour: int = 4
     greenpeak_daily_analysis_minute: int = 0
     greenpeak_daily_analysis_timezone: str = "Asia/Tehran"
+    greenpeak_news_enabled: bool = False
+    greenpeak_cnbc_rss_url: str = "https://www.cnbc.com/id/10000664/device/rss/rss.html"
+    greenpeak_investing_rss_url: str = "https://www.investing.com/rss/news_25.rss"
 
     # Server Configuration
     host: str = "0.0.0.0"
@@ -80,6 +83,7 @@ class Settings(BaseSettings):
 
     # API Keys
     fred_api_key: str = ""
+    alpha_vantage_key: str = ""
 
     # Yahoo Finance Tickers
     yahoo_tickers: List[str] = []

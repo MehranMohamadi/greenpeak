@@ -11,6 +11,11 @@ const API_BASE = configuredApiBase || (isProduction
 export { API_BASE };
 
 export const endpoints = {
+    news: {
+        latest: `${API_BASE}/news/daily/latest`,
+        coverage: `${API_BASE}/news/coverage`,
+        whyImportant: (clusterId) => `${API_BASE}/news/clusters/${encodeURIComponent(clusterId)}/why-important`,
+    },
     system: {
         health: `${API_BASE}/system/health`,
         session: `${API_BASE}/system/session`,

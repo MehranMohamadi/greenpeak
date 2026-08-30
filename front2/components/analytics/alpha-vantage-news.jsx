@@ -1,250 +1,119 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ChevronDown, ExternalLink, Loader2, Newspaper, RotateCcw, Search } from "lucide-react"
+import { ExternalLink, Loader2, Newspaper, Sparkles } from "lucide-react"
+import { API_BASE } from "@/api/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  DEFAULT_NEWS_TOPICS,
-  NEWS_SENTIMENT_TOPICS,
-  NEWS_TOPIC_LABELS,
-} from "@/lib/news-sentiment-topics.mjs"
 
-const INITIAL_FORM = { topics: DEFAULT_NEWS_TOPICS, timeFrom: "", timeTo: "", sort: "LATEST" }
+const SOURCES = { alpha_vantage: "Alpha Vantage", cnbc_rss: "CNBC", investing_rss: "Investing.com" }
+const formatTime = (value) => Number.isNaN(new Date(value).getTime()) ? "—" : new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
 
-function toApiTime(value) {
-  return value ? new Date(value).toISOString().slice(0, 16).replace(/[-:]/g, "") : ""
+function alphaTimestamp(value) {
+  if (!value || !/^\d{8}T\d{6}$/.test(value)) return null
+  return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}T${value.slice(9, 11)}:${value.slice(11, 13)}:${value.slice(13, 15)}Z`
 }
 
-function formatPublishedAt(value) {
-  if (!value || !/^\d{8}T\d{6}$/.test(value)) return "Unknown time"
-  const date = new Date(Date.UTC(
-    Number(value.slice(0, 4)), Number(value.slice(4, 6)) - 1, Number(value.slice(6, 8)),
-    Number(value.slice(9, 11)), Number(value.slice(11, 13)), Number(value.slice(13, 15))
-  ))
-  return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(date)
-}
-
-function formatCacheTime(value) {
-  if (!value) return null
-  const date = new Date(value)
-  return Number.isNaN(date.getTime())
-    ? null
-    : new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(date)
-}
-
-function sentimentClass(label = "") {
-  const normalized = label.toLowerCase()
-  if (normalized.includes("bullish")) return "border-green-300 bg-green-100 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
-  if (normalized.includes("bearish")) return "border-red-300 bg-red-100 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
-  return "border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+function localPreview(payload) {
+  const cards = (payload.items || []).slice(0, 12).map((article, index) => ({
+    cluster_id: `local-${index}-${encodeURIComponent(article.url || article.title || "news")}`,
+    title: article.title,
+    summary: article.summary,
+    published_at: alphaTimestamp(article.publishedAt),
+    topic: article.matchedTopics?.[0] || "financial_markets",
+    source: "alpha_vantage",
+    source_count: 1,
+    url: article.url,
+    tier: index < 5 ? "main" : "supplement",
+  }))
+  return {
+    mode: "local_preview",
+    qualified_at: payload.cache?.refreshedAt || new Date().toISOString(),
+    cards,
+    daily_summary: {
+      positive_driver: "در پیش‌نمایش محلی تولید نمی‌شود",
+      negative_driver: "در پیش‌نمایش محلی تولید نمی‌شود",
+      next_event: "پس از اجرای پردازش واجد شرایط نمایش داده می‌شود",
+    },
+  }
 }
 
 export default function AlphaVantageNews() {
-  const [form, setForm] = useState(INITIAL_FORM)
-  const [filters, setFilters] = useState(INITIAL_FORM)
-  const [items, setItems] = useState([])
-  const [cache, setCache] = useState(null)
+  const [daily, setDaily] = useState(null)
+  const [explanations, setExplanations] = useState({})
+  const [loadingId, setLoadingId] = useState(null)
   const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
-  const [progress, setProgress] = useState({ completed: 0, total: DEFAULT_NEWS_TOPICS.length, topic: null })
-  const [showAdvanced, setShowAdvanced] = useState(false)
-  const [visibleCount, setVisibleCount] = useState(12)
 
   useEffect(() => {
     const controller = new AbortController()
-    async function loadNews() {
-      setIsLoading(true)
-      setError("")
-      setItems([])
-      setCache(null)
-      setProgress({ completed: 0, total: filters.topics.length, topic: null })
-      setVisibleCount(12)
+    async function load() {
       try {
-        const params = new URLSearchParams({ topics: filters.topics.join(","), sort: filters.sort })
-        params.set("stream", "1")
-        if (filters.timeFrom) params.set("time_from", toApiTime(filters.timeFrom))
-        if (filters.timeTo) params.set("time_to", toApiTime(filters.timeTo))
-        const response = await fetch(`/api/market/news-sentiment?${params}`, { signal: controller.signal })
-        if (!response.ok) {
+        const response = await fetch(`${API_BASE}/news/daily/latest`, { signal: controller.signal })
+        const payload = await response.json()
+        if (!response.ok) throw new Error(payload.detail?.message || "Qualified news is unavailable")
+        setDaily(payload.data)
+      } catch (qualifiedError) {
+        if (qualifiedError.name === "AbortError") return
+        try {
+          const topics = "financial_markets,economy_monetary,economy_macro,earnings"
+          const response = await fetch(`/api/market/news-sentiment?topics=${topics}&sort=LATEST&limit=12`, { signal: controller.signal })
           const payload = await response.json()
-          throw new Error(payload.error || "Unable to load news")
+          if (!response.ok) throw new Error(payload.error || "Local news preview is unavailable")
+          setDaily(localPreview(payload))
+        } catch (previewError) {
+          if (previewError.name !== "AbortError") setError(previewError.message)
         }
-        if (!response.body) throw new Error("Streaming news response is unavailable")
-
-        const reader = response.body.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ""
-        while (true) {
-          const { value, done } = await reader.read()
-          buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
-          const lines = buffer.split("\n")
-          buffer = lines.pop() || ""
-          for (const line of lines) {
-            if (!line.trim()) continue
-            const payload = JSON.parse(line)
-            if (payload.type === "error") throw new Error(payload.error || "Unable to load news")
-            setItems(payload.items || [])
-            setProgress({
-              completed: payload.completedTopics || 0,
-              total: payload.totalTopics || filters.topics.length,
-              topic: payload.topic || null,
-            })
-            if (payload.type === "complete") setCache(payload.cache || null)
-          }
-          if (done) break
-        }
-      } catch (requestError) {
-        if (requestError.name !== "AbortError") {
-          setItems([])
-          setCache(null)
-          setError(requestError.message)
-        }
-      } finally {
-        if (!controller.signal.aborted) setIsLoading(false)
       }
     }
-    loadNews()
+    load()
     return () => controller.abort()
-  }, [filters])
+  }, [])
 
-  const updateForm = (field, value) => setForm((current) => ({ ...current, [field]: value }))
-  const toggleTopic = (topic) => setForm((current) => {
-    if (current.topics.includes(topic) && current.topics.length === 1) return current
-    return {
-      ...current,
-      topics: current.topics.includes(topic)
-        ? current.topics.filter((item) => item !== topic)
-        : [...current.topics, topic],
-    }
-  })
-  const handleSubmit = (event) => {
-    event.preventDefault()
-    setFilters({ ...form })
-  }
-  const resetFilters = () => {
-    setForm({ ...INITIAL_FORM, topics: [...DEFAULT_NEWS_TOPICS] })
-    setFilters({ ...INITIAL_FORM, topics: [...DEFAULT_NEWS_TOPICS] })
+  async function explain(clusterId) {
+    if (explanations[clusterId]) return
+    setLoadingId(clusterId)
+    try {
+      const response = await fetch(`${API_BASE}/news/clusters/${encodeURIComponent(clusterId)}/why-important`, { method: "POST" })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.detail?.message || "Explanation is unavailable")
+      setExplanations((current) => ({ ...current, [clusterId]: payload.data }))
+    } catch (reason) { setError(reason.message) }
+    finally { setLoadingId(null) }
   }
 
-  const refreshedAt = formatCacheTime(cache?.refreshedAt)
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-pink-600" />Live News Sentiment</CardTitle>
-        <CardDescription>
-          A combined topic-based feed from Alpha Vantage, stored on the server and refreshed once per day.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="mb-6 space-y-4 rounded-lg border bg-muted/20 p-4">
-          <fieldset>
-            <legend className="mb-2 text-sm font-medium">Topics</legend>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {NEWS_SENTIMENT_TOPICS.map(({ value, label }) => (
-                <label key={value} className="flex cursor-pointer items-center gap-2 rounded-md border bg-background p-2 text-sm">
-                  <input type="checkbox" checked={form.topics.includes(value)} onChange={() => toggleTopic(value)} className="h-4 w-4 rounded border-input" />
-                  {label}
-                </label>
-              ))}
+  return <Card dir="rtl">
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-pink-600" />اخبار مهم روز</CardTitle>
+      <CardDescription>‏حداکثر ۱۲ رویداد غیرتکراری مرتبط با ‎S&amp;P 500‎؛ تازه‌سازی واجد شرایط روزانه ساعت ‎۱۶:۰۰‎ تهران.</CardDescription>
+    </CardHeader>
+    <CardContent>
+      {!daily && !error && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />در حال دریافت خبرهای منتخب…</div>}
+      {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">{error}</div>}
+      {daily && <>
+        {daily.mode === "local_preview" && <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">‏پیش‌نمایش محلی از ‎Alpha Vantage‎ نمایش داده می‌شود. رتبه‌بندی روزانه، منابع مکمل و تحلیل ‎LLM‎ هنوز اجرا نشده‌اند.</div>}
+        <section className="mb-5 grid gap-3 rounded-lg border bg-muted/20 p-4 md:grid-cols-3">
+          <div><span className="text-xs text-muted-foreground">عامل مثبت</span><p className="text-sm">{daily.daily_summary.positive_driver}</p></div>
+          <div><span className="text-xs text-muted-foreground">عامل منفی</span><p className="text-sm">{daily.daily_summary.negative_driver}</p></div>
+          <div><span className="text-xs text-muted-foreground">رویداد بعدی</span><p className="text-sm">{daily.daily_summary.next_event}</p></div>
+        </section>
+        <div className="mb-3 text-xs text-muted-foreground">‏آخرین پردازش: ‎{formatTime(daily.qualified_at)}‎</div>
+        <div className="space-y-3">{daily.cards.map((article) => {
+          const explanation = explanations[article.cluster_id]
+          return <article key={article.cluster_id} className="rounded-lg border p-4">
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <Badge variant={article.tier === "main" ? "default" : "secondary"}>{article.tier === "main" ? "رویداد اصلی" : "رویداد مکمل"}</Badge>
+              <span dir="ltr">{SOURCES[article.source] || article.source}</span><span>•</span><time>{formatTime(article.published_at)}</time><Badge variant="outline">{article.topic}</Badge><span>‏{article.source_count} منبع</span>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              All six feeds are fetched separately. Selecting topics here filters the combined server cache and does not make another upstream request.
-            </p>
-          </fieldset>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-              Apply filters
-            </Button>
-            <Button type="button" variant="outline" size="icon" onClick={resetFilters} title="Reset filters">
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setShowAdvanced((value) => !value)} aria-expanded={showAdvanced}>
-              <ChevronDown className={`mr-2 h-4 w-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
-              Sort and UTC time range
-            </Button>
-          </div>
-
-          {showAdvanced && (
-            <div className="grid gap-4 border-t pt-4 md:grid-cols-3">
-              <div className="space-y-1.5">
-                <label htmlFor="news-sort" className="text-sm font-medium">Sort</label>
-                <select id="news-sort" value={form.sort} onChange={(event) => updateForm("sort", event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
-                  <option value="LATEST">Latest first</option>
-                  <option value="EARLIEST">Earliest first</option>
-                  <option value="RELEVANCE">Strongest sentiment</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="news-time-from" className="text-sm font-medium">Published from</label>
-                <input id="news-time-from" type="datetime-local" value={form.timeFrom} onChange={(event) => updateForm("timeFrom", event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="news-time-to" className="text-sm font-medium">Published to</label>
-                <input id="news-time-to" type="datetime-local" value={form.timeTo} onChange={(event) => updateForm("timeTo", event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" />
-              </div>
+            <h3 className="font-semibold leading-snug">{article.title}</h3><p className="mt-2 text-sm text-muted-foreground">{article.summary}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {daily.mode !== "local_preview" && <Button size="sm" variant="outline" onClick={() => explain(article.cluster_id)} disabled={loadingId === article.cluster_id}>{loadingId === article.cluster_id ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Sparkles className="ml-2 h-4 w-4" />}چرا مهم است؟</Button>}
+              <Button size="sm" variant="ghost" asChild><a href={article.url} target="_blank" rel="noopener noreferrer">مشاهده منبع<ExternalLink className="mr-2 h-4 w-4" /></a></Button>
             </div>
-          )}
-        </form>
-
-        {cache && (
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>{cache.stale ? "Showing the last saved server cache" : "Daily server cache"}</span>
-            {refreshedAt && <><span>•</span><span>Updated {refreshedAt}</span></>}
-            {!cache.complete && <Badge variant="outline">Some topic feeds are unavailable or using saved data</Badge>}
-          </div>
-        )}
-
-        {isLoading && (
-          <div className="mb-3 flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-sm text-muted-foreground" aria-live="polite">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>
-              Loaded {progress.completed} of {progress.total} topic feeds
-              {progress.topic ? ` · Latest: ${NEWS_TOPIC_LABELS[progress.topic] || progress.topic}` : ""}
-            </span>
-          </div>
-        )}
-        {error && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">{error}</div>}
-        {!isLoading && !error && items.length === 0 && <div className="py-10 text-center text-sm text-muted-foreground">No matching news found.</div>}
-        {items.length > 0 && (
-          <>
-            <div className="mb-3 text-sm text-muted-foreground">Showing {Math.min(visibleCount, items.length)} of {items.length} combined results</div>
-            <div className="space-y-3">
-              {items.slice(0, visibleCount).map((article, index) => (
-                <article key={`${article.url || article.title}-${index}`} className="rounded-lg border p-4">
-                  <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span>{article.source}</span><span>•</span><time>{formatPublishedAt(article.publishedAt)}</time>
-                    <Badge variant="outline" className={sentimentClass(article.overallSentimentLabel)}>
-                      {article.overallSentimentLabel}{article.overallSentimentScore !== null && ` (${article.overallSentimentScore.toFixed(3)})`}
-                    </Badge>
-                  </div>
-                  <h3 className="font-semibold leading-snug">
-                    {article.url ? (
-                      <a href={article.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                        {article.title}<ExternalLink className="ml-1 inline h-3.5 w-3.5" />
-                      </a>
-                    ) : article.title}
-                  </h3>
-                  {article.summary && <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{article.summary}</p>}
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {article.matchedTopics?.map((topic) => <Badge key={topic} variant="secondary">{NEWS_TOPIC_LABELS[topic] || topic}</Badge>)}
-                    {article.tickerSentiment?.slice(0, 4).map((item) => (
-                      <Badge key={item.ticker} variant="outline" className={sentimentClass(item.sentimentLabel)}>{item.ticker}: {item.sentimentLabel}</Badge>
-                    ))}
-                  </div>
-                </article>
-              ))}
-            </div>
-            {visibleCount < items.length && (
-              <div className="mt-4 flex justify-center"><Button variant="outline" onClick={() => setVisibleCount((count) => count + 12)}>Load more</Button></div>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
-  )
+            {explanation && <div className="mt-3 rounded-md bg-muted p-3 text-sm"><p>{explanation.reason}</p><p className="mt-1 text-xs text-muted-foreground">‏کانال اثر: ‎{explanation.impact_channel}‎ · جهت احتمالی: ‎{explanation.likely_direction}‎ · اطمینان: ‎{explanation.confidence}‎</p></div>}
+          </article>
+        })}</div>
+      </>}
+    </CardContent>
+  </Card>
 }
