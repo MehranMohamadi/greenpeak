@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
@@ -8,6 +9,7 @@ from ....core.config import get_settings
 from ....services.llm_engine.provider import OpenAICompatibleProvider
 from ....services.news.job import explain_cluster
 from ....services.news.repository import MongoNewsRepository
+from ....services.news.scheduler import ingest_news, qualify_news
 
 router = APIRouter(prefix="/news", tags=["S&P 500 News"])
 
@@ -15,6 +17,19 @@ router = APIRouter(prefix="/news", tags=["S&P 500 News"])
 def _repository():
     settings = get_settings(); client = MongoClient(settings.mongodb_url, serverSelectionTimeoutMS=3000)
     return client, MongoNewsRepository(client, settings.mongodb_database)
+
+
+def _run_bootstrap(run_key: str) -> None:
+    client, repository = _repository()
+    try:
+        ingest_news()
+        qualify_news()
+        daily = repository.latest_daily()
+        repository.finish_run(run_key, "success" if daily else "failed", {"daily_created": bool(daily)}, None if daily else "NEWS_NOT_GENERATED")
+    except Exception as exc:
+        repository.finish_run(run_key, "failed", {}, type(exc).__name__)
+    finally:
+        client.close()
 
 
 @router.get("/daily/latest")
@@ -27,6 +42,33 @@ def latest_daily_news():
     except HTTPException: raise
     except PyMongoError: raise HTTPException(503, detail={"code": "NEWS_STORE_UNAVAILABLE", "message": "News storage is temporarily unavailable."})
     finally: client.close()
+
+
+@router.post("/bootstrap", status_code=202)
+def bootstrap_news(background_tasks: BackgroundTasks):
+    """Queue the first qualified run when no stored daily output exists."""
+    settings = get_settings()
+    if not settings.alpha_vantage_key:
+        raise HTTPException(503, detail={"code": "ALPHA_VANTAGE_NOT_CONFIGURED", "message": "Alpha Vantage is not configured."})
+    if settings.greenpeak_llm_provider != "openai-compatible" or not settings.greenpeak_llm_api_key or not settings.greenpeak_llm_model:
+        raise HTTPException(503, detail={"code": "LLM_NOT_CONFIGURED", "message": "Qualified news generation is not configured."})
+    client, repository = _repository()
+    try:
+        repository.ensure_indexes()
+        if repository.latest_daily():
+            return {"ok": True, "data": {"status": "ready"}}
+        local_day = datetime.now(ZoneInfo("Asia/Tehran")).date().isoformat()
+        run_key = f"bootstrap:{local_day}"
+        if repository.claim_run(run_key, "bootstrap"):
+            background_tasks.add_task(_run_bootstrap, run_key)
+            status = "queued"
+        else:
+            status = "running"
+        return {"ok": True, "data": {"status": status, "run_key": run_key}}
+    except PyMongoError:
+        raise HTTPException(503, detail={"code": "NEWS_STORE_UNAVAILABLE", "message": "News storage is temporarily unavailable."})
+    finally:
+        client.close()
 
 
 @router.get("/coverage")

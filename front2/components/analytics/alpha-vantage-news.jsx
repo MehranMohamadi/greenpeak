@@ -44,26 +44,49 @@ export default function AlphaVantageNews() {
   const [explanations, setExplanations] = useState({})
   const [loadingId, setLoadingId] = useState(null)
   const [error, setError] = useState("")
+  const [loadMessage, setLoadMessage] = useState("در حال دریافت خبرهای منتخب…")
 
   useEffect(() => {
     const controller = new AbortController()
+    const wait = (milliseconds) => new Promise((resolve, reject) => {
+      const timer = setTimeout(resolve, milliseconds)
+      controller.signal.addEventListener("abort", () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")) }, { once: true })
+    })
+    async function fetchLatest() {
+      const response = await fetch(`${API_BASE}/news/daily/latest`, { signal: controller.signal })
+      return { response, payload: await response.json() }
+    }
+    async function loadPreview() {
+      const topics = "financial_markets,economy_monetary,economy_macro,earnings"
+      const response = await fetch(`/api/market/news-sentiment?topics=${topics}&sort=LATEST&limit=12`, { signal: controller.signal })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || "Local news preview is unavailable")
+      setDaily(localPreview(payload))
+    }
     async function load() {
+      let previewAttempted = false
       try {
-        const response = await fetch(`${API_BASE}/news/daily/latest`, { signal: controller.signal })
-        const payload = await response.json()
-        if (!response.ok) throw new Error(payload.detail?.message || "Qualified news is unavailable")
-        setDaily(payload.data)
-      } catch (qualifiedError) {
-        if (qualifiedError.name === "AbortError") return
-        try {
-          const topics = "financial_markets,economy_monetary,economy_macro,earnings"
-          const response = await fetch(`/api/market/news-sentiment?topics=${topics}&sort=LATEST&limit=12`, { signal: controller.signal })
-          const payload = await response.json()
-          if (!response.ok) throw new Error(payload.error || "Local news preview is unavailable")
-          setDaily(localPreview(payload))
-        } catch (previewError) {
-          if (previewError.name !== "AbortError") setError(previewError.message)
+        const initial = await fetchLatest()
+        if (initial.response.ok) { setDaily(initial.payload.data); return }
+        if (initial.response.status === 404) {
+          setLoadMessage("اولین پردازش اخبار در حال اجراست…")
+          const bootstrap = await fetch(`${API_BASE}/news/bootstrap`, { method: "POST", signal: controller.signal })
+          if (bootstrap.ok) {
+            for (let attempt = 0; attempt < 40; attempt += 1) {
+              await wait(3000)
+              const latest = await fetchLatest()
+              if (latest.response.ok) { setDaily(latest.payload.data); return }
+              if (latest.response.status !== 404) break
+            }
+          }
         }
+        previewAttempted = true
+        await loadPreview()
+      } catch (reason) {
+        if (reason.name === "AbortError") return
+        if (previewAttempted) { setError(reason.message); return }
+        try { await loadPreview() }
+        catch (previewError) { if (previewError.name !== "AbortError") setError(previewError.message) }
       }
     }
     load()
@@ -88,7 +111,7 @@ export default function AlphaVantageNews() {
       <CardDescription>‏حداکثر ۱۲ رویداد غیرتکراری مرتبط با ‎S&amp;P 500‎؛ تازه‌سازی واجد شرایط روزانه ساعت ‎۱۶:۰۰‎ تهران.</CardDescription>
     </CardHeader>
     <CardContent>
-      {!daily && !error && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />در حال دریافت خبرهای منتخب…</div>}
+      {!daily && !error && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{loadMessage}</div>}
       {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">{error}</div>}
       {daily && <>
         {daily.mode === "local_preview" && <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">‏پیش‌نمایش محلی از ‎Alpha Vantage‎ نمایش داده می‌شود. رتبه‌بندی روزانه، منابع مکمل و تحلیل ‎LLM‎ هنوز اجرا نشده‌اند.</div>}

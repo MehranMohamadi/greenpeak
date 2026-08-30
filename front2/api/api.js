@@ -13,6 +13,7 @@ export { API_BASE };
 export const endpoints = {
     news: {
         latest: `${API_BASE}/news/daily/latest`,
+        bootstrap: `${API_BASE}/news/bootstrap`,
         coverage: `${API_BASE}/news/coverage`,
         whyImportant: (clusterId) => `${API_BASE}/news/clusters/${encodeURIComponent(clusterId)}/why-important`,
     },

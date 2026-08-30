@@ -62,6 +62,7 @@ class FakeRepository:
     def explanation(self, cluster_id): return self.explanations.get(cluster_id)
     def save_explanation(self, value): self.explanations[value["cluster_id"]] = value
     def coverage_runs(self, since): return []
+    def ensure_indexes(self): pass
 
 
 def test_daily_job_one_batched_call_caps_cards_and_on_demand_cache():
@@ -92,3 +93,19 @@ def test_latest_and_coverage_api_contracts(monkeypatch):
     assert coverage.status_code == 200
     assert coverage.json()["data"]["totals"]["supplement_cnbc"] == 1
     assert client.get("/api/v1/news/coverage?days=0").status_code == 422
+
+
+def test_empty_store_queues_single_bootstrap(monkeypatch):
+    repository = FakeRepository([])
+    monkeypatch.setattr(news_endpoint, "_repository", lambda: (FakeClient(), repository))
+    monkeypatch.setattr(news_endpoint, "_run_bootstrap", lambda run_key: None)
+    settings = news_endpoint.get_settings()
+    monkeypatch.setattr(settings, "alpha_vantage_key", "configured")
+    monkeypatch.setattr(settings, "greenpeak_llm_provider", "openai-compatible")
+    monkeypatch.setattr(settings, "greenpeak_llm_api_key", "configured")
+    monkeypatch.setattr(settings, "greenpeak_llm_model", "configured")
+    client = TestClient(app)
+    first = client.post("/api/v1/news/bootstrap")
+    second = client.post("/api/v1/news/bootstrap")
+    assert first.status_code == 202 and first.json()["data"]["status"] == "queued"
+    assert second.status_code == 202 and second.json()["data"]["status"] == "running"
