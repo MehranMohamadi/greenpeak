@@ -27,7 +27,7 @@ import { Home } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { marketAnalysisCategories } from "@/lib/analytics-registry";
 
 import { useSidebarHover } from "../../app/context/sidebar-hover-context";
@@ -49,6 +49,7 @@ const GreenPeakIcon = ({ className }) => (
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { setHoveredItem, hoveredItem } = useSidebarHover();
 
   const isMainPage = pathname === "/"; // Check if we're on the main page
@@ -161,16 +162,18 @@ export default function Sidebar() {
         href={href}
         onClick={onClick || handleNavigation}
         className="relative"
-      onMouseEnter={() => {
-  if (hoveredItem?.href !== href) {
-    setHoveredItem({ label, href });
-  }
-}}
-onMouseLeave={() => {
-  if (hoveredItem) {
-    setHoveredItem(null);
-  }
-}}
+        onMouseEnter={() => {
+          router.prefetch(href);
+          if (hoveredItem?.href !== href) {
+            setHoveredItem({ label, href });
+          }
+        }}
+        onFocus={() => router.prefetch(href)}
+        onMouseLeave={() => {
+          if (hoveredItem) {
+            setHoveredItem(null);
+          }
+        }}
       >
         {/* Simplified active background */}
         {isActive && (

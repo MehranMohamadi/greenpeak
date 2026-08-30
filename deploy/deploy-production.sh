@@ -37,8 +37,8 @@ mkdir -p "$releases_root" "$release_root"
 tar -xzf "$frontend_archive" -C "$release_root"
 tar -xzf "$backend_archive" -C "$release_root"
 
-test -f "$release_root/front2/package.json"
-test -d "$release_root/front2/.next"
+test -f "$release_root/front2/server.js"
+test -d "$release_root/front2/.next/static"
 test -f "$release_root/backend2/main.py"
 test -f "$release_root/backend2/requirements.txt"
 test -f "$release_root/config/greenpeak/domains.yaml"
@@ -64,9 +64,6 @@ fi
 if [[ -f "$legacy_root/front2/.env" ]]; then
   ln -s "$legacy_root/front2/.env" "$release_root/front2/.env.production.local"
 fi
-
-echo "Installing frontend runtime dependencies"
-npm ci --omit=dev --prefix "$release_root/front2"
 
 echo "Creating isolated backend environment"
 python3 -m venv "$release_root/backend2/.venv"
@@ -94,10 +91,17 @@ start_apps() {
   pm2 delete sp500-frontend >/dev/null 2>&1 || true
   pm2 delete sp500-backend >/dev/null 2>&1 || true
 
-  pm2 start npm \
-    --name sp500-frontend \
-    --cwd "$app_root/front2" \
-    -- start
+  if [[ -f "$app_root/front2/server.js" ]]; then
+    PORT=3000 HOSTNAME=127.0.0.1 pm2 start "$app_root/front2/server.js" \
+      --name sp500-frontend \
+      --cwd "$app_root/front2"
+  else
+    # Keep rollback compatible with releases created before standalone output.
+    pm2 start npm \
+      --name sp500-frontend \
+      --cwd "$app_root/front2" \
+      -- start
+  fi
 
   pm2 start "$app_root/backend2/main.py" \
     --name sp500-backend \

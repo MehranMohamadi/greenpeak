@@ -48,14 +48,16 @@ jobs:
       - name: Package frontend
         shell: bash
         run: |
-          tar \
-            --exclude='front2/.next/cache' \
+          test -f front2/.next/standalone/server.js
+          rm -rf release-frontend
+          mkdir -p release-frontend/front2/.next release-frontend/docs
+          cp -a front2/.next/standalone/. release-frontend/front2/
+          cp -a front2/.next/static release-frontend/front2/.next/static
+          cp -a front2/public release-frontend/front2/public
+          cp docs/AI_MARKET_ANALYSIS_ARCHITECTURE.md release-frontend/docs/
+          tar -C release-frontend \
             -czf greenpeak-frontend-${{ github.event.workflow_run.head_sha }}.tar.gz \
-            front2/.next \
-            front2/public \
-            front2/package.json \
-            front2/package-lock.json \
-            docs/AI_MARKET_ANALYSIS_ARCHITECTURE.md
+            front2 docs
 
       - name: Package backend
         shell: bash
