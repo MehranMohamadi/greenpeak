@@ -6,106 +6,73 @@ os.environ["ENVIRONMENT"] = "development"
 
 from fastapi.testclient import TestClient
 
-from src.main import app
 from src.api.v1.endpoints import news as news_endpoint
-from src.services.news.job import explain_cluster, run_qualified_refresh
-from src.services.news.processing import canonicalize_url, deduplicate, deterministic_filter, normalize_title
-from src.services.news.schemas import RawNewsItem
+from src.main import app
+from src.services.news.feed import alpha_source_score, build_source_feed
+
+NOW = datetime(2026, 8, 30, 12, tzinfo=UTC)
 
 
-NOW = datetime(2026, 8, 27, 12, tzinfo=UTC)
+def document(index: int, source="alpha_vantage", relevance=.8, published=None):
+    return {
+        "item_id": f"item-{index}", "source": source, "title": f"News {index}",
+        "summary": "<p>Full &amp; useful summary.</p>", "url": f"https://example.com/{index}",
+        "published_at": published or NOW - timedelta(minutes=index), "topics": ["Financial Markets"],
+        "tickers": ["SPY"], "alpha_overall_sentiment_score": .2,
+        "alpha_overall_sentiment_label": "Somewhat-Bullish",
+        "raw_payload": {"topics": [{"topic": "Financial Markets", "relevance_score": str(relevance)}]},
+    }
 
 
-def item(source="alpha_vantage", title="Fed inflation news moves S&P 500", url="https://example.com/a", hours=1, summary="US stocks and Treasury rates"):
-    return RawNewsItem(source=source, source_item_id=None, url=url, title=title, summary=summary, published_at=NOW - timedelta(hours=hours), fetched_at=NOW)
+def test_alpha_uses_native_relevance_and_prioritizes_medium_or_higher():
+    values = [document(index, relevance=.9 - index / 100) for index in range(25)]
+    assert alpha_source_score(values[0]) == .9
+    feed = build_source_feed("alpha_vantage", values, 20)
+    assert feed["count"] == 20
+    assert feed["ranking"] == "alpha_vantage_relevance_score"
+    assert feed["items"][0]["source_score"] > feed["items"][-1]["source_score"]
+    assert all(item["importance"] in {"high", "medium"} for item in feed["items"])
+    assert feed["searched_topics"] == ["financial_markets", "economy_monetary", "economy_macro", "earnings"]
 
 
-def test_url_title_normalization_and_conservative_deduplication():
-    assert canonicalize_url("HTTPS://EXAMPLE.COM/a/?utm_source=x&b=2#top") == "https://example.com/a?b=2"
-    assert normalize_title("CNBC: Fed's MARKET update!") == "fed s"
-    values, removed = deduplicate([item(), item(source="cnbc_rss", url="https://example.com/a?utm_source=rss")])
-    assert len(values) == 1 and removed == 1
-    values, removed = deduplicate([item(title="Fed holds rates"), item(source="cnbc_rss", title="Fed cuts rates", url="https://example.com/b")])
-    assert len(values) == 2 and removed == 0
+def test_alpha_backfills_to_twenty_when_medium_pool_is_short():
+    values = [document(index, relevance=.8 if index < 5 else .3 - index / 1000) for index in range(25)]
+    feed = build_source_feed("alpha_vantage", values, 20)
+    assert feed["count"] == 20
+    assert sum(item["minimum_backfill"] for item in feed["items"]) == 15
 
 
-def test_filter_rejects_old_sponsored_and_irrelevant_items():
-    kept, reasons = deterministic_filter([
-        item(), item(url="https://example.com/old", hours=25),
-        item(url="https://example.com/ad", title="Sponsored S&P 500 report"),
-        item(url="https://example.com/sport", title="Local football result", source="cnbc_rss", summary="Sports only"),
-    ], NOW)
-    assert len(kept) == 1
-    assert reasons == {"outside_24h": 1, "sponsored": 1, "not_us_equity_related": 1}
-
-
-class FakeProvider:
-    provider_id = "fake"; model_id = "fake"
-    def __init__(self): self.calls = 0
-    def generate_json(self, prompt, evidence):
-        self.calls += 1
-        if "Cluster articles" in prompt:
-            ids = [x["id"] for x in evidence["candidates"]]
-            return {"clusters": [{"cluster_id": "fed-event", "member_ids": ids, "representative_id": ids[0], "relevant_to_sp500": True, "importance_score": 90, "topic": "monetary_policy", "card_summary": "Fed policy affects the index discount rate."}], "top_topics": ["monetary_policy"], "positive_driver": "None established", "negative_driver": "Higher discount rates", "next_event": "Next Fed release"}
-        return {"reason": "It changes the index discount rate.", "impact_channel": "interest rates", "likely_direction": "mixed", "confidence": "medium"}
-
-
-class FakeRepository:
-    def __init__(self, items): self.raw = [x.model_dump(mode="python") for x in items]; self.runs = {}; self.daily = None; self.explanations = {}
-    def claim_run(self, key, kind):
-        if key in self.runs: return False
-        self.runs[key] = {}; return True
-    def recent_raw(self, since): return self.raw
-    def finish_run(self, key, status, metrics, error_code=None): self.runs[key] = {"status": status, "metrics": metrics}
-    def save_daily(self, value): self.daily = value
-    def latest_daily(self): return self.daily
-    def explanation(self, cluster_id): return self.explanations.get(cluster_id)
-    def save_explanation(self, value): self.explanations[value["cluster_id"]] = value
-    def coverage_runs(self, since): return []
-    def ensure_indexes(self): pass
-
-
-def test_daily_job_one_batched_call_caps_cards_and_on_demand_cache():
-    repository = FakeRepository([item(), item(source="cnbc_rss", url="https://example.com/b", title="Treasury yields pressure S&P 500")])
-    provider = FakeProvider()
-    result = run_qualified_refresh(repository, provider, NOW)
-    assert provider.calls == 1 and len(result["cards"]) == 1
-    assert run_qualified_refresh(repository, provider, NOW)["status"] == "already_exists"
-    cluster_id = result["cards"][0]["cluster_id"]
-    first = explain_cluster(repository, provider, cluster_id)
-    second = explain_cluster(repository, provider, cluster_id)
-    assert first == second and provider.calls == 2
+def test_rss_has_no_fabricated_score_and_keeps_full_plain_summary():
+    values = [document(1, "cnbc_rss", published=NOW - timedelta(hours=1)), document(2, "cnbc_rss", published=NOW)]
+    feed = build_source_feed("cnbc_rss", values, 20)
+    assert feed["items"][0]["item_id"] == "item-2"
+    assert feed["items"][0]["source_score"] is None
+    assert feed["items"][0]["summary"] == "Full & useful summary."
+    assert feed["native_importance_score_available"] is False
 
 
 class FakeClient:
     def close(self): pass
 
 
-def test_latest_and_coverage_api_contracts(monkeypatch):
-    repository = FakeRepository([item()])
-    repository.daily = {"run_key": "qualified:2026-08-27", "qualified_at": NOW, "cards": [], "daily_summary": {}, "metrics": {}}
-    repository.coverage_runs = lambda since: [{"run_key": "qualified:2026-08-27", "status": "success", "finished_at": NOW, "metrics": {"raw_by_source": {"alpha_vantage": 4, "cnbc_rss": 2}, "deterministic_duplicates": 1, "supplement_cnbc": 1, "final_clusters": 2, "selected_by_source": {"alpha_vantage": 1, "cnbc_rss": 1}}}]
-    monkeypatch.setattr(news_endpoint, "_repository", lambda: (FakeClient(), repository))
-    client = TestClient(app)
-    latest = client.get("/api/v1/news/daily/latest")
-    assert latest.status_code == 200 and latest.json()["data"]["run_key"] == "qualified:2026-08-27"
-    coverage = client.get("/api/v1/news/coverage?days=14")
-    assert coverage.status_code == 200
-    assert coverage.json()["data"]["totals"]["supplement_cnbc"] == 1
-    assert client.get("/api/v1/news/coverage?days=0").status_code == 422
+class FakeRepository:
+    def __init__(self, values): self.values = values; self.runs = {}
+    def ensure_indexes(self): pass
+    def source_raw(self, source, since, limit=500): return [x for x in self.values if x["source"] == source][:limit]
+    def claim_run(self, key, kind):
+        if key in self.runs: return False
+        self.runs[key] = kind; return True
 
 
-def test_empty_store_queues_single_bootstrap(monkeypatch):
-    repository = FakeRepository([])
+def test_source_api_and_bootstrap_contract(monkeypatch):
+    repository = FakeRepository([document(index) for index in range(20)])
     monkeypatch.setattr(news_endpoint, "_repository", lambda: (FakeClient(), repository))
     monkeypatch.setattr(news_endpoint, "_run_bootstrap", lambda run_key: None)
-    settings = news_endpoint.get_settings()
-    monkeypatch.setattr(settings, "alpha_vantage_key", "configured")
-    monkeypatch.setattr(settings, "greenpeak_llm_provider", "openai-compatible")
-    monkeypatch.setattr(settings, "greenpeak_llm_api_key", "configured")
-    monkeypatch.setattr(settings, "greenpeak_llm_model", "configured")
+    settings = news_endpoint.get_settings(); monkeypatch.setattr(settings, "alpha_vantage_key", "configured")
     client = TestClient(app)
-    first = client.post("/api/v1/news/bootstrap")
-    second = client.post("/api/v1/news/bootstrap")
-    assert first.status_code == 202 and first.json()["data"]["status"] == "queued"
-    assert second.status_code == 202 and second.json()["data"]["status"] == "running"
+    response = client.get("/api/v1/news/sources/alpha_vantage?limit=20")
+    assert response.status_code == 200 and response.json()["data"]["count"] == 20
+    assert client.get("/api/v1/news/sources/not-real").status_code == 404
+    assert client.get("/api/v1/news/sources/alpha_vantage?limit=19").status_code == 422
+    bootstrap = client.post("/api/v1/news/bootstrap")
+    assert bootstrap.status_code == 202 and bootstrap.json()["data"]["status"] == "queued"

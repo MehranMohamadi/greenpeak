@@ -121,7 +121,13 @@ class Settings(BaseSettings):
         return v
 
     model_config = {
-        "env_file": str(Path(__file__).parent.parent.parent.parent / ".env"),
+        # Production keeps provider keys in a server-owned frontend env file.
+        # Read it as a secondary source so FastAPI and Next.js share the same
+        # Alpha Vantage credential without committing or copying the secret.
+        "env_file": (
+            str(Path(__file__).parent.parent.parent.parent / ".env"),
+            str(Path(__file__).parent.parent.parent.parent / "front2" / ".env.production.local"),
+        ),
         "env_file_encoding": "utf-8",
         "case_sensitive": False,
         "extra": "ignore",

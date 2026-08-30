@@ -9,9 +9,8 @@ class MongoNewsRepository:
 
     def ensure_indexes(self):
         self.db.gp_news_raw.create_index([("item_id", ASCENDING)], unique=True)
+        self.db.gp_news_raw.create_index([("source", ASCENDING), ("published_at", DESCENDING)])
         self.db.gp_news_runs.create_index([("run_key", ASCENDING)], unique=True)
-        self.db.gp_news_daily.create_index([("qualified_at", DESCENDING)])
-        self.db.gp_news_explanations.create_index([("cluster_id", ASCENDING)], unique=True)
 
     def save_raw(self, documents: list[dict]) -> int:
         written = 0
@@ -22,6 +21,11 @@ class MongoNewsRepository:
 
     def recent_raw(self, since: datetime) -> list[dict]:
         return list(self.db.gp_news_raw.find({"published_at": {"$gte": since}}, {"_id": False}))
+
+    def source_raw(self, source: str, since: datetime, limit: int = 500) -> list[dict]:
+        return list(self.db.gp_news_raw.find(
+            {"source": source, "published_at": {"$gte": since}}, {"_id": False}
+        ).sort("published_at", DESCENDING).limit(limit))
 
     def claim_run(self, run_key: str, kind: str) -> bool:
         try:
@@ -39,13 +43,3 @@ class MongoNewsRepository:
         update = {"status": status, "finished_at": datetime.now(UTC), "metrics": metrics}
         if error_code: update["error_code"] = error_code
         self.db.gp_news_runs.update_one({"run_key": run_key}, {"$set": update})
-
-    def save_daily(self, document: dict): self.db.gp_news_daily.replace_one({"run_key": document["run_key"]}, document, upsert=True)
-    def latest_daily(self): return self.db.gp_news_daily.find_one({}, {"_id": False}, sort=[("qualified_at", DESCENDING)])
-    def coverage_runs(self, since: datetime) -> list[dict]:
-        return list(self.db.gp_news_runs.find(
-            {"kind": "qualified", "finished_at": {"$gte": since}, "status": {"$in": ["success", "partial"]}},
-            {"_id": False, "run_key": True, "status": True, "finished_at": True, "metrics": True},
-        ).sort("finished_at", DESCENDING))
-    def explanation(self, cluster_id: str): return self.db.gp_news_explanations.find_one({"cluster_id": cluster_id}, {"_id": False})
-    def save_explanation(self, document: dict): self.db.gp_news_explanations.update_one({"cluster_id": document["cluster_id"]}, {"$setOnInsert": document}, upsert=True)

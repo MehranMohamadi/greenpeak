@@ -20,27 +20,3 @@ class RawNewsItem(BaseModel):
     raw_payload: dict[str, Any] = {}
 
 
-class ClusterDecision(BaseModel):
-    cluster_id: str
-    member_ids: list[str]
-    representative_id: str
-    relevant_to_sp500: bool
-    importance_score: int = Field(ge=0, le=100)
-    topic: str
-    card_summary: str = Field(max_length=600)
-
-
-class DailySelection(BaseModel):
-    clusters: list[ClusterDecision]
-    top_topics: list[str] = Field(max_length=3)
-    positive_driver: str
-    negative_driver: str
-    next_event: str
-
-
-class WhyImportant(BaseModel):
-    reason: str
-    impact_channel: str
-    likely_direction: Literal["positive", "negative", "mixed", "unclear"] = "unclear"
-    confidence: Literal["low", "medium", "high"]
-
