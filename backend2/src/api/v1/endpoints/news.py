@@ -11,6 +11,7 @@ from ....services.news.repository import MongoNewsRepository
 from ....services.news.scheduler import ingest_news
 
 router = APIRouter(prefix="/news", tags=["S&P 500 News"])
+BOOTSTRAP_VERSION = "v4"
 
 
 def _repository():
@@ -21,7 +22,7 @@ def _repository():
 def _run_bootstrap(run_key: str) -> None:
     client, repository = _repository()
     try:
-        ingest_news(SEARCH_TOPICS, "bootstrap-ingest")
+        ingest_news(SEARCH_TOPICS, f"bootstrap-ingest-{BOOTSTRAP_VERSION}")
         counts = {source: len(repository.source_raw(source, datetime.now(UTC) - timedelta(days=7))) for source in SOURCE_IDS}
         repository.finish_run(run_key, "success" if any(counts.values()) else "failed", {"source_counts": counts}, None if any(counts.values()) else "NEWS_NOT_FETCHED")
     except Exception as exc:
@@ -54,7 +55,7 @@ def bootstrap_news(background_tasks: BackgroundTasks):
         repository.ensure_indexes()
         counts = {source: len(repository.source_raw(source, datetime.now(UTC) - timedelta(days=7), 1)) for source in SOURCE_IDS}
         if all(counts.values()): return {"ok": True, "data": {"status": "ready", "source_counts": counts}}
-        local_day = datetime.now(ZoneInfo("Asia/Tehran")).date().isoformat(); run_key = f"source-bootstrap-v3:{local_day}"
+        local_day = datetime.now(ZoneInfo("Asia/Tehran")).date().isoformat(); run_key = f"source-bootstrap-{BOOTSTRAP_VERSION}:{local_day}"
         if repository.claim_run(run_key, "bootstrap"):
             background_tasks.add_task(_run_bootstrap, run_key); status = "queued"
         else: status = "running"
