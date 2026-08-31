@@ -17,7 +17,7 @@ export default function MT5AccountSnapshot() {
   const load = async () => {
     setLoading(true)
     try {
-      const response = await fetch("/api/mt5/latest", { cache: "no-store" })
+      const response = await fetch("/dashboard-data/mt5/latest", { cache: "no-store" })
       const body = await response.json()
       if (!response.ok) throw new Error(body.detail || "Unable to load MT5 snapshot")
       setSnapshot(body)
