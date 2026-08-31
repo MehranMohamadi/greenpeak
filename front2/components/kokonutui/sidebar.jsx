@@ -141,10 +141,9 @@ export default function Sidebar() {
 
   // Dispatch resize event when sidebar state changes
   useEffect(() => {
-    const width = shouldExpand ? 256 : 64; // 64 = w-16, 256 = w-64
     window.dispatchEvent(
       new CustomEvent("sidebarResize", {
-        detail: { width },
+        detail: { width: 64 },
       })
     );
   }, [shouldExpand]);
@@ -166,7 +165,7 @@ export default function Sidebar() {
         onMouseEnter={() => {
           router.prefetch(href);
           if (hoveredItem?.href !== href) {
-            setHoveredItem({ label, href });
+            setHoveredItem({ label, href, side: "left" });
           }
         }}
         onFocus={() => router.prefetch(href)}
@@ -229,7 +228,7 @@ export default function Sidebar() {
       <nav
         className={`
                 fixed inset-y-0 left-0 z-40 bg-white dark:bg-[#0F0F12] transform transition-all duration-200 ease-out
-                lg:translate-x-0 lg:static lg:z-auto border-r border-gray-200 dark:border-[#1F1F23]
+                lg:translate-x-0 lg:fixed lg:z-40 border-r border-gray-200 dark:border-[#1F1F23] shadow-xl shadow-black/5 dark:shadow-black/20
                 ${
                   isMobileMenuOpen
                     ? "translate-x-0"
@@ -353,6 +352,8 @@ export default function Sidebar() {
           </div>
         </div>
       </nav>
+
+      <div className="hidden w-16 flex-shrink-0 lg:block" aria-hidden="true" />
 
       {isMobileMenuOpen && (
         <div

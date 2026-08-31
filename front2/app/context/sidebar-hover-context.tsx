@@ -2,13 +2,23 @@
 
 import { createContext, useContext, useState, ReactNode } from "react";
 
-type HoveredItem = {
+type BreadcrumbItem = {
   label: string;
+  href?: string;
+};
+
+type NavigationItem = {
+  label: string;
+  href?: string;
+  side: "left" | "right";
+  trail?: BreadcrumbItem[];
 } | null;
 
 type SidebarHoverContextType = {
-  hoveredItem: HoveredItem;
-  setHoveredItem: (item: HoveredItem) => void;
+  hoveredItem: NavigationItem;
+  setHoveredItem: (item: NavigationItem) => void;
+  selectedRightItem: NavigationItem;
+  setSelectedRightItem: (item: NavigationItem) => void;
 };
 
 const SidebarHoverContext = createContext<SidebarHoverContextType | undefined>(
@@ -16,10 +26,16 @@ const SidebarHoverContext = createContext<SidebarHoverContextType | undefined>(
 );
 
 export function SidebarHoverProvider({ children }: { children: ReactNode }) {
-  const [hoveredItem, setHoveredItem] = useState<HoveredItem>(null);
+  const [hoveredItem, setHoveredItem] = useState<NavigationItem>(null);
+  const [selectedRightItem, setSelectedRightItem] = useState<NavigationItem>({
+    label: "حیاط",
+    href: "/fun",
+    side: "right",
+    trail: [{ label: "فان", href: "/fun" }, { label: "حیاط" }],
+  });
 
   return (
-    <SidebarHoverContext.Provider value={{ hoveredItem, setHoveredItem }}>
+    <SidebarHoverContext.Provider value={{ hoveredItem, setHoveredItem, selectedRightItem, setSelectedRightItem }}>
       {children}
     </SidebarHoverContext.Provider>
   );

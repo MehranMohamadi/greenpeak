@@ -1,13 +1,13 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSidebarHover } from "../../app/context/sidebar-hover-context";
 
 export default function TopNav() {
   const pathname = usePathname();
-  const { hoveredItem } = useSidebarHover();
+  const { hoveredItem, selectedRightItem } = useSidebarHover();
 
   const routeLabels = {
     "/": "Dashboard",
@@ -30,11 +30,15 @@ export default function TopNav() {
     "/settings": "Settings",
     "/help": "Help",
     "/test-charts": "Test Charts",
+    "/fun": "حیاط",
   };
 
   const generateBreadcrumbs = () => {
     const pathSegments = pathname.split("/").filter(Boolean);
-    const breadcrumbs = [{ label: "GreenPeak", href: "/" }];
+    const isFunRoute = pathname === "/fun" || pathname.startsWith("/fun/");
+    const breadcrumbs = isFunRoute
+      ? [{ label: "فان", href: "/fun" }]
+      : [{ label: "GreenPeak", href: "/" }];
 
     if (pathname === "/") {
       breadcrumbs.push({ label: "Dashboard", href: null });
@@ -59,9 +63,15 @@ export default function TopNav() {
   };
 
   const breadcrumbs = generateBreadcrumbs();
+  const isFunRoute = pathname === "/fun" || pathname.startsWith("/fun/");
 
   const effectiveBreadcrumbs = (() => {
-    if (!hoveredItem || breadcrumbs.length === 0) return breadcrumbs;
+    if (isFunRoute) {
+      const rightItem = hoveredItem?.side === "right" ? hoveredItem : selectedRightItem;
+      return rightItem?.trail || [{ label: "فان", href: "/fun" }, { label: "حیاط" }];
+    }
+    const activeSide = isFunRoute ? "right" : "left";
+    if (!hoveredItem || hoveredItem.side !== activeSide || breadcrumbs.length === 0) return breadcrumbs;
     const base = breadcrumbs.slice(0, -1);  
     return [
       ...base,
@@ -72,12 +82,14 @@ export default function TopNav() {
   })();
 
   return (
-    <nav className="px-3 sm:px-6 flex items-center justify-between bg-white dark:bg-[#0F0F12] border-b border-gray-200 dark:border-[#1F1F23] h-full">
-      <div className="font-medium text-sm hidden sm:flex items-center space-x-1 truncate max-w-[500px]">
+    <nav className={`px-3 sm:px-6 flex items-center bg-white dark:bg-[#0F0F12] border-b border-gray-200 dark:border-[#1F1F23] h-full ${isFunRoute ? "justify-end" : "justify-start"}`}>
+      <div dir={isFunRoute ? "rtl" : "ltr"} className="font-medium text-sm hidden sm:flex items-center gap-1 truncate max-w-[500px]">
         {effectiveBreadcrumbs.map((item, index) => (
           <div key={`${item.label}-${index}`} className="flex items-center">
             {index > 0 && (
-              <ChevronRight className="h-4 w-4 text-gray-500 dark:text-gray-400 mx-1" />
+              isFunRoute
+                ? <ChevronLeft className="h-4 w-4 text-gray-500 dark:text-gray-400 mx-1" />
+                : <ChevronRight className="h-4 w-4 text-gray-500 dark:text-gray-400 mx-1" />
             )}
             {item.href ? (
               <Link

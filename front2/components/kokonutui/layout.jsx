@@ -1,6 +1,7 @@
 "use client"
 
 import Sidebar from "./sidebar"
+import FunSidebar from "./fun-sidebar"
 import TopNav from "./top-nav"
 
 export default function Layout({ children }) {
@@ -15,6 +16,7 @@ export default function Layout({ children }) {
           {children}
         </main>
       </div>
+      <FunSidebar />
     </div>
   )
 }
