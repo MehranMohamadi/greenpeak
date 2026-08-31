@@ -84,6 +84,23 @@ start_apps() {
   local app_root="$1"
   local backend_interpreter="python3"
 
+  # The frontend snapshot proxy is server-side and may reuse the first MT5
+  # ingestion token. Export only these named values from the server-owned root
+  # environment so PM2 passes them to the standalone Next.js process.
+  if [[ -f "$legacy_root/.env" ]]; then
+    local mt5_env_name mt5_env_value
+    for mt5_env_name in \
+      GREENPEAK_MT5_API_TOKENS \
+      GREENPEAK_MT5_DASHBOARD_TOKEN \
+      GREENPEAK_INTERNAL_API_BASE_URL
+    do
+      mt5_env_value="$(sed -n "s/^${mt5_env_name}=//p" "$legacy_root/.env" | tail -n 1)"
+      if [[ -n "$mt5_env_value" ]]; then
+        export "${mt5_env_name}=${mt5_env_value}"
+      fi
+    done
+  fi
+
   if [[ -x "$app_root/backend2/.venv/bin/python" ]]; then
     backend_interpreter="$app_root/backend2/.venv/bin/python"
   fi

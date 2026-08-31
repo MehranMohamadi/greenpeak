@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic"
 export async function GET() {
   const apiBase = (process.env.GREENPEAK_INTERNAL_API_BASE_URL || "http://127.0.0.1:8000/api/v1").replace(/\/$/, "")
   const token = process.env.GREENPEAK_MT5_DASHBOARD_TOKEN
+    || process.env.GREENPEAK_MT5_API_TOKENS?.split(",").map((value) => value.trim()).find(Boolean)
   if (!token) {
     return NextResponse.json({ detail: "MT5 dashboard connection is not configured" }, { status: 503 })
   }
