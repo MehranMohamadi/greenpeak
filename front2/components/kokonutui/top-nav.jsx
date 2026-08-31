@@ -1,9 +1,7 @@
 "use client";
 
-import { Bell, ChevronRight } from "lucide-react";
-import ProfileDropdown from "./profile-01";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { ThemeToggle } from "../theme-toggle";
 import { usePathname } from "next/navigation";
 import { useSidebarHover } from "../../app/context/sidebar-hover-context";
 
@@ -97,20 +95,6 @@ export default function TopNav() {
         ))}
       </div>
 
-      <div className="flex items-center gap-1 ml-auto sm:ml-0">
-        <button
-          type="button"
-          className="flex items-center justify-center w-8 h-8 hover:bg-gray-100 dark:hover:bg-[#1F1F23] rounded-full transition-colors"
-        >
-          <Bell className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-        </button>
-
-        <ThemeToggle />
-
-        <div className="ml-1 mt-0.5">
-          <ProfileDropdown />
-        </div>
-      </div>
     </nav>
   );
 }

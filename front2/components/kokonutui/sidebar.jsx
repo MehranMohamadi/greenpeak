@@ -3,7 +3,6 @@
 import {
   BarChart2,
   Building2,
-  Settings,
   HelpCircle,
   Menu,
   DollarSign,
@@ -31,6 +30,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { marketAnalysisCategories } from "@/lib/analytics-registry";
 
 import { useSidebarHover } from "../../app/context/sidebar-hover-context";
+import ProfileDropdown from "./profile-01";
+import { ThemeToggle } from "../theme-toggle";
 
 // Custom GreenPeak Icon Component
 const GreenPeakIcon = ({ className }) => (
@@ -340,12 +341,11 @@ export default function Sidebar() {
             </div>
           </div>
 
-          {/* Fixed bottom section for Settings and Help */}
+          {/* Fixed bottom section for account and preferences */}
           <div className="flex-shrink-0 px-4 py-4 border-t border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12]">
             <div className="space-y-1">
-              <NavItem href="/settings" icon={Settings}>
-                Settings
-              </NavItem>
+              <ProfileDropdown showLabel={shouldExpand} className="flex justify-center" />
+              <ThemeToggle showLabel={shouldExpand} className={shouldExpand ? "" : "mx-auto"} />
               <NavItem href="/help" icon={HelpCircle}>
                 Help
               </NavItem>

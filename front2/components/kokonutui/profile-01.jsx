@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { Settings, CreditCard, FileText, LogOut, User } from "lucide-react";
+import { Bell, CreditCard, FileText, LogOut, Settings, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-context";
@@ -26,6 +26,7 @@ const SAMPLE_PROFILE_DATA = {
 export default function ProfileDropdown({
     data = SAMPLE_PROFILE_DATA,
     className,
+    showLabel = false,
     ...props
 }) {
     const [isOpen, setIsOpen] = React.useState(false);
@@ -58,6 +59,11 @@ export default function ProfileDropdown({
             icon: <CreditCard className="w-4 h-4" />,
         },
         {
+            label: "Notifications",
+            href: "#",
+            icon: <Bell className="w-4 h-4" />,
+        },
+        {
             label: "Settings",
             href: "/settings",
             icon: <Settings className="w-4 h-4" />,
@@ -76,7 +82,12 @@ export default function ProfileDropdown({
                     <DropdownMenuTrigger asChild>
                         <button
                             type="button"
-                            className="focus:outline-none focus:ring-2 focus:ring-green-500/20 rounded-full transition-all duration-200"
+                            className={cn(
+                                "flex items-center focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all duration-200",
+                                showLabel
+                                    ? "w-full rounded-lg p-2 text-sm hover:bg-gray-100 dark:hover:bg-[#1F1F23]"
+                                    : "rounded-full"
+                            )}
                         >
                             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-500 via-emerald-500 to-green-600 p-0.5 hover:scale-105 transition-transform duration-200">
                                 <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-zinc-900">
@@ -89,6 +100,11 @@ export default function ProfileDropdown({
                                     />
                                 </div>
                             </div>
+                            {showLabel && (
+                                <span className="ml-3 text-gray-600 dark:text-gray-300">
+                                    Profile
+                                </span>
+                            )}
                         </button>
                     </DropdownMenuTrigger>
 
