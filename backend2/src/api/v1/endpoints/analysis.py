@@ -12,6 +12,7 @@ from ....services.llm_engine.repository import MongoNarrativeRepository
 from ....services.llm_engine.schemas import DomainNarrative, IndicatorNarrative, MarketNarrative
 from ....services.llm_engine.provider import OpenAICompatibleProvider
 from ....services.persisted_analysis import run_persisted_analysis
+from ....utils.telegram import send_telegram_market_report
 
 router = APIRouter(tags=["Persisted GreenPeak Analysis"])
 
@@ -81,6 +82,13 @@ def _execute_manual_analysis(run_id: str, force_llm: bool) -> None:
             {"run_id": run_id},
             {"$set": {"status": status, "finished_at": datetime.now(UTC), "result": result}},
         )
+        if status == "success":
+            market_data = MongoNarrativeRepository(client, settings.mongodb_database).latest("market", "sp500")
+            if market_data:
+                try:
+                    send_telegram_market_report(market_data)
+                except Exception:
+                    pass
     except Exception as exc:
         client[settings.mongodb_database].gp_manual_analysis_runs.update_one(
             {"run_id": run_id},

@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     greenpeak_llm_api_key: str = ""
     greenpeak_llm_base_url: str = "https://api.openai.com/v1"
     greenpeak_analysis_admin_token: str = ""
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
     # Comma-separated dedicated MT5 ingestion tokens. Empty disables ingestion.
     greenpeak_mt5_api_tokens: str = ""
     greenpeak_daily_analysis_enabled: bool = True

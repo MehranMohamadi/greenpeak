@@ -11,7 +11,9 @@ from pymongo.errors import DuplicateKeyError
 
 from ..core.config import get_settings
 from .llm_engine.provider import OpenAICompatibleProvider
+from .llm_engine.repository import MongoNarrativeRepository
 from .persisted_analysis import run_persisted_analysis
+from ..utils.telegram import send_telegram_market_report
 
 logger = logging.getLogger(__name__)
 RUN_COLLECTION = "gp_scheduled_analysis_runs"
@@ -57,10 +59,18 @@ def run_daily_analysis() -> None:
             local_day,
             force_llm=True,
         )
+        status = "partial" if result["errors"] else "success"
         runs.update_one(
             {"run_key": run_key},
-            {"$set": {"status": "partial" if result["errors"] else "success", "finished_at": datetime.now(UTC), "result": result}},
+            {"$set": {"status": status, "finished_at": datetime.now(UTC), "result": result}},
         )
+        if status == "success":
+            try:
+                market_data = MongoNarrativeRepository(client, settings.mongodb_database).latest("market", "sp500")
+                if market_data:
+                    send_telegram_market_report(market_data)
+            except Exception:
+                logger.exception("Daily market analysis succeeded but Telegram notification failed")
     except Exception as exc:
         logger.exception("Daily analysis failed")
         runs.update_one(
