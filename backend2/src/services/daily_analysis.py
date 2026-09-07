@@ -11,9 +11,8 @@ from pymongo.errors import DuplicateKeyError
 
 from ..core.config import get_settings
 from .llm_engine.provider import OpenAICompatibleProvider
-from .llm_engine.repository import MongoNarrativeRepository
 from .persisted_analysis import run_persisted_analysis
-from ..utils.telegram import send_telegram_market_report
+from ..utils.telegram import build_telegram_market_report, send_telegram_market_report
 
 logger = logging.getLogger(__name__)
 RUN_COLLECTION = "gp_scheduled_analysis_runs"
@@ -66,7 +65,7 @@ def run_daily_analysis() -> None:
         )
         if status == "success":
             try:
-                market_data = MongoNarrativeRepository(client, settings.mongodb_database).latest("market", "sp500")
+                market_data = build_telegram_market_report(client, settings.mongodb_database)
                 if market_data:
                     send_telegram_market_report(market_data)
             except Exception:
