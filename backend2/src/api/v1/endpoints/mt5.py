@@ -23,10 +23,15 @@ def _configured_tokens() -> tuple[str, ...]:
 
 def require_mt5_token(authorization: str | None = Header(default=None)) -> None:
     tokens = _configured_tokens()
+    if not tokens:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="MT5 API authentication is not configured",
+        )
     supplied = ""
     if authorization and authorization.startswith("Bearer "):
         supplied = authorization[7:].strip()
-    if not tokens or not supplied or not any(compare_digest(supplied, token) for token in tokens):
+    if not supplied or not any(compare_digest(supplied, token) for token in tokens):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid MT5 API token")
 
 

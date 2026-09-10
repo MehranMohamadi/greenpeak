@@ -71,6 +71,13 @@ def test_ingestion_requires_token(monkeypatch):
     assert response.status_code == 401
 
 
+def test_ingestion_reports_missing_server_token(monkeypatch):
+    monkeypatch.setattr("src.api.v1.endpoints.mt5._configured_tokens", lambda: ())
+    response = TestClient(app).post("/api/v1/mt5/snapshots", json=SNAPSHOT)
+    assert response.status_code == 503
+    assert response.json()["detail"] == "MT5 API authentication is not configured"
+
+
 def test_snapshot_round_trip_and_idempotency(monkeypatch):
     service = MemoryService()
     app.dependency_overrides[snapshot_service] = lambda: service
