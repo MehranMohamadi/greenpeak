@@ -40,12 +40,12 @@ export default function DailyMarketReport() {
       let token = typeof window !== "undefined" ? sessionStorage.getItem("greenpeak_analysis_admin_token") : ""
       let response = await fetch(endpoints.analysis.runManual, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {} })
       if (response.status === 403 && typeof window !== "undefined") {
-        token = window.prompt("Admin Token تحلیل را وارد کنید:") || ""
+        token = window.prompt("کد دسترسی خود را وارد کنید:") || ""
         if (token) sessionStorage.setItem("greenpeak_analysis_admin_token", token)
         response = await fetch(endpoints.analysis.runManual, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {} })
       }
       const body = await response.json()
-      if (!response.ok) throw new Error(body?.detail?.message || "تولید تحلیل ناموفق بود.")
+      if (!response.ok) throw new Error(response.status === 403 ? "کد دسترسی معتبر نیست. لطفاً کد نسخهٔ پولی خود را بررسی کنید." : "تولید تحلیل ناموفق بود. لطفاً دوباره تلاش کنید.")
       const runId = body?.data?.run_id
       if (!runId) throw new Error("شناسه اجرای تحلیل دریافت نشد.")
       let completed = false
@@ -53,11 +53,11 @@ export default function DailyMarketReport() {
         await new Promise(resolve => setTimeout(resolve, 2500))
         const statusResponse = await fetch(endpoints.analysis.manualRunStatus(runId), { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: "no-store" })
         const statusBody = await statusResponse.json()
-        if (!statusResponse.ok) throw new Error(statusBody?.detail?.message || "دریافت وضعیت تحلیل ناموفق بود.")
+        if (!statusResponse.ok) throw new Error(statusResponse.status === 403 ? "کد دسترسی معتبر نیست. لطفاً کد نسخهٔ پولی خود را بررسی کنید." : "دریافت وضعیت تحلیل ناموفق بود.")
         const status = statusBody.data?.status
         setRunMessage(status === "queued" ? "تحلیل در صف اجراست…" : status === "running" ? "مدل در حال تحلیل داده‌هاست…" : "در حال نهایی‌سازی خروجی…")
         if (["success", "partial", "failed"].includes(status)) {
-          if (status === "failed") throw new Error(`تحلیل ناموفق بود: ${statusBody.data?.error_code || "خطای نامشخص"}`)
+          if (status === "failed") throw new Error("تولید تحلیل ناموفق بود. لطفاً دوباره تلاش کنید.")
           await loadPersisted()
           setRunMessage(status === "partial" ? "تحلیل با پوشش ناقص ذخیره شد." : "تحلیل ذخیره‌شده با موفقیت به‌روزرسانی شد.")
           completed = true
@@ -66,7 +66,7 @@ export default function DailyMarketReport() {
       }
       if (!completed) throw new Error("زمان انتظار تحلیل تمام شد؛ وضعیت اجرا را دوباره بررسی کنید.")
     } catch (error) {
-      setRunMessage(error instanceof Error ? error.message : "تولید تحلیل ناموفق بود.")
+      setRunMessage(error instanceof Error && !(error instanceof TypeError) && !(error instanceof SyntaxError) ? error.message : "ارتباط با سرویس تحلیل ممکن نشد. لطفاً دوباره تلاش کنید.")
     } finally { setRunning(false) }
   }
   if (!market && !unavailable) return <Card className="mb-8"><CardContent className="p-6 text-sm text-muted-foreground">Loading persisted daily market report…</CardContent></Card>

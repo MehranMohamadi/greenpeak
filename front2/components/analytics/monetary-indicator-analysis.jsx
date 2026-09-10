@@ -4,13 +4,13 @@ import { useEffect, useState } from "react"
 import { endpoints } from "@/api/api"
 import { matchingNarrative, monetaryNarrativeIds } from "@/lib/monetary-narrative"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { NarrativeDates, NarrativeList } from "./narrative-text"
+import { NarrativeList } from "./narrative-text"
 
 export default function MonetaryIndicatorAnalysis({ factorId, title, observationDate, revision = 0 }) {
   return <IndicatorNarrativeAnalysis indicatorId={monetaryNarrativeIds[factorId]} title={title} observationDate={observationDate} revision={revision} />
 }
 
-export function IndicatorNarrativeAnalysis({ indicatorId, title, observationDate, revision = 0, note }) {
+export function IndicatorNarrativeAnalysis({ indicatorId, revision = 0, note }) {
   const [result, setResult] = useState(null)
   useEffect(() => {
     const controller = new AbortController()
@@ -32,9 +32,10 @@ export function IndicatorNarrativeAnalysis({ indicatorId, title, observationDate
   }, [indicatorId, revision])
   const current = result?.indicatorId === indicatorId ? result : null
   const analysis = current?.analysis
-  return <Card dir="rtl">
-    <CardHeader className="space-y-2"><CardTitle className="text-lg">تحلیل شاخص</CardTitle><p dir="ltr" className="text-right text-sm text-muted-foreground">{title}</p></CardHeader>
-    <CardContent className="space-y-4 text-right">
+  const analysisDate = analysis?.analysis_generated_at?.slice(0, 10)
+  return <Card dir="rtl" className="flex min-h-0 flex-col lg:absolute lg:inset-0">
+    <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0 shrink-0"><CardTitle className="text-base">تحلیل شاخص</CardTitle>{analysisDate && <time dateTime={analysisDate} dir="ltr" className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">{analysisDate}</time>}</CardHeader>
+    <CardContent className="min-h-0 space-y-4 text-right lg:flex-1 lg:overflow-y-auto">
       {note && <p className="text-xs leading-6 text-muted-foreground">{note}</p>}
       {!current && <p role="status" className="text-sm">در حال دریافت تحلیل…</p>}
       {current?.missing && <p className="text-sm">هنوز تحلیلی برای این شاخص ثبت نشده است.</p>}
@@ -47,7 +48,6 @@ export function IndicatorNarrativeAnalysis({ indicatorId, title, observationDate
           <NarrativeList title="ریسک‌های تفسیر" items={analysis.risks_to_interpretation_fa} />
           <NarrativeList title="موارد قابل پیگیری" items={analysis.watch_next_fa} />
         </details>
-        <NarrativeDates analysis={analysis} observationDate={observationDate} />
       </>}
     </CardContent>
   </Card>

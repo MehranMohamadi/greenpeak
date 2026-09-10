@@ -64,10 +64,10 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
   const liquidity = useLiquidityData()
 
   const factors = [
+    { id: "ten-year-treasury", title: "10-Year Treasury Yield", group: "Market rates", icon: Activity, format: "rate", changeUnit: "bp", data: processTenYearData(tenYear.data || []), metadata: tenYear.metadata, loading: tenYear.loading, error: tenYear.error },
     { id: "fed-funds-rate", title: "Effective Federal Funds Rate", group: "Policy & expectations", icon: Landmark, format: "rate", changeUnit: "bp", data: processDFFData(dff.data || [], true, period), metadata: dff.metadata, loading: dff.loading, error: dff.error },
     { id: "sofr-rate", title: "Secured Overnight Financing Rate", group: "Policy & expectations", icon: Percent, format: "rate", changeUnit: "bp", data: processSOFRData(sofr.data || []), metadata: sofr.metadata, loading: sofr.loading, error: sofr.error },
     { id: "real-interest-rate", title: "10-Year Real Interest Rate", group: "Market rates", icon: Scale, format: "rate", changeUnit: "bp", data: processRealInterestRateData(realRate.data || []), metadata: realRate.metadata, loading: realRate.loading, error: realRate.error },
-    { id: "ten-year-treasury", title: "10-Year Treasury Yield", group: "Market rates", icon: Activity, format: "rate", changeUnit: "bp", data: processTenYearData(tenYear.data || []), metadata: tenYear.metadata, loading: tenYear.loading, error: tenYear.error },
     { id: "fed-balance-sheet", title: "Federal Reserve Total Assets", group: "System liquidity", icon: WalletCards, format: "trillions", changeUnit: "percent", data: processWALCLData(walcl.data || []), metadata: walcl.metadata, loading: walcl.loading, error: walcl.error },
     { id: "money-supply-m2", title: "Money Supply (M2)", group: "System liquidity", icon: Banknote, format: "m2", changeUnit: "percent", data: liquidity.data.m2 || [], metadata: liquidity.metadata.m2, loading: liquidity.loading, error: liquidity.errors.m2 },
     { id: "reverse-repo", title: "Overnight Reverse Repo", group: "System liquidity", icon: Waves, format: "billions", changeUnit: "percent", data: liquidity.data.reverseRepo || [], metadata: liquidity.metadata.reverseRepo, loading: liquidity.loading, error: liquidity.errors.reverseRepo },
@@ -90,8 +90,8 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
         <CardContent><DomainUnderstandingPanel domainId="monetary_liquidity" simple onUpdated={() => setAnalysisRevision((value) => value + 1)} /></CardContent>
       </Card>
 
-      <div dir="ltr" className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-        <Card ref={chartSectionRef} className="min-w-0 border-slate-200 bg-white lg:col-start-2 lg:row-start-1 dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+      <div dir="ltr" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
+        <Card ref={chartSectionRef} className="min-w-0 border-slate-200 bg-white lg:col-start-1 lg:row-start-1 dark:border-[#2B2B30] dark:bg-[#1F1F23]">
           <CardHeader><div className="flex flex-col gap-4"><div><CardTitle className="flex items-start justify-between gap-3 text-base"><span className="min-w-0 break-words">{selected.title}</span><Button variant="outline" size="icon" title="Expand chart" aria-label="Expand chart" onClick={() => setIsFullScreen(true)} disabled={!selectedData.length}><Maximize2 className="h-4 w-4" /></Button></CardTitle><CardDescription className="mt-2 text-xs">{selected.metadata?.source || "Source unavailable"} &middot; {selectedDate} &middot; {selected.format === "rate" ? "%" : selected.format === "trillions" ? "USD trillions" : "USD billions"}{selected.metadata?.quality_status === "stale" && <span className="ml-2 text-amber-700 dark:text-amber-400">Data is outdated</span>}</CardDescription></div><div className="flex flex-wrap gap-1">{PERIODS.map((item) => <Button key={item} size="sm" variant={period === item ? "default" : "outline"} onClick={() => setPeriod(item)}>{item}</Button>)}</div></div></CardHeader>
           <CardContent>
             {selected.loading && <AnalysisState tone="neutral" title="Loading observations" />}
@@ -99,7 +99,7 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
             {!selected.loading && selectedData.length > 0 && <div className="h-[360px] w-full overflow-hidden"><MultiLineChart textColor={chartTextColor} dataSets={[selectedData]} height={360} /></div>}
           </CardContent>
         </Card>
-        <div className="min-w-0 [overflow-wrap:anywhere] lg:col-start-1 lg:row-start-1">
+        <div className="min-w-0 [overflow-wrap:anywhere] relative min-h-0 lg:col-start-2 lg:row-start-1">
           <MonetaryIndicatorAnalysis key={selected.id} factorId={selected.id} title={selected.title} observationDate={selectedDate} revision={analysisRevision} />
         </div>
       </div>

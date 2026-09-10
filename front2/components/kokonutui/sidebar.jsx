@@ -3,7 +3,7 @@
 import { CalendarDays, HelpCircle, Home, Menu, Pin, PinOff, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { marketAnalysisCategories } from "@/lib/analytics-registry";
 import { getActiveNavHref, US_MARKET } from "@/lib/navigation-state";
 import { useSidebarHover } from "@/app/context/sidebar-hover-context";
@@ -11,18 +11,20 @@ import ProfileDropdown from "./profile-01";
 import { ThemeToggle } from "../theme-toggle";
 
 const markets = [{ ...US_MARKET, children: marketAnalysisCategories.map((category) => ({ ...category, href: `/analytics/${category.page}` })) }];
+let marketExpansionState = { [US_MARKET.id]: true };
 const hrefs = ["/", "/help", "/analytics/events", ...markets.flatMap((market) => [market.href, ...market.children.map((child) => child.href)])];
 const focusStyle = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400";
 const USIcon = () => <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-current text-[10px] font-bold">US</span>;
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { setHoveredItem } = useSidebarHover();
   const [pinned, setPinned] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const [mobile, setMobile] = useState(false);
-  const [openMarkets, setOpenMarkets] = useState({ [US_MARKET.id]: true });
+  const [openMarkets, setOpenMarkets] = useState(() => marketExpansionState);
   const timer = useRef(null);
   const trigger = useRef(null);
   const mobileClose = useRef(null);
@@ -46,13 +48,16 @@ export default function Sidebar() {
   }, [pathname, setHoveredItem]);
   function closeMobile() { setMobile(false); trigger.current?.focus(); }
   function toggleMarket(id) {
-    setOpenMarkets((current) => ({ ...current, [id]: !current[id] }));
+    // Preserve the toggle when navigating remounts the page's sidebar.
+    marketExpansionState = { ...openMarkets, [id]: !openMarkets[id] };
+    setOpenMarkets(marketExpansionState);
+    router.push(markets.find((market) => market.id === id).href);
   }
   function navItem(href, label, Icon, display = label, nested = false) {
     const active = activeHref === href;
     return <Link href={href} title={label} aria-label={label} aria-current={active ? "page" : undefined} onClick={() => setMobile(false)} onMouseEnter={() => setHoveredItem({ label, href, side: "left" })} onMouseLeave={() => setHoveredItem(null)} className={`relative flex h-9 min-w-0 items-center justify-start gap-3 rounded-lg text-sm transition-colors motion-reduce:transition-none ${nested ? "px-2" : "px-3"} ${focusStyle} ${active ? "bg-green-500/10 font-medium text-green-600 dark:text-green-400" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-[#1F1F23] dark:hover:text-white"}`}>
       {active && <span aria-hidden="true" className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-green-500 dark:bg-green-400" />}
-      <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><Icon className="h-5 w-5" /></span>{expanded && <span dir="auto" className="truncate">{display}</span>}
+      <span aria-hidden="true" className={`flex h-5 w-5 shrink-0 items-center justify-center ${nested ? "-translate-x-1.5" : ""}`}><Icon className="h-5 w-5" /></span>{expanded && <span dir="auto" className="truncate">{display}</span>}
     </Link>;
   }
 

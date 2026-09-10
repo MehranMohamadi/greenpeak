@@ -52,7 +52,7 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
   const runAnalysis = async () => {
     if (running) return
     setRunning(true)
-    setRunMessage("Generating and saving updated AI analysis on the server…")
+    setRunMessage("در حال به‌روزرسانی تحلیل؛ این فرایند ممکن است چند دقیقه طول بکشد…")
     try {
       let token = sessionStorage.getItem("greenpeak_analysis_admin_token") || ""
       let response = await fetch(endpoints.analysis.runManual, {
@@ -60,7 +60,7 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       if (response.status === 403) {
-        token = window.prompt("Enter the analysis admin token:") || ""
+        token = window.prompt("کد دسترسی خود را وارد کنید:") || ""
         if (token) sessionStorage.setItem("greenpeak_analysis_admin_token", token)
         response = await fetch(endpoints.analysis.runManual, {
           method: "POST",
@@ -69,9 +69,9 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
       }
 
       const body = await response.json()
-      if (!response.ok) throw new Error(body?.detail?.message || "Unable to queue AI analysis.")
+      if (!response.ok) throw new Error(response.status === 403 ? "کد دسترسی معتبر نیست. لطفاً کد نسخهٔ پولی خود را بررسی کنید." : "ثبت درخواست به‌روزرسانی تحلیل ممکن نشد. لطفاً دوباره تلاش کنید.")
       const runId = body?.data?.run_id
-      if (!runId) throw new Error("The server did not return an analysis run ID.")
+      if (!runId) throw new Error("شناسهٔ اجرای تحلیل دریافت نشد.")
 
       for (let attempt = 0; attempt < 180; attempt += 1) {
         await wait(2500)
@@ -80,32 +80,32 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
           cache: "no-store",
         })
         const statusBody = await statusResponse.json()
-        if (!statusResponse.ok) throw new Error(statusBody?.detail?.message || "Unable to read analysis status.")
+        if (!statusResponse.ok) throw new Error(statusResponse.status === 403 ? "کد دسترسی معتبر نیست. لطفاً کد نسخهٔ پولی خود را بررسی کنید." : "دریافت وضعیت تحلیل ممکن نشد. لطفاً دوباره تلاش کنید.")
         const status = statusBody.data?.status
         if (mounted.current) {
           setRunMessage(status === "queued"
-            ? "Analysis is queued on the server…"
+            ? "تحلیل در صف اجراست…"
             : status === "running"
-              ? "The AI model is analyzing the latest monetary-policy inputs…"
-              : "Finalizing the saved analysis…")
+              ? "در حال تحلیل آخرین داده‌ها…"
+              : "در حال نهایی‌سازی تحلیل…")
         }
         if (["success", "partial", "failed"].includes(status)) {
           if (status === "failed") {
-            throw new Error(`AI analysis failed: ${statusBody.data?.error_code || "unknown server error"}`)
+            throw new Error("به‌روزرسانی تحلیل ناموفق بود. لطفاً دوباره تلاش کنید.")
           }
           await loadPersisted()
           onUpdated?.()
           if (mounted.current) {
             setRunMessage(status === "partial"
-              ? "Analysis was saved with partial data coverage."
-              : "Updated AI analysis was saved successfully.")
+              ? "تحلیل با پوشش ناقص داده‌ها ذخیره شد."
+              : "تحلیل با موفقیت به‌روزرسانی شد.")
           }
           return
         }
       }
-      throw new Error("Timed out while waiting for the server analysis.")
+      throw new Error("زمان انتظار تمام شد؛ وضعیت تحلیل را دوباره بررسی کنید.")
     } catch (error) {
-      if (mounted.current) setRunMessage(error instanceof Error ? error.message : "Unable to generate AI analysis.")
+      if (mounted.current) setRunMessage(error instanceof Error && !(error instanceof TypeError) && !(error instanceof SyntaxError) ? error.message : "ارتباط با سرویس تحلیل ممکن نشد. لطفاً دوباره تلاش کنید.")
     } finally {
       if (mounted.current) setRunning(false)
     }
@@ -206,7 +206,7 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
       </div>
 
       <RunButton running={running} onClick={runAnalysis} />
-      {runMessage && <p className="text-left text-xs text-muted-foreground" dir="ltr" aria-live="polite">{runMessage}</p>}
+      {runMessage && <p className="text-right text-xs text-muted-foreground" dir="rtl" aria-live="polite">{runMessage}</p>}
       <button type="button" onClick={() => setExpanded((value) => !value)} className="inline-flex items-center gap-1 text-xs font-medium text-violet-700 dark:text-violet-300">
         <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
         {expanded ? "Hide analytical details" : "Show analytical details"}

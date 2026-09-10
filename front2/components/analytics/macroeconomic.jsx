@@ -72,8 +72,8 @@ export default function Macroeconomic() {
         <CardContent><DomainUnderstandingPanel domainId="growth_inflation_labor" simple onUpdated={() => setRevision((value) => value + 1)} /></CardContent>
       </Card>
       {error && <AnalysisState tone="neutral" title="Macroeconomic service unavailable" description={error} />}
-      <div dir="ltr" className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-        <Card ref={chartRef} className="min-w-0 border-slate-200 bg-white lg:col-start-2 lg:row-start-1 dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+      <div dir="ltr" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
+        <Card ref={chartRef} className="min-w-0 border-slate-200 bg-white lg:col-start-1 lg:row-start-1 dark:border-[#2B2B30] dark:bg-[#1F1F23]">
           <CardHeader className="space-y-3">
             <CardTitle className="flex items-start justify-between gap-3 text-base"><span className="min-w-0 break-words">{selected.title}</span><Button variant="outline" size="icon" title="Expand chart" aria-label="Expand chart" disabled={!chartData.length} onClick={() => setIsFullScreen(true)}><Maximize2 className="h-4 w-4" /></Button></CardTitle>
             <CardDescription className="text-xs">{sourceLine}</CardDescription>
@@ -86,7 +86,7 @@ export default function Macroeconomic() {
             {!loading && chartData.length > 0 && <div className="h-[360px] w-full overflow-hidden"><MultiLineChart dataSets={[chartData]} height={360} textColor={chartTextColor} /></div>}
           </CardContent>
         </Card>
-        <div className="min-w-0 [overflow-wrap:anywhere] lg:col-start-1 lg:row-start-1">
+        <div className="min-w-0 [overflow-wrap:anywhere] relative min-h-0 lg:col-start-2 lg:row-start-1">
           <IndicatorNarrativeAnalysis key={selected.indicatorId} indicatorId={selected.indicatorId} title={selected.title} observationDate={observationDate} revision={revision}
             note={selected.key === "gdp" ? "تحلیل مربوط به تولید ناخالص داخلی واقعی است؛ نمودار، نرخ رشد فصلی سالانه‌شدهٔ آن را نشان می‌دهد." : selected.key === "cpi" ? "تحلیل مربوط به شاخص قیمت مصرف‌کننده است؛ نمودار، تغییر دوازده‌ماههٔ آن را نشان می‌دهد." : undefined} />
         </div>

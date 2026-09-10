@@ -1,8 +1,9 @@
 "use client"
 
-import { Calendar, Database } from "lucide-react"
+import { Building2, Calendar, Database } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import EarningsCalendarWidget from "./earnings-calendar-widget"
 import EconomicCalendarWidget from "./economic-calendar-widget"
 
 export default function MacroCalendar({ showPageHeader = true }) {
@@ -18,19 +19,31 @@ export default function MacroCalendar({ showPageHeader = true }) {
         </div>
       </header>}
 
-      <Card className="overflow-hidden">
-        <CardHeader>
-          <CardTitle>Economic calendar</CardTitle>
-          <CardDescription>Release times, published values, forecasts, and prior observations supplied by the embedded calendar provider.</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0 sm:p-6 sm:pt-0">
-          <EconomicCalendarWidget />
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
+        <Card className="min-w-0 overflow-hidden">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5 text-blue-600" />Economic calendar</CardTitle>
+            <CardDescription>Release times, published values, forecasts, and prior observations supplied by Tradays.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0 sm:p-6 sm:pt-0">
+            <EconomicCalendarWidget />
+          </CardContent>
+        </Card>
+
+        <Card className="min-w-0 overflow-hidden">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5 text-emerald-600" />Earnings calendar</CardTitle>
+            <CardDescription>Expected company earnings dates, EPS, revenue, forecasts, and release timing supplied by Finlogix.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0 sm:p-6 sm:pt-0">
+            <EarningsCalendarWidget />
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="flex items-start gap-2 rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
         <Database className="mt-0.5 h-4 w-4 shrink-0" />
-        GreenPeak does not synthesize event values, release dates, economic-health labels, or market-impact scores on this page.
+        GreenPeak does not synthesize event values, release dates, earnings forecasts, economic-health labels, or market-impact scores on this page.
       </div>
     </div>
   )
