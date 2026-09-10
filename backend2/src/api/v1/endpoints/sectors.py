@@ -47,51 +47,13 @@ async def get_sector_relative_performance(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/momentum-scores", response_model=DataResponse)
-async def get_sector_momentum_scores(
-    sector: Optional[str] = Query(None, description="Sector name (e.g., technology, financials)"),
-    limit: Optional[int] = Query(None, description="Limit number of records"),
-    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
-    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
-):
-    """Get sector momentum scores (0-100 scale)."""
-    try:
-        return data_service.get_sector_momentum_score_data(
-            sector_name=sector,
-            limit=limit,
-            start_date=start_date,
-            end_date=end_date
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-@router.get("/rotation-signals", response_model=DataResponse)
-async def get_sector_rotation_signals(
-    sector: Optional[str] = Query(None, description="Sector name (e.g., technology, financials)"),
-    limit: Optional[int] = Query(None, description="Limit number of records"),
-    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
-    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
-):
-    """Get sector rotation signals (0-100 scale)."""
-    try:
-        return data_service.get_sector_rotation_signal_data(
-            sector_name=sector,
-            limit=limit,
-            start_date=start_date,
-            end_date=end_date
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
 @router.get("/latest/{metric}")
 async def get_all_sectors_latest(
-    metric: str = Path(..., description="Metric name: price_performance, relative_performance, momentum_score, sector_rotation_signal"),
+    metric: str = Path(..., description="Metric name: price_performance or relative_performance"),
 ):
     """Get latest data for all sectors for a specific metric."""
     try:
-        valid_metrics = ["price_performance", "relative_performance", "momentum_score", "sector_rotation_signal"]
+        valid_metrics = ["price_performance", "relative_performance"]
         if metric not in valid_metrics:
             raise HTTPException(status_code=400, detail=f"Invalid metric. Must be one of: {valid_metrics}")
         
@@ -203,7 +165,5 @@ async def get_available_metrics():
     """Get list of available metrics."""
     return [
         "price_performance",
-        "relative_performance", 
-        "momentum_score",
-        "sector_rotation_signal"
+        "relative_performance"
     ]

@@ -94,7 +94,7 @@ async def get_real_interest_rate_data(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/vix", response_model=List[OHLCDataPoint])
+@router.get("/vix", response_model=DataResponse)
 async def get_vix_data():
     """Get VIX volatility index OHLC data."""
     try:

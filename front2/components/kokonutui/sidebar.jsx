@@ -1,366 +1,108 @@
 "use client";
 
-import {
-  BarChart2,
-  Building2,
-  HelpCircle,
-  Menu,
-  DollarSign,
-  Activity,
-  PieChart,
-  Target,
-  Globe,
-  MessageSquare,
-  Calendar,
-  Brain,
-  ChevronLeft,
-  ChevronRight,
-  Shield,
-  LineChart,
-  BarChart3,
-  Zap,
-  Users,
-} from "lucide-react";
-
-import { Home } from "lucide-react";
+import { CalendarDays, HelpCircle, Home, Menu, Pin, PinOff, X } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { marketAnalysisCategories } from "@/lib/analytics-registry";
-
-import { useSidebarHover } from "../../app/context/sidebar-hover-context";
+import { getActiveNavHref, US_MARKET } from "@/lib/navigation-state";
+import { useSidebarHover } from "@/app/context/sidebar-hover-context";
 import ProfileDropdown from "./profile-01";
 import { ThemeToggle } from "../theme-toggle";
 
-// Custom GreenPeak Icon Component
-const GreenPeakIcon = ({ className }) => (
-  <svg
-    viewBox="0 0 818 512"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className={className}
-  >
-    <path
-      d="M263.5 219L220 187L0 480.5L228.5 252.5L484 412.5L302.5 244L438.5 78L817.5 495L437.5 0L263.5 219Z"
-      fill="currentColor"
-    />
-  </svg>
-);
+const markets = [{ ...US_MARKET, children: marketAnalysisCategories.map((category) => ({ ...category, href: `/analytics/${category.page}` })) }];
+const hrefs = ["/", "/help", "/analytics/events", ...markets.flatMap((market) => [market.href, ...market.children.map((child) => child.href)])];
+const focusStyle = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400";
+const USIcon = () => <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-current text-[10px] font-bold">US</span>;
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { setHoveredItem, hoveredItem } = useSidebarHover();
-
-  const isMainPage = pathname === "/"; // Check if we're on the main page
-
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(!isMainPage); // Start collapsed on non-main pages
-  const [isStaticOpen, setIsStaticOpen] = useState(isMainPage); // Start static open only on main page
-  const [hasAutoCollapsed, setHasAutoCollapsed] = useState(!isMainPage); // Already "auto-collapsed" on non-main pages
-
-  // Auto-collapse after initial load with delay (only on main page)
+  const { setHoveredItem } = useSidebarHover();
+  const [pinned, setPinned] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [mobile, setMobile] = useState(false);
+  const [openMarkets, setOpenMarkets] = useState({ [US_MARKET.id]: true });
+  const timer = useRef(null);
+  const trigger = useRef(null);
+  const mobileClose = useRef(null);
+  const expanded = pinned || hovered || focused || mobile;
+  const activeHref = getActiveNavHref(pathname, hrefs);
+  useEffect(() => { if (mobile) mobileClose.current?.focus(); }, [mobile]);
   useEffect(() => {
-    if (!isMainPage) {
-      // On non-main pages, keep sidebar collapsed
-      setIsCollapsed(true);
-      setIsStaticOpen(false);
-      setHasAutoCollapsed(true);
-      return;
-    }
+    if (!mobile) return;
+    const escape = (event) => { if (event.key === "Escape") { setMobile(false); trigger.current?.focus(); } };
+    document.addEventListener("keydown", escape);
+    return () => document.removeEventListener("keydown", escape);
+  }, [mobile]);
 
-    let timer;
-
-    const handleContentLoaded = () => {
-      // Start timer after content is loaded (only on main page)
-      timer = setTimeout(() => {
-        if (!hasAutoCollapsed && isMainPage) {
-          setIsStaticOpen(false);
-          setIsCollapsed(true);
-          setHasAutoCollapsed(true);
-        }
-      }, 2000); // 2 second delay after content loads
-    };
-
-    // Listen for content loaded event
-    window.addEventListener("contentLoaded", handleContentLoaded);
-
-    // Fallback timer in case event doesn't fire (only on main page)
-    const fallbackTimer = setTimeout(() => {
-      if (!hasAutoCollapsed && isMainPage) {
-        setIsStaticOpen(false);
-        setIsCollapsed(true);
-        setHasAutoCollapsed(true);
-      }
-    }, 5000); // 5 second fallback
-
-    return () => {
-      window.removeEventListener("contentLoaded", handleContentLoaded);
-      if (timer) clearTimeout(timer);
-      clearTimeout(fallbackTimer);
-    };
-  }, [hasAutoCollapsed, isMainPage]);
-
-  // Reset sidebar state when route changes
   useEffect(() => {
-    if (isMainPage) {
-      // On main page, start expanded and allow auto-collapse
-      setIsCollapsed(false);
-      setIsStaticOpen(true);
-      setHasAutoCollapsed(false);
-    } else {
-      // On other pages, start collapsed
-      setIsCollapsed(true);
-      setIsStaticOpen(false);
-      setHasAutoCollapsed(true);
-    }
-  }, [pathname]);
-
-  function handleNavigation() {
-    setIsMobileMenuOpen(false);
+    try { setPinned(localStorage.getItem("greenpeak.nav.pinned") === "true"); } catch {}
+    return () => clearTimeout(timer.current);
+  }, []);
+  useEffect(() => {
+    setMobile(false);
+    setHoveredItem(null);
+  }, [pathname, setHoveredItem]);
+  function closeMobile() { setMobile(false); trigger.current?.focus(); }
+  function toggleMarket(id) {
+    setOpenMarkets((current) => ({ ...current, [id]: !current[id] }));
+  }
+  function navItem(href, label, Icon, display = label, nested = false) {
+    const active = activeHref === href;
+    return <Link href={href} title={label} aria-label={label} aria-current={active ? "page" : undefined} onClick={() => setMobile(false)} onMouseEnter={() => setHoveredItem({ label, href, side: "left" })} onMouseLeave={() => setHoveredItem(null)} className={`relative flex h-9 min-w-0 items-center justify-start gap-3 rounded-lg text-sm transition-colors motion-reduce:transition-none ${nested ? "px-2" : "px-3"} ${focusStyle} ${active ? "bg-green-500/10 font-medium text-green-600 dark:text-green-400" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-[#1F1F23] dark:hover:text-white"}`}>
+      {active && <span aria-hidden="true" className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-green-500 dark:bg-green-400" />}
+      <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><Icon className="h-5 w-5" /></span>{expanded && <span dir="auto" className="truncate">{display}</span>}
+    </Link>;
   }
 
-  // Toggle function for the arrow button
-  function handleToggle() {
-    setHasAutoCollapsed(true); // Prevent auto-collapse after manual interaction
-
-    if (isStaticOpen) {
-      // If currently static open, collapse it
-      setIsStaticOpen(false);
-      setIsCollapsed(true);
-    } else {
-      // If collapsed or hover-based, make it static open
-      setIsStaticOpen(true);
-      setIsCollapsed(false);
-    }
-  }
-
-  // Determine if sidebar should be expanded
-  const shouldExpand = isStaticOpen || !isCollapsed;
-
-  // Dispatch resize event when sidebar state changes
-  useEffect(() => {
-    window.dispatchEvent(
-      new CustomEvent("sidebarResize", {
-        detail: { width: 64 },
-      })
-    );
-  }, [shouldExpand]);
-
-  function NavItem({
-    href,
-    icon: Icon,
-    children,
-    onClick,
-    label,
-  }) {
-    const isActive = pathname === href;
-
-    return (
-      <Link
-        href={href}
-        onClick={onClick || handleNavigation}
-        className="relative"
-        onMouseEnter={() => {
-          router.prefetch(href);
-          if (hoveredItem?.href !== href) {
-            setHoveredItem({ label, href, side: "left" });
-          }
-        }}
-        onFocus={() => router.prefetch(href)}
-        onMouseLeave={() => {
-          if (hoveredItem) {
-            setHoveredItem(null);
-          }
-        }}
-      >
-        {/* Simplified active background */}
-        {isActive && (
-          <div className="absolute inset-0 min-w-3 bg-green-500/10 pointer-events-none dark:to-green-500/8 rounded-lg border-l-3 border-green-500 dark:border-green-400" />
-        )}
-
-        <div
-          className={`
-            relative flex items-center justify-center shrink-0 p-2 text-sm rounded-lg transition-colors duration-200 group z-10
-            ${
-              isActive
-                ? "text-green-600 dark:text-green-400 font-medium"
-                : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#1F1F23]"
-            }
-          `}
-          title={shouldExpand ? "" : children}
-        >
-          <Icon
-            className={`h-4 w-4 flex-shrink-0 transition-colors duration-200 ${
-              isActive ? "text-green-600 dark:text-green-400 h-5 w-5" : ""
-            }`}
-          />
-
-          <AnimatePresence>
-            {shouldExpand && (
-              <span
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: "auto" }}
-                exit={{ opacity: 0, width: 0 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="ml-3 whitespace-nowrap overflow-hidden flex items-center justify-between w-full"
-              >
-                <span>{children}</span>
-              </span>
-            )}
-          </AnimatePresence>
-
+  return <>
+    <button ref={trigger} type="button" aria-label="Open financial navigation" aria-expanded={mobile} aria-controls="financial-navigation" onClick={() => setMobile((value) => !value)} className={`fixed left-4 top-2 z-40 rounded bg-white p-1 dark:bg-[#0F0F12] lg:hidden ${focusStyle}`}><Menu className="h-5 w-5" /></button>
+    <nav id="financial-navigation" aria-label="Financial navigation" dir="ltr"
+      onPointerEnter={(event) => { if (event.pointerType !== "touch") { clearTimeout(timer.current); timer.current = setTimeout(() => setHovered(true), 200); } }}
+      onPointerLeave={() => { clearTimeout(timer.current); setHovered(false); }}
+      onFocusCapture={() => setFocused(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}
+      onKeyDown={(event) => { if (event.key === "Escape" && mobile) closeMobile(); }}
+      className={`fixed inset-y-0 left-0 z-40 max-w-[calc(100vw-3rem)] border-r border-gray-200 bg-white shadow-xl shadow-black/5 dark:shadow-black/20 transition-[width,transform,visibility] duration-200 motion-reduce:transition-none dark:border-[#1F1F23] dark:bg-[#0F0F12] lg:visible lg:translate-x-0 ${mobile ? "visible translate-x-0" : "invisible -translate-x-full"} ${expanded ? "w-64" : "w-16"}`}>
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="flex h-11 shrink-0 items-center justify-between border-b border-gray-200 dark:border-[#1F1F23] px-3">
+          <Link href="/" aria-label="GreenPeak" title="GreenPeak" className={`flex min-w-0 items-center gap-3 rounded font-semibold text-gray-900 dark:text-white ${focusStyle}`}>
+            <svg aria-hidden="true" viewBox="0 0 818 512" fill="none" className="h-8 w-8 shrink-0 text-green-600">
+              <path d="M263.5 219L220 187L0 480.5L228.5 252.5L484 412.5L302.5 244L438.5 78L817.5 495L437.5 0L263.5 219Z" fill="currentColor" />
+            </svg>
+            {expanded && <span className="truncate">GreenPeak</span>}
+          </Link>
+          <button type="button" title={pinned ? "Unpin navigation" : "Pin navigation"} aria-label={pinned ? "Unpin navigation" : "Pin navigation"} aria-pressed={pinned} onClick={() => setPinned((value) => { try { localStorage.setItem("greenpeak.nav.pinned", String(!value)); } catch {} return !value; })} className={`hidden rounded p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#1F1F23] ${expanded ? "lg:block" : ""} ${focusStyle}`}>{pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}</button>
+          <button ref={mobileClose} type="button" aria-label="Close financial navigation" onClick={closeMobile} className={`rounded p-2 lg:hidden ${focusStyle}`}><X className="h-4 w-4" /></button>
         </div>
-      </Link>
-    );
-  }
-
-  return (
-    <>
-      <button
-        type="button"
-        className="lg:hidden fixed top-2 left-4 z-40 p-1 rounded-lg bg-white dark:bg-[#0F0F12] shadow-md"
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-      >
-        <Menu className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-      </button>
-      <nav
-        className={`
-                fixed inset-y-0 left-0 z-40 bg-white dark:bg-[#0F0F12] transform transition-all duration-200 ease-out
-                lg:translate-x-0 lg:fixed lg:z-40 border-r border-gray-200 dark:border-[#1F1F23] shadow-xl shadow-black/5 dark:shadow-black/20
-                ${
-                  isMobileMenuOpen
-                    ? "translate-x-0"
-                    : "-translate-x-full lg:translate-x-0"
-                }
-                ${shouldExpand ? "w-64" : "w-16"}
-            `}
-        onMouseEnter={() => !isStaticOpen}
-        onMouseLeave={() => !isStaticOpen}
-      >
-        <div className="h-full flex flex-col">
-          <div
-            className={`h-11 px-6 flex items-center justify-between border-b border-gray-200 dark:border-[#1F1F23] ${
-              shouldExpand ? "" : "px-4"
-            }`}
-          >
-            <AnimatePresence>
-              {shouldExpand && (
-                <motion.div
-                  initial={{ opacity: 0, width: 0 }}
-                  animate={{ opacity: 1, width: "auto" }}
-                  exit={{ opacity: 0, width: 0 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                >
-                  <Link href="/" className="flex items-center gap-3">
-                    <GreenPeakIcon className="w-8 h-8 text-green-600" />
-                    <span className="text-lg font-semibold hover:cursor-pointer text-gray-900 dark:text-white whitespace-nowrap">
-                      {"GreenPeak Dash"}
-                    </span>
-                  </Link>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            {!shouldExpand && (
-              <Link
-                href="/"
-                className="flex items-center justify-center w-full"
-              >
-                <GreenPeakIcon className="w-8 h-8 text-green-600" />
-              </Link>
-            )}
-            <motion.button
-              onClick={handleToggle}
-              className="hidden lg:flex p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#1F1F23] transition-colors"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              {shouldExpand ? (
-                <ChevronLeft className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-              )}
-            </motion.button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto py-4 px-2 min-h-0">
-            <div className="space-y-6">
-              <div>
-                <AnimatePresence>
-                  {shouldExpand && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 overflow-hidden"
-                    >
-                      Overview
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <div className="space-y-1">
-                  <NavItem href="/" icon={Home} label="Dashboard">
-                    Dashboard
-                  </NavItem>
-                  <NavItem href="/analytics" icon={BarChart2} label="S&P 500 Intelligence">
-                    S&P 500 Intelligence
-                  </NavItem>
-                </div>
-              </div>
-
-              <div>
-                <AnimatePresence>
-                  {shouldExpand && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 overflow-hidden"
-                    >
-                      Market Analysis
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <div className="space-y-1">
-                  {marketAnalysisCategories.map((category) => (
-                    <NavItem
-                      key={category.page}
-                      href={`/analytics/${category.page}`}
-                      icon={category.icon}
-                      label={category.name}
-                    >
-                      {category.shortName}
-                    </NavItem>
-                  ))}
-                </div>
-              </div>
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2 py-3">
+          {navItem("/", "Dashboard", Home)}
+          {markets.map((market) => <section key={market.id} className="mt-3">
+            <div className={activeHref && market.children.some((child) => child.href === activeHref) ? "font-medium" : ""}>
+              <button type="button" title={market.labelFa} aria-label={market.labelFa} aria-expanded={Boolean(openMarkets[market.id])} onClick={() => toggleMarket(market.id)} onMouseEnter={() => setHoveredItem({ label: market.labelFa, href: market.href, side: "left" })} onMouseLeave={() => setHoveredItem(null)} className={`relative flex h-9 w-full min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors motion-reduce:transition-none ${focusStyle} ${activeHref === market.href ? "bg-green-500/10 font-medium text-green-600 dark:text-green-400" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-[#1F1F23] dark:hover:text-white"}`}>
+                {activeHref === market.href && <span aria-hidden="true" className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-green-500 dark:bg-green-400" />}
+                <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><USIcon /></span>
+                {expanded && <span dir="auto" className="truncate">{market.labelFa}</span>}
+              </button>
             </div>
-          </div>
-
-          {/* Fixed bottom section for account and preferences */}
-          <div className="flex-shrink-0 px-4 py-4 border-t border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12]">
-            <div className="space-y-1">
-              <ProfileDropdown showLabel={shouldExpand} className="flex justify-center" />
-              <ThemeToggle showLabel={shouldExpand} className={shouldExpand ? "" : "mx-auto"} />
-              <NavItem href="/help" icon={HelpCircle}>
-                Help
-              </NavItem>
-            </div>
-          </div>
+            {openMarkets[market.id] && <div className="pl-4">
+              {market.children.map((child, index) => <div key={child.page} className="relative">
+                <span aria-hidden="true" className={`absolute -left-2 top-0 w-px bg-gray-300 dark:bg-gray-700 ${index === market.children.length - 1 ? "bottom-1/2" : "bottom-0"}`} />
+                <span aria-hidden="true" className="absolute -left-2 top-1/2 h-px w-2 bg-gray-300 dark:bg-gray-700" />
+                {navItem(child.href, child.name, child.icon, child.shortName, true)}
+              </div>)}
+            </div>}
+          </section>)}
+          <div className="mt-3">{navItem("/analytics/events", "News & Events", CalendarDays)}</div>
         </div>
-      </nav>
-
-      <div className="hidden w-16 flex-shrink-0 lg:block" aria-hidden="true" />
-
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-    </>
-  );
+        <div className="shrink-0 border-t border-gray-200 bg-white px-2 py-2 dark:border-[#1F1F23] dark:bg-[#0F0F12]">
+          <ProfileDropdown showLabel={expanded} triggerClassName="h-11 w-full justify-start rounded-lg px-2.5 py-2" />
+          <ThemeToggle showLabel={expanded} className={expanded ? "" : "mx-auto"} />
+          {navItem("/help", "Help", HelpCircle)}
+        </div>
+      </div>
+    </nav>
+    <div aria-hidden="true" className={`hidden shrink-0 lg:block ${pinned ? "w-64" : "w-16"}`} />
+    {mobile && <button type="button" aria-label="Close financial navigation" onClick={closeMobile} className="fixed inset-0 z-30 bg-black/50 lg:hidden" />}
+  </>;
 }

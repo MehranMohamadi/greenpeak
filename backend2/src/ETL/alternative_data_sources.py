@@ -105,7 +105,7 @@ SYSTEMIC_RISK_ALTERNATIVES = {
                 "high_yield_spread": "BAMLH0A0HYM2", # High yield spread
                 "term_structure": "THREEFYTP10", # 3M-10Y spread
                 "real_rates": "DFII10",       # 10Y TIPS rate
-                "dollar_index": "DTWEXBGS",   # Dollar index
+                "broad_trade_weighted_usd_index": "DTWEXBGS",
                 "financial_stress": "NFCI"    # National Financial Conditions Index
             },
             "implementation": "Extend existing FRED integration"

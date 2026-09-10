@@ -91,7 +91,7 @@ class LiquidityFlowsFetcher:
             "reverse_repo_operations": {
                 "series_id": "RRPONTSYD", 
                 "description": "Overnight Reverse Repurchase Agreements: Treasury Securities Sold by the Federal Reserve in the Temporary Open Market Operations",
-                "unit": "millions_of_dollars",
+                "unit": "billions_of_dollars",
                 "frequency": "daily",
                 "seasonal_adjustment": "not_seasonally_adjusted"
             }

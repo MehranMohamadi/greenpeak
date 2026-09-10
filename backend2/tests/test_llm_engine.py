@@ -17,9 +17,9 @@ class FakeProvider:
 
     def generate_json(self, prompt, evidence):
         self.calls += 1
-        assert "Rule Engine score" in prompt
+        assert "Rule Engine" in prompt
         assert "rule_score" not in str(evidence).lower()
-        return {"current_state_fa": "وضعیت فعلی", "what_changed_fa": "تغییر محدود", "interpretation_fa": "تفسیر محتاطانه", "key_facts": [{"fact": "واقعیت", "evidence_ref": "feature:current_value_pct"}], "ambiguities_fa": [], "risks_to_interpretation_fa": [], "watch_next_fa": ["داده بعدی"], "narrative_fa": "روایت فارسی", "llm_shadow_score": 5, "llm_confidence": 50, "evidence_refs": ["feature:current_value_pct"], "warnings": []}
+        return {"current_state_fa": "وضعیت فعلی", "what_changed_fa": "تغییر محدود", "interpretation_fa": "تفسیر محتاطانه", "key_facts": [{"fact": "واقعیت", "evidence_ref": "feature:current_value_pct"}], "ambiguities_fa": [], "risks_to_interpretation_fa": [], "watch_next_fa": ["داده بعدی"], "narrative_fa": "روایت فارسی", "evidence_refs": ["feature:current_value_pct"], "warnings": []}
 
 
 class MemoryRepository:
@@ -46,8 +46,6 @@ class InvalidThenValidProvider(FakeProvider):
             "risks_to_interpretation_fa": [],
             "watch_next_fa": [],
             "narrative_fa": "test narrative",
-            "llm_shadow_score": 5,
-            "llm_confidence": 50,
             "evidence_refs": [],
             "warnings": [],
         }
@@ -64,7 +62,7 @@ class AlwaysInvalidProvider(FakeProvider):
 
 def test_persian_prompts_load_as_utf8():
     prompt = load_prompt("indicator")
-    assert prompt.version == "0.2.0+0.2.0"
+    assert prompt.version == "0.3.0+0.3.0"
     assert "Persian" in prompt.content
 
 
@@ -72,13 +70,13 @@ def test_domain_contract_and_prompt_include_compact_dashboard_analysis():
     schema = DomainNarrative.model_json_schema()["properties"]
     assert {"stance_label_fa", "key_insights_fa", "outlook_items"} <= set(schema)
     prompt = load_prompt("domain")
-    assert prompt.version == "0.2.0+0.4.0"
+    assert prompt.version == "0.3.0+0.5.0"
     assert "monetary_liquidity" in prompt.content
     assert "outlook_items" in prompt.content
     assert "under 10 Persian words" in prompt.content
 
 
-def test_related_indicators_are_included_in_domain_analysis_evidence():
+def test_only_primary_owner_indicators_are_included_in_domain_analysis_evidence():
     indicators = load_registry()[2]
     monetary_ids = domain_indicator_ids("monetary_liquidity", indicators)
     assert "federal_funds_rate" in monetary_ids

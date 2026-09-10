@@ -1,0 +1,11 @@
+indicator_id: cftc_sp500_positioning
+definition_version: "1.0"
+enabled: true
+display: {name_en: "CFTC E-mini S&P 500 Positioning", name_fa: "موقعیت‌گیری قرارداد آتی E-mini S&P 500", unit: contracts}
+source: {provider: CFTC, series_id: TFF_13874A_ASSET_MGR_NET, frequency: weekly, collection: positioning_sentiment}
+raw_indicator: cftc_sp500_positioning
+classification: {primary_domain: positioning_sentiment_derivatives_volatility, related_domains: []}
+feature_template: weekly_level
+feature_overrides: {family: signed_positioning, trend_threshold_bp: 1000.0}
+semantics: {category: futures_positioning, higher_is: larger_asset_manager_net_long_position, value_meaning: asset_manager_long_contracts_minus_short_contracts, comparison_series: leveraged_money_net_positions}
+llm: {enabled: true, include_in_domain_analysis: true}

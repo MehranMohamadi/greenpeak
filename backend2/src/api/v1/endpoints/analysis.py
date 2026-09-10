@@ -24,7 +24,9 @@ def _latest(level: str, subject_id: str, model):
         document = MongoNarrativeRepository(client, settings.mongodb_database).latest(level, subject_id)
         if not document:
             raise HTTPException(status_code=404, detail={"code": "ANALYSIS_NOT_GENERATED", "message": "Analysis has not been generated yet."})
-        return {"ok": True, "data": model.model_validate(document).model_dump(mode="json")}
+        allowed_fields = model.model_fields
+        compatible_document = {key: value for key, value in document.items() if key in allowed_fields}
+        return {"ok": True, "data": model.model_validate(compatible_document).model_dump(mode="json")}
     except HTTPException:
         raise
     except PyMongoError:

@@ -1,102 +1,66 @@
-import { useEffect, useState } from 'react';
-import { endpoints } from '../api/api';
+import { useEffect, useState } from "react"
 
-// Map hook keys to endpoints and expected field names
-const ENDPOINT_MAP = {
-    vix: endpoints.systemicRisk.vix,
-    creditSpreads: endpoints.systemicRisk.credit,
-    yieldCurve: endpoints.systemicRisk.twoyteny,
-    cdsSpreads: endpoints.systemicRisk.cds,
-    financialStress: endpoints.systemicRisk.stress,
-};
+import { endpoints } from "../api/api"
 
-function normalizeSeries(json) {
-    // Accept either array of {time,value,date,...} or {data:[], metadata: {}}
-    let arr = [];
-    let meta = null;
+const SOURCES = {
+  highYieldSpread: endpoints.systemicRisk.credit,
+  bbbSpread: endpoints.systemicRisk.cds,
+  financialStress: endpoints.systemicRisk.stress,
+  yieldCurve: endpoints.systemicRisk.twoyteny,
+}
 
-    if (!json) return { arr: [], meta: null };
-
-    if (Array.isArray(json)) {
-        arr = json;
-    } else if (json.data) {
-        arr = json.data;
-        meta = json.metadata || null;
-    } else {
-        // attempt to detect wrapper
-        arr = json.series || json.values || [];
-        meta = json.metadata || null;
-    }
-
-    const cleaned = arr
-        .map(item => {
-            // support time as number or string or date
-            const time = Number(item.time ?? item.timestamp ?? (item.date ? Date.parse(item.date) : NaN));
-            if (isNaN(time)) return null;
-            const val = Number(item.value ?? item.rate ?? item.close ?? item.y);
-            if (isNaN(val)) return null;
-            return {
-                time,
-                date: item.date || item.datetime || new Date(time).toISOString(),
-                value: val,
-            };
-        })
-        .filter(Boolean)
-        .sort((a, b) => a.time - b.time);
-
-    return { arr: cleaned, meta };
+function normalize(payload) {
+  return (Array.isArray(payload?.data) ? payload.data : [])
+    .map((item) => {
+      const value = Number(item.value ?? item.rate)
+      if (!item.date || !Number.isFinite(value)) return null
+      return { date: item.date, time: item.date, value }
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.date.localeCompare(right.date))
 }
 
 export default function useSystemicRiskData() {
-    const [data, setData] = useState({});
-    const [metadata, setMetadata] = useState({});
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+  const [data, setData] = useState({ highYieldSpread: [], bbbSpread: [], financialStress: [], yieldCurve: [] })
+  const [metadata, setMetadata] = useState({ highYieldSpread: null, bbbSpread: null, financialStress: null, yieldCurve: null })
+  const [errors, setErrors] = useState({})
+  const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        setLoading(true);
-        setError(null);
+  useEffect(() => {
+    const controller = new AbortController()
 
-        // Fetch all endpoints in parallel
-        const entries = Object.entries(ENDPOINT_MAP);
-        const promises = entries.map(([key, url]) =>
-            fetch(url)
-                .then(res => {
-                    if (!res.ok) throw new Error(`${key} HTTP ${res.status}`);
-                    return res.json();
-                })
-                .then(json => {
-                    const { arr, meta } = normalizeSeries(json);
-                    return { key, arr, meta };
-                })
-                .catch(err => {
-                    console.warn(`Error fetching ${key}:`, err);
-                    return { key, arr: [], meta: null, error: err.message };
-                })
-        );
+    async function loadOne([key, url]) {
+      try {
+        const response = await fetch(url, { signal: controller.signal })
+        const payload = await response.json()
+        if (!response.ok) throw new Error(payload?.detail || `HTTP ${response.status}`)
+        return { key, data: normalize(payload), metadata: payload?.metadata || null, error: null }
+      } catch (error) {
+        if (error.name === "AbortError") throw error
+        return { key, data: [], metadata: null, error: error.message }
+      }
+    }
 
-        Promise.all(promises)
-            .then(results => {
-                const outData = {};
-                const outMeta = {};
-                results.forEach(r => {
-                    outData[r.key] = r.arr || [];
-                    outMeta[r.key] = r.meta || null;
-                });
+    async function load() {
+      setLoading(true)
+      try {
+        const results = await Promise.all(Object.entries(SOURCES).map(loadOne))
+        if (controller.signal.aborted) return
+        setData(Object.fromEntries(results.map((result) => [result.key, result.data])))
+        setMetadata(Object.fromEntries(results.map((result) => [result.key, result.metadata])))
+        setErrors(Object.fromEntries(results.filter((result) => result.error).map((result) => [result.key, result.error])))
+      } catch (error) {
+        if (error.name !== "AbortError" && !controller.signal.aborted) {
+          setErrors(Object.fromEntries(Object.keys(SOURCES).map((key) => [key, error.message])))
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
+    }
 
-                // Backwards compatibility: if consumer expects array, provide a merged array under `data`
-                setData(outData);
-                setMetadata(outMeta);
-                setError(null);
-            })
-            .catch(err => {
-                console.error('useSystemicRiskData: unexpected error', err);
-                setError(err.message || 'Unknown error');
-                setData({});
-                setMetadata({});
-            })
-            .finally(() => setLoading(false));
-    }, []);
+    load()
+    return () => controller.abort()
+  }, [])
 
-    return { data, metadata, loading, error };
+  return { data, metadata, errors, loading }
 }

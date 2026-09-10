@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react"
 import { createChart } from "lightweight-charts"
+import { normalizeChartData } from "@/lib/chart-data"
 
-export default function MultiLineChart({ dataSets = [], isTransitioning = false }) {
+export default function MultiLineChart({ dataSets = [], isTransitioning = false, height = 300, textColor = "#e0e0e0" }) {
   const chartRef = useRef()
   const chartInstanceRef = useRef()
   const timeoutRef = useRef()
+  const transitionRef = useRef()
   const [isClient, setIsClient] = useState(false)
   const [error, setError] = useState(null)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -23,7 +25,7 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false 
     if (isTransitioning) {
       setIsUpdating(true)
       // Add a small delay for smooth transition
-      setTimeout(() => {
+      transitionRef.current = setTimeout(() => {
         updateChart()
       }, 150)
     } else {
@@ -44,10 +46,10 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false 
       try {
         const chart = createChart(chartRef.current, {
           width: chartRef.current.clientWidth || 600,
-          height: 300,
+          height,
           layout: {
             background: { type: 'solid', color: 'transparent' },
-            textColor: "#e0e0e0",
+            textColor,
           },
           grid: {
             vertLines: { color: 'rgba(0, 0, 0, 0)' },
@@ -78,6 +80,7 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false 
         // Define colors for the lines
         const colors = ["#26a69a", "#ef5350", "#42a5f5", "#ab47bc", "#ffa726"]
 
+        setError(null)
         dataSets.forEach((seriesData, index) => {
           if (!Array.isArray(seriesData) || seriesData.length === 0) return
 
@@ -87,19 +90,7 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false 
               lineWidth: 2,
             })
 
-            const safeData = seriesData
-              .filter((d) => 
-                d && 
-                typeof d.time !== "undefined" && 
-                typeof d.value !== "undefined" &&
-                !isNaN(d.value) &&
-                d.time !== null &&
-                d.value !== null
-              )
-              .map(d => ({
-                time: d.time,
-                value: parseFloat(d.value)
-              }))
+            const safeData = normalizeChartData(seriesData)
 
             if (safeData.length > 0) {
               series.setData(safeData)
@@ -124,8 +115,6 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false 
           }
         }, isTransitioning ? 150 : 50) // Faster transitions
 
-        setError(null)
-
       } catch (chartError) {
         console.error("Error creating chart:", chartError)
         setError("Failed to create chart")
@@ -134,6 +123,7 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false 
     }
 
     return () => {
+      clearTimeout(transitionRef.current)
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
         timeoutRef.current = null
@@ -147,7 +137,7 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false 
         chartInstanceRef.current = null
       }
     }
-  }, [dataSets, isClient, isTransitioning])
+  }, [dataSets, isClient, isTransitioning, height, textColor])
 
   // Handle window resize with debouncing and smooth animations
   useEffect(() => {
@@ -164,7 +154,7 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false 
           try {
             // Get the current container dimensions
             const containerWidth = chartRef.current.clientWidth
-            const containerHeight = 300
+            const containerHeight = height
             
             // Smooth resize with animation options
             chartInstanceRef.current.applyOptions({
@@ -173,7 +163,7 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false 
               // Add animation options for smoother transitions
               layout: {
                 background: { type: 'solid', color: 'transparent' },
-                textColor: "#e0e0e0",
+                textColor,
               },
               timeScale: {
                 rightOffset: 12,
@@ -194,13 +184,16 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false 
     }
 
     window.addEventListener('resize', handleResize)
+    const observer = new ResizeObserver(handleResize)
+    if (chartRef.current) observer.observe(chartRef.current)
     return () => {
+      observer.disconnect()
       window.removeEventListener('resize', handleResize)
       if (resizeTimeout) {
         clearTimeout(resizeTimeout)
       }
     }
-  }, [])
+  }, [isClient, height, textColor])
 
   // Cleanup effect for component unmount
   useEffect(() => {
@@ -223,7 +216,7 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false 
   if (!isClient) {
     return (
       <div 
-        style={{ width: "100%", height: "300px" }} 
+        style={{ width: "100%", height }}
         className="bg-gray-100 dark:bg-gray-800 animate-pulse rounded flex items-center justify-center"
       >
         <div className="text-gray-500 dark:text-gray-400">Loading chart...</div>
@@ -231,25 +224,14 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false 
     )
   }
 
-  if (error) {
-    return (
-      <div 
-        style={{ width: "100%", height: "300px" }} 
-        className="bg-gray-100 dark:bg-gray-800 rounded flex items-center justify-center"
-      >
-        <div className="text-red-500 text-center">
-          <p>{error}</p>
-          <p className="text-sm mt-2">Chart unavailable</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div 
-      ref={chartRef} 
-      style={{ width: "100%", height: "300px" }}
-      className={`transition-all duration-200 ease-out ${isUpdating ? 'opacity-95 scale-[0.999]' : 'opacity-100 scale-100'}`}
-    />
+    <div className="relative w-full" style={{ height }}>
+      <div
+        ref={chartRef}
+        style={{ width: "100%", height }}
+        className={`transition-opacity duration-200 ${isUpdating ? 'opacity-95' : 'opacity-100'}`}
+      />
+      {error && <div role="alert" className="absolute inset-0 flex items-center justify-center bg-white/90 text-red-500 dark:bg-gray-900/90">{error}</div>}
+    </div>
   )
 }

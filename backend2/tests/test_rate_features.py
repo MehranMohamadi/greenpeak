@@ -213,8 +213,8 @@ def test_all_registered_indicators_build_validated_snapshots_offline():
     }
     repository = FakeRepository(frames)
     snapshots, run = run_feature_job(repository, list(DEFINITIONS), date(2024, 2, 8), False)
-    assert len(DEFINITIONS) == 30
-    assert len(snapshots) == 30
+    assert len(DEFINITIONS) == 34
+    assert len(snapshots) == 34
     assert run.status == "success"
     assert {item["indicator_id"] for item in snapshots} == set(DEFINITIONS)
     for item in snapshots:

@@ -232,6 +232,8 @@ class PerformanceDataPoint(BaseModel):
 class DataMetadata(BaseModel):
     """Metadata for data series."""
 
+    indicator_id: Optional[str] = Field(None, description="Stable internal indicator identifier")
+    owner_group: Optional[str] = Field(None, description="Canonical analytics owner group")
     latest_value: Optional[float] = Field(None, description="Most recent value")
     latest_date: Optional[str] = Field(None, description="Date of most recent value")
     total_records: int = Field(0, description="Total number of records")
@@ -240,6 +242,15 @@ class DataMetadata(BaseModel):
     frequency: str = Field("", description="Data frequency (daily, monthly, etc.)")
     source: str = Field("", description="Data source")
     fred_series: Optional[str] = Field(None, description="FRED series ID if applicable")
+    source_series_id: Optional[str] = Field(None, description="Upstream series identifier")
+    population: Optional[str] = Field(None, description="Population or universe represented")
+    seasonal_adjustment: Optional[str] = Field(None, description="Seasonal-adjustment convention")
+    transformation: Optional[str] = Field(None, description="Transformation applied to source observations")
+    observation_date: Optional[str] = Field(None, description="Date of the latest valid observation")
+    retrieved_at: Optional[datetime] = Field(None, description="Time this response was assembled")
+    quality_status: str = Field("available", description="available, stale, unavailable, or invalid")
+    quality_reason: Optional[str] = Field(None, description="Machine-readable quality explanation")
+    data_version: Optional[str] = Field(None, description="Version of data/transformation contract")
 
 
 class DataResponse(BaseModel):

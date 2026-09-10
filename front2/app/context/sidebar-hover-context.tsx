@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { usePathname } from "next/navigation";
 
 type BreadcrumbItem = {
   label: string;
@@ -26,13 +27,15 @@ const SidebarHoverContext = createContext<SidebarHoverContextType | undefined>(
 );
 
 export function SidebarHoverProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [hoveredItem, setHoveredItem] = useState<NavigationItem>(null);
-  const [selectedRightItem, setSelectedRightItem] = useState<NavigationItem>({
-    label: "حیاط",
-    href: "/fun",
-    side: "right",
-    trail: [{ label: "فان", href: "/fun" }, { label: "حیاط" }],
-  });
+  // This is an in-page content selection, not the current navigation route.
+  const [selectedRightItem, setSelectedRightItem] = useState<NavigationItem>(null);
+
+  useEffect(() => {
+    setHoveredItem(null);
+    setSelectedRightItem(null);
+  }, [pathname]);
 
   return (
     <SidebarHoverContext.Provider value={{ hoveredItem, setHoveredItem, selectedRightItem, setSelectedRightItem }}>

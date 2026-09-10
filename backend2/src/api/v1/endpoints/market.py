@@ -37,7 +37,7 @@ async def get_sp500_ohlc_data():
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/vix", response_model=list)
+@router.get("/vix", response_model=DataResponse)
 async def get_vix_data():
     """Get VIX data."""
     try:

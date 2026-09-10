@@ -1,174 +1,59 @@
-import { useEffect, useState } from 'react';
-import { endpoints } from '../api/api';
+import { useEffect, useState } from "react"
+
+import { endpoints } from "../api/api.js"
+import { normalizeChartData } from "@/lib/chart-data"
+
+const SOURCES = {
+  m2: endpoints.liquidity.m2,
+  reverseRepo: endpoints.liquidity.reverseRepo,
+}
+
+function normalize(payload) {
+  return normalizeChartData(Array.isArray(payload) ? payload : payload?.data)
+    .map((point) => ({ ...point, date: point.time }))
+}
 
 export default function useLiquidityData() {
-    const [data, setData] = useState({
-        m2: [],
-        reverseRepo: [],
-        etfInflows: []
-    });
-    const [metadata, setMetadata] = useState({
-        m2: null,
-        reverseRepo: null,
-        etfInflows: null
-    });
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+  const [data, setData] = useState({ m2: [], reverseRepo: [] })
+  const [metadata, setMetadata] = useState({ m2: null, reverseRepo: null })
+  const [errors, setErrors] = useState({})
+  const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        const fetchLiquidityData = async () => {
-            setLoading(true);
-            setError(null);
+  useEffect(() => {
+    const controller = new AbortController()
 
-            try {
-                // Fetch M2, Reverse Repo, and ETF Inflows data
-                const [m2Res, reverseRepoRes, etfInflowsRes] = await Promise.allSettled([
-                    fetch(endpoints.liquidity.m2),
-                    fetch(endpoints.liquidity.reverseRepo),
-                    fetch(endpoints.liquidity.etfInflows)
-                ]);
+    async function loadOne([key, url]) {
+      try {
+        const response = await fetch(url, { signal: controller.signal })
+        const payload = await response.json()
+        if (!response.ok) throw new Error(payload?.detail || `HTTP ${response.status}`)
+        return { key, data: normalize(payload), metadata: payload?.metadata || null, error: null }
+      } catch (error) {
+        if (error.name === "AbortError") throw error
+        return { key, data: [], metadata: null, error: error.message }
+      }
+    }
 
-                // Process M2 data
-                let processedM2 = [];
-                let m2Metadata = null;
-                if (m2Res.status === 'fulfilled' && m2Res.value.ok) {
-                    const m2Json = await m2Res.value.json();
-                    console.log('Raw M2 API response:', m2Json); // Debug log
-                    
-                    processedM2 = m2Json.data?.map(item => {
-                        // Validate and convert timestamp
-                        let timestamp = item.time;
-                        if (typeof timestamp === 'string') {
-                            timestamp = parseInt(timestamp);
-                        }
-                        
-                        // Validate and convert value (M2 is in billions)
-                        let m2Value = item.value || item.rate;
-                        if (typeof m2Value === 'string') {
-                            m2Value = parseFloat(m2Value);
-                        }
-                        
-                        // Ensure timestamp is in seconds (not milliseconds)
-                        if (timestamp > 10000000000) {
-                            timestamp = Math.floor(timestamp / 1000);
-                        }
-                        
-                        return {
-                            time: timestamp,
-                            value: m2Value,
-                            date: item.date,
-                        };
-                    }).filter(item => !isNaN(item.time) && !isNaN(item.value)) || [];
-                    
-                    m2Metadata = m2Json.metadata;
-                    console.log('Processed M2 data sample:', processedM2.slice(0, 3)); // Debug log
-                }
+    async function load() {
+      setLoading(true)
+      try {
+        const results = await Promise.all(Object.entries(SOURCES).map(loadOne))
+        if (controller.signal.aborted) return
+        setData(Object.fromEntries(results.map((result) => [result.key, result.data])))
+        setMetadata(Object.fromEntries(results.map((result) => [result.key, result.metadata])))
+        setErrors(Object.fromEntries(results.filter((result) => result.error).map((result) => [result.key, result.error])))
+      } catch (error) {
+        if (error.name !== "AbortError" && !controller.signal.aborted) {
+          setErrors(Object.fromEntries(Object.keys(SOURCES).map((key) => [key, error.message])))
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
+    }
 
-                // Process Reverse Repo data
-                let processedReverseRepo = [];
-                let reverseRepoMetadata = null;
-                if (reverseRepoRes.status === 'fulfilled' && reverseRepoRes.value.ok) {
-                    const reverseRepoJson = await reverseRepoRes.value.json();
-                    console.log('Raw Reverse Repo API response:', reverseRepoJson); // Debug log
-                    
-                    processedReverseRepo = reverseRepoJson.data?.map(item => {
-                        // Validate and convert timestamp
-                        let timestamp = item.time;
-                        if (typeof timestamp === 'string') {
-                            timestamp = parseInt(timestamp);
-                        }
-                        
-                        // Validate and convert value (Reverse Repo is in billions)
-                        let reverseRepoValue = item.value || item.rate;
-                        if (typeof reverseRepoValue === 'string') {
-                            reverseRepoValue = parseFloat(reverseRepoValue);
-                        }
-                        
-                        // Ensure timestamp is in seconds (not milliseconds)
-                        if (timestamp > 10000000000) {
-                            timestamp = Math.floor(timestamp / 1000);
-                        }
-                        
-                        return {
-                            time: timestamp,
-                            value: reverseRepoValue,
-                            date: item.date,
-                        };
-                    }).filter(item => !isNaN(item.time) && !isNaN(item.value)) || [];
-                    
-                    reverseRepoMetadata = reverseRepoJson.metadata;
-                    console.log('Processed Reverse Repo data sample:', processedReverseRepo.slice(0, 3)); // Debug log
-                }
+    load()
+    return () => controller.abort()
+  }, [])
 
-                // Process ETF Inflows data
-                let processedEtfInflows = [];
-                let etfInflowsMetadata = null;
-                if (etfInflowsRes.status === 'fulfilled' && etfInflowsRes.value.ok) {
-                    const etfInflowsJson = await etfInflowsRes.value.json();
-                    console.log('Raw ETF Inflows API response:', etfInflowsJson); // Debug log
-                    
-                    processedEtfInflows = etfInflowsJson.data?.map(item => {
-                        // Validate and convert timestamp
-                        let timestamp = item.time;
-                        if (typeof timestamp === 'string') {
-                            timestamp = parseInt(timestamp);
-                        }
-                        
-                        // Validate and convert value (ETF Inflows is in millions)
-                        let etfInflowsValue = item.value || item.rate;
-                        if (typeof etfInflowsValue === 'string') {
-                            etfInflowsValue = parseFloat(etfInflowsValue);
-                        }
-                        
-                        // Ensure timestamp is in seconds (not milliseconds)
-                        if (timestamp > 10000000000) {
-                            timestamp = Math.floor(timestamp / 1000);
-                        }
-                        
-                        return {
-                            time: timestamp,
-                            value: etfInflowsValue,
-                            date: item.date,
-                        };
-                    }).filter(item => !isNaN(item.time) && !isNaN(item.value)) || [];
-                    
-                    etfInflowsMetadata = etfInflowsJson.metadata;
-                    console.log('Processed ETF Inflows data sample:', processedEtfInflows.slice(0, 3)); // Debug log
-                }
-
-                // Only use real data, no fallbacks
-                setData({
-                    m2: processedM2,
-                    reverseRepo: processedReverseRepo,
-                    etfInflows: processedEtfInflows
-                });
-
-                setMetadata({
-                    m2: m2Metadata,
-                    reverseRepo: reverseRepoMetadata,
-                    etfInflows: etfInflowsMetadata
-                });
-                
-            } catch (err) {
-                console.error("Liquidity data fetch error:", err);
-                setError(err.message);
-                setData({
-                    m2: [],
-                    reverseRepo: [],
-                    etfInflows: []
-                });
-                setMetadata({
-                    m2: null,
-                    reverseRepo: null,
-                    etfInflows: null
-                });
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchLiquidityData();
-    }, []);
-
-    return { data, metadata, loading, error };
+  return { data, metadata, errors, loading }
 }

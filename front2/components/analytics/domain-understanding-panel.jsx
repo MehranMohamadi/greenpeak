@@ -7,6 +7,7 @@ import { endpoints } from "@/api/api"
 import AnalysisListCard from "@/components/analytics/analysis-list-card"
 import { Badge } from "@/components/ui/badge"
 import { PolicyAnalysisSkeleton } from "@/components/analytics/monetary-policy-loading"
+import { NarrativeDates, NarrativeList } from "./narrative-text"
 
 const wait = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 const outlookToneClasses = {
@@ -17,65 +18,33 @@ const outlookToneClasses = {
   neutral: "border-slate-200 bg-slate-100 text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200",
 }
 
-function fallbackStance(score) {
-  if (score >= 6.5) return "Supportive"
-  if (score <= 3.5) return "Restrictive"
-  return "Neutral"
-}
-
-function scorePresentation(score) {
-  if (score >= 6.5) {
-    return {
-      score: "text-emerald-600 dark:text-emerald-400",
-      panel: "border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/25",
-      badge: "border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
-    }
-  }
-  if (score <= 3.5) {
-    return {
-      score: "text-rose-600 dark:text-rose-400",
-      panel: "border-rose-200 bg-rose-50/70 dark:border-rose-900 dark:bg-rose-950/25",
-      badge: "border-rose-200 bg-rose-100 text-rose-800 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200",
-    }
-  }
-  return {
-    score: "text-amber-600 dark:text-amber-400",
-    panel: "border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/25",
-    badge: "border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200",
-  }
-}
-
 function insightText(item) {
   if (typeof item === "string") return item
   return item?.title_fa || item?.detail_fa || ""
 }
 
-export default function DomainUnderstandingPanel({ domainId }) {
+export default function DomainUnderstandingPanel({ domainId, simple = false, onUpdated }) {
   const [analysis, setAnalysis] = useState(null)
-  const [rule, setRule] = useState(null)
   const [expanded, setExpanded] = useState(false)
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
   const [runMessage, setRunMessage] = useState("")
+  const [loadError, setLoadError] = useState(false)
   const mounted = useRef(true)
 
   const loadPersisted = useCallback(async () => {
-    const [analysisResponse, ruleResponse] = await Promise.all([
-      fetch(endpoints.analysis.domainLatest(domainId), { cache: "no-store" }),
-      fetch(endpoints.analysis.ruleLatest("domain", domainId), { cache: "no-store" }),
-    ])
+    const analysisResponse = await fetch(endpoints.analysis.domainLatest(domainId), { cache: "no-store" })
     const analysisBody = await analysisResponse.json()
-    const ruleBody = await ruleResponse.json()
     if (!mounted.current) return
     setAnalysis(analysisResponse.ok ? analysisBody.data : null)
-    setRule(ruleResponse.ok ? ruleBody.data : null)
+    setLoadError(!analysisResponse.ok && analysisResponse.status !== 404)
     setLoading(false)
   }, [domainId])
 
   useEffect(() => {
     mounted.current = true
     loadPersisted().catch(() => {
-      if (mounted.current) setLoading(false)
+      if (mounted.current) { setLoading(false); setLoadError(true) }
     })
     return () => { mounted.current = false }
   }, [loadPersisted])
@@ -125,6 +94,7 @@ export default function DomainUnderstandingPanel({ domainId }) {
             throw new Error(`AI analysis failed: ${statusBody.data?.error_code || "unknown server error"}`)
           }
           await loadPersisted()
+          onUpdated?.()
           if (mounted.current) {
             setRunMessage(status === "partial"
               ? "Analysis was saved with partial data coverage."
@@ -141,6 +111,27 @@ export default function DomainUnderstandingPanel({ domainId }) {
     }
   }
 
+  if (simple) {
+    return <div dir="rtl" className="space-y-4 text-right">
+      {loading ? <p role="status" className="text-sm">در حال دریافت تحلیل…</p> : !analysis ? <p className="text-sm">{loadError ? "دریافت تحلیل گروه ممکن نشد." : "هنوز تحلیلی برای این گروه ثبت نشده است."}</p> : <>
+        {analysis.stance_label_fa && <p className="text-sm font-medium">{analysis.stance_label_fa}</p>}
+        {[...new Set([analysis.dominant_story_fa, analysis.narrative_fa].filter(Boolean))].map((text) => <p key={text} className="whitespace-pre-line text-sm leading-7">{text}</p>)}
+        <NarrativeList title="نکات کلیدی" items={analysis.key_insights_fa} />
+        {!!analysis.outlook_items?.length && <div className="space-y-1 text-sm leading-7">{analysis.outlook_items.map((item, index) => <p key={index}><span className="font-medium">{item.label_fa}: </span>{item.value_fa}</p>)}</div>}
+        <details className="space-y-3"><summary className="cursor-pointer text-sm font-medium">جزئیات تحلیل</summary>
+          <NarrativeList title="عوامل اصلی" items={analysis.top_drivers} />
+          <NarrativeList title="شواهد همسو" items={analysis.supporting_evidence} />
+          <NarrativeList title="شواهد متعارض" items={analysis.conflicting_evidence} />
+          <NarrativeList title="ریسک‌ها" items={analysis.risks_fa} />
+          <NarrativeList title="موارد قابل پیگیری" items={analysis.watch_next_fa} />
+        </details>
+        <NarrativeDates analysis={analysis} />
+      </>}
+      <RunButton running={running} onClick={runAnalysis} simple />
+      {runMessage && <p dir="auto" className="text-xs text-muted-foreground" aria-live="polite">{runMessage}</p>}
+    </div>
+  }
+
   if (loading) {
     return <PolicyAnalysisSkeleton />
   }
@@ -155,10 +146,7 @@ export default function DomainUnderstandingPanel({ domainId }) {
     )
   }
 
-  const score = Number(analysis.llm_shadow_score)
-  const scoreText = Number.isFinite(score) ? score.toFixed(1) : "—"
-  const stance = analysis.stance_label_fa || fallbackStance(score)
-  const scoreStyle = scorePresentation(score)
+  const stance = analysis.stance_label_fa || "No documented stance"
   const keyInsights = (analysis.key_insights_fa?.length
     ? analysis.key_insights_fa
     : analysis.top_drivers?.map(insightText).filter(Boolean) || []).slice(0, 3)
@@ -174,18 +162,17 @@ export default function DomainUnderstandingPanel({ domainId }) {
     <div className="space-y-4" dir="ltr">
       <div className="grid gap-5 lg:grid-cols-[minmax(190px,0.75fr)_minmax(0,1fr)_minmax(0,1.15fr)]">
         <section className="space-y-2.5">
-          <div className={`rounded-xl border p-4 text-center ${scoreStyle.panel}`}>
-            <div className={`text-5xl font-black tracking-tight ${scoreStyle.score}`}>{scoreText}</div>
-            <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">out of 10</div>
-            <Badge className={`mt-3 max-w-full border px-3 py-1 text-xs font-semibold shadow-none ${scoreStyle.badge}`} dir="rtl">
+          <div className="rounded-xl border border-violet-200 bg-violet-50/70 p-4 text-center dark:border-violet-900 dark:bg-violet-950/25">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Documented stance</div>
+            <Badge className="mt-3 max-w-full border border-violet-200 bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-800 shadow-none dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200" dir="rtl">
               <span className="truncate">{stance}</span>
             </Badge>
             <div className="mt-3 text-[11px] text-muted-foreground">
-              Coverage {analysis.coverage.status} · Confidence {analysis.llm_confidence}%
+              Coverage {analysis.coverage.status} · {Math.round(analysis.coverage.ratio * 100)}%
             </div>
           </div>
           <div className="flex flex-wrap justify-center gap-1.5">
-            {rule?.score != null && <Badge variant="outline">Rule score: {rule.score}</Badge>}
+            <Badge variant="outline">Analysis {analysis.analysis_version}</Badge>
             <Badge variant="outline">Saved AI analysis</Badge>
           </div>
         </section>
@@ -239,13 +226,13 @@ export default function DomainUnderstandingPanel({ domainId }) {
       )}
       <p className="text-[11px] text-muted-foreground" dir="ltr">
         Data through {analysis.data_as_of || "—"} · Generated {new Date(analysis.analysis_generated_at).toLocaleString()}
-        {rule?.score != null ? ` · Rule score ${rule.score}` : ""}
+        {analysis.provenance?.input_hash ? ` · Input ${analysis.provenance.input_hash}` : ""}
       </p>
     </div>
   )
 }
 
-function RunButton({ running, onClick }) {
+function RunButton({ running, onClick, simple = false }) {
   return (
     <button
       type="button"
@@ -254,7 +241,7 @@ function RunButton({ running, onClick }) {
       className="inline-flex w-full items-center justify-center gap-2 rounded-lg border bg-background px-3 py-2 text-xs font-medium shadow-sm transition hover:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-      {running ? "Generating AI analysis…" : "Generate updated AI analysis"}
+      {simple ? (running ? "در حال به‌روزرسانی تحلیل…" : "به‌روزرسانی تحلیل") : (running ? "Generating AI analysis…" : "Generate updated AI analysis")}
     </button>
   )
 }

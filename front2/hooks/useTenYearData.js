@@ -1,3 +1,4 @@
+import { normalizeChartData } from "@/lib/chart-data";
 import { useEffect, useState } from 'react';
 import { endpoints } from '../api/api';
 
@@ -30,27 +31,19 @@ export default function useTenYearData() {
                     meta = json.metadata || null;
                 }
                 
-                const cleaned = arr
-                    .map(item => {
-                        const time = Number(item.time);
-                        if (isNaN(time)) return null;
-                        return {
-                            time,
-                            date: item.date,
-                            value: Number(item.rate || item.yield || item.value),
-                            rate: Number(item.rate || item.yield || item.value),
-                            yield: Number(item.yield || item.rate || item.value),
-                        };
-                    })
-                    .filter(Boolean)
-                    .sort((a, b) => a.time - b.time);
+                const cleaned = normalizeChartData(arr, ["rate", "yield", "value"]).map(point => ({
+                        time: Date.parse(point.time + 'T00:00:00Z') / 1000,
+                        date: point.time,
+                        value: point.value,
+                        rate: point.value,
+                        yield: point.value,
+                    }));
                     
                 setData(cleaned);
                 setMetadata(meta);
                 setError(null);
             })
             .catch(err => {
-                console.error("10-Year Treasury fetch error:", err);
                 setError(err.message);
                 setData([]);
                 setMetadata(null);

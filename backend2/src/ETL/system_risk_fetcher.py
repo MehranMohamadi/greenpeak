@@ -3,7 +3,7 @@ FRED System Risk Data Fetcher
 Single file to fetch ALL historical data for systemic risk indicators.
 
 This script:
-1. Fetches VIX, CDS Spreads, and Financial Stress Index from FRED API
+1. Fetches VIX, corporate option-adjusted spreads, and Financial Stress Index from FRED API
 2. Calculates Credit Spread using bond ETFs (HYG vs Treasury ETFs)
 3. Calculates 2Y/10Y Yield Curve spread from FRED (DGS2 and DGS10)
 4. Uses batch processing to handle API rate limits
@@ -96,7 +96,7 @@ class SystemRiskFetcher:
                 'unit': 'Percent',
                 'seasonal_adjustment': 'Not Seasonally Adjusted'
             },
-            'cds_spreads_investment_grade': {
+            'bbb_corporate_option_adjusted_spread': {
                 'type': 'fred',
                 'series_id': 'BAMLC0A4CBBB',
                 'name': 'ICE BofA BBB US Corporate Index Option-Adjusted Spread',

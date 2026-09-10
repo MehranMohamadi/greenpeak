@@ -4,9 +4,28 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from ....models.schemas import DataResponse
 from ....services.data_service import DataService
+from ....services.official_sentiment import OfficialSourceUnavailable, filter_payload, official_sentiment_service
 
 router = APIRouter(prefix="/systemrisk", tags=["Systemic Risk Data"])
 data_service = DataService()
+
+
+@router.get("/sentiment/{indicator_id}")
+def get_official_sentiment_data(
+    indicator_id: str,
+    limit: Optional[int] = Query(None, ge=1, le=10000, description="Limit number of records"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+):
+    """Return cached public Cboe, AAII, or CFTC observations."""
+    try:
+        return filter_payload(official_sentiment_service.get(indicator_id), limit, start_date, end_date)
+    except KeyError:
+        raise HTTPException(status_code=404, detail={"code": "INDICATOR_NOT_FOUND", "message": "Unknown sentiment indicator."})
+    except ValueError:
+        raise HTTPException(status_code=422, detail={"code": "INVALID_DATE", "message": "Dates must use YYYY-MM-DD."})
+    except OfficialSourceUnavailable:
+        raise HTTPException(status_code=503, detail={"code": "OFFICIAL_SOURCE_UNAVAILABLE", "message": "The official source is temporarily unavailable and no cached observations exist."})
 
 
 @router.get("/vix", response_model=DataResponse)
@@ -66,7 +85,7 @@ async def get_cds_data(
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
 ):
-    """Get CDS Spreads data."""
+    """Legacy URL: get ICE BofA BBB corporate option-adjusted spread data."""
     try:
         return data_service.get_cds_spreads(
             limit=limit, start_date=start_date, end_date=end_date
@@ -126,4 +145,3 @@ async def get_gold_data(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-    

@@ -25,6 +25,160 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
+# Source-level contracts used to keep API metadata consistent across MongoDB
+# and checked-in-file fallbacks.  Unknown fields stay explicit instead of
+# being guessed from the latest value.
+SERIES_CONTRACTS = {
+    "DFF": {
+        "indicator_id": "federal_funds_rate",
+        "owner_group": "monetary_liquidity",
+        "population": "U.S. overnight federal funds transactions",
+        "seasonal_adjustment": "not_seasonally_adjusted",
+        "transformation": "source_level_percent",
+    },
+    "DGS10": {
+        "indicator_id": "us_10y_treasury_yield",
+        "owner_group": "monetary_liquidity",
+        "population": "U.S. Treasury constant-maturity securities",
+        "seasonal_adjustment": "not_seasonally_adjusted",
+        "transformation": "source_level_percent",
+    },
+    "SOFR": {
+        "indicator_id": "sofr_rate",
+        "owner_group": "monetary_liquidity",
+        "population": "U.S. Treasury repo transactions eligible for SOFR",
+        "seasonal_adjustment": "not_seasonally_adjusted",
+        "transformation": "source_level_percent",
+    },
+    "REAINTRATREARAT10Y": {
+        "indicator_id": "real_interest_rate_10y",
+        "owner_group": "monetary_liquidity",
+        "population": "U.S. 10-year inflation-indexed Treasury securities",
+        "seasonal_adjustment": "not_seasonally_adjusted",
+        "transformation": "source_level_percent",
+    },
+    "WALCL": {
+        "indicator_id": "fed_balance_sheet",
+        "owner_group": "monetary_liquidity",
+        "population": "All Federal Reserve Banks",
+        "seasonal_adjustment": "not_seasonally_adjusted",
+        "transformation": "source_level_millions_usd",
+    },
+    "M2SL": {
+        "indicator_id": "money_supply_m2",
+        "owner_group": "monetary_liquidity",
+        "population": "United States",
+        "seasonal_adjustment": "seasonally_adjusted",
+        "transformation": "source_level_billions_usd",
+    },
+    "RRPONTSYD": {
+        "indicator_id": "reverse_repo_operations",
+        "owner_group": "monetary_liquidity",
+        "population": "New York Fed overnight RRP counterparties",
+        "seasonal_adjustment": "not_seasonally_adjusted",
+        "transformation": "source_level_billions_usd",
+    },
+    "GDP": {
+        "indicator_id": "nominal_gdp_level",
+        "owner_group": "growth_inflation_labor",
+        "population": "United States economy",
+        "seasonal_adjustment": "seasonally_adjusted_annual_rate",
+        "transformation": "source_level_current_dollars",
+    },
+    "GDPC1": {
+        "indicator_id": "real_gdp",
+        "owner_group": "growth_inflation_labor",
+        "population": "United States economy",
+        "seasonal_adjustment": "seasonally_adjusted_annual_rate",
+        "transformation": "source_level_chained_2017_dollars",
+    },
+    "UNRATE": {
+        "indicator_id": "unemployment_rate",
+        "owner_group": "growth_inflation_labor",
+        "population": "U.S. civilian noninstitutional population, age 16 and over",
+        "seasonal_adjustment": "seasonally_adjusted",
+        "transformation": "source_level_percent",
+    },
+    "PAYEMS": {
+        "indicator_id": "nonfarm_payrolls",
+        "owner_group": "growth_inflation_labor",
+        "population": "U.S. total nonfarm payroll employment",
+        "seasonal_adjustment": "seasonally_adjusted",
+        "transformation": "source_level_thousands_of_persons",
+    },
+    "UMCSENT": {
+        "indicator_id": "consumer_confidence",
+        "owner_group": "growth_inflation_labor",
+        "population": "University of Michigan U.S. consumer survey respondents",
+        "seasonal_adjustment": "not_seasonally_adjusted",
+        "transformation": "source_index_level",
+    },
+    "CSCICP03USM665S": {
+        "indicator_id": "consumer_confidence",
+        "owner_group": "growth_inflation_labor",
+        "population": "United States consumers represented by the OECD CCI",
+        "seasonal_adjustment": "source_defined",
+        "transformation": "source_index_level_long_term_average_100",
+    },
+    "CPIAUCSL": {
+        "indicator_id": "cpi_index",
+        "owner_group": "growth_inflation_labor",
+        "population": "All Urban Consumers, U.S. city average, all items",
+        "seasonal_adjustment": "seasonally_adjusted",
+        "transformation": "source_index_level_1982_84_100",
+    },
+    "RSXFS": {
+        "indicator_id": "retail_sales",
+        "owner_group": "growth_inflation_labor",
+        "population": "U.S. retail and food services sales",
+        "seasonal_adjustment": "seasonally_adjusted",
+        "transformation": "source_level_millions_usd",
+    },
+    "VIXCLS": {
+        "indicator_id": "vix",
+        "owner_group": "positioning_sentiment_derivatives_volatility",
+        "population": "S&P 500 index-option implied volatility",
+        "seasonal_adjustment": "not_applicable",
+        "transformation": "source_index_close",
+    },
+    "^VIX": {
+        "indicator_id": "vix",
+        "owner_group": "positioning_sentiment_derivatives_volatility",
+        "population": "S&P 500 index-option implied volatility",
+        "seasonal_adjustment": "not_applicable",
+        "transformation": "source_index_close",
+    },
+    "BAMLH0A0HYM2": {
+        "indicator_id": "high_yield_credit_spread",
+        "owner_group": "credit_financial_risk",
+        "population": "ICE BofA U.S. high-yield corporate bond index constituents",
+        "seasonal_adjustment": "not_seasonally_adjusted",
+        "transformation": "source_percent_level",
+    },
+    "BAMLC0A4CBBB": {
+        "indicator_id": "bbb_credit_spread",
+        "owner_group": "credit_financial_risk",
+        "population": "ICE BofA BBB U.S. corporate bond index constituents",
+        "seasonal_adjustment": "not_seasonally_adjusted",
+        "transformation": "source_percent_level",
+    },
+    "T10Y2Y": {
+        "indicator_id": "treasury_2y10y_spread",
+        "owner_group": "credit_financial_risk",
+        "population": "U.S. Treasury constant-maturity securities",
+        "seasonal_adjustment": "not_seasonally_adjusted",
+        "transformation": "10_year_yield_minus_2_year_yield_percent",
+    },
+    "STLFSI4": {
+        "indicator_id": "financial_stress_index",
+        "owner_group": "credit_financial_risk",
+        "population": "U.S. financial-market stress indicators in STLFSI4",
+        "seasonal_adjustment": "not_applicable",
+        "transformation": "source_index_level",
+    },
+}
+
+
 class DataService:
     """Service for handling financial data operations."""
 
@@ -36,6 +190,181 @@ class DataService:
             logger.info("DataService initialized with MongoDB")
         except Exception as e:
             logger.warning(f"MongoDB initialization failed: {e}. Falling back to CSV files.")
+
+    @staticmethod
+    def _build_metadata(
+        *,
+        latest_value: Optional[float],
+        latest_date: Optional[str],
+        total_records: int,
+        description: str,
+        unit: str,
+        frequency: str,
+        source: str,
+        source_series_id: Optional[str],
+        indicator_id: Optional[str] = None,
+        owner_group: Optional[str] = None,
+        population: Optional[str] = None,
+        seasonal_adjustment: Optional[str] = None,
+        transformation: Optional[str] = None,
+        quality_status: Optional[str] = None,
+        quality_reason: Optional[str] = None,
+    ) -> DataMetadata:
+        """Build traceable metadata without inventing unavailable semantics."""
+        contract = SERIES_CONTRACTS.get(source_series_id or "", {})
+        normalized_frequency = str(frequency or "unknown").lower()
+        resolved_status = quality_status or (
+            "available" if latest_value is not None and latest_date else "unavailable"
+        )
+        resolved_reason = quality_reason
+        if resolved_status == "available" and latest_date:
+            stale_after_days = {
+                "daily": 10,
+                "weekly": 21,
+                "monthly": 62,
+                "quarterly": 185,
+                "annually": 550,
+                "annual": 550,
+            }.get(normalized_frequency)
+            if stale_after_days is not None:
+                try:
+                    observation_day = datetime.fromisoformat(str(latest_date)[:10]).date()
+                    age_days = (datetime.utcnow().date() - observation_day).days
+                    if age_days > stale_after_days:
+                        resolved_status = "stale"
+                        resolved_reason = "observation_older_than_frequency_threshold"
+                except ValueError:
+                    resolved_status = "invalid"
+                    resolved_reason = "invalid_observation_date"
+        if resolved_status == "unavailable" and not resolved_reason:
+            resolved_reason = "no_valid_observations"
+
+        return DataMetadata(
+            indicator_id=indicator_id or contract.get("indicator_id"),
+            owner_group=owner_group or contract.get("owner_group"),
+            latest_value=latest_value,
+            latest_date=latest_date,
+            total_records=total_records,
+            description=description,
+            unit=unit,
+            frequency=normalized_frequency,
+            source=source,
+            fred_series=source_series_id,
+            source_series_id=source_series_id,
+            population=population or contract.get("population") or "not_specified_by_source_adapter",
+            seasonal_adjustment=(
+                seasonal_adjustment
+                or contract.get("seasonal_adjustment")
+                or "not_specified_by_source_adapter"
+            ),
+            transformation=(
+                transformation
+                or contract.get("transformation")
+                or "source_observation_without_additional_transformation"
+            ),
+            observation_date=latest_date,
+            retrieved_at=datetime.utcnow(),
+            quality_status=resolved_status,
+            quality_reason=resolved_reason,
+            data_version="2.0",
+        )
+
+    @staticmethod
+    def _unavailable_response(
+        *,
+        indicator_id: str,
+        owner_group: str,
+        description: str,
+        unit: str,
+        frequency: str,
+        source: str,
+        source_series_id: Optional[str],
+        quality_status: str,
+        quality_reason: str,
+        transformation: Optional[str] = None,
+        seasonal_adjustment: Optional[str] = None,
+        population: Optional[str] = None,
+    ) -> DataResponse:
+        """Return an explicit null state without manufacturing an observation."""
+        return DataResponse(
+            data=[],
+            metadata=DataService._build_metadata(
+                indicator_id=indicator_id,
+                owner_group=owner_group,
+                latest_value=None,
+                latest_date=None,
+                total_records=0,
+                description=description,
+                unit=unit,
+                frequency=frequency,
+                source=source,
+                source_series_id=source_series_id,
+                population=population,
+                seasonal_adjustment=seasonal_adjustment,
+                transformation=transformation,
+                quality_status=quality_status,
+                quality_reason=quality_reason,
+            ),
+        )
+
+    @staticmethod
+    def _filter_transformed_points(
+        points: List[EconomicDataPoint],
+        limit: Optional[int],
+        start_date: Optional[str],
+        end_date: Optional[str],
+    ) -> List[EconomicDataPoint]:
+        filtered = [
+            point for point in points
+            if (not start_date or point.date >= start_date)
+            and (not end_date or point.date <= end_date)
+        ]
+        return filtered[-limit:] if limit else filtered
+
+    @staticmethod
+    def _scale_economic_response(
+        response: DataResponse,
+        *,
+        multiplier: float,
+        indicator_id: str,
+        owner_group: str,
+        unit: str,
+        transformation: str,
+    ) -> DataResponse:
+        points = []
+        for point in response.data:
+            raw_value = getattr(point, "value", None)
+            if raw_value is None:
+                continue
+            scaled = raw_value * multiplier
+            points.append(EconomicDataPoint(
+                time=point.time,
+                date=point.date,
+                value=scaled,
+                rate=scaled,
+            ))
+
+        original = response.metadata
+        latest_value = points[-1].value if points else None
+        latest_date = points[-1].date if points else None
+        return DataResponse(
+            data=points,
+            metadata=DataService._build_metadata(
+                indicator_id=indicator_id,
+                owner_group=owner_group,
+                latest_value=latest_value,
+                latest_date=latest_date,
+                total_records=len(points),
+                description=original.description,
+                unit=unit,
+                frequency=original.frequency,
+                source=original.source,
+                source_series_id=original.source_series_id or original.fred_series,
+                population=original.population,
+                seasonal_adjustment=original.seasonal_adjustment,
+                transformation=transformation,
+            ),
+        )
 
     def get_sp500_data(self) -> List[OHLCDataPoint]:
         """Get S&P 500 OHLC data."""
@@ -62,10 +391,12 @@ class DataService:
         end_date: Optional[str] = None
     ) -> DataResponse:
         """Get VIX volatility index data from MongoDB or fallback to CSV."""
+        response = None
+        source_series_id = "VIXCLS"
         # Try MongoDB first (unified systemic_risk collection)
         if self.mongodb:
             try:
-                return self.get_systemic_risk_data(
+                response = self.get_systemic_risk_data(
                     indicator_name="vix",
                     limit=limit,
                     start_date=start_date,
@@ -76,23 +407,40 @@ class DataService:
                     source="Federal Reserve Economic Data (FRED)",
                     data_source="VIXCLS"
                 )
+                if not response.data:
+                    response = None
             except Exception as e:
                 logger.warning(f"MongoDB failed for VIX: {e}. Falling back to CSV.")
-        
+
         # Fallback to CSV
-        return self.get_economic_data(
-            filename="VIX_ohlc.csv",
-            date_column="Date",
-            value_column="Close",
-            limit=limit,
-            start_date=start_date,
-            end_date=end_date,
-            description="VIX measures market expectation of near term volatility conveyed by stock index option prices.",
-            unit="index",
-            frequency="daily",
-            source="CBOE/Yahoo Finance",
-            fred_series="VIXCLS"
-        )
+        if response is None:
+            source_series_id = "^VIX"
+            response = self.get_economic_data(
+                filename="VIX_ohlc.csv",
+                date_column="Date",
+                value_column="Close",
+                limit=limit,
+                start_date=start_date,
+                end_date=end_date,
+                description="CBOE Volatility Index close",
+                unit="index",
+                frequency="daily",
+                source="CBOE index history distributed by Yahoo Finance",
+                fred_series="^VIX"
+            )
+
+        latest_date = response.data[-1].date if response.data else None
+        response.metadata.indicator_id = "vix"
+        response.metadata.owner_group = "positioning_sentiment_derivatives_volatility"
+        response.metadata.source_series_id = source_series_id
+        response.metadata.transformation = "reported_index_level"
+        response.metadata.observation_date = latest_date
+        response.metadata.retrieved_at = datetime.utcnow()
+        if not response.data:
+            response.metadata.quality_status = "unavailable"
+            response.metadata.quality_reason = "no_valid_observations"
+        response.metadata.data_version = "2.0"
+        return response
 
     def get_treasury_data(self) -> List[TreasuryRatePoint]:
         """Get Treasury rates data."""
@@ -194,7 +542,7 @@ class DataService:
         elif len(values) >= 4 and frequency.lower() == "quarterly":  # Quarterly data
             yoy_change = values[-1] - values[-4]
         
-        metadata = DataMetadata(
+        metadata = self._build_metadata(
             latest_value=latest_value,
             latest_date=latest_date,
             total_records=len(result),
@@ -202,7 +550,7 @@ class DataService:
             unit=unit,
             frequency=frequency,
             source=source,
-            fred_series=fred_series
+            source_series_id=fred_series,
         )
         
         return DataResponse(data=result, metadata=metadata)
@@ -223,7 +571,7 @@ class DataService:
         if not self.mongodb:
             raise RuntimeError("MongoDB connection not available")
         
-        collection = self.mongodb.db[collection_name]
+        collection = self.mongodb.get_collection(collection_name)
         
         # Build query filter
         query_filter = {}
@@ -331,7 +679,7 @@ class DataService:
         latest_date = result[-1].date if result else None
         
         # Use DataMetadata to match the simple DataResponse schema
-        metadata = DataMetadata(
+        metadata = self._build_metadata(
             latest_value=latest_value,
             latest_date=latest_date,
             total_records=len(result),
@@ -339,7 +687,7 @@ class DataService:
             unit=unit,
             frequency=frequency,
             source=source,
-            fred_series=fred_series
+            source_series_id=fred_series,
         )
         
         return DataResponse(data=result, metadata=metadata)
@@ -354,7 +702,7 @@ class DataService:
         # Try MongoDB first
         if self.mongodb:
             try:
-                return self.get_monetary_policy_data(
+                response = self.get_monetary_policy_data(
                     indicator_name="federal_funds_rate",
                     limit=limit,
                     start_date=start_date,
@@ -365,6 +713,8 @@ class DataService:
                     source="Board of Governors of the Federal Reserve System (US)",
                     fred_series="DFF"
                 )
+                if response.data:
+                    return response
             except Exception as e:
                 logger.warning(f"MongoDB failed for federal_funds_rate: {e}. Falling back to CSV.")
         
@@ -410,7 +760,7 @@ class DataService:
         start_date: Optional[str] = None, 
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Get Real GDP data."""
+        """Get the checked-in nominal GDP level series."""
         return self.get_economic_data(
             filename="GDP.csv",
             date_column="observation_date",
@@ -418,10 +768,10 @@ class DataService:
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="Real Gross Domestic Product",
-            unit="Billions of Dollars",
+            description="Gross Domestic Product, nominal level",
+            unit="billions_of_dollars_seasonally_adjusted_annual_rate",
             frequency="quarterly",
-            source=" Bureau of Economic Analysis via FRED®",
+            source="U.S. Bureau of Economic Analysis via FRED",
             fred_series="GDP",
         )
 
@@ -456,7 +806,7 @@ class DataService:
         # Try MongoDB first
         if self.mongodb:
             try:
-                return self.get_monetary_policy_data(
+                response = self.get_monetary_policy_data(
                     indicator_name="fed_balance_sheet",
                     limit=limit,
                     start_date=start_date,
@@ -467,6 +817,8 @@ class DataService:
                     source="Board of Governors of the Federal Reserve System (US)",
                     fred_series="WALCL"
                 )
+                if response.data:
+                    return response
             except Exception as e:
                 logger.warning(f"MongoDB failed for fed_balance_sheet: {e}. Falling back to CSV.")
         
@@ -495,7 +847,7 @@ class DataService:
         # Try MongoDB first
         if self.mongodb:
             try:
-                return self.get_monetary_policy_data(
+                response = self.get_monetary_policy_data(
                     indicator_name="ten_year_treasury",
                     limit=limit,
                     start_date=start_date,
@@ -506,6 +858,8 @@ class DataService:
                     source="Board of Governors of the Federal Reserve System (US)",
                     fred_series="DGS10"
                 )
+                if response.data:
+                    return response
             except Exception as e:
                 logger.warning(f"MongoDB failed for ten_year_treasury: {e}. Falling back to CSV.")
         
@@ -532,7 +886,7 @@ class DataService:
 
         return DataResponse(
             data=result,
-            metadata=DataMetadata(
+            metadata=self._build_metadata(
                 latest_value=values[-1] if values else None,
                 latest_date=result[-1].date if result else None,
                 total_records=len(result),
@@ -540,7 +894,7 @@ class DataService:
                 unit="percent",
                 frequency="daily",
                 source="U.S. Department of the Treasury daily yield curve",
-                fred_series="DGS10",
+                source_series_id="DGS10",
             ),
         )
 
@@ -554,7 +908,7 @@ class DataService:
         # Try MongoDB first
         if self.mongodb:
             try:
-                return self.get_monetary_policy_data(
+                response = self.get_monetary_policy_data(
                     indicator_name="sofr_rate",
                     limit=limit,
                     start_date=start_date,
@@ -565,6 +919,8 @@ class DataService:
                     source="Federal Reserve Bank of New York",
                     fred_series="SOFR"
                 )
+                if response.data:
+                    return response
             except Exception as e:
                 logger.warning(f"MongoDB failed for sofr_rate: {e}. Falling back to CSV.")
         
@@ -593,7 +949,7 @@ class DataService:
         # Try MongoDB first
         if self.mongodb:
             try:
-                return self.get_monetary_policy_data(
+                response = self.get_monetary_policy_data(
                     indicator_name="real_interest_rate",
                     limit=limit,
                     start_date=start_date,
@@ -604,6 +960,8 @@ class DataService:
                     source="Board of Governors of the Federal Reserve System (US)",
                     fred_series="REAINTRATREARAT10Y"
                 )
+                if response.data:
+                    return response
             except Exception as e:
                 logger.warning(f"MongoDB failed for real_interest_rate: {e}. Falling back to CSV.")
         
@@ -628,11 +986,12 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
     ) -> DataResponse:
-        """Get Credit Spread data from MongoDB or fallback to CSV."""
+        """Get the high-yield OAS in basis points."""
+        response = None
         # Try MongoDB first (FRED high yield spread)
         if self.mongodb:
             try:
-                return self.get_systemic_risk_data(
+                response = self.get_systemic_risk_data(
                     indicator_name="credit_spread_hyg",
                     limit=limit,
                     start_date=start_date,
@@ -643,22 +1002,33 @@ class DataService:
                     source="ICE Bank of America",
                     data_source="BAMLH0A0HYM2"
                 )
+                if not response.data:
+                    response = None
             except Exception as e:
                 logger.warning(f"MongoDB failed for credit spread: {e}. Falling back to CSV.")
-        
-        # Fallback to CSV
-        return self.get_economic_data(
-            filename="BAMLH0A0HYM2.csv",
-            date_column="observation_date",
-            value_column="BAMLH0A0HYM2",
-            limit=limit,
-            start_date=start_date,
-            end_date=end_date,
-            description="ICE BofA US High Yield Index Option-Adjusted Spread",
-            unit="percent",
-            frequency="daily",
-            source="ICE Data Indices, LLC",
-            fred_series="BAMLH0A0HYM2"
+
+        if response is None:
+            response = self.get_economic_data(
+                filename="BAMLH0A0HYM2.csv",
+                date_column="observation_date",
+                value_column="BAMLH0A0HYM2",
+                limit=limit,
+                start_date=start_date,
+                end_date=end_date,
+                description="ICE BofA US High Yield Index Option-Adjusted Spread",
+                unit="percent",
+                frequency="daily",
+                source="ICE Data Indices, LLC",
+                fred_series="BAMLH0A0HYM2"
+            )
+
+        return self._scale_economic_response(
+            response,
+            multiplier=100.0,
+            indicator_id="high_yield_credit_spread",
+            owner_group="credit_financial_risk",
+            unit="basis_points",
+            transformation="source_percent_times_100",
         )
     
     def get_2y10y_yieldcurve(
@@ -671,7 +1041,7 @@ class DataService:
         # Try MongoDB first (direct FRED T10Y2Y spread)
         if self.mongodb:
             try:
-                return self.get_systemic_risk_data(
+                response = self.get_systemic_risk_data(
                     indicator_name="yield_curve_2y10y",
                     limit=limit,
                     start_date=start_date,
@@ -682,6 +1052,8 @@ class DataService:
                     source="Federal Reserve Economic Data (FRED)",
                     data_source="T10Y2Y"
                 )
+                if response.data:
+                    return response
             except Exception as e:
                 logger.warning(f"MongoDB failed for yield curve: {e}. Falling back to CSV.")
         
@@ -706,12 +1078,17 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Get CDS Spreads Investment grade data from MongoDB or fallback to CSV."""
+        """Get the BBB corporate option-adjusted spread in basis points.
+
+        The legacy route is named /cds, but BAMLC0A4CBBB is an index OAS and
+        must not be presented as a credit-default-swap series.
+        """
+        response = None
         # Try MongoDB first (unified systemic_risk collection)
         if self.mongodb:
             try:
-                return self.get_systemic_risk_data(
-                    indicator_name="cds_spreads_investment_grade",
+                response = self.get_systemic_risk_data(
+                    indicator_name="bbb_corporate_option_adjusted_spread",
                     limit=limit,
                     start_date=start_date,
                     end_date=end_date,
@@ -721,22 +1098,45 @@ class DataService:
                     source="Federal Reserve Economic Data (FRED)",
                     data_source="BAMLC0A4CBBB",
                 )
+                if not response.data:
+                    response = self.get_systemic_risk_data(
+                        indicator_name="cds_spreads_investment_grade",
+                        limit=limit,
+                        start_date=start_date,
+                        end_date=end_date,
+                        description="ICE BofA BBB US Corporate Index Option-Adjusted Spread",
+                        unit="percent",
+                        frequency="daily",
+                        source="Federal Reserve Economic Data (FRED)",
+                        data_source="BAMLC0A4CBBB",
+                    )
+                if not response.data:
+                    response = None
             except Exception as e:
-                logger.warning(f"MongoDB failed for CDS spreads: {e}. Falling back to CSV.")
-        
-        # Fallback to CSV
-        return self.get_economic_data(
-            filename="BAMLC0A4CBBB.csv",
-            date_column="observation_date",
-            value_column="BAMLC0A4CBBB",
-            limit=limit,
-            start_date=start_date,
-            end_date=end_date,
-            description="ICE BofA BBB US Corporate Index Option-Adjusted Spread",
-            unit="percent",
-            frequency="daily",
-            source="Ice Data Indices, LLC via FRED",
-            fred_series="BAMLC0A4CBBB"
+                logger.warning(f"MongoDB failed for BBB corporate OAS: {e}. Falling back to CSV.")
+
+        if response is None:
+            response = self.get_economic_data(
+                filename="BAMLC0A4CBBB.csv",
+                date_column="observation_date",
+                value_column="BAMLC0A4CBBB",
+                limit=limit,
+                start_date=start_date,
+                end_date=end_date,
+                description="ICE BofA BBB US Corporate Index Option-Adjusted Spread",
+                unit="percent",
+                frequency="daily",
+                source="ICE Data Indices, LLC via FRED",
+                fred_series="BAMLC0A4CBBB"
+            )
+
+        return self._scale_economic_response(
+            response,
+            multiplier=100.0,
+            indicator_id="bbb_credit_spread",
+            owner_group="credit_financial_risk",
+            unit="basis_points",
+            transformation="source_percent_times_100",
         )
     
     def get_stress_index(
@@ -749,7 +1149,7 @@ class DataService:
         # Try MongoDB first (unified systemic_risk collection)
         if self.mongodb:
             try:
-                return self.get_systemic_risk_data(
+                response = self.get_systemic_risk_data(
                     indicator_name="financial_stress_index",
                     limit=limit,
                     start_date=start_date,
@@ -760,6 +1160,8 @@ class DataService:
                     source="Federal Reserve Economic Data (FRED)",
                     data_source="STLFSI4"
                 )
+                if response.data:
+                    return response
             except Exception as e:
                 logger.warning(f"MongoDB failed for financial stress index: {e}. Falling back to CSV.")
         
@@ -830,7 +1232,7 @@ class DataService:
         # Try MongoDB first (unified liquidity_flows collection)
         if self.mongodb:
             try:
-                return self.get_liquidity_flows_data(
+                response = self.get_liquidity_flows_data(
                     indicator_name="money_supply_m2",
                     limit=limit,
                     start_date=start_date,
@@ -841,6 +1243,8 @@ class DataService:
                     source="Federal Reserve Economic Data (FRED)",
                     data_source="M2SL"
                 )
+                if response.data:
+                    return response
             except Exception as e:
                 logger.warning(f"MongoDB failed for M2 data: {e}. Falling back to CSV.")
         
@@ -869,17 +1273,19 @@ class DataService:
         # Try MongoDB first (unified liquidity_flows collection)
         if self.mongodb:
             try:
-                return self.get_liquidity_flows_data(
+                response = self.get_liquidity_flows_data(
                     indicator_name="reverse_repo_operations",
                     limit=limit,
                     start_date=start_date,
                     end_date=end_date,
                     description="Overnight Reverse Repurchase Agreements: Treasury Securities Sold by the Federal Reserve in the Temporary Open Market Operations",
-                    unit="millions_of_dollars",
+                    unit="billions_of_dollars",
                     frequency="daily",
                     source="Federal Reserve Economic Data (FRED)",
                     data_source="RRPONTSYD"
                 )
+                if response.data:
+                    return response
             except Exception as e:
                 logger.warning(f"MongoDB failed for reverse repo data: {e}. Falling back to CSV.")
         
@@ -923,18 +1329,19 @@ class DataService:
                 logger.warning(f"MongoDB failed for ETF inflows: {e}. No fallback available yet.")
         
         # Return empty response with metadata for future implementation
-        return DataResponse(
-            data=[],
-            metadata=DataMetadata(
-                latest_value=None,
-                latest_date=None,
-                total_records=0,
-                description="ETF Inflows - Major ETF Volume Analysis",
-                unit="millions_of_dollars",
-                frequency="daily",
-                source="Yahoo Finance",
-                fred_series="yahoo_finance"
-            )
+        return self._unavailable_response(
+            indicator_id="etf_inflows",
+            owner_group="capital_flows_intermarket",
+            description="ETF net flows",
+            unit="millions_of_dollars",
+            frequency="daily",
+            source="Not connected",
+            source_series_id=None,
+            quality_status="unavailable",
+            quality_reason="verified_net_flow_source_not_connected",
+            transformation="not_available",
+            seasonal_adjustment="not_applicable",
+            population="not_available",
         )
 
     def get_equity_fund_flows_data(
@@ -962,18 +1369,19 @@ class DataService:
                 logger.warning(f"MongoDB failed for equity fund flows: {e}. No fallback available yet.")
         
         # Return empty response with metadata for future implementation
-        return DataResponse(
-            data=[],
-            metadata=DataMetadata(
-                latest_value=None,
-                latest_date=None,
-                total_records=0,
-                description="Equity Fund Flows (Placeholder - Future: Paid API)",
-                unit="millions_of_dollars",
-                frequency="weekly",
-                source="Future: Paid API",
-                fred_series="paid_api_placeholder"
-            )
+        return self._unavailable_response(
+            indicator_id="equity_fund_flows",
+            owner_group="capital_flows_intermarket",
+            description="Equity fund net flows",
+            unit="millions_of_dollars",
+            frequency="weekly",
+            source="Not connected",
+            source_series_id=None,
+            quality_status="unavailable",
+            quality_reason="verified_net_flow_source_not_connected",
+            transformation="not_available",
+            seasonal_adjustment="not_applicable",
+            population="not_available",
         )
 
     def get_margin_debt_data(
@@ -1001,18 +1409,19 @@ class DataService:
                 logger.warning(f"MongoDB failed for margin debt: {e}. No fallback available yet.")
         
         # Return empty response with metadata for future implementation
-        return DataResponse(
-            data=[],
-            metadata=DataMetadata(
-                latest_value=None,
-                latest_date=None,
-                total_records=0,
-                description="Margin Debt (Placeholder - Future: Paid API)",
-                unit="millions_of_dollars",
-                frequency="monthly",
-                source="Future: Paid API",
-                fred_series="paid_api_placeholder"
-            )
+        return self._unavailable_response(
+            indicator_id="margin_debt",
+            owner_group="credit_financial_risk",
+            description="U.S. securities margin debt",
+            unit="millions_of_dollars",
+            frequency="monthly",
+            source="Not connected",
+            source_series_id=None,
+            quality_status="unavailable",
+            quality_reason="verified_margin_debt_source_not_connected",
+            transformation="not_available",
+            seasonal_adjustment="not_applicable",
+            population="not_available",
         )
 
     def get_institutional_flows_data(
@@ -1040,18 +1449,19 @@ class DataService:
                 logger.warning(f"MongoDB failed for institutional flows: {e}. No fallback available yet.")
         
         # Return empty response with metadata for future implementation
-        return DataResponse(
-            data=[],
-            metadata=DataMetadata(
-                latest_value=None,
-                latest_date=None,
-                total_records=0,
-                description="Institutional Flows (Placeholder - Future: Paid API)",
-                unit="millions_of_dollars",
-                frequency="daily",
-                source="Future: Paid API",
-                fred_series="paid_api_placeholder"
-            )
+        return self._unavailable_response(
+            indicator_id="institutional_flows",
+            owner_group="capital_flows_intermarket",
+            description="Institutional net flows",
+            unit="millions_of_dollars",
+            frequency="daily",
+            source="Not connected",
+            source_series_id=None,
+            quality_status="unavailable",
+            quality_reason="verified_institutional_flow_source_not_connected",
+            transformation="not_available",
+            seasonal_adjustment="not_applicable",
+            population="not_available",
         )
     
     def get_payroll_data(
@@ -1089,8 +1499,8 @@ class DataService:
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="Consumer Confidence",
-            unit="Index (1985=100)",
+            description="OECD Main Economic Indicators: Consumer Confidence Index for the United States",
+            unit="index_long_term_average_100",
             frequency="Monthly",
             source="Organization for Economic Co-operation and Development via FRED®",
             fred_series="CSCICP03USM665S",
@@ -1112,7 +1522,7 @@ class DataService:
         if not self.mongodb:
             raise RuntimeError("MongoDB connection not available")
         
-        collection = self.mongodb.db["systemic_risk"]
+        collection = self.mongodb.get_collection("systemic_risk")
         
         # Build query filter
         query_filter = {"indicator": indicator_name}
@@ -1162,7 +1572,15 @@ class DataService:
         latest_value = values[-1] if values else None
         latest_date = result[-1].date if result else None
         
-        metadata = DataMetadata(
+        metadata = self._build_metadata(
+            indicator_id=SERIES_CONTRACTS.get(data_source or "", {}).get(
+                "indicator_id", indicator_name
+            ),
+            owner_group=(
+                "positioning_sentiment_derivatives_volatility"
+                if indicator_name == "vix"
+                else "credit_financial_risk"
+            ),
             latest_value=latest_value,
             latest_date=latest_date,
             total_records=len(result),
@@ -1170,7 +1588,7 @@ class DataService:
             unit=unit,
             frequency=frequency,
             source=source,
-            fred_series=data_source
+            source_series_id=data_source,
         )
         
         return DataResponse(data=result, metadata=metadata)
@@ -1191,7 +1609,7 @@ class DataService:
         if not self.mongodb:
             raise RuntimeError("MongoDB connection not available")
         
-        collection = self.mongodb.db["liquidity_flows"]
+        collection = self.mongodb.get_collection("liquidity_flows")
         
         # Build query filter
         query_filter = {"indicator": indicator_name}
@@ -1241,7 +1659,15 @@ class DataService:
         latest_value = values[-1] if values else None
         latest_date = result[-1].date if result else None
         
-        metadata = DataMetadata(
+        metadata = self._build_metadata(
+            indicator_id=SERIES_CONTRACTS.get(data_source or "", {}).get(
+                "indicator_id", indicator_name
+            ),
+            owner_group=(
+                "monetary_liquidity"
+                if indicator_name in {"money_supply_m2", "reverse_repo_operations"}
+                else "capital_flows_intermarket"
+            ),
             latest_value=latest_value,
             latest_date=latest_date,
             total_records=len(result),
@@ -1249,12 +1675,12 @@ class DataService:
             unit=unit,
             frequency=frequency,
             source=source,
-            fred_series=data_source
+            source_series_id=data_source,
         )
         
         return DataResponse(data=result, metadata=metadata)
 
-    def get_eps_data(
+    def get_performance_graph_data(
         self,
         limit: Optional[int] = None,
         start_date: Optional[str] = None,
@@ -1338,7 +1764,9 @@ class DataService:
                     ytd_start_value = values[ytd_start_idx]
                     performance_ytd = ((values[-1] - ytd_start_value) / ytd_start_value) * 100
             
-            metadata = DataMetadata(
+            metadata = self._build_metadata(
+                indicator_id="sp500_performance",
+                owner_group="market_internals_sectors",
                 latest_value=latest_value,
                 latest_date=latest_date,
                 total_records=len(result),
@@ -1346,7 +1774,10 @@ class DataService:
                 unit="index_value",
                 frequency="daily",
                 source="Performance Graph Export",
-                fred_series=None
+                source_series_id="performance_graph_export",
+                population="S&P 500 index",
+                seasonal_adjustment="not_applicable",
+                transformation="source_index_level",
             )
             
             return DataResponse(data=result, metadata=metadata)
@@ -1480,7 +1911,11 @@ class DataService:
         latest_value = values[-1] if values else None
         latest_date = result[-1].date if result else None
         
-        metadata = DataMetadata(
+        metadata = self._build_metadata(
+            indicator_id=SERIES_CONTRACTS.get(fred_series or "", {}).get(
+                "indicator_id", indicator_name
+            ),
+            owner_group="monetary_liquidity",
             latest_value=latest_value,
             latest_date=latest_date,
             total_records=len(result),
@@ -1488,7 +1923,7 @@ class DataService:
             unit=unit,
             frequency=frequency,
             source=source,
-            fred_series=fred_series
+            source_series_id=fred_series,
         )
         
         return DataResponse(data=result, metadata=metadata)
@@ -1509,7 +1944,7 @@ class DataService:
         if not self.mongodb:
             raise RuntimeError("MongoDB connection not available")
         
-        collection = self.mongodb.db["macro_economics"]
+        collection = self.mongodb.get_collection("macro_economics")
         
         # Build query filter
         query_filter = {"indicator": indicator_name}
@@ -1616,7 +2051,11 @@ class DataService:
         latest_value = values[-1] if values else None
         latest_date = result[-1].date if result else None
         
-        metadata = DataMetadata(
+        metadata = self._build_metadata(
+            indicator_id=SERIES_CONTRACTS.get(fred_series or "", {}).get(
+                "indicator_id", indicator_name
+            ),
+            owner_group="growth_inflation_labor",
             latest_value=latest_value,
             latest_date=latest_date,
             total_records=len(result),
@@ -1624,7 +2063,7 @@ class DataService:
             unit=unit,
             frequency=frequency,
             source=source,
-            fred_series=fred_series
+            source_series_id=fred_series,
         )
         
         return DataResponse(data=result, metadata=metadata)
@@ -1635,38 +2074,102 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Get GDP Growth Rate data from MongoDB or fallback to CSV."""
-        # Try MongoDB first
-        if self.mongodb:
-            try:
-                return self.get_macro_economics_data(
-                    indicator_name="gdp_growth_rate",
-                    limit=limit,
-                    start_date=start_date,
-                    end_date=end_date,
-                    description="Real Gross Domestic Product",
-                    unit="billions_of_chained_2012_dollars",
+        """Return annualized quarter-over-quarter growth from GDPC1 levels.
+
+        The checked-in GDP.csv file is nominal GDP (series GDP), so it is not
+        used as a fallback for this real-GDP endpoint.
+        """
+        if not self.mongodb:
+            return self._unavailable_response(
+                indicator_id="real_gdp_growth",
+                owner_group="growth_inflation_labor",
+                description="Real GDP annualized quarter-over-quarter growth",
+                unit="percent_annualized",
+                frequency="quarterly",
+                source="U.S. Bureau of Economic Analysis via FRED",
+                source_series_id="GDPC1",
+                quality_status="unavailable",
+                quality_reason="verified_gdpc1_level_series_not_available_locally",
+                transformation="annualized_quarter_over_quarter_percent_change",
+                seasonal_adjustment="seasonally_adjusted_annual_rate",
+                population="United States economy",
+            )
+
+        try:
+            raw = self.get_macro_economics_data(
+                indicator_name="gdp_growth_rate",
+                limit=None,
+                start_date=None,
+                end_date=end_date,
+                description="Real Gross Domestic Product",
+                unit="billions_of_chained_dollars",
+                frequency="quarterly",
+                source="U.S. Bureau of Economic Analysis via FRED",
+                fred_series="GDPC1",
+            )
+            growth_points = []
+            previous = None
+            previous_quarter = None
+            for point in raw.data:
+                current = point.value
+                parsed = datetime.strptime(point.date[:10], "%Y-%m-%d")
+                current_quarter = parsed.year * 4 + ((parsed.month - 1) // 3)
+                if (
+                    current is not None
+                    and previous is not None
+                    and current > 0
+                    and previous > 0
+                    and previous_quarter is not None
+                    and current_quarter - previous_quarter == 1
+                ):
+                    growth = ((current / previous) ** 4 - 1) * 100
+                    growth_points.append(EconomicDataPoint(
+                        time=point.time, date=point.date, value=growth, rate=growth
+                    ))
+                if current is not None and current > 0:
+                    previous = current
+                    previous_quarter = current_quarter
+
+            growth_points = self._filter_transformed_points(
+                growth_points, limit, start_date, end_date
+            )
+            latest_value = growth_points[-1].value if growth_points else None
+            latest_date = growth_points[-1].date if growth_points else None
+            return DataResponse(
+                data=growth_points,
+                metadata=self._build_metadata(
+                    indicator_id="real_gdp_growth",
+                    owner_group="growth_inflation_labor",
+                    latest_value=latest_value,
+                    latest_date=latest_date,
+                    total_records=len(growth_points),
+                    description="Real GDP annualized quarter-over-quarter growth calculated from GDPC1 levels",
+                    unit="percent_annualized",
                     frequency="quarterly",
-                    source="U.S. Bureau of Economic Analysis",
-                    fred_series="GDPC1"
-                )
-            except Exception as e:
-                logger.warning(f"MongoDB failed for gdp_growth_rate: {e}. Falling back to CSV.")
-        
-        # Fallback to CSV
-        return self.get_economic_data(
-            filename="GDP.csv",
-            date_column="observation_date",
-            value_column="GDP",
-            limit=limit,
-            start_date=start_date,
-            end_date=end_date,
-            description="Real Gross Domestic Product",
-            unit="Billions of Dollars",
-            frequency="quarterly",
-            source="U.S. Bureau of Economic Analysis via FRED®",
-            fred_series="GDPC1"
-        )
+                    source="U.S. Bureau of Economic Analysis via FRED",
+                    source_series_id="GDPC1",
+                    population="United States economy",
+                    seasonal_adjustment="seasonally_adjusted_annual_rate",
+                    transformation="annualized_quarter_over_quarter_percent_change",
+                    quality_reason=None if growth_points else "insufficient_verified_history",
+                ),
+            )
+        except Exception as e:
+            logger.warning(f"Verified GDPC1 data unavailable: {e}")
+            return self._unavailable_response(
+                indicator_id="real_gdp_growth",
+                owner_group="growth_inflation_labor",
+                description="Real GDP annualized quarter-over-quarter growth",
+                unit="percent_annualized",
+                frequency="quarterly",
+                source="U.S. Bureau of Economic Analysis via FRED",
+                source_series_id="GDPC1",
+                quality_status="unavailable",
+                quality_reason="verified_gdpc1_level_series_not_available",
+                transformation="annualized_quarter_over_quarter_percent_change",
+                seasonal_adjustment="seasonally_adjusted_annual_rate",
+                population="United States economy",
+            )
 
     def get_macro_unemployment_rate_data(
         self,
@@ -1678,7 +2181,7 @@ class DataService:
         # Try MongoDB first
         if self.mongodb:
             try:
-                return self.get_macro_economics_data(
+                response = self.get_macro_economics_data(
                     indicator_name="unemployment_rate",
                     limit=limit,
                     start_date=start_date,
@@ -1689,6 +2192,8 @@ class DataService:
                     source="U.S. Bureau of Labor Statistics",
                     fred_series="UNRATE"
                 )
+                if response.data:
+                    return response
             except Exception as e:
                 logger.warning(f"MongoDB failed for unemployment_rate: {e}. Falling back to CSV.")
         
@@ -1717,7 +2222,7 @@ class DataService:
         # Try MongoDB first
         if self.mongodb:
             try:
-                return self.get_macro_economics_data(
+                response = self.get_macro_economics_data(
                     indicator_name="nonfarm_payrolls",
                     limit=limit,
                     start_date=start_date,
@@ -1728,6 +2233,8 @@ class DataService:
                     source="U.S. Bureau of Labor Statistics",
                     fred_series="PAYEMS"
                 )
+                if response.data:
+                    return response
             except Exception as e:
                 logger.warning(f"MongoDB failed for nonfarm_payrolls: {e}. Falling back to CSV.")
         
@@ -1756,7 +2263,7 @@ class DataService:
         # Try MongoDB first
         if self.mongodb:
             try:
-                return self.get_macro_economics_data(
+                response = self.get_macro_economics_data(
                     indicator_name="consumer_confidence",
                     limit=limit,
                     start_date=start_date,
@@ -1767,6 +2274,8 @@ class DataService:
                     source="University of Michigan",
                     fred_series="UMCSENT"
                 )
+                if response.data:
+                    return response
             except Exception as e:
                 logger.warning(f"MongoDB failed for consumer_confidence: {e}. Falling back to CSV.")
         
@@ -1778,11 +2287,11 @@ class DataService:
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="Consumer Confidence",
-            unit="Index (1985=100)",
+            description="OECD Main Economic Indicators: Consumer Confidence Index for the United States",
+            unit="index_long_term_average_100",
             frequency="monthly",
             source="Organization for Economic Co-operation and Development via FRED®",
-            fred_series="UMCSENT"
+            fred_series="CSCICP03USM665S"
         )
 
     def get_macro_cpi_inflation_data(
@@ -1791,37 +2300,81 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Get CPI Inflation data from MongoDB or fallback to CSV."""
-        # Try MongoDB first
+        """Return 12-month CPI inflation calculated from CPIAUCSL levels."""
+        raw = None
         if self.mongodb:
             try:
-                return self.get_macro_economics_data(
+                raw = self.get_macro_economics_data(
                     indicator_name="cpi_inflation",
-                    limit=limit,
-                    start_date=start_date,
+                    limit=None,
+                    start_date=None,
                     end_date=end_date,
-                    description="Consumer Price Index for All Urban Consumers: All Items in U.S. City Average",
+                    description="Consumer Price Index for All Urban Consumers: All Items",
                     unit="index_1982_84_100",
                     frequency="monthly",
-                    source="U.S. Bureau of Labor Statistics",
-                    fred_series="CPIAUCSL"
+                    source="U.S. Bureau of Labor Statistics via FRED",
+                    fred_series="CPIAUCSL",
                 )
+                if not raw.data:
+                    raw = None
             except Exception as e:
-                logger.warning(f"MongoDB failed for cpi_inflation: {e}. Falling back to CSV.")
-        
-        # Fallback to CSV
-        return self.get_economic_data(
-            filename="CPI.csv",
-            date_column="observation_date",
-            value_column="CPIAUCSL",
-            limit=limit,
-            start_date=start_date,
-            end_date=end_date,
-            description="Consumer Price Index for All Urban Consumers: All Items",
-            unit="index",
-            frequency="monthly",
-            source="U.S. Bureau of Labor Statistics",
-            fred_series="CPIAUCSL"
+                logger.warning(f"MongoDB failed for CPIAUCSL: {e}. Falling back to CSV.")
+
+        if raw is None:
+            raw = self.get_economic_data(
+                filename="CPI.csv",
+                date_column="observation_date",
+                value_column="CPIAUCSL",
+                limit=None,
+                start_date=None,
+                end_date=end_date,
+                description="Consumer Price Index for All Urban Consumers: All Items",
+                unit="index_1982_84_100",
+                frequency="monthly",
+                source="U.S. Bureau of Labor Statistics via FRED",
+                fred_series="CPIAUCSL",
+            )
+
+        levels = [point for point in raw.data if point.value is not None and point.value > 0]
+        levels_by_month = {
+            (parsed.year, parsed.month): point
+            for point in levels
+            for parsed in [datetime.strptime(point.date[:10], "%Y-%m-%d")]
+        }
+        inflation_points = []
+        for current in levels:
+            parsed = datetime.strptime(current.date[:10], "%Y-%m-%d")
+            year_ago = levels_by_month.get((parsed.year - 1, parsed.month))
+            if year_ago is None:
+                continue
+            inflation = ((current.value / year_ago.value) - 1) * 100
+            inflation_points.append(EconomicDataPoint(
+                time=current.time, date=current.date, value=inflation, rate=inflation
+            ))
+
+        inflation_points = self._filter_transformed_points(
+            inflation_points, limit, start_date, end_date
+        )
+        latest_value = inflation_points[-1].value if inflation_points else None
+        latest_date = inflation_points[-1].date if inflation_points else None
+        return DataResponse(
+            data=inflation_points,
+            metadata=self._build_metadata(
+                indicator_id="cpi_inflation_yoy",
+                owner_group="growth_inflation_labor",
+                latest_value=latest_value,
+                latest_date=latest_date,
+                total_records=len(inflation_points),
+                description="12-month percent change in CPIAUCSL",
+                unit="percent_change_from_year_ago",
+                frequency="monthly",
+                source="U.S. Bureau of Labor Statistics via FRED",
+                source_series_id="CPIAUCSL",
+                population="All Urban Consumers, U.S. city average, all items",
+                seasonal_adjustment="seasonally_adjusted",
+                transformation="year_over_year_percent_change_from_index_level",
+                quality_reason=None if inflation_points else "insufficient_12_month_history",
+            ),
         )
 
     def get_macro_retail_sales_data(
@@ -1834,7 +2387,7 @@ class DataService:
         # Try MongoDB first
         if self.mongodb:
             try:
-                return self.get_macro_economics_data(
+                response = self.get_macro_economics_data(
                     indicator_name="retail_sales",
                     limit=limit,
                     start_date=start_date,
@@ -1845,6 +2398,8 @@ class DataService:
                     source="U.S. Census Bureau",
                     fred_series="RSXFS"
                 )
+                if response.data:
+                    return response
             except Exception as e:
                 logger.warning(f"MongoDB failed for retail_sales: {e}. Falling back to CSV.")
         
@@ -1909,7 +2464,9 @@ class DataService:
                 logger.warning(f"No corporate earnings data found for indicator: {indicator_name}")
                 return DataResponse(
                     data=[],
-                    metadata=DataMetadata(
+                    metadata=self._build_metadata(
+                        indicator_id=indicator_name,
+                        owner_group="corporate_fundamentals",
                         latest_value=None,
                         latest_date=None,
                         total_records=0,
@@ -1917,7 +2474,10 @@ class DataService:
                         unit=unit,
                         frequency=frequency,
                         source="Corporate Earnings Database",
-                        fred_series=symbol,
+                        source_series_id=symbol,
+                        population="S&P 500 companies available to the ingestion job",
+                        seasonal_adjustment="not_applicable",
+                        transformation="cross_sectional_aggregate_from_reported_company_metrics",
                     )
                 )
             
@@ -1937,7 +2497,10 @@ class DataService:
             doc_metadata = latest_doc.get("metadata", {})
             
             # Create response metadata using simpler DataMetadata
-            metadata = DataMetadata(
+            source_series_id = doc_metadata.get("symbol", symbol)
+            metadata = self._build_metadata(
+                indicator_id=indicator_name,
+                owner_group="corporate_fundamentals",
                 latest_value=data_points[-1].value if data_points else None,
                 latest_date=data_points[-1].date if data_points else None,
                 total_records=len(data_points),
@@ -1945,7 +2508,10 @@ class DataService:
                 unit=doc_metadata.get("unit", unit),
                 frequency=doc_metadata.get("frequency", frequency),
                 source=f"Corporate Earnings Database - {source}",
-                fred_series=doc_metadata.get("symbol", symbol)
+                source_series_id=source_series_id,
+                population="S&P 500 companies available to the ingestion job",
+                seasonal_adjustment="not_applicable",
+                transformation="cross_sectional_aggregate_from_reported_company_metrics",
             )
             
             return DataResponse(data=data_points, metadata=metadata)
@@ -1960,17 +2526,22 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Get S&P 500 Earnings Per Share data."""
-        return self.get_corporate_earnings_data(
-            indicator_name="sp500_eps",
-            limit=limit,
-            start_date=start_date,
-            end_date=end_date,
+        """Return an explicit invalid state until a verified EPS series is connected.
+
+        SPASTT01USQ661N is a stock-price index and is not an EPS series.
+        """
+        return self._unavailable_response(
+            indicator_id="sp500_eps",
+            owner_group="corporate_fundamentals",
             description="S&P 500 Earnings Per Share",
             unit="USD",
             frequency="quarterly",
-            source="Federal Reserve Economic Data (FRED)",
-            symbol="SPASTT01USQ661N"
+            source="Not connected",
+            source_series_id=None,
+            quality_status="invalid",
+            quality_reason="previous_source_was_stock_price_index_not_eps",
+            transformation="level",
+            population="S&P 500 constituent companies",
         )
 
     def get_revenue_growth_data(
@@ -2114,7 +2685,9 @@ class DataService:
                 logger.warning(f"No valuation data found for indicator: {indicator_name}")
                 return DataResponse(
                     data=[],
-                    metadata=DataMetadata(
+                    metadata=self._build_metadata(
+                        indicator_id=indicator_name,
+                        owner_group="valuation",
                         latest_value=None,
                         latest_date=None,
                         total_records=0,
@@ -2122,7 +2695,10 @@ class DataService:
                         unit=unit,
                         frequency=frequency,
                         source="Valuation Metrics Database",
-                        fred_series=symbol
+                        source_series_id=symbol,
+                        population="S&P 500 companies available to the ingestion job",
+                        seasonal_adjustment="not_applicable",
+                        transformation="cross_sectional_aggregate_from_company_valuation_metrics",
                     )
                 )
             
@@ -2138,15 +2714,21 @@ class DataService:
                 ))
             
             # Create response metadata using simpler DataMetadata
-            metadata = DataMetadata(
+            latest_doc_metadata = documents[-1].get("metadata", {})
+            metadata = self._build_metadata(
+                indicator_id=indicator_name,
+                owner_group="valuation",
                 latest_value=data_points[-1].value if data_points else None,
                 latest_date=data_points[-1].date if data_points else None,
                 total_records=len(data_points),
                 description=description,
-                unit=documents[-1].get("metadata", {}).get("unit", unit),
-                frequency=documents[-1].get("metadata", {}).get("frequency", frequency),
+                unit=latest_doc_metadata.get("unit", unit),
+                frequency=latest_doc_metadata.get("frequency", frequency),
                 source=f"Valuation Metrics Database - {source}",
-                fred_series=documents[-1].get("metadata", {}).get("symbol", symbol)
+                source_series_id=latest_doc_metadata.get("symbol", symbol),
+                population="S&P 500 companies available to the ingestion job",
+                seasonal_adjustment="not_applicable",
+                transformation="cross_sectional_aggregate_from_company_valuation_metrics",
             )
             
             return DataResponse(data=data_points, metadata=metadata)
@@ -2320,7 +2902,9 @@ class DataService:
                 logger.warning(f"No sector performance data found for metric: {metric_name}")
                 return DataResponse(
                     data=[],
-                    metadata=DataMetadata(
+                    metadata=self._build_metadata(
+                        indicator_id=f"sector_{metric_name}",
+                        owner_group="market_internals_sectors",
                         latest_value=None,
                         latest_date=None,
                         total_records=0,
@@ -2328,7 +2912,10 @@ class DataService:
                         unit=unit,
                         frequency=frequency,
                         source="Sector Performance Database",
-                        fred_series=metric_name
+                        source_series_id=metric_name,
+                        population="U.S. sector SPDR ETF proxies",
+                        seasonal_adjustment="not_applicable",
+                        transformation="source_price_or_relative_return_metric",
                     )
                 )
             
@@ -2349,15 +2936,21 @@ class DataService:
                 ))
             
             # Create response metadata using simpler DataMetadata
-            metadata = DataMetadata(
+            latest_doc_metadata = documents[-1].get("metadata", {}) if documents else {}
+            metadata = self._build_metadata(
+                indicator_id=f"sector_{metric_name}",
+                owner_group="market_internals_sectors",
                 latest_value=data_points[-1].value if data_points else None,
                 latest_date=data_points[-1].date if data_points else None,
                 total_records=len(data_points),
                 description=description,
-                unit=documents[-1].get("metadata", {}).get("unit", unit) if documents else unit,
-                frequency=documents[-1].get("metadata", {}).get("frequency", frequency) if documents else frequency,
+                unit=latest_doc_metadata.get("unit", unit),
+                frequency=latest_doc_metadata.get("frequency", frequency),
                 source=f"Sector Performance Database - {source}",
-                fred_series=documents[-1].get("metadata", {}).get("etf_symbol", metric_name) if documents else metric_name
+                source_series_id=latest_doc_metadata.get("etf_symbol", metric_name),
+                population="U.S. sector SPDR ETF proxies",
+                seasonal_adjustment="not_applicable",
+                transformation="source_price_or_relative_return_metric",
             )
             
             return DataResponse(data=data_points, metadata=metadata)
@@ -2404,46 +2997,6 @@ class DataService:
             unit="percent",
             frequency="daily",
             source="Yahoo Finance"
-        )
-
-    def get_sector_momentum_score_data(
-        self,
-        sector_name: Optional[str] = None,
-        limit: Optional[int] = None,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None
-    ) -> DataResponse:
-        """Get sector momentum scores data."""
-        return self.get_sector_performance_data(
-            metric_name="momentum_score",
-            sector_name=sector_name,
-            limit=limit,
-            start_date=start_date,
-            end_date=end_date,
-            description="Sector momentum scores (0-100 scale)",
-            unit="score",
-            frequency="daily",
-            source="Calculated"
-        )
-
-    def get_sector_rotation_signal_data(
-        self,
-        sector_name: Optional[str] = None,
-        limit: Optional[int] = None,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None
-    ) -> DataResponse:
-        """Get sector rotation signals data."""
-        return self.get_sector_performance_data(
-            metric_name="sector_rotation_signal",
-            sector_name=sector_name,
-            limit=limit,
-            start_date=start_date,
-            end_date=end_date,
-            description="Sector rotation signals (0-100 scale)",
-            unit="signal",
-            frequency="daily",
-            source="Calculated"
         )
 
     def get_all_sectors_latest_data(self, metric_name: str) -> dict:

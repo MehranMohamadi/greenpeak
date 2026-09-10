@@ -1,0 +1,11 @@
+indicator_id: vix_term_structure
+definition_version: "1.0"
+enabled: true
+display: {name_en: "VIX Term Structure", name_fa: "ساختار سررسید شاخص‌های VIX", unit: volatility_points}
+source: {provider: Cboe, series_id: VIX1Y_MINUS_VIX9D, frequency: daily, collection: positioning_sentiment}
+raw_indicator: vix_term_structure
+classification: {primary_domain: positioning_sentiment_derivatives_volatility, related_domains: []}
+feature_template: daily_level
+feature_overrides: {family: signed_term_spread, trend_threshold_bp: 0.5}
+semantics: {category: implied_volatility_term_structure, higher_is: steeper_upward_term_structure, value_meaning: vix1y_minus_vix9d_in_volatility_points, component_series: [VIX9D, VIX, VIX3M, VIX6M, VIX1Y]}
+llm: {enabled: true, include_in_domain_analysis: true}

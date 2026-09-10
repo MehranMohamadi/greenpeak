@@ -1,3 +1,5 @@
+import { normalizeChartData, sliceChartPeriod } from "@/lib/chart-data"
+
 // Utility functions for processing monetary policy data
 
 /**
@@ -37,21 +39,7 @@ export const processDFFData = (data, useDaily = true, period = 'MAX') => {
   
   if (useDaily) {
     // Return all daily data points for full resolution with duplicate removal
-    const processedData = data
-      .map(item => ({
-        time: new Date(item.time * 1000).toISOString().split('T')[0],
-        value: item.value || item.rate || 0
-      }))
-      .filter(item => item.value !== null && item.value !== undefined && !isNaN(item.value))
-      .sort((a, b) => new Date(a.time) - new Date(b.time));
-    
-    // Remove duplicates by keeping the last value for each date
-    const uniqueData = {};
-    processedData.forEach(item => {
-      uniqueData[item.time] = item;
-    });
-    
-    const finalData = Object.values(uniqueData).sort((a, b) => new Date(a.time) - new Date(b.time));
+    const finalData = sliceChartPeriod(normalizeChartData(data), period);
     
     // Smart downsampling based on period and data size
     if (period === 'MAX' && finalData.length > 5000) {
@@ -71,8 +59,9 @@ export const processDFFData = (data, useDaily = true, period = 'MAX') => {
     const monthlyData = {};
     
     data.forEach(item => {
-      const unixTime = item.time * 1000;
-      const d = new Date(unixTime);
+      const value = Number(item.value ?? item.rate)
+      const d = item.date ? new Date(item.date) : new Date(Number(item.time) * 1000)
+      if (!Number.isFinite(value) || Number.isNaN(d.getTime())) return
       const year = d.getUTCFullYear();
       const month = String(d.getUTCMonth() + 1).padStart(2, '0');
       const monthKey = `${year}-${month}`;
@@ -85,7 +74,7 @@ export const processDFFData = (data, useDaily = true, period = 'MAX') => {
         };
       }
       
-      monthlyData[monthKey].sum += (item.value || item.rate || 0);
+      monthlyData[monthKey].sum += value;
       monthlyData[monthKey].count += 1;
     });
     
@@ -104,23 +93,7 @@ export const processDFFData = (data, useDaily = true, period = 'MAX') => {
  * @returns {Array} Processed data for chart
  */
 export const processTenYearData = (data) => {
-  if (!data || data.length === 0) return [];
-  
-  const processedData = data
-    .map(item => ({
-      time: new Date(item.time * 1000).toISOString().split('T')[0], // Convert back to YYYY-MM-DD format for LightWeight Charts
-      value: item.value || item.rate || item.yield || 0
-    }))
-    .filter(item => item.value !== null && item.value !== undefined && !isNaN(item.value))
-    .sort((a, b) => new Date(a.time) - new Date(b.time));
-  
-  // Remove duplicates by keeping the last value for each date
-  const uniqueData = {};
-  processedData.forEach(item => {
-    uniqueData[item.time] = item;
-  });
-  
-  return Object.values(uniqueData).sort((a, b) => new Date(a.time) - new Date(b.time));
+  return normalizeChartData(data, ["value", "rate", "yield"]);
 };
 
 /**
@@ -129,33 +102,18 @@ export const processTenYearData = (data) => {
  * @returns {Array} Processed data for chart (converted from millions to trillions)
  */
 export const processWALCLData = (data) => {
-  if (!data || data.length === 0) return [];
-  
-  const processedData = data
-    .map(item => ({
-      time: new Date(item.time * 1000).toISOString().split('T')[0], // Convert back to YYYY-MM-DD format for LightWeight Charts
-      value: (item.value || item.walcl || item.balance_sheet || 0) / 1000000 // Convert millions to trillions
-    }))
-    .filter(item => item.value !== null && item.value !== undefined && !isNaN(item.value))
-    .sort((a, b) => new Date(a.time) - new Date(b.time));
-  
-  // Remove duplicates by keeping the last value for each date
-  const uniqueData = {};
-  processedData.forEach(item => {
-    uniqueData[item.time] = item;
-  });
-  
-  return Object.values(uniqueData).sort((a, b) => new Date(a.time) - new Date(b.time));
+  return normalizeChartData(data, ["value", "walcl", "balance_sheet"]).map(point => ({ ...point, value: point.value / 1000000 }));
 };
 
 /**
  * Get the latest value from a dataset
  * @param {Array} data - Data array
- * @returns {number} Latest value or 0 if no data
+ * @returns {number|null} Latest verified value, or null if no data
  */
 export const getLatestValue = (data) => {
-  if (!data || data.length === 0) return 0;
-  return data[data.length - 1]?.value || 0;
+  if (!data || data.length === 0) return null;
+  const value = Number(data[data.length - 1]?.value)
+  return Number.isFinite(value) ? value : null;
 };
 
 /**
@@ -164,9 +122,10 @@ export const getLatestValue = (data) => {
  * @returns {Object} Object with change value and direction
  */
 export const calculateChange = (data) => {
-  if (!data || data.length < 2) return { change: 0, direction: 'neutral' };
+  if (!data || data.length < 2) return { change: null, direction: 'neutral' };
   
-  const latest = data[data.length - 1]?.value || 0;
+  const latest = Number(data[data.length - 1]?.value);
+  if (!Number.isFinite(latest)) return { change: null, direction: 'neutral' };
   
   // Look for the last meaningful change (within the last 7 days, then 30 days)
   let previous = null;
@@ -174,7 +133,8 @@ export const calculateChange = (data) => {
   
   // First try to find a change within the last 7 days (1 week)
   for (let i = data.length - 2; i >= Math.max(0, data.length - 8); i--) {
-    const prevValue = data[i]?.value || 0;
+    const prevValue = Number(data[i]?.value);
+    if (!Number.isFinite(prevValue)) continue;
     if (Math.abs(latest - prevValue) > 0.001) { // 0.001% threshold
       previous = prevValue;
       changeFound = true;
@@ -185,7 +145,8 @@ export const calculateChange = (data) => {
   // If no change in last week, look for change in last 30 days
   if (!changeFound) {
     for (let i = data.length - 2; i >= Math.max(0, data.length - 31); i--) {
-      const prevValue = data[i]?.value || 0;
+      const prevValue = Number(data[i]?.value);
+      if (!Number.isFinite(prevValue)) continue;
       if (Math.abs(latest - prevValue) > 0.001) { // 0.001% threshold
         previous = prevValue;
         changeFound = true;
@@ -196,11 +157,11 @@ export const calculateChange = (data) => {
   
   // If still no change, use the value from 30 days ago or the earliest available
   if (!changeFound) {
-    previous = data[Math.max(0, data.length - 31)]?.value || data[0]?.value || 0;
+    previous = Number(data[Math.max(0, data.length - 31)]?.value ?? data[0]?.value);
   }
   
   if (!previous || previous === 0) {
-    return { change: 0, direction: 'neutral' };
+    return { change: null, direction: 'neutral' };
   }
   
   const change = ((latest - previous) / previous) * 100;
@@ -216,13 +177,13 @@ export const calculateChange = (data) => {
  * @returns {Object} Object with change value and direction
  */
 export const calculateChangeForPeriod = (data, period) => {
-  if (!data || data.length < 2) return { change: 0, direction: 'neutral' };
+  if (!data || data.length < 2) return { change: null, direction: 'neutral' };
   
-  const latest = data[data.length - 1]?.value || 0;
-  const earliest = data[0]?.value || 0;
+  const latest = Number(data[data.length - 1]?.value);
+  const earliest = Number(data[0]?.value);
   
   if (!earliest || earliest === 0) {
-    return { change: 0, direction: 'neutral' };
+    return { change: null, direction: 'neutral' };
   }
   
   const change = ((latest - earliest) / earliest) * 100;
@@ -237,19 +198,7 @@ export const calculateChangeForPeriod = (data, period) => {
  * @returns {Array} Processed data for chart
  */
 export const processSOFRData = (data) => {
-  if (!data || !Array.isArray(data) || data.length === 0) return [];
-  
-  return data
-    .filter(item => {
-      // Filter out items with null, undefined, or zero values
-      const rate = item.rate || item.sofr;
-      return rate !== null && rate !== undefined && rate !== 0;
-    })
-    .map(item => ({
-      time: item.date,
-      value: item.rate || item.sofr
-    }))
-    .sort((a, b) => new Date(a.time) - new Date(b.time));
+  return normalizeChartData(data, ["rate", "sofr", "value"]);
 };
 
 /**
@@ -258,19 +207,7 @@ export const processSOFRData = (data) => {
  * @returns {Array} Processed data for chart
  */
 export const processRealInterestRateData = (data) => {
-  if (!data || !Array.isArray(data) || data.length === 0) return [];
-  
-  return data
-    .filter(item => {
-      // Filter out items with null, undefined values (but allow negative values for real rates)
-      const rate = item.rate;
-      return rate !== null && rate !== undefined;
-    })
-    .map(item => ({
-      time: item.date,
-      value: item.rate
-    }))
-    .sort((a, b) => new Date(a.time) - new Date(b.time));
+  return normalizeChartData(data, ["rate", "value"]);
 };
 
 /**

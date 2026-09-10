@@ -95,7 +95,7 @@ class MacroEconomicsFetcher:
                 'name': 'Real Gross Domestic Product',
                 'start_date': '1947-01-01',  # Historical start
                 'frequency': 'Quarterly',
-                'unit': 'Billions of Chained 2012 Dollars',
+                'unit': 'Billions of Chained 2017 Dollars',
                 'seasonal_adjustment': 'Seasonally Adjusted Annual Rate'
             },
             'unemployment_rate': {

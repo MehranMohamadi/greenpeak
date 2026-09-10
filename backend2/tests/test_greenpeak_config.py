@@ -19,7 +19,7 @@ def test_registry_loads_utf8_and_has_eight_domains():
         "sofr_rate",
         "real_interest_rate_10y",
     } <= set(indicators)
-    assert len(indicators) == 30
+    assert len(indicators) == 34
     assert "وجوه فدرال" in indicators["federal_funds_rate"].display.name_fa
     assert "daily_interest_rate" in templates
 

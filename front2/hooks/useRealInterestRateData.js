@@ -35,7 +35,6 @@ const useRealInterestRateData = () => {
         setMetadata(meta)
         setError(null)
       } catch (err) {
-        console.error('Error fetching Real Interest Rate data:', err)
         setError(err.message)
         setData(null)
         setMetadata(null)

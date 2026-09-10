@@ -1,0 +1,11 @@
+indicator_id: aaii_bull_bear_spread
+definition_version: "1.0"
+enabled: true
+display: {name_en: "AAII Bull-Bear Spread", name_fa: "فاصله صعودی و نزولی نظرسنجی AAII", unit: percentage_points}
+source: {provider: AAII, series_id: AAII_BULL_MINUS_BEAR, frequency: weekly, collection: positioning_sentiment}
+raw_indicator: aaii_bull_bear_spread
+classification: {primary_domain: positioning_sentiment_derivatives_volatility, related_domains: []}
+feature_template: weekly_level
+feature_overrides: {family: signed_sentiment_spread, trend_threshold_bp: 1.0}
+semantics: {category: survey_sentiment, higher_is: more_bullish_relative_to_bearish, value_meaning: bullish_share_minus_bearish_share_in_percentage_points}
+llm: {enabled: true, include_in_domain_analysis: true}

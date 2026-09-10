@@ -1,10 +1,10 @@
 import Layout from "@/components/kokonutui/layout"
-import MacroCalendar from "@/components/analytics/macro-calendar"
+import NewsEvents from "@/components/analytics/news-events"
 
 export default function EventsPage() {
   return (
     <Layout>
-      <MacroCalendar />
+      <NewsEvents />
     </Layout>
   )
 }

@@ -35,7 +35,6 @@ const useSOFRData = () => {
         setMetadata(meta)
         setError(null)
       } catch (err) {
-        console.error('Error fetching SOFR data:', err)
         setError(err.message)
         setData(null)
         setMetadata(null)

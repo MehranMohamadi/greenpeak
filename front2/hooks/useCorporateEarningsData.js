@@ -1,147 +1,69 @@
-import { useState, useEffect } from 'react';
-import { endpoints } from '../api/api.js';
+import { useEffect, useState } from "react"
 
-const useCorporateEarningsData = () => {
-  const [data, setData] = useState({
-    sp500eps: [],
-    revenue: [],
-    margins: [], 
-    peRatio: [],
-    dividendYield: [],
-    roi: []
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [metadata, setMetadata] = useState({
-    sp500eps: null,
-    revenue: null,
-    margins: null,
-    peRatio: null,
-    dividendYield: null,
-    roi: null
-  });
+import { endpoints } from "../api/api.js"
+
+const SOURCES = {
+  sp500eps: endpoints.corporate.epsSp500,
+  revenue: endpoints.corporate.revenueGrowth,
+  margins: endpoints.corporate.profitMargins,
+  returnOnAssets: endpoints.corporate.returnOnAssets,
+}
+
+function normalize(payload) {
+  return (Array.isArray(payload?.data) ? payload.data : [])
+    .map((item) => {
+      const value = Number(item.value ?? item.rate)
+      if (!item.date || !Number.isFinite(value)) return null
+      return { date: item.date, time: item.date, value }
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.date.localeCompare(right.date))
+}
+
+export default function useCorporateEarningsData() {
+  const [data, setData] = useState({ sp500eps: [], revenue: [], margins: [], returnOnAssets: [] })
+  const [metadata, setMetadata] = useState({ sp500eps: null, revenue: null, margins: null, returnOnAssets: null })
+  const [errors, setErrors] = useState({})
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchCorporateData = async () => {
+    const controller = new AbortController()
+
+    async function loadOne([key, url]) {
       try {
-        setLoading(true);
-        
-        // Fetch data from all corporate earnings endpoints using configured URLs
-        const endpointMappings = [
-          { key: 'sp500eps', url: endpoints.corporate.epsSp500 },
-          { key: 'revenue', url: endpoints.corporate.revenueGrowth },
-          { key: 'margins', url: endpoints.corporate.profitMargins },
-          { key: 'peRatio', url: endpoints.corporate.peRatio },
-          { key: 'dividendYield', url: endpoints.corporate.dividendYield },
-          { key: 'roi', url: endpoints.corporate.returnOnAssets }
-        ];
-
-        const fetchPromises = endpointMappings.map(async (endpoint) => {
-          try {
-            console.log(`Fetching ${endpoint.key} from:`, endpoint.url);
-            const response = await fetch(endpoint.url);
-            if (!response.ok) {
-              throw new Error(`Failed to fetch ${endpoint.key}: ${response.status}`);
-            }
-            const result = await response.json();
-            console.log(`Successfully fetched ${endpoint.key}:`, result);
-            return {
-              key: endpoint.key,
-              data: result.data || [],
-              metadata: result.metadata || null
-            };
-          } catch (err) {
-            console.error(`Error fetching ${endpoint.key}:`, err);
-            return {
-              key: endpoint.key,
-              data: [],
-              metadata: null,
-              error: err.message
-            };
-          }
-        });
-
-        const results = await Promise.all(fetchPromises);
-        
-        // Process results with data cleaning like valuation hook
-        const newData = {};
-        const newMetadata = {};
-        let hasErrors = false;
-
-        results.forEach(result => {
-          // Process the data like valuation hook does
-          if (result.data && Array.isArray(result.data)) {
-            const cleaned = result.data
-              .map(item => {
-                const time = Number(item.time);
-                const value = Number(item.rate || item.value);
-                
-                // More robust validation
-                if (isNaN(time) || isNaN(value) || !item.date) {
-                  console.warn(`Invalid data point in ${result.key}:`, item);
-                  return null;
-                }
-                
-                return {
-                  time,
-                  date: item.date,
-                  value,
-                  rate: value,
-                };
-              })
-              .filter(Boolean)
-              .sort((a, b) => a.time - b.time)
-              // Remove duplicates by keeping only the first occurrence of each timestamp
-              .reduce((acc, current) => {
-                const existingIndex = acc.findIndex(item => item.time === current.time);
-                if (existingIndex === -1) {
-                  acc.push(current);
-                } else {
-                  // If duplicate timestamp, keep the first one
-                  console.warn(`Duplicate timestamp ${current.time} in ${result.key}, keeping first occurrence`);
-                }
-                return acc;
-              }, []);
-            
-            console.log(`Processed ${result.key}: ${result.data.length} -> ${cleaned.length} records`);
-            newData[result.key] = cleaned;
-          } else {
-            console.warn(`No valid data for ${result.key}:`, result.data);
-            newData[result.key] = [];
-          }
-          
-          newMetadata[result.key] = result.metadata;
-          if (result.error) {
-            hasErrors = true;
-          }
-        });
-
-        console.log('Final corporate earnings data:', newData);
-        console.log('Final corporate earnings metadata:', newMetadata);
-
-        setData(newData);
-        setMetadata(newMetadata);
-        
-        // Only set error if all endpoints failed
-        const allEndpointsFailed = results.every(result => result.error);
-        if (allEndpointsFailed) {
-          setError('Failed to fetch corporate earnings data from all sources');
-        } else if (hasErrors) {
-          console.warn('Some corporate earnings endpoints failed, but continuing with available data');
-        }
-        
-      } catch (err) {
-        console.error('Error fetching corporate earnings data:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
+        const response = await fetch(url, { signal: controller.signal })
+        const payload = await response.json()
+        if (!response.ok) throw new Error(payload?.detail || `HTTP ${response.status}`)
+        return { key, data: normalize(payload), metadata: payload?.metadata || null, error: null }
+      } catch (error) {
+        if (error.name === "AbortError") throw error
+        return { key, data: [], metadata: null, error: error.message }
       }
-    };
+    }
 
-    fetchCorporateData();
-  }, []);
+    async function load() {
+      setLoading(true)
+      try {
+        const results = await Promise.all(Object.entries(SOURCES).map(loadOne))
+        if (controller.signal.aborted) return
+        setData(Object.fromEntries(results.map((result) => [result.key, result.data])))
+        setMetadata(Object.fromEntries(results.map((result) => [result.key, result.metadata])))
+        setErrors(Object.fromEntries(results.filter((result) => result.error).map((result) => [result.key, result.error])))
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
+    }
 
-  return { data, loading, error, metadata };
-};
+    load().catch((error) => {
+      if (!controller.signal.aborted) {
+        setErrors(Object.fromEntries(Object.keys(SOURCES).map((key) => [key, error.message || "Unable to load data."])))
+      }
+    })
+    return () => controller.abort()
+  }, [])
 
-export default useCorporateEarningsData;
+  const error = Object.keys(errors).length === Object.keys(SOURCES).length
+    ? "Corporate-fundamentals data service is unavailable."
+    : null
+  return { data, metadata, errors, loading, error }
+}
