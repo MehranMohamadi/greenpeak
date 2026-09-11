@@ -86,8 +86,7 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
       />
 
       <Card dir="rtl">
-        <CardHeader><CardTitle className="text-lg">تحلیل گروه</CardTitle></CardHeader>
-        <CardContent><DomainUnderstandingPanel domainId="monetary_liquidity" simple onUpdated={() => setAnalysisRevision((value) => value + 1)} /></CardContent>
+        <CardContent className="p-6"><DomainUnderstandingPanel domainId="monetary_liquidity" simple onUpdated={() => setAnalysisRevision((value) => value + 1)} /></CardContent>
       </Card>
 
       <div dir="ltr" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">

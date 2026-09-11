@@ -1,11 +1,13 @@
 """Offline contract and endpoint tests for MT5 snapshots."""
 
 from copy import deepcopy
+from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 
 from src.api.v1.endpoints.mt5 import snapshot_service
 from src.main import app
+from src.services.mt5_snapshot_service import MT5SnapshotService
 
 
 SNAPSHOT = {
@@ -105,3 +107,21 @@ def test_non_utc_timestamp_is_rejected(monkeypatch):
         "/api/v1/mt5/snapshots", json=payload, headers={"Authorization": "Bearer secret"}
     )
     assert response.status_code == 422
+
+
+def test_latest_snapshot_restores_mongodb_utc_timezone():
+    document = deepcopy(SNAPSHOT)
+    document["timestamp_utc"] = datetime(2026, 8, 27, 10, 0)
+
+    class Collection:
+        def find_one(self, query, sort):
+            return document
+
+    class MongoDB:
+        def get_collection(self, name):
+            return Collection()
+
+    result = MT5SnapshotService(MongoDB()).latest("123456")
+
+    assert result is not None
+    assert result["timestamp_utc"].tzinfo is timezone.utc

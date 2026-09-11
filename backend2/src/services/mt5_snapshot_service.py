@@ -37,4 +37,10 @@ class MT5SnapshotService:
         )
         if document:
             document.pop("_id", None)
+            # PyMongo returns BSON UTC datetimes without tzinfo unless the client is
+            # configured as tz-aware. Restore the UTC marker before response-model
+            # validation; ingestion still requires an explicitly UTC timestamp.
+            timestamp = document.get("timestamp_utc")
+            if isinstance(timestamp, datetime) and timestamp.tzinfo is None:
+                document["timestamp_utc"] = timestamp.replace(tzinfo=timezone.utc)
         return document

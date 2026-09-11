@@ -19,7 +19,7 @@ export default function MarketInternals() {
   const relative = selectedKey ? data.relative_performance?.[selectedKey] : null
   return <AnalysisPageShell>
     <AnalysisPageHeader page="market-internals" title="Market Structure, Sectors & Concentration" showDescription={false} />
-    <Card dir="rtl"><CardHeader><CardTitle className="text-lg">تحلیل گروه</CardTitle></CardHeader><CardContent><DomainUnderstandingPanel domainId="market_internals_sectors" simple /></CardContent></Card>
+    <Card dir="rtl"><CardContent className="p-6"><DomainUnderstandingPanel domainId="market_internals_sectors" simple /></CardContent></Card>
     {loading && <AnalysisState tone="neutral" title="Loading sector observations" />}
     {!loading && error && <AnalysisState tone="neutral" title="Sector data unavailable" description={error} />}
     {!loading && !error && !keys.length && <AnalysisState tone="neutral" title="No verified sector observations" description="No sector values were returned." />}

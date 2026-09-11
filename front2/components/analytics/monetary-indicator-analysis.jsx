@@ -33,21 +33,19 @@ export function IndicatorNarrativeAnalysis({ indicatorId, revision = 0, note }) 
   const current = result?.indicatorId === indicatorId ? result : null
   const analysis = current?.analysis
   const analysisDate = analysis?.analysis_generated_at?.slice(0, 10)
-  return <Card dir="rtl" className="flex min-h-0 flex-col lg:absolute lg:inset-0">
+  return <Card dir="rtl" className="flex min-h-0 flex-col">
     <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0 shrink-0"><CardTitle className="text-base">تحلیل شاخص</CardTitle>{analysisDate && <time dateTime={analysisDate} dir="ltr" className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">{analysisDate}</time>}</CardHeader>
-    <CardContent className="min-h-0 space-y-4 text-right lg:flex-1 lg:overflow-y-auto">
+    <CardContent className="max-h-[17.5rem] space-y-4 overflow-y-auto text-right">
       {note && <p className="text-xs leading-6 text-muted-foreground">{note}</p>}
       {!current && <p role="status" className="text-sm">در حال دریافت تحلیل…</p>}
       {current?.missing && <p className="text-sm">هنوز تحلیلی برای این شاخص ثبت نشده است.</p>}
       {current?.error && <p role="status" className="text-sm">دریافت تحلیل این شاخص ممکن نشد. لطفاً دوباره صفحه را بارگذاری کنید.</p>}
       {analysis && <>
         {[...new Set([analysis.current_state_fa, analysis.what_changed_fa, analysis.interpretation_fa, analysis.narrative_fa].filter(Boolean))].map((text) => <p key={text} className="whitespace-pre-line text-sm leading-7">{text}</p>)}
-        <details className="space-y-3"><summary className="cursor-pointer text-sm font-medium">جزئیات تحلیل</summary>
-          <NarrativeList title="نکات کلیدی" items={analysis.key_facts} />
-          <NarrativeList title="ابهام‌ها" items={analysis.ambiguities_fa} />
-          <NarrativeList title="ریسک‌های تفسیر" items={analysis.risks_to_interpretation_fa} />
-          <NarrativeList title="موارد قابل پیگیری" items={analysis.watch_next_fa} />
-        </details>
+        <NarrativeList title="نکات کلیدی" items={analysis.key_facts} />
+        <NarrativeList title="ابهام‌ها" items={analysis.ambiguities_fa} />
+        <NarrativeList title="ریسک‌های تفسیر" items={analysis.risks_to_interpretation_fa} />
+        <NarrativeList title="موارد قابل پیگیری" items={analysis.watch_next_fa} />
       </>}
     </CardContent>
   </Card>

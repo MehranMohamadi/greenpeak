@@ -68,8 +68,7 @@ export default function Macroeconomic() {
     <AnalysisPageShell>
       <AnalysisPageHeader page="macroeconomic" title="Growth, Inflation & Labor" showDescription={false} />
       <Card dir="rtl">
-        <CardHeader><CardTitle className="text-lg">تحلیل گروه</CardTitle></CardHeader>
-        <CardContent><DomainUnderstandingPanel domainId="growth_inflation_labor" simple onUpdated={() => setRevision((value) => value + 1)} /></CardContent>
+        <CardContent className="p-6"><DomainUnderstandingPanel domainId="growth_inflation_labor" simple onUpdated={() => setRevision((value) => value + 1)} /></CardContent>
       </Card>
       {error && <AnalysisState tone="neutral" title="Macroeconomic service unavailable" description={error} />}
       <div dir="ltr" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">

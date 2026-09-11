@@ -7,7 +7,7 @@ import { endpoints } from "@/api/api"
 import AnalysisListCard from "@/components/analytics/analysis-list-card"
 import { Badge } from "@/components/ui/badge"
 import { PolicyAnalysisSkeleton } from "@/components/analytics/monetary-policy-loading"
-import { NarrativeDates, NarrativeList } from "./narrative-text"
+import { NarrativeList } from "./narrative-text"
 
 const wait = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 const outlookToneClasses = {
@@ -112,23 +112,29 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
   }
 
   if (simple) {
-    return <div dir="rtl" className="space-y-4 text-right">
-      {loading ? <p role="status" className="text-sm">در حال دریافت تحلیل…</p> : !analysis ? <p className="text-sm">{loadError ? "دریافت تحلیل گروه ممکن نشد." : "هنوز تحلیلی برای این گروه ثبت نشده است."}</p> : <>
-        {analysis.stance_label_fa && <p className="text-sm font-medium">{analysis.stance_label_fa}</p>}
-        {[...new Set([analysis.dominant_story_fa, analysis.narrative_fa].filter(Boolean))].map((text) => <p key={text} className="whitespace-pre-line text-sm leading-7">{text}</p>)}
-        <NarrativeList title="نکات کلیدی" items={analysis.key_insights_fa} />
-        {!!analysis.outlook_items?.length && <div className="space-y-1 text-sm leading-7">{analysis.outlook_items.map((item, index) => <p key={index}><span className="font-medium">{item.label_fa}: </span>{item.value_fa}</p>)}</div>}
-        <details className="space-y-3"><summary className="cursor-pointer text-sm font-medium">جزئیات تحلیل</summary>
+    const analysisDate = analysis?.analysis_generated_at?.slice(0, 10)
+    return <div dir="rtl" className="text-right">
+      <div className="mb-4 flex flex-row flex-wrap items-center justify-between gap-2">
+        <h3 className="text-lg font-semibold">تحلیل گروه</h3>
+        {analysisDate && <time dateTime={analysisDate} dir="ltr" className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">{analysisDate}</time>}
+      </div>
+      <div className="max-h-[17.5rem] space-y-4 overflow-y-auto pe-1">
+        {loading ? <p role="status" className="text-sm">در حال دریافت تحلیل…</p> : !analysis ? <p className="text-sm">{loadError ? "دریافت تحلیل گروه ممکن نشد." : "هنوز تحلیلی برای این گروه ثبت نشده است."}</p> : <>
+          {analysis.stance_label_fa && <p className="text-sm font-medium">{analysis.stance_label_fa}</p>}
+          {[...new Set([analysis.dominant_story_fa, analysis.narrative_fa].filter(Boolean))].map((text) => <p key={text} className="whitespace-pre-line text-sm leading-7">{text}</p>)}
+          <NarrativeList title="نکات کلیدی" items={analysis.key_insights_fa} />
+          {!!analysis.outlook_items?.length && <div className="space-y-1 text-sm leading-7">{analysis.outlook_items.map((item, index) => <p key={index}><span className="font-medium">{item.label_fa}: </span>{item.value_fa}</p>)}</div>}
           <NarrativeList title="عوامل اصلی" items={analysis.top_drivers} />
           <NarrativeList title="شواهد همسو" items={analysis.supporting_evidence} />
           <NarrativeList title="شواهد متعارض" items={analysis.conflicting_evidence} />
           <NarrativeList title="ریسک‌ها" items={analysis.risks_fa} />
           <NarrativeList title="موارد قابل پیگیری" items={analysis.watch_next_fa} />
-        </details>
-        <NarrativeDates analysis={analysis} />
-      </>}
-      <RunButton running={running} onClick={runAnalysis} simple />
-      {runMessage && <p dir="auto" className="text-xs text-muted-foreground" aria-live="polite">{runMessage}</p>}
+        </>}
+      </div>
+      <div className="mt-4 space-y-4">
+        <RunButton running={running} onClick={runAnalysis} simple />
+        {runMessage && <p dir="auto" className="text-xs text-muted-foreground" aria-live="polite">{runMessage}</p>}
+      </div>
     </div>
   }
 
