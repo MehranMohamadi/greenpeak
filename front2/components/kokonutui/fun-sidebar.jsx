@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, Dices, Drama, Flower2, Landmark, Menu, Mic2, X } from "lucide-react";
+import { BookOpen, CandlestickChart, ChevronDown, ChevronLeft, ChevronRight, Dices, Drama, Flower2, Landmark, Menu, Mic2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -24,6 +24,7 @@ const funNavigation = [
 ];
 
 const funHrefs = funNavigation.filter((item) => item.type === "link").map((item) => item.href);
+const rightHrefs = [...funHrefs, "/trading"];
 const makeTrail = (...labels) => [
   { label: "حال خوب", href: "/fun" },
   ...labels.map((label) => ({ label })),
@@ -39,8 +40,8 @@ export default function FunSidebar() {
   const mobileCloseRef = useRef(null);
   const reduceMotion = useReducedMotion();
   const { hoveredItem, setHoveredItem, selectedRightItem, setSelectedRightItem } = useSidebarHover();
-  const activeHref = getActiveNavHref(pathname, funHrefs);
-  const isFunRoute = activeHref !== null;
+  const activeHref = getActiveNavHref(pathname, rightHrefs);
+  const isFunRoute = funHrefs.includes(activeHref);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMashhadOpen, setIsMashhadOpen] = useState(false);
@@ -128,6 +129,13 @@ export default function FunSidebar() {
                 </Link>;
               })}
             </div>
+          </div>
+
+          <div className="shrink-0 border-t border-gray-200 bg-white px-2 py-2 dark:border-[#1F1F23] dark:bg-[#0F0F12]">
+            <Link href="/trading" aria-label="داشبورد معاملات" aria-current={activeHref === "/trading" ? "page" : undefined} title="داشبورد معاملات" onClick={() => { setSelectedRightItem(null); setIsMobileMenuOpen(false); clearPreview(); }} onFocus={() => preview("داشبورد معاملات", [{ label: "داشبورد معاملات", href: "/trading" }], "/trading")} onBlur={clearPreview} className={`relative flex min-h-10 w-full items-center gap-3 rounded-lg p-2 text-sm transition-colors ${itemFocus} ${activeHref === "/trading" ? "bg-green-500/10 font-medium text-green-600 dark:text-green-400" : neutralItem} ${showLabels ? "justify-start" : "justify-center"}`}>
+              <CandlestickChart aria-hidden="true" className="h-5 w-5 shrink-0" />
+              {showLabels && <span className="flex-1 text-right">داشبورد معاملات</span>}
+            </Link>
           </div>
         </div>
       </nav>

@@ -29,6 +29,7 @@ import { AnalysisFactorCard, AnalysisPageHeader, AnalysisPageShell, AnalysisStat
 
 const MultiLineChart = dynamic(() => import("../charts/multi-line-chart"), { ssr: false })
 const MiniChart = dynamic(() => import("./mini-chart"), { ssr: false })
+const INLINE_CHART_HEIGHT = 280
 const PERIODS = ["1M", "6M", "1Y", "5Y", "10Y", "25Y", "MAX"]
 
 function changeFor(data, changeUnit) {
@@ -95,7 +96,7 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
           <CardContent>
             {selected.loading && <AnalysisState tone="neutral" title="Loading observations" />}
             {!selected.loading && selectedData.length === 0 && <AnalysisState tone="neutral" title="Chart data unavailable" description={selected.error === "Failed to fetch" ? "Unable to reach the data API. Check that the local backend is running on port 8000, then reload this page." : selected.error?.message || selected.error || "No observations were returned for this indicator."} />}
-            {!selected.loading && selectedData.length > 0 && <div className="h-[360px] w-full overflow-hidden"><MultiLineChart textColor={chartTextColor} dataSets={[selectedData]} height={360} /></div>}
+            {!selected.loading && selectedData.length > 0 && <div className="h-[280px] w-full overflow-hidden"><MultiLineChart textColor={chartTextColor} dataSets={[selectedData]} height={INLINE_CHART_HEIGHT} /></div>}
           </CardContent>
         </Card>
         <div className="min-w-0 [overflow-wrap:anywhere] relative min-h-0 lg:col-start-2 lg:row-start-1">

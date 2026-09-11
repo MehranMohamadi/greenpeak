@@ -1,95 +1,98 @@
 import { Badge } from "@/components/ui/badge"
 
-export const tradingCardClass = "border-gray-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]"
+export const tradingCardClass = "flex h-[22rem] flex-col overflow-hidden border-gray-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]"
+export const tradingCardHeaderClass = "shrink-0 p-4 pb-2"
+export const tradingCardContentClass = "min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-0"
 
 const labels = {
-  account_identifier: "Account",
-  account_current_drawdown_pct: "Current drawdown",
-  accrued_swap: "Accrued swap",
-  annualized_long_swap_rate_pct: "Annualized long swap rate",
-  annualized_short_swap_rate_pct: "Annualized short swap rate",
+  account_identifier: "شماره حساب",
+  account_current_drawdown_pct: "Drawdown فعلی",
+  accrued_swap: "Swap تجمیعی",
+  annualized_long_swap_rate_pct: "نرخ سالانه Swap خرید",
+  annualized_short_swap_rate_pct: "نرخ سالانه Swap فروش",
   ask: "Ask",
-  balance: "Balance",
+  balance: "Balance حساب",
   bid: "Bid",
-  break_even_price: "Break-even price",
-  break_even_status: "Break-even status",
+  break_even_price: "قیمت سربه‌سر",
+  break_even_status: "وضعیت سربه‌سر",
   broker_company: "Broker",
-  broker_symbol_data: "Broker symbol data",
-  calculation_status: "Calculation status",
-  commission_convention: "Commission convention",
-  contract_size: "Contract size",
-  current_ask: "Current ask",
-  current_bid: "Current bid",
-  current_profit_loss: "Current P/L",
-  current_symbol_annualized_swap_cost_usd: "Active-symbol annual swap cost",
-  current_valuation_price: "Valuation price",
+  broker_symbol_data: "اطلاعات نماد Broker",
+  calculation_status: "وضعیت محاسبات",
+  commission_convention: "روش محاسبه Commission",
+  contract_size: "اندازه Contract",
+  current_ask: "Ask فعلی",
+  current_bid: "Bid فعلی",
+  current_profit_loss: "P/L فعلی",
+  current_symbol_annualized_swap_cost_usd: "هزینه سالانه Swap نماد",
+  current_valuation_price: "قیمت ارزش‌گذاری",
+  currency: "ارز حساب",
   deal_identifier: "Deal ID",
-  direction: "Side",
+  direction: "جهت",
   ea_name: "EA",
-  ea_version: "EA version",
-  entry_type: "Entry type",
+  ea_version: "نسخه EA",
+  entry_type: "نوع ورود",
   equity: "Equity",
-  executed_price: "Executed price",
-  execution_mode: "Execution mode",
-  expiration_utc: "Expiration",
-  final_leverage_price: "Final leverage price",
-  final_leverage_status: "Final leverage status",
+  executed_price: "قیمت اجرا",
+  execution_mode: "روش اجرا",
+  expiration_utc: "انقضا",
+  final_leverage_price: "قیمت Leverage نهایی",
+  final_leverage_status: "وضعیت Leverage نهایی",
   floating_profit_loss: "Floating P/L",
-  free_margin: "Free margin",
-  gross_portfolio_exposure_usd: "Gross exposure",
-  gross_portfolio_leverage: "Gross leverage",
-  initial_volume_lots: "Initial volume",
-  last_update_time_utc: "Last update",
-  long_symbol_notional_usd: "Long notional",
-  magic_number: "Magic number",
-  margin_level_pct: "Margin level",
-  minimum_volume: "Minimum volume",
-  net_portfolio_exposure_usd: "Net exposure",
-  net_portfolio_leverage: "Net leverage",
-  net_symbol_exposure_usd: "Net symbol exposure",
-  net_symbol_leverage: "Net symbol leverage",
-  next_buy_net_symbol_leverage: "Leverage after next buy",
-  next_sell_net_symbol_leverage: "Leverage after next sell",
-  open_price: "Open price",
-  open_time_utc: "Opened",
+  free_margin: "Margin آزاد",
+  gross_portfolio_exposure_usd: "Exposure ناخالص",
+  gross_portfolio_leverage: "Leverage ناخالص",
+  initial_volume_lots: "حجم اولیه",
+  last_update_time_utc: "آخرین به‌روزرسانی",
+  long_symbol_notional_usd: "ارزش Long",
+  magic_number: "Magic Number",
+  margin_level_pct: "سطح Margin",
+  minimum_volume: "حداقل حجم",
+  net_portfolio_exposure_usd: "Exposure خالص",
+  net_portfolio_leverage: "Leverage خالص",
+  net_symbol_exposure_usd: "Exposure خالص نماد",
+  net_symbol_leverage: "Leverage خالص نماد",
+  next_buy_net_symbol_leverage: "Leverage پس از خرید بعدی",
+  next_sell_net_symbol_leverage: "Leverage پس از فروش بعدی",
+  open_price: "قیمت بازشدن",
+  open_time_utc: "زمان بازشدن",
   order_identifier: "Order ID",
-  order_price: "Order price",
-  order_type: "Order type",
+  order_price: "قیمت Order",
+  order_type: "نوع Order",
   point: "Point",
-  portfolio_annual_swap_burden_pct_equity: "Annual swap burden / equity",
-  portfolio_annualized_swap_cost_usd: "Annualized swap run-rate",
+  portfolio_annual_swap_burden_pct_equity: "هزینه سالانه Swap / Equity",
+  portfolio_annualized_swap_cost_usd: "هزینه سالانه Swap",
   position_identifier: "Position ID",
-  profit: "Profit",
-  quote_timestamp_utc: "Quote time",
-  received_at_utc: "Received",
-  requested_price: "Requested price",
-  required_deposit_for_active_symbol_usd: "Required deposit for symbol",
-  required_deposit_for_gross_portfolio_usd: "Required deposit for portfolio",
-  schema_version: "Schema version",
-  send_mode: "Send mode",
-  setup_time_utc: "Created",
-  short_symbol_notional_usd: "Short notional",
+  profit: "سود",
+  quote_timestamp_utc: "زمان Quote",
+  received_at_utc: "زمان دریافت",
+  requested_price: "قیمت درخواستی",
+  required_deposit_for_active_symbol_usd: "سرمایه لازم نماد",
+  required_deposit_for_gross_portfolio_usd: "سرمایه لازم Portfolio",
+  schema_version: "نسخه Schema",
+  send_mode: "روش ارسال",
+  setup_time_utc: "زمان ایجاد",
+  short_symbol_notional_usd: "ارزش Short",
   snapshot_id: "Snapshot ID",
   spread_points: "Spread",
-  stop_loss: "Stop loss",
+  stop_loss: "Stop Loss",
   swap: "Swap",
-  swap_long_raw: "Raw long swap",
-  swap_mode: "Swap mode",
-  swap_short_raw: "Raw short swap",
+  swap_long_raw: "Swap خام خرید",
+  swap_mode: "روش Swap",
+  swap_short_raw: "Swap خام فروش",
   symbol: "Symbol",
-  take_profit: "Take profit",
-  terminal_build: "Terminal build",
-  tick_size: "Tick size",
-  tick_value: "Tick value",
-  timestamp_utc: "Snapshot time",
-  trade_calculation_mode: "Trade calculation mode",
-  trade_history_window_days: "Trade-history window",
-  trade_server: "Trade server",
-  trading_status: "Trading status",
-  used_margin: "Used margin",
+  take_profit: "Take Profit",
+  terminal_build: "Build ترمینال",
+  tick_size: "اندازه Tick",
+  tick_value: "ارزش Tick",
+  timestamp_utc: "زمان Snapshot",
+  trade_calculation_mode: "روش محاسبه معامله",
+  trade_history_window_days: "بازه تاریخچه معاملات",
+  trade_server: "سرور معامله",
+  trading_status: "وضعیت معامله",
+  used_margin: "Margin مصرف‌شده",
   volume: "Volume",
-  volume_lots: "Volume",
-  volume_step: "Volume step",
+  volume_lots: "حجم Lot",
+  volume_step: "گام حجم",
 }
 
 const accountMoneyFields = new Set([
@@ -104,12 +107,12 @@ export function fieldLabel(key) {
 
 export function formatField(value, key, currency = "USD") {
   if (value == null || value === "") return "—"
-  if (typeof value === "boolean") return value ? "Yes" : "No"
+  if (typeof value === "boolean") return value ? "بله" : "خیر"
   if (typeof value === "object") return JSON.stringify(value)
   if (typeof value === "string") {
     if (key.includes("time") || key.endsWith("_at") || key.endsWith("_utc")) {
       const date = new Date(value)
-      if (!Number.isNaN(date.getTime())) return date.toLocaleString("en-GB", { hour12: false })
+      if (!Number.isNaN(date.getTime())) return date.toLocaleString("fa-IR", { hour12: false })
     }
     return value
   }
@@ -142,14 +145,14 @@ export function accountKey(snapshot) {
 
 export function accountLabel(snapshot) {
   const source = snapshot?.source || {}
-  return [source.broker_company, source.trade_server].filter(Boolean).join(" · ") || "Trading account"
+  return [source.broker_company, source.trade_server].filter(Boolean).join(" · ") || "حساب معاملاتی"
 }
 
 export function AccountHeading({ snapshot, children }) {
-  return <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 pb-2 dark:border-[#2B2B30]">
+  return <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 pb-1.5 dark:border-[#2B2B30]">
     <div>
-      <p className="font-medium text-gray-900 dark:text-white">{accountLabel(snapshot)}</p>
-      <p className="mt-1 text-xs text-muted-foreground">Account {snapshot.source?.account_identifier || "—"}</p>
+      <p className="text-sm font-medium text-gray-900 dark:text-white">{accountLabel(snapshot)}</p>
+      <p className="mt-0.5 text-[11px] text-muted-foreground">حساب {snapshot.source?.account_identifier || "—"}</p>
     </div>
     {children}
   </div>
@@ -157,11 +160,11 @@ export function AccountHeading({ snapshot, children }) {
 
 export function FieldGrid({ data, currency = "USD", className = "" }) {
   const entries = Object.entries(data || {})
-  if (!entries.length) return <p className="text-sm text-muted-foreground">No data reported.</p>
-  return <dl className={`grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3 ${className}`}>
+  if (!entries.length) return <p className="text-xs text-muted-foreground">داده‌ای ارسال نشده است.</p>
+  return <dl className={`grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 ${className}`}>
     {entries.map(([key, value]) => <div key={key} className="min-w-0">
-      <dt className="text-xs text-muted-foreground">{fieldLabel(key)}</dt>
-      <dd className="mt-1 break-words font-medium tabular-nums text-gray-900 dark:text-white" title={typeof value === "object" ? JSON.stringify(value) : undefined}>{formatField(value, key, currency)}</dd>
+      <dt className="text-[11px] leading-4 text-muted-foreground">{fieldLabel(key)}</dt>
+      <dd className="mt-0.5 break-words font-medium leading-4 tabular-nums text-gray-900 dark:text-white" title={typeof value === "object" ? JSON.stringify(value) : undefined}>{formatField(value, key, currency)}</dd>
     </div>)}
   </dl>
 }
@@ -171,5 +174,5 @@ export function AccountBadge({ snapshot }) {
 }
 
 export function EmptyCollection({ children }) {
-  return <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">{children}</p>
+  return <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">{children}</p>
 }

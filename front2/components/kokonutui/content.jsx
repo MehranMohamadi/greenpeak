@@ -71,14 +71,6 @@ export default function Content() {
                 className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0 live-indicator"
               />
             </motion.h1>
-            <motion.p
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.4, duration: 0.6 }}
-              className="text-sm md:text-base text-gray-600 dark:text-gray-400 truncate"
-            >
-              Live market monitoring and portfolio management
-            </motion.p>
           </div>
           <motion.div
             initial={{ x: 50, opacity: 0 }}
