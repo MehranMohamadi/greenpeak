@@ -33,7 +33,7 @@ export function IndicatorNarrativeAnalysis({ indicatorId, revision = 0, note }) 
   const current = result?.indicatorId === indicatorId ? result : null
   const analysis = current?.analysis
   const analysisDate = analysis?.analysis_generated_at?.slice(0, 10)
-  return <Card dir="rtl" className="flex min-h-0 flex-col">
+  return <Card dir="rtl" className="flex min-h-0 flex-col lg:absolute lg:inset-0">
     <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0 shrink-0"><CardTitle className="text-base">تحلیل شاخص</CardTitle>{analysisDate && <time dateTime={analysisDate} dir="ltr" className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">{analysisDate}</time>}</CardHeader>
     <CardContent className="max-h-[17.5rem] space-y-4 overflow-y-auto text-right">
       {note && <p className="text-xs leading-6 text-muted-foreground">{note}</p>}

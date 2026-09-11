@@ -114,9 +114,12 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
   if (simple) {
     const analysisDate = analysis?.analysis_generated_at?.slice(0, 10)
     return <div dir="rtl" className="text-right">
-      <div className="mb-4 flex flex-row flex-wrap items-center justify-between gap-2">
-        <h3 className="text-lg font-semibold">تحلیل گروه</h3>
+      <div className="mb-4 flex flex-row flex-wrap items-center gap-3">
+        <h3 className="me-auto text-lg font-semibold">تحلیل گروه</h3>
         {analysisDate && <time dateTime={analysisDate} dir="ltr" className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">{analysisDate}</time>}
+        <div className="w-full sm:w-1/5 sm:min-w-[10rem]">
+          <RunButton running={running} onClick={runAnalysis} simple />
+        </div>
       </div>
       <div className="max-h-[17.5rem] space-y-4 overflow-y-auto pe-1">
         {loading ? <p role="status" className="text-sm">در حال دریافت تحلیل…</p> : !analysis ? <p className="text-sm">{loadError ? "دریافت تحلیل گروه ممکن نشد." : "هنوز تحلیلی برای این گروه ثبت نشده است."}</p> : <>
@@ -131,10 +134,7 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
           <NarrativeList title="موارد قابل پیگیری" items={analysis.watch_next_fa} />
         </>}
       </div>
-      <div className="mt-4 space-y-4">
-        <RunButton running={running} onClick={runAnalysis} simple />
-        {runMessage && <p dir="auto" className="text-xs text-muted-foreground" aria-live="polite">{runMessage}</p>}
-      </div>
+      {runMessage && <p dir="auto" className="mt-4 text-xs text-muted-foreground" aria-live="polite">{runMessage}</p>}
     </div>
   }
 
