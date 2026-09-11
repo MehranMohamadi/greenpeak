@@ -1,36 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import BrokerAccounts from "./broker-accounts"
-import LastTrades from "./last-trades"
-import Portfolio from "./portfolio"
 import MarketWatch from "../dashboard/market-watch"
 import MarketHours from "../dashboard/market-hours"
 import NewsTicker from "../dashboard/news-ticker"
-import TradingPositions from "./trading-positions"
 import MT5AccountSnapshot from "../dashboard/mt5-account-snapshot"
-import DashboardLoadingSkeleton from "./dashboard-loading"
 // import NotificationSystem from "../ui/notification-system" // Hidden but keeping animations
 
 export default function Content() {
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    // Simulate loading time
-    const loadingTimer = setTimeout(() => {
-      setIsLoading(false)
-      // Dispatch event when content is fully loaded
-      window.dispatchEvent(new CustomEvent('contentLoaded'))
-    }, 1500)
-
-    return () => clearTimeout(loadingTimer)
-  }, [])
-
-  if (isLoading) {
-    return <DashboardLoadingSkeleton />
-  }
-
   // Animation variants for staggered entrance
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -131,50 +108,6 @@ export default function Content() {
 
         <motion.div variants={itemVariants} className="w-full">
           <MT5AccountSnapshot />
-        </motion.div>
-
-        {/* Main Trading Grid - Responsive Grid */}
-        <motion.div
-          variants={containerVariants}
-          className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6 w-full"
-        >
-          {/* Left Column - Portfolio & Broker Accounts Combined */}
-          <motion.div
-            variants={itemVariants}
-            className="space-y-4 md:space-y-6 min-w-0"
-          >
-            <motion.div
-              whileHover={{ y: -2 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Portfolio />
-            </motion.div>
-            <motion.div
-              whileHover={{ y: -2 }}
-              transition={{ duration: 0.2 }}
-            >
-              <BrokerAccounts />
-            </motion.div>
-          </motion.div>
-
-          {/* Right Column - Last Trades & Open Positions Combined */}
-          <motion.div
-            variants={itemVariants}
-            className="space-y-4 md:space-y-6 min-w-0"
-          >
-            <motion.div
-              whileHover={{ y: -2 }}
-              transition={{ duration: 0.2 }}
-            >
-              <LastTrades />
-            </motion.div>
-            <motion.div
-              whileHover={{ y: -2 }}
-              transition={{ duration: 0.2 }}
-            >
-              <TradingPositions />
-            </motion.div>
-          </motion.div>
         </motion.div>
       </motion.div>
 

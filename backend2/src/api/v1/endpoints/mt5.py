@@ -67,3 +67,18 @@ def latest_snapshot(
     if snapshot is None:
         raise HTTPException(status_code=404, detail="No MT5 snapshot found")
     return MT5Snapshot.model_validate(snapshot)
+
+
+@router.get(
+    "/snapshots/latest-by-account",
+    response_model=list[MT5Snapshot],
+    dependencies=[Depends(require_mt5_token)],
+)
+def latest_snapshots_by_account(
+    service: MT5SnapshotService = Depends(snapshot_service),
+) -> list[MT5Snapshot]:
+    try:
+        snapshots = service.latest_by_account()
+    except PyMongoError as exc:
+        raise HTTPException(status_code=503, detail="Snapshot storage unavailable") from exc
+    return [MT5Snapshot.model_validate(snapshot) for snapshot in snapshots]
