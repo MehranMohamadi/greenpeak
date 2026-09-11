@@ -28,6 +28,13 @@ readonly releases_root="/root/greenpeak-releases"
 readonly current_link="/root/greenpeak-current"
 readonly release_root="${releases_root}/${release_id}"
 
+previous_target=""
+if [[ -L "$current_link" ]]; then
+  previous_target="$(readlink -f "$current_link")"
+elif [[ -d "$legacy_root" ]]; then
+  previous_target="$legacy_root"
+fi
+
 if [[ -e "$release_root" ]]; then
   echo "Release already exists: $release_root" >&2
   exit 73
@@ -65,18 +72,21 @@ if [[ -f "$legacy_root/front2/.env" ]]; then
   ln -s "$legacy_root/front2/.env" "$release_root/front2/.env.production.local"
 fi
 
-echo "Creating isolated backend environment"
-python3 -m venv "$release_root/backend2/.venv"
-"$release_root/backend2/.venv/bin/python" -m pip install --upgrade pip
-"$release_root/backend2/.venv/bin/python" -m pip install -r "$release_root/backend2/requirements.txt"
-"$release_root/backend2/.venv/bin/python" -m compileall -q "$release_root/backend2/src"
-
-previous_target=""
-if [[ -L "$current_link" ]]; then
-  previous_target="$(readlink -f "$current_link")"
-elif [[ -d "$legacy_root" ]]; then
-  previous_target="$legacy_root"
+if [[ -n "$previous_target" \
+  && -x "$previous_target/backend2/.venv/bin/python" \
+  && -f "$previous_target/backend2/requirements.txt" ]] \
+  && cmp -s \
+    "$previous_target/backend2/requirements.txt" \
+    "$release_root/backend2/requirements.txt"; then
+  echo "Reusing the active release backend environment"
+  ln -s "$previous_target/backend2/.venv" "$release_root/backend2/.venv"
+else
+  echo "Creating isolated backend environment"
+  python3 -m venv "$release_root/backend2/.venv"
+  "$release_root/backend2/.venv/bin/python" -m pip install --upgrade pip
+  "$release_root/backend2/.venv/bin/python" -m pip install -r "$release_root/backend2/requirements.txt"
 fi
+"$release_root/backend2/.venv/bin/python" -m compileall -q "$release_root/backend2/src"
 
 switched=0
 
