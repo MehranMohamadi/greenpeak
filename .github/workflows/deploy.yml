@@ -135,6 +135,8 @@ jobs:
             -o BatchMode=yes
             -o IdentitiesOnly=yes
             -o StrictHostKeyChecking=yes
+            -o ServerAliveInterval=15
+            -o ServerAliveCountMax=20
             -p "$DEPLOY_PORT"
           )
           scp_options=(
@@ -142,6 +144,8 @@ jobs:
             -o BatchMode=yes
             -o IdentitiesOnly=yes
             -o StrictHostKeyChecking=yes
+            -o ServerAliveInterval=15
+            -o ServerAliveCountMax=20
             -P "$DEPLOY_PORT"
           )
           ssh "${ssh_options[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
@@ -167,6 +171,8 @@ jobs:
             -o BatchMode=yes
             -o IdentitiesOnly=yes
             -o StrictHostKeyChecking=yes
+            -o ServerAliveInterval=15
+            -o ServerAliveCountMax=20
             -p "$DEPLOY_PORT"
           )
           ssh "${ssh_options[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
@@ -190,6 +196,8 @@ jobs:
             -o BatchMode=yes \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=20 \
             -p "$DEPLOY_PORT" \
             "$DEPLOY_USER@$DEPLOY_HOST" \
             "rm -rf '/tmp/greenpeak-deploy-${RELEASE_RUN}'" || true
