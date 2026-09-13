@@ -1,7 +1,7 @@
 """Data models and schemas."""
 
 from datetime import datetime, date
-from typing import Optional, List, Dict, Union, Any
+from typing import Optional, List, Dict, Union, Any, Literal
 from pydantic import BaseModel, Field
 from enum import Enum
 
@@ -268,6 +268,71 @@ class DataResponse(BaseModel):
     metadata: Union[IndicatorMetadata, DataMetadata] = Field(
         ..., description="Indicator metadata"
     )
+
+
+class MarketStructurePoint(BaseModel):
+    """One validated observation used by Group 6 comparison charts."""
+
+    time: int
+    date: str
+    value: float
+
+
+class MarketStructureHolding(BaseModel):
+    """Current SPY constituent weight from the official holdings file."""
+
+    rank: int
+    symbol: str
+    name: str
+    weight_pct: float
+
+
+class MarketStructureSectorWeight(BaseModel):
+    """Current GICS sector weight reported by State Street."""
+
+    sector: str
+    weight_pct: float
+
+
+class MarketStructureHeatmapRow(BaseModel):
+    """Sector ETF relative total returns across the required horizons."""
+
+    sector_id: str
+    sector: str
+    symbol: str
+    returns: Dict[str, Optional[float]]
+
+
+class MarketStructureSeries(BaseModel):
+    """Named and sourced chart series."""
+
+    label: str
+    symbol: str
+    data: List[MarketStructurePoint]
+
+
+class MarketStructureBlock(BaseModel):
+    """Flexible but validated contract shared by the six Group 6 blocks."""
+
+    status: Literal["available", "partial", "stale", "unavailable"]
+    reason: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    holdings: List[MarketStructureHolding] = Field(default_factory=list)
+    top_10_weight_pct: Optional[float] = None
+    sectors: List[MarketStructureSectorWeight] = Field(default_factory=list)
+    heatmap: List[MarketStructureHeatmapRow] = Field(default_factory=list)
+    sector_series: Dict[str, List[MarketStructurePoint]] = Field(default_factory=dict)
+    series: List[MarketStructureSeries] = Field(default_factory=list)
+    formula: Optional[str] = None
+    basket_composition: Dict[str, List[str]] = Field(default_factory=dict)
+
+
+class MarketStructureResponse(BaseModel):
+    """Complete public contract for the six Group 6 market-structure blocks."""
+
+    selected_period: Literal["1Y", "3Y", "5Y", "10Y", "MAX"]
+    blocks: Dict[str, MarketStructureBlock]
+    metadata: Dict[str, Any]
 
 
 class BulkDataResponse(BaseModel):

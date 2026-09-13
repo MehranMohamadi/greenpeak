@@ -98,6 +98,7 @@ export const endpoints = {
         dividendYield: `${API_BASE}/valuation/dividend-yield`,
     },
     sectors: {
+        marketStructure: `${API_BASE}/sectors/market-structure`,
         pricePerformance: `${API_BASE}/sectors/price-performance`,
         relativePerformance: `${API_BASE}/sectors/relative-performance`,
         latest: `${API_BASE}/sectors/latest`,

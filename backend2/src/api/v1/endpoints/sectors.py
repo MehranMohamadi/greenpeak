@@ -1,12 +1,25 @@
 """Sector Performance endpoints."""
 
-from typing import Optional
+from typing import Literal, Optional
 from fastapi import APIRouter, HTTPException, Query, Path
-from ....models.schemas import DataResponse
+from ....models.schemas import DataResponse, MarketStructureResponse
 from ....services.data_service import DataService
+from ....services.market_structure import market_structure_service
 
 router = APIRouter(prefix="/sectors", tags=["Sector Performance"])
 data_service = DataService()
+
+
+@router.get("/market-structure", response_model=MarketStructureResponse)
+def get_market_structure(
+    period: Literal["1Y", "3Y", "5Y", "10Y", "MAX"] = Query(
+        "5Y",
+        description="Shared comparison period for all rebased Group 6 charts",
+    ),
+):
+    """Return the six verified Group 6 market-structure blocks."""
+
+    return market_structure_service.get(period=period)
 
 
 @router.get("/price-performance", response_model=DataResponse)
