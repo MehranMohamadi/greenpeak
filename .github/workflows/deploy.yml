@@ -153,6 +153,7 @@ jobs:
           scp "${scp_options[@]}" \
             "greenpeak-frontend-${RELEASE_SHA}.tar.gz" \
             "greenpeak-backend-${RELEASE_SHA}.tar.gz" \
+            nginx.conf \
             deploy/deploy-production.sh \
             "$DEPLOY_USER@$DEPLOY_HOST:$remote_dir/"
 
@@ -179,7 +180,8 @@ jobs:
             "bash '$remote_dir/deploy-production.sh' \
               '$release_id' \
               '$remote_dir/greenpeak-frontend-${RELEASE_SHA}.tar.gz' \
-              '$remote_dir/greenpeak-backend-${RELEASE_SHA}.tar.gz'"
+              '$remote_dir/greenpeak-backend-${RELEASE_SHA}.tar.gz' \
+              '$remote_dir/nginx.conf'"
 
       - name: Remove temporary deployment files
         if: always()

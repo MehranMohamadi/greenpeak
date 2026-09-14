@@ -2,14 +2,15 @@
 
 set -Eeuo pipefail
 
-if [[ $# -ne 3 ]]; then
-  echo "Usage: $0 <release-id> <frontend-archive> <backend-archive>" >&2
+if [[ $# -ne 4 ]]; then
+  echo "Usage: $0 <release-id> <frontend-archive> <backend-archive> <nginx-config>" >&2
   exit 64
 fi
 
 release_id="$1"
 frontend_archive="$2"
 backend_archive="$3"
+nginx_config="$4"
 
 if [[ ! "$release_id" =~ ^[a-zA-Z0-9._-]+$ ]]; then
   echo "Invalid release id: $release_id" >&2
@@ -23,10 +24,25 @@ for archive in "$frontend_archive" "$backend_archive"; do
   fi
 done
 
+if [[ ! -f "$nginx_config" ]]; then
+  echo "Missing nginx configuration: $nginx_config" >&2
+  exit 66
+fi
+
+if ! command -v nginx >/dev/null 2>&1; then
+  echo "nginx executable is unavailable" >&2
+  exit 69
+fi
+
+# Reject an invalid proxy configuration before creating or activating a release.
+nginx -t -c "$nginx_config"
+
 readonly legacy_root="/root/sp500-dashboard"
 readonly releases_root="/root/greenpeak-releases"
 readonly current_link="/root/greenpeak-current"
 readonly release_root="${releases_root}/${release_id}"
+readonly nginx_active_config="/etc/nginx/nginx.conf"
+readonly nginx_backup_config="${release_root}/nginx.conf.previous"
 
 previous_target=""
 if [[ -L "$current_link" ]]; then
@@ -89,6 +105,7 @@ fi
 "$release_root/backend2/.venv/bin/python" -m compileall -q "$release_root/backend2/src"
 
 switched=0
+nginx_switched=0
 
 start_apps() {
   local app_root="$1"
@@ -139,6 +156,12 @@ start_apps() {
 rollback() {
   local exit_code=$?
 
+  if [[ $exit_code -ne 0 && $nginx_switched -eq 1 && -f "$nginx_backup_config" ]]; then
+    echo "Deployment failed; restoring the previous nginx configuration" >&2
+    install -m 644 "$nginx_backup_config" "$nginx_active_config"
+    nginx -t && nginx -s reload || true
+  fi
+
   if [[ $exit_code -ne 0 && $switched -eq 1 && -n "$previous_target" ]]; then
     echo "Deployment failed; restoring $previous_target" >&2
     ln -sfn "$previous_target" "${current_link}.rollback"
@@ -180,8 +203,20 @@ if [[ $backend_healthy -ne 1 || $frontend_healthy -ne 1 ]]; then
   exit 1
 fi
 
+if [[ ! -f "$nginx_active_config" ]]; then
+  echo "Active nginx configuration is missing: $nginx_active_config" >&2
+  exit 66
+fi
+
+cp -a "$nginx_active_config" "$nginx_backup_config"
+nginx_switched=1
+install -m 644 "$nginx_config" "$nginx_active_config"
+nginx -t
+nginx -s reload
+
 pm2 save --force
 switched=0
+nginx_switched=0
 trap - EXIT
 
 echo "Release $release_id deployed successfully"
