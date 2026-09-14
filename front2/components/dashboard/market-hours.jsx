@@ -4,6 +4,13 @@ import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { endpoints } from "../../api/api"
 
+const persianSessionNames = {
+  Sydney: "سیدنی",
+  Tokyo: "توکیو",
+  London: "لندن",
+  "New York": "نیویورک",
+}
+
 export default function MarketHours() {
   const [marketData, setMarketData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -56,7 +63,7 @@ export default function MarketHours() {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2" aria-label="نشست‌های بازار">
+    <div dir="rtl" className="flex flex-wrap items-center gap-2" aria-label="نشست‌های بازار">
         {marketData?.sessions?.map((session, index) => (
           <motion.div 
             key={session.name} 
@@ -83,7 +90,7 @@ export default function MarketHours() {
                 transition={{ duration: 1.5, repeat: Infinity }}
               />
               <span className="text-sm text-gray-900 dark:text-white font-medium">
-                {session.name}
+                {persianSessionNames[session.name] || session.name}
               </span>
             </motion.div>
             {index < marketData.sessions.length - 1 && (

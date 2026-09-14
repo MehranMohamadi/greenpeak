@@ -322,6 +322,16 @@ class DataService:
         return filtered[-limit:] if limit else filtered
 
     @staticmethod
+    def _find_time_series_documents(collection, query: dict, limit: Optional[int] = None) -> list:
+        """Read the latest limited records while returning them oldest-to-newest."""
+        cursor = collection.find(query)
+        if limit:
+            documents = list(cursor.sort("date", -1).limit(limit))
+            documents.reverse()
+            return documents
+        return list(cursor.sort("date", 1))
+
+    @staticmethod
     def _scale_economic_response(
         response: DataResponse,
         *,
@@ -583,15 +593,14 @@ class DataService:
                 date_filter["$lte"] = end_date
             query_filter["date"] = date_filter
         
-        # Get data from MongoDB
-        cursor = collection.find(query_filter).sort("date", 1)
-        if limit:
-            cursor = cursor.limit(limit)
+        # A limited dashboard request needs the newest records, but the public
+        # response remains chronological for charts.
+        documents = self._find_time_series_documents(collection, query_filter, limit)
         
         result = []
         values = []
         
-        for doc in cursor:
+        for doc in documents:
             try:
                 # Handle different date formats and edge cases
                 date_str = doc.get("date", "")
@@ -1534,15 +1543,12 @@ class DataService:
                 date_filter["$lte"] = end_date
             query_filter["date"] = date_filter
         
-        # Get data from MongoDB
-        cursor = collection.find(query_filter).sort("date", 1)
-        if limit:
-            cursor = cursor.limit(limit)
+        documents = self._find_time_series_documents(collection, query_filter, limit)
         
         result = []
         values = []
         
-        for doc in cursor:
+        for doc in documents:
             try:
                 date_str = doc.get("date", "")
                 if not date_str:
@@ -1621,7 +1627,6 @@ class DataService:
                 date_filter["$lte"] = end_date
             query_filter["date"] = date_filter
         
-        # Get data from MongoDB
         cursor = collection.find(query_filter).sort("date", 1)
         if limit:
             cursor = cursor.limit(limit)
@@ -1816,15 +1821,12 @@ class DataService:
                 date_filter["$lte"] = end_date
             query_filter["date"] = date_filter
         
-        # Get data from MongoDB
-        cursor = collection.find(query_filter).sort("date", 1)
-        if limit:
-            cursor = cursor.limit(limit)
+        documents = self._find_time_series_documents(collection, query_filter, limit)
         
         result = []
         values = []
         
-        for doc in cursor:
+        for doc in documents:
             try:
                 # Handle different date formats and edge cases
                 date_str = doc.get("date", "")
@@ -1956,7 +1958,6 @@ class DataService:
                 date_filter["$lte"] = end_date
             query_filter["date"] = date_filter
         
-        # Get data from MongoDB
         cursor = collection.find(query_filter).sort("date", 1)
         if limit:
             cursor = cursor.limit(limit)
@@ -2452,12 +2453,9 @@ class DataService:
                     date_filter["$lte"] = end_date
                 query["date"] = date_filter
             
-            # Get data from MongoDB
             cursor = collection.find(query).sort("date", 1)
-            
             if limit:
                 cursor = cursor.limit(limit)
-            
             documents = list(cursor)
             
             if not documents:
@@ -2673,13 +2671,7 @@ class DataService:
                     date_filter["$lte"] = end_date
                 query["date"] = date_filter
             
-            # Get data from MongoDB
-            cursor = collection.find(query).sort("date", 1)
-            
-            if limit:
-                cursor = cursor.limit(limit)
-            
-            documents = list(cursor)
+            documents = self._find_time_series_documents(collection, query, limit)
             
             if not documents:
                 logger.warning(f"No valuation data found for indicator: {indicator_name}")

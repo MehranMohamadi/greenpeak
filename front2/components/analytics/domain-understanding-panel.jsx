@@ -121,7 +121,7 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
           <RunButton running={running} onClick={runAnalysis} simple />
         </div>
       </div>
-      <div className="max-h-[17.5rem] space-y-4 overflow-y-auto pe-1">
+      <div className="max-h-[14rem] space-y-4 overflow-y-auto pe-1">
         {loading ? <p role="status" className="text-sm">در حال دریافت تحلیل…</p> : !analysis ? <p className="text-sm">{loadError ? "دریافت تحلیل گروه ممکن نشد." : "هنوز تحلیلی برای این گروه ثبت نشده است."}</p> : <>
           {analysis.stance_label_fa && <p className="text-sm font-medium">{analysis.stance_label_fa}</p>}
           {[...new Set([analysis.dominant_story_fa, analysis.narrative_fa].filter(Boolean))].map((text) => <p key={text} className="whitespace-pre-line text-sm leading-7">{text}</p>)}

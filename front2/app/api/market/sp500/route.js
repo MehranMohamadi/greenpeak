@@ -3,6 +3,7 @@ const REFRESH_SECONDS = 5 * 60
 const TIMEFRAMES = {
   "1D": { range: "1d", interval: "5m" },
   "5D": { range: "5d", interval: "5m" },
+  "1W": { range: "5d", interval: "1d" },
   "1M": { range: "1mo", interval: "30m" },
   "6M": { range: "6mo", interval: "1d" },
   YTD: { range: "ytd", interval: "1d" },

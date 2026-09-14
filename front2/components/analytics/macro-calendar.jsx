@@ -8,7 +8,7 @@ import EconomicCalendarWidget from "./economic-calendar-widget"
 
 export default function MacroCalendar({ showPageHeader = true }) {
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className={showPageHeader ? "space-y-6 p-4 md:p-6" : "space-y-6"}>
       {showPageHeader && <header className="space-y-2">
         <div className="flex items-center gap-3">
           <span className="rounded-xl border bg-muted/50 p-2"><Calendar className="h-6 w-6" /></span>
@@ -19,23 +19,23 @@ export default function MacroCalendar({ showPageHeader = true }) {
         </div>
       </header>}
 
-      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <Card className="min-w-0 overflow-hidden">
-          <CardHeader>
+          <CardHeader className="p-4 sm:p-5">
             <CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5 text-blue-600" />Economic calendar</CardTitle>
             <CardDescription>Release times, published values, forecasts, and prior observations supplied by Tradays.</CardDescription>
           </CardHeader>
-          <CardContent className="p-0 sm:p-6 sm:pt-0">
+          <CardContent className="p-0 sm:px-3 sm:pb-3">
             <EconomicCalendarWidget />
           </CardContent>
         </Card>
 
         <Card className="min-w-0 overflow-hidden">
-          <CardHeader>
+          <CardHeader className="p-4 sm:p-5">
             <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5 text-emerald-600" />Earnings calendar</CardTitle>
             <CardDescription>Expected company earnings dates, EPS, revenue, forecasts, and release timing supplied by Finlogix.</CardDescription>
           </CardHeader>
-          <CardContent className="p-0 sm:p-6 sm:pt-0">
+          <CardContent className="p-0 sm:px-3 sm:pb-3">
             <EarningsCalendarWidget />
           </CardContent>
         </Card>

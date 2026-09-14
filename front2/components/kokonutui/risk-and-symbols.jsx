@@ -10,7 +10,7 @@ export default function RiskAndSymbols({ snapshots = [] }) {
     <CardHeader className={tradingCardHeaderClass}>
       <CardTitle className="flex items-center gap-2 text-base text-gray-900 dark:text-white">
         <Gauge className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-        ریسک Symbol و اجرای Broker
+        ریسک نماد و اجرای بروکر
       </CardTitle>
     </CardHeader>
     <CardContent className={`${tradingCardContentClass} space-y-3`}>

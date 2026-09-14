@@ -55,16 +55,17 @@ export default function Content() {
         {/* Header with Market Hours - Responsive */}
         <motion.div
           variants={slideInVariants}
-          className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4"
+          dir="rtl"
+          className="flex flex-col gap-4 text-right sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="min-w-0 flex-1">
             <motion.h1
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.3, duration: 0.6 }}
-              className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-1 flex items-center gap-2"
+              className="mb-1 flex items-center justify-start gap-2 text-xl font-bold text-gray-900 dark:text-white md:text-2xl"
             >
-              Trading Dashboard
+              داشبورد معاملاتی
               <motion.div
                 animate={{ scale: [1, 1.2, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}

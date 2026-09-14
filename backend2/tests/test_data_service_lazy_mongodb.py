@@ -8,8 +8,8 @@ from src.models.schemas import DataMetadata, DataResponse, EconomicDataPoint
 
 
 class FakeCursor(list):
-    def sort(self, *args, **kwargs):
-        return self
+    def sort(self, key, direction):
+        return FakeCursor(sorted(self, key=lambda item: item[key], reverse=direction < 0))
 
     def limit(self, count):
         return FakeCursor(self[:count])
@@ -216,6 +216,22 @@ def test_ten_year_data_uses_lazy_monetary_policy_collection():
     assert response.data[0].date == "2026-08-21"
     assert response.data[0].value == 4.26
     assert response.metadata.fred_series == "DGS10"
+
+
+def test_limited_mongodb_series_returns_latest_points_in_chart_order():
+    service = make_service({
+        "monetary_policy": FakeCollection([
+            {"indicator": "ten_year_treasury", "date": "2026-08-20", "value": 4.20},
+            {"indicator": "ten_year_treasury", "date": "2026-08-22", "value": 4.24},
+            {"indicator": "ten_year_treasury", "date": "2026-08-21", "value": 4.22},
+        ])
+    })
+
+    response = service.get_10year_data(limit=2)
+
+    assert [point.date for point in response.data] == ["2026-08-21", "2026-08-22"]
+    assert response.metadata.latest_value == 4.24
+    assert response.metadata.latest_date == "2026-08-22"
 
 
 def test_reverse_repo_keeps_fred_billions_unit_for_mongodb_data():

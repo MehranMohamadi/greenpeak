@@ -64,6 +64,8 @@ export const endpoints = {
     },
     systemicRisk: {
         vix: `${API_BASE}/systemrisk/vix`,
+        dollarIndex: `${API_BASE}/systemrisk/dollar-index`,
+        gold: `${API_BASE}/systemrisk/gold`,
         sentiment: (indicatorId) => `${API_BASE}/systemrisk/sentiment/${indicatorId}`,
         credit: `${API_BASE}/systemrisk/credit`,
         twoyteny: `${API_BASE}/systemrisk/2y10y`,

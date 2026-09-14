@@ -16,7 +16,7 @@ export default function BrokerAccounts({ snapshots = [] }) {
     <CardHeader className={tradingCardHeaderClass}>
       <CardTitle className="flex items-center gap-2 text-base text-gray-900 dark:text-white">
         <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-        حساب‌های Broker
+        حسابهای بروکر
         <Badge variant="secondary">{snapshots.length}</Badge>
       </CardTitle>
     </CardHeader>

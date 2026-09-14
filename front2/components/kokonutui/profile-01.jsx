@@ -28,6 +28,7 @@ export default function ProfileDropdown({
     className,
     triggerClassName,
     showLabel = false,
+    triggerLabel = "Account",
     ...props
 }) {
     const [isOpen, setIsOpen] = React.useState(false);
@@ -83,6 +84,8 @@ export default function ProfileDropdown({
                     <DropdownMenuTrigger asChild>
                         <button
                             type="button"
+                            aria-label={triggerLabel}
+                            title={triggerLabel}
                             className={cn(
                                 "flex items-center focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all duration-200",
                                 showLabel
@@ -103,8 +106,8 @@ export default function ProfileDropdown({
                                 </div>
                             </div>
                             {showLabel && (
-                                <span className="ml-3 text-gray-600 dark:text-gray-300">
-                                    Profile
+                                <span className="ms-3 text-gray-600 dark:text-gray-300">
+                                    {triggerLabel}
                                 </span>
                             )}
                         </button>

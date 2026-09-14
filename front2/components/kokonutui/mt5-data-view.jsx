@@ -161,7 +161,7 @@ export function AccountHeading({ snapshot, children }) {
 export function FieldGrid({ data, currency = "USD", className = "" }) {
   const entries = Object.entries(data || {})
   if (!entries.length) return <p className="text-xs text-muted-foreground">داده‌ای ارسال نشده است.</p>
-  return <dl className={`grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 ${className}`}>
+  return <dl className={`grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:grid-cols-3 lg:grid-cols-5 ${className}`}>
     {entries.map(([key, value]) => <div key={key} className="min-w-0">
       <dt className="text-[11px] leading-4 text-muted-foreground">{fieldLabel(key)}</dt>
       <dd className="mt-0.5 break-words font-medium leading-4 tabular-nums text-gray-900 dark:text-white" title={typeof value === "object" ? JSON.stringify(value) : undefined}>{formatField(value, key, currency)}</dd>

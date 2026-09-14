@@ -7,10 +7,10 @@ export default function MarketWatchLoadingSkeleton() {
   return (
     <Card className="bg-white dark:bg-[#1F1F23] border-gray-200 dark:border-[#2B2B30] shadow-sm w-full">
       <CardHeader className="pb-2">
-        <CardTitle className="text-gray-900 dark:text-white flex items-center gap-2 text-sm md:text-base">
+        <CardTitle dir="rtl" className="flex w-full items-center justify-start gap-2 text-right text-sm text-gray-900 dark:text-white md:text-base">
           <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-          Market Watch
-          <div className="w-2 h-2 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse ml-2 flex-shrink-0"></div>
+          <span>دیده بان بازار</span>
+          <div className="h-2 w-2 flex-shrink-0 animate-pulse rounded-full bg-gray-300 dark:bg-gray-600"></div>
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0 p-3 md:p-6">

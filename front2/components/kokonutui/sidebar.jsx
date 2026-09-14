@@ -1,14 +1,12 @@
 "use client";
 
-import { CalendarDays, HelpCircle, Home, Menu, Pin, PinOff, X } from "lucide-react";
+import { CalendarDays, Home, Menu, Pin, PinOff, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { marketAnalysisCategories } from "@/lib/analytics-registry";
 import { getActiveNavHref, US_MARKET } from "@/lib/navigation-state";
 import { useSidebarHover } from "@/app/context/sidebar-hover-context";
-import ProfileDropdown from "./profile-01";
-import { ThemeToggle } from "../theme-toggle";
 
 const markets = [{ ...US_MARKET, children: marketAnalysisCategories.map((category) => ({ ...category, href: `/analytics/${category.page}` })) }];
 let marketExpansionState = { [US_MARKET.id]: true };
@@ -99,11 +97,6 @@ export default function Sidebar() {
             </div>}
           </section>)}
           <div className="mt-3">{navItem("/analytics/events", "News & Events", CalendarDays)}</div>
-        </div>
-        <div className="shrink-0 border-t border-gray-200 bg-white px-2 py-2 dark:border-[#1F1F23] dark:bg-[#0F0F12]">
-          <ProfileDropdown showLabel={expanded} triggerClassName="h-11 w-full justify-start rounded-lg px-2.5 py-2" />
-          <ThemeToggle showLabel={expanded} className={expanded ? "" : "mx-auto"} />
-          {navItem("/help", "Help", HelpCircle)}
         </div>
       </div>
     </nav>
