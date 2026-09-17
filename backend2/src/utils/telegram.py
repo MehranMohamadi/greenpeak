@@ -90,6 +90,7 @@ def send_telegram_market_report(market_data: dict) -> bool:
     settings = get_settings()
     token = settings.telegram_bot_token
     chat_id = settings.telegram_chat_id
+    message_thread_id = settings.telegram_message_thread_id
     if not token or not chat_id:
         logger.warning("Telegram notification is disabled: credentials are not configured")
         return False
@@ -97,7 +98,15 @@ def send_telegram_market_report(market_data: dict) -> bool:
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     try:
         for message in _message_chunks(_report_sections(market_data)):
-            response = httpx.post(url, data={"chat_id": chat_id, "text": message, "parse_mode": "HTML", "disable_web_page_preview": "true"}, timeout=15)
+            payload = {
+                "chat_id": chat_id,
+                "text": message,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": "true",
+            }
+            if message_thread_id is not None:
+                payload["message_thread_id"] = str(message_thread_id)
+            response = httpx.post(url, data=payload, timeout=15)
             response.raise_for_status()
             if not response.json().get("ok", False):
                 logger.error("Telegram rejected the market report: %s", response.text)

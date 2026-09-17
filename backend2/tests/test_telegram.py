@@ -25,6 +25,7 @@ def test_send_telegram_market_report_formats_market_fields(monkeypatch):
     settings = __import__("src.core.config", fromlist=["get_settings"]).get_settings()
     monkeypatch.setattr(settings, "telegram_bot_token", "test-token")
     monkeypatch.setattr(settings, "telegram_chat_id", "test-chat")
+    monkeypatch.setattr(settings, "telegram_message_thread_id", 42)
     monkeypatch.setattr("src.utils.telegram.httpx.post", fake_post)
 
     assert send_telegram_market_report(
@@ -37,5 +38,6 @@ def test_send_telegram_market_report_formats_market_fields(monkeypatch):
     ) is True
     assert captured["url"] == "https://api.telegram.org/bottest-token/sendMessage"
     assert captured["data"]["parse_mode"] == "HTML"
+    assert captured["data"]["message_thread_id"] == "42"
     assert "&lt;محرمانه&gt;" in captured["data"]["text"]
     assert "رشد: بهبود" in captured["data"]["text"]

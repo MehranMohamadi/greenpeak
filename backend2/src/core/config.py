@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     greenpeak_analysis_admin_token: str = ""
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
+    telegram_message_thread_id: int | None = None
     # Comma-separated dedicated MT5 ingestion tokens. Empty disables ingestion.
     greenpeak_mt5_api_tokens: str = ""
     greenpeak_daily_analysis_enabled: bool = True
