@@ -69,5 +69,5 @@ def create_news_scheduler() -> BackgroundScheduler | None:
     settings = get_settings()
     if not settings.greenpeak_news_enabled: return None
     timezone = ZoneInfo("Asia/Tehran"); scheduler = BackgroundScheduler(timezone=timezone, daemon=True)
-    scheduler.add_job(ingest_news, CronTrigger(minute=5, timezone=timezone), id="greenpeak-news-ingest", replace_existing=True, coalesce=True, max_instances=1)
+    scheduler.add_job(ingest_news, CronTrigger(minute="*/10", timezone=timezone), id="greenpeak-news-ingest", replace_existing=True, coalesce=True, max_instances=1)
     return scheduler

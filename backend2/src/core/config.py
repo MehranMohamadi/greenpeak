@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # Comma-separated dedicated MT5 ingestion tokens. Empty disables ingestion.
     greenpeak_mt5_api_tokens: str = ""
     greenpeak_daily_analysis_enabled: bool = True
-    greenpeak_daily_analysis_hour: int = 4
+    greenpeak_daily_analysis_hour: int = 16
     greenpeak_daily_analysis_minute: int = 0
     greenpeak_daily_analysis_timezone: str = "Asia/Tehran"
     greenpeak_news_enabled: bool = False

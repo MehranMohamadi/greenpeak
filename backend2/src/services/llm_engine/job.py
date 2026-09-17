@@ -13,7 +13,7 @@ from ..rate_features.job import code_version
 from .prompts import load_prompt
 from .schemas import DomainNarrative, IndicatorNarrative, MarketNarrative
 
-ANALYSIS_VERSION = "0.3.0"
+ANALYSIS_VERSION = "0.4.0"
 MODELS = {"indicator": IndicatorNarrative, "domain": DomainNarrative, "market": MarketNarrative}
 
 

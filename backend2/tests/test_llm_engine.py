@@ -7,7 +7,7 @@ from src.services.greenpeak_config import load_registry
 from src.services.llm_engine.job import _analyze, domain_indicator_ids
 from src.services.llm_engine.prompts import load_prompt
 from src.services.llm_engine.provider import decode_json_content
-from src.services.llm_engine.schemas import DomainNarrative
+from src.services.llm_engine.schemas import DomainNarrative, MarketNarrative
 
 
 class FakeProvider:
@@ -74,6 +74,23 @@ def test_domain_contract_and_prompt_include_compact_dashboard_analysis():
     assert "monetary_liquidity" in prompt.content
     assert "outlook_items" in prompt.content
     assert "under 10 Persian words" in prompt.content
+
+
+def test_market_contract_and_prompt_include_structured_dashboard_sections():
+    schema = MarketNarrative.model_json_schema()["properties"]
+    assert {
+        "status_summary",
+        "market_drivers",
+        "market_conflicts",
+        "risk_monitor",
+        "important_changes",
+        "systemic_synthesis_fa",
+        "glance_summary",
+    } <= set(schema)
+    prompt = load_prompt("market")
+    assert prompt.version == "0.3.0+0.4.0"
+    assert "market_drivers" in prompt.content
+    assert "Never create calendar events" in prompt.content
 
 
 def test_only_primary_owner_indicators_are_included_in_domain_analysis_evidence():

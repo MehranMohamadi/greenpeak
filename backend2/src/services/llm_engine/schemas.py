@@ -70,6 +70,67 @@ class DomainNarrative(NarrativeBase):
     watch_next_fa: list[str] = Field(default_factory=list)
 
 
+class MarketImpactItem(StrictModel):
+    metric: str
+    title_fa: str
+    current: str | None = None
+    previous: str | None = None
+    forecast: str | None = None
+    change_fa: str | None = None
+    why_it_matters_fa: str
+    impact: Literal["low", "medium", "high", "unknown"] = "unknown"
+    sentiment: Literal["risk_on", "neutral", "risk_off", "mixed", "unknown"] = "unknown"
+    duration: Literal["short_term", "medium_term", "long_term", "unknown"] = "unknown"
+    reversal_conditions_fa: str
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
+class MarketRiskItem(StrictModel):
+    risk_id: str
+    title_fa: str
+    status: Literal["active", "watch", "inactive", "unknown"] = "unknown"
+    severity: Literal["low", "medium", "high", "unknown"] = "unknown"
+    why_active_fa: str
+    escalation_conditions_fa: str
+    easing_conditions_fa: str
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
+class MarketConflictItem(StrictModel):
+    title_fa: str
+    supportive_signal_fa: str
+    pressuring_signal_fa: str
+    current_balance_fa: str
+    reversal_condition_fa: str
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
+class MarketChangeItem(StrictModel):
+    metric: str
+    label_fa: str
+    previous: str | None = None
+    current: str | None = None
+    change_fa: str
+    market_meaning_fa: str
+    tone: Literal["positive", "negative", "neutral", "mixed"] = "neutral"
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
+class MarketStatusSummary(StrictModel):
+    market_condition: Literal["favorable", "mixed", "challenging", "unknown"] = "unknown"
+    risk_level: Literal["low", "medium", "high", "unknown"] = "unknown"
+    sentiment: Literal["risk_on", "neutral", "risk_off", "mixed", "unknown"] = "unknown"
+    change_intensity: Literal["low", "medium", "high", "unknown"] = "unknown"
+    confidence_level: Literal["low", "medium", "high", "unknown"] = "unknown"
+
+
+class MarketGlanceSummary(StrictModel):
+    supportive_fa: list[str] = Field(default_factory=list)
+    pressuring_fa: list[str] = Field(default_factory=list)
+    uncertainty_fa: list[str] = Field(default_factory=list)
+    regime_shifters_fa: list[str] = Field(default_factory=list)
+
+
 class MarketNarrative(NarrativeBase):
     level: Literal["market"] = "market"
     market_story_fa: str
@@ -79,3 +140,10 @@ class MarketNarrative(NarrativeBase):
     key_risks: list[dict[str, Any] | str] = Field(default_factory=list)
     what_changed_fa: str = ""
     watch_next_fa: list[str] = Field(default_factory=list)
+    status_summary: MarketStatusSummary = Field(default_factory=MarketStatusSummary)
+    market_drivers: list[MarketImpactItem] = Field(default_factory=list)
+    market_conflicts: list[MarketConflictItem] = Field(default_factory=list)
+    risk_monitor: list[MarketRiskItem] = Field(default_factory=list)
+    important_changes: list[MarketChangeItem] = Field(default_factory=list)
+    systemic_synthesis_fa: str = ""
+    glance_summary: MarketGlanceSummary = Field(default_factory=MarketGlanceSummary)

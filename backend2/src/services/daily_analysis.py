@@ -18,6 +18,12 @@ logger = logging.getLogger(__name__)
 RUN_COLLECTION = "gp_scheduled_analysis_runs"
 
 
+def should_schedule_catchup(now: datetime, hour: int, minute: int) -> bool:
+    """Only catch up after today's configured Tehran-local run time has passed."""
+    scheduled_at = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    return now >= scheduled_at
+
+
 def run_daily_analysis() -> None:
     """Generate one shared analysis per configured local calendar day."""
     settings = get_settings()
@@ -103,12 +109,14 @@ def create_daily_analysis_scheduler() -> BackgroundScheduler | None:
         coalesce=True,
         max_instances=1,
     )
-    # Catch up after a server restart if today's cron time was missed. The
-    # database run key makes this a no-op when another worker already ran it.
-    scheduler.add_job(
-        run_daily_analysis,
-        id="greenpeak-daily-analysis-catchup",
-        replace_existing=True,
-        max_instances=1,
-    )
+    # A restart before 16:00 must not generate an early analysis. If the server
+    # comes back after the configured run time, catch up once; the shared Mongo
+    # run key prevents a second generation for the same Tehran calendar day.
+    if should_schedule_catchup(datetime.now(timezone), settings.greenpeak_daily_analysis_hour, settings.greenpeak_daily_analysis_minute):
+        scheduler.add_job(
+            run_daily_analysis,
+            id="greenpeak-daily-analysis-catchup",
+            replace_existing=True,
+            max_instances=1,
+        )
     return scheduler
