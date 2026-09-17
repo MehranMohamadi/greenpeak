@@ -15,7 +15,7 @@ export default function MarketIntelligenceReport() {
     setLoading(true)
     setError("")
     try {
-      const response = await fetch("/api/analytics-proxy/market/analysis/latest", { cache: "no-store" })
+      const response = await fetch("/analytics-data/market/analysis/latest", { cache: "no-store" })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const payload = await response.json()
       if (!payload?.data) throw new Error("empty market analysis")

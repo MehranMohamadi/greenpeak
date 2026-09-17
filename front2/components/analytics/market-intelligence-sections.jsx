@@ -54,7 +54,7 @@ export default function MarketIntelligenceSections({ market }) {
   const [selectedNews, setSelectedNews] = useState(null)
   useEffect(() => {
     const controller = new AbortController()
-    fetch("/api/analytics-proxy/news/sources/alpha_vantage?limit=20", { cache: "no-store", signal: controller.signal })
+    fetch("/analytics-data/news/sources/alpha_vantage?limit=20", { cache: "no-store", signal: controller.signal })
       .then(async response => response.ok ? (await response.json()).data : null)
       .then(feed => {
         const items = (feed?.items || []).filter(item => item.importance === "high" || item.importance === "medium").slice(0, 4)
