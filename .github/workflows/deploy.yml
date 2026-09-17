@@ -135,6 +135,8 @@ jobs:
             -o BatchMode=yes
             -o IdentitiesOnly=yes
             -o StrictHostKeyChecking=yes
+            -o ServerAliveInterval=15
+            -o ServerAliveCountMax=20
             -p "$DEPLOY_PORT"
           )
           scp_options=(
@@ -142,6 +144,8 @@ jobs:
             -o BatchMode=yes
             -o IdentitiesOnly=yes
             -o StrictHostKeyChecking=yes
+            -o ServerAliveInterval=15
+            -o ServerAliveCountMax=20
             -P "$DEPLOY_PORT"
           )
           ssh "${ssh_options[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
@@ -149,6 +153,7 @@ jobs:
           scp "${scp_options[@]}" \
             "greenpeak-frontend-${RELEASE_SHA}.tar.gz" \
             "greenpeak-backend-${RELEASE_SHA}.tar.gz" \
+            nginx.conf \
             deploy/deploy-production.sh \
             "$DEPLOY_USER@$DEPLOY_HOST:$remote_dir/"
 
@@ -167,13 +172,16 @@ jobs:
             -o BatchMode=yes
             -o IdentitiesOnly=yes
             -o StrictHostKeyChecking=yes
+            -o ServerAliveInterval=15
+            -o ServerAliveCountMax=20
             -p "$DEPLOY_PORT"
           )
           ssh "${ssh_options[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
             "bash '$remote_dir/deploy-production.sh' \
               '$release_id' \
               '$remote_dir/greenpeak-frontend-${RELEASE_SHA}.tar.gz' \
-              '$remote_dir/greenpeak-backend-${RELEASE_SHA}.tar.gz'"
+              '$remote_dir/greenpeak-backend-${RELEASE_SHA}.tar.gz' \
+              '$remote_dir/nginx.conf'"
 
       - name: Remove temporary deployment files
         if: always()
@@ -190,6 +198,8 @@ jobs:
             -o BatchMode=yes \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=20 \
             -p "$DEPLOY_PORT" \
             "$DEPLOY_USER@$DEPLOY_HOST" \
             "rm -rf '/tmp/greenpeak-deploy-${RELEASE_RUN}'" || true

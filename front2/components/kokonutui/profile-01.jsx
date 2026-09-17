@@ -26,7 +26,9 @@ const SAMPLE_PROFILE_DATA = {
 export default function ProfileDropdown({
     data = SAMPLE_PROFILE_DATA,
     className,
+    triggerClassName,
     showLabel = false,
+    triggerLabel = "Account",
     ...props
 }) {
     const [isOpen, setIsOpen] = React.useState(false);
@@ -82,14 +84,17 @@ export default function ProfileDropdown({
                     <DropdownMenuTrigger asChild>
                         <button
                             type="button"
+                            aria-label={triggerLabel}
+                            title={triggerLabel}
                             className={cn(
                                 "flex items-center focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all duration-200",
                                 showLabel
                                     ? "w-full rounded-lg p-2 text-sm hover:bg-gray-100 dark:hover:bg-[#1F1F23]"
-                                    : "rounded-full"
+                                    : "rounded-full",
+                                triggerClassName
                             )}
                         >
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-500 via-emerald-500 to-green-600 p-0.5 hover:scale-105 transition-transform duration-200">
+                            <div className="w-7 h-7 shrink-0 rounded-full bg-gradient-to-br from-green-500 via-emerald-500 to-green-600 p-0.5 hover:scale-105 transition-transform duration-200">
                                 <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-zinc-900">
                                     <Image
                                         src={profileData.avatar}
@@ -101,8 +106,8 @@ export default function ProfileDropdown({
                                 </div>
                             </div>
                             {showLabel && (
-                                <span className="ml-3 text-gray-600 dark:text-gray-300">
-                                    Profile
+                                <span className="ms-3 text-gray-600 dark:text-gray-300">
+                                    {triggerLabel}
                                 </span>
                             )}
                         </button>

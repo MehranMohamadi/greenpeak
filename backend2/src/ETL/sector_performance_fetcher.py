@@ -145,18 +145,6 @@ class SectorPerformanceFetcher:
                 'frequency': 'Daily',
                 'unit': 'Percent',
                 'description': 'Performance relative to S&P 500 benchmark'
-            },
-            'momentum_score': {
-                'name': 'Sector Momentum Score',
-                'frequency': 'Daily',
-                'unit': 'Score',
-                'description': 'Combined momentum score based on multiple timeframes'
-            },
-            'sector_rotation_signal': {
-                'name': 'Sector Rotation Signal',
-                'frequency': 'Daily',
-                'unit': 'Signal',
-                'description': 'Sector rotation strength signal (Strong Buy/Buy/Hold/Sell/Strong Sell)'
             }
         }
         
@@ -334,142 +322,6 @@ class SectorPerformanceFetcher:
             logger.error("Error calculating relative performance: %s", e)
             return {}
     
-    def _calculate_momentum_scores(self, sector_data: Dict[str, pd.Series]) -> Dict[str, pd.Series]:
-        """Calculate momentum scores for each sector."""
-        try:
-            momentum_scores = {}
-            
-            for sector, prices in sector_data.items():
-                if sector == 'spy_benchmark':
-                    continue
-                
-                # Calculate multiple timeframe momentum
-                momentum_data = []
-                
-                for i, price in enumerate(prices):
-                    # Calculate momentum for different periods
-                    momentum_components = []
-                    
-                    # 1-month momentum (20 trading days)
-                    if i >= 20:
-                        month_return = (price / prices.iloc[i-20]) - 1
-                        momentum_components.append(month_return * 0.2)  # 20% weight
-                    
-                    # 3-month momentum (60 trading days)
-                    if i >= 60:
-                        quarter_return = (price / prices.iloc[i-60]) - 1
-                        momentum_components.append(quarter_return * 0.3)  # 30% weight
-                    
-                    # 6-month momentum (120 trading days)
-                    if i >= 120:
-                        half_year_return = (price / prices.iloc[i-120]) - 1
-                        momentum_components.append(half_year_return * 0.3)  # 30% weight
-                    
-                    # 1-year momentum (250 trading days)
-                    if i >= 250:
-                        year_return = (price / prices.iloc[i-250]) - 1
-                        momentum_components.append(year_return * 0.2)  # 20% weight
-                    
-                    # Combined momentum score
-                    if momentum_components:
-                        momentum_score = sum(momentum_components)
-                        # Normalize to 0-100 scale
-                        normalized_score = max(0, min(100, (momentum_score + 1) * 50))
-                        momentum_data.append(normalized_score)
-                    else:
-                        momentum_data.append(50)  # Neutral score
-                
-                momentum_scores[sector] = pd.Series(momentum_data, index=prices.index)
-                
-                logger.info("Calculated momentum scores for %s: %.2f latest", 
-                           sector, momentum_data[-1] if momentum_data else 0)
-            
-            return momentum_scores
-            
-        except Exception as e:
-            logger.error("Error calculating momentum scores: %s", e)
-            return {}
-    
-    def _generate_rotation_signals(self, momentum_scores: Dict[str, pd.Series], 
-                                  relative_performance: Dict[str, pd.Series]) -> Dict[str, pd.Series]:
-        """Generate sector rotation signals."""
-        try:
-            rotation_signals = {}
-            
-            # Get all common dates
-            all_dates = set()
-            for series in momentum_scores.values():
-                all_dates.update(series.index)
-            for series in relative_performance.values():
-                all_dates.update(series.index)
-            
-            common_dates = sorted(list(all_dates))
-            
-            for sector in momentum_scores.keys():
-                if sector not in relative_performance:
-                    continue
-                    
-                signals = []
-                momentum_series = momentum_scores[sector]
-                rel_perf_series = relative_performance[sector]
-                
-                for date in common_dates:
-                    # Get momentum and relative performance for this date
-                    momentum = momentum_series.get(date, 50)  # Default neutral
-                    rel_perf = rel_perf_series.get(date, 0)   # Default neutral
-                    
-                    # Generate signal based on momentum and relative performance
-                    signal_score = 0
-                    
-                    # Momentum component (0-40 points)
-                    if momentum > 70:
-                        signal_score += 40
-                    elif momentum > 60:
-                        signal_score += 30
-                    elif momentum > 50:
-                        signal_score += 20
-                    elif momentum > 40:
-                        signal_score += 10
-                    else:
-                        signal_score += 0
-                    
-                    # Relative performance component (0-40 points)
-                    if rel_perf > 10:
-                        signal_score += 40
-                    elif rel_perf > 5:
-                        signal_score += 30
-                    elif rel_perf > 0:
-                        signal_score += 20
-                    elif rel_perf > -5:
-                        signal_score += 10
-                    else:
-                        signal_score += 0
-                    
-                    # Technical momentum (0-20 points)
-                    # Simple trend check - is recent performance improving?
-                    if len(signals) >= 5:
-                        recent_trend = sum(signals[-5:]) / 5
-                        if momentum > recent_trend:
-                            signal_score += 20
-                        elif momentum > recent_trend - 5:
-                            signal_score += 10
-                    else:
-                        signal_score += 10  # Neutral for early data
-                    
-                    # Convert to signal strength (0-100)
-                    signals.append(signal_score)
-                
-                rotation_signals[sector] = pd.Series(signals, index=common_dates)
-                
-                logger.info("Generated rotation signals for %s: %.0f latest", 
-                           sector, signals[-1] if signals else 0)
-            
-            return rotation_signals
-            
-        except Exception as e:
-            logger.error("Error generating rotation signals: %s", e)
-            return {}
-    
     def _save_sector_data(self, data_type: str, sector_data: Dict[str, pd.Series], 
                          metric_config: Dict[str, Any]) -> bool:
         """Save sector data to MongoDB."""
@@ -620,24 +472,6 @@ class SectorPerformanceFetcher:
             if relative_performance:
                 if self._save_sector_data('relative_performance', relative_performance,
                                         self.performance_metrics['relative_performance']):
-                    successful_metrics += 1
-            
-            # Step 4: Calculate and save momentum scores
-            logger.info("📊 Step 4: Calculating momentum scores")
-            momentum_scores = self._calculate_momentum_scores(sector_price_data)
-            
-            if momentum_scores:
-                if self._save_sector_data('momentum_score', momentum_scores,
-                                        self.performance_metrics['momentum_score']):
-                    successful_metrics += 1
-            
-            # Step 5: Generate and save rotation signals
-            logger.info("📊 Step 5: Generating rotation signals")
-            rotation_signals = self._generate_rotation_signals(momentum_scores, relative_performance)
-            
-            if rotation_signals:
-                if self._save_sector_data('sector_rotation_signal', rotation_signals,
-                                        self.performance_metrics['sector_rotation_signal']):
                     successful_metrics += 1
             
         except Exception as e:

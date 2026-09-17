@@ -13,8 +13,14 @@ from ..rate_features.job import code_version
 from .prompts import load_prompt
 from .schemas import DomainNarrative, IndicatorNarrative, MarketNarrative
 
-ANALYSIS_VERSION = "0.2.0"
+ANALYSIS_VERSION = "0.3.0"
 MODELS = {"indicator": IndicatorNarrative, "domain": DomainNarrative, "market": MarketNarrative}
+
+
+def _validate_stored(level: str, document: dict):
+    """Read pre-0.3 narratives without exposing their deprecated pseudo-scores."""
+    allowed_fields = MODELS[level].model_fields
+    return MODELS[level].model_validate({key: value for key, value in document.items() if key in allowed_fields})
 
 
 def domain_indicator_ids(domain_id: str, indicators: dict) -> list[str]:
@@ -22,7 +28,7 @@ def domain_indicator_ids(domain_id: str, indicators: dict) -> list[str]:
         item.indicator_id
         for item in indicators.values()
         if item.enabled and item.llm.enabled and item.llm.include_in_domain_analysis
-        and (item.classification.primary_domain == domain_id or domain_id in item.classification.related_domains)
+        and item.classification.primary_domain == domain_id
     ]
 
 
@@ -38,7 +44,7 @@ def _analyze(repository, provider, level: str, subject_id: str, as_of: date, evi
     if not force:
         existing = repository.find_reusable(level, digest, provider.model_id)
         if existing:
-            return MODELS[level].model_validate(existing), "reused"
+            return _validate_stored(level, existing), "reused"
     metadata = {
         "level": level, "subject_id": subject_id, "as_of_date": as_of, "data_as_of": data_as_of,
         "analysis_version": ANALYSIS_VERSION, "analysis_generated_at": datetime.now(UTC), "coverage": coverage,
@@ -59,7 +65,7 @@ def _analyze(repository, provider, level: str, subject_id: str, as_of: date, evi
             if attempt == 1:
                 existing = repository.find_reusable(level, digest, provider.model_id)
                 if existing:
-                    return MODELS[level].model_validate(existing), "reused_after_validation_error"
+                    return _validate_stored(level, existing), "reused_after_validation_error"
                 raise
             request = {
                 **request,

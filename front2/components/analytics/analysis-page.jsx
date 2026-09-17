@@ -14,7 +14,7 @@ export function AnalysisPageShell({ children, className }) {
   return <div className={cn("space-y-6 bg-white p-4 dark:bg-[#0F0F12] md:p-6", className)}>{children}</div>
 }
 
-export function AnalysisPageHeader({ page, title, description, icon: IconOverride, actions }) {
+export function AnalysisPageHeader({ page, title, description, icon: IconOverride, actions, showDescription = true }) {
   const router = useRouter()
   const [showCategories, setShowCategories] = useState(false)
   const category = getMarketAnalysisCategory(page)
@@ -38,9 +38,9 @@ export function AnalysisPageHeader({ page, title, description, icon: IconOverrid
             )}
             {title || category?.name}
           </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 md:text-base">
+          {showDescription && <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 md:text-base">
             {description || category?.description}
-          </p>
+          </p>}
         </div>
 
         <div className="flex items-center gap-2 self-end md:self-auto">

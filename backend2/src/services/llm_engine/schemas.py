@@ -30,11 +30,9 @@ class NarrativeBase(StrictModel):
     subject_id: str
     as_of_date: date
     data_as_of: date | None = None
-    analysis_version: str = "0.2.0"
+    analysis_version: str = "0.3.0"
     analysis_generated_at: datetime
     narrative_fa: str
-    llm_shadow_score: float = Field(ge=0, le=10)
-    llm_confidence: int = Field(ge=0, le=100)
     coverage: Coverage
     evidence_refs: list[str] = Field(default_factory=list)
     provenance: Provenance

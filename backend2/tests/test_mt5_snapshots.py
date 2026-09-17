@@ -1,11 +1,13 @@
 """Offline contract and endpoint tests for MT5 snapshots."""
 
 from copy import deepcopy
+from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 
 from src.api.v1.endpoints.mt5 import snapshot_service
 from src.main import app
+from src.services.mt5_snapshot_service import MT5SnapshotService
 
 
 SNAPSHOT = {
@@ -64,11 +66,21 @@ class MemoryService:
             return None
         return self.document
 
+    def latest_by_account(self):
+        return [self.document] if self.document is not None else []
+
 
 def test_ingestion_requires_token(monkeypatch):
     monkeypatch.setattr("src.api.v1.endpoints.mt5._configured_tokens", lambda: ("secret",))
     response = TestClient(app).post("/api/v1/mt5/snapshots", json=SNAPSHOT)
     assert response.status_code == 401
+
+
+def test_ingestion_reports_missing_server_token(monkeypatch):
+    monkeypatch.setattr("src.api.v1.endpoints.mt5._configured_tokens", lambda: ())
+    response = TestClient(app).post("/api/v1/mt5/snapshots", json=SNAPSHOT)
+    assert response.status_code == 503
+    assert response.json()["detail"] == "MT5 API authentication is not configured"
 
 
 def test_snapshot_round_trip_and_idempotency(monkeypatch):
@@ -81,6 +93,7 @@ def test_snapshot_round_trip_and_idempotency(monkeypatch):
         first = client.post("/api/v1/mt5/snapshots", json=deepcopy(SNAPSHOT), headers=headers)
         second = client.post("/api/v1/mt5/snapshots", json=deepcopy(SNAPSHOT), headers=headers)
         latest = client.get("/api/v1/mt5/snapshots/latest?account_identifier=123456", headers=headers)
+        accounts = client.get("/api/v1/mt5/snapshots/latest-by-account", headers=headers)
     finally:
         app.dependency_overrides.clear()
     assert first.status_code == 200
@@ -88,6 +101,8 @@ def test_snapshot_round_trip_and_idempotency(monkeypatch):
     assert second.json()["status"] == "already_exists"
     assert latest.status_code == 200
     assert latest.json()["portfolio_metrics"]["gross_portfolio_exposure_usd"] == 60000
+    assert accounts.status_code == 200
+    assert [item["source"]["account_identifier"] for item in accounts.json()] == ["123456"]
 
 
 def test_non_utc_timestamp_is_rejected(monkeypatch):
@@ -98,3 +113,46 @@ def test_non_utc_timestamp_is_rejected(monkeypatch):
         "/api/v1/mt5/snapshots", json=payload, headers={"Authorization": "Bearer secret"}
     )
     assert response.status_code == 422
+
+
+def test_latest_snapshot_restores_mongodb_utc_timezone():
+    document = deepcopy(SNAPSHOT)
+    document["timestamp_utc"] = datetime(2026, 8, 27, 10, 0)
+
+    class Collection:
+        def find_one(self, query, sort):
+            return document
+
+    class MongoDB:
+        def get_collection(self, name):
+            return Collection()
+
+    result = MT5SnapshotService(MongoDB()).latest("123456")
+
+    assert result is not None
+    assert result["timestamp_utc"].tzinfo is timezone.utc
+
+
+def test_latest_by_account_groups_on_broker_server_and_account():
+    document = deepcopy(SNAPSHOT)
+    document["timestamp_utc"] = datetime(2026, 8, 27, 10, 0)
+
+    class Collection:
+        def __init__(self):
+            self.pipeline = None
+
+        def aggregate(self, pipeline):
+            self.pipeline = pipeline
+            return [document]
+
+    collection = Collection()
+
+    class MongoDB:
+        def get_collection(self, name):
+            return collection
+
+    result = MT5SnapshotService(MongoDB()).latest_by_account()
+    identity = collection.pipeline[1]["$group"]["_id"]
+
+    assert set(identity) == {"broker_company", "trade_server", "account_identifier"}
+    assert result[0]["timestamp_utc"].tzinfo is timezone.utc

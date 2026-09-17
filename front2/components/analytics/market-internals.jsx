@@ -1,501 +1,429 @@
 "use client"
 
-import { useState } from "react"
 import dynamic from "next/dynamic"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { useMemo, useState } from "react"
+import {
+  AlertTriangle,
+  BarChart3,
+  Building2,
+  Database,
+  Grid3X3,
+  Layers3,
+  Scale,
+  TrendingUp,
+} from "lucide-react"
+import { useTheme } from "next-themes"
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Treemap,
+  XAxis,
+  YAxis,
+} from "recharts"
+
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { TrendingUp, TrendingDown, Activity, Info, ExternalLink, Maximize2, Target, PieChart, BarChart3, Zap } from "lucide-react"
-import { AnalysisFactorGrid, AnalysisOverviewGrid, AnalysisPageHeader, AnalysisPageShell } from "./analysis-page"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import useMarketStructureData from "@/hooks/useMarketStructureData"
+import DomainUnderstandingPanel from "./domain-understanding-panel"
+import { AnalysisPageHeader, AnalysisPageShell, AnalysisState, TimeframeSelector } from "./analysis-page"
 
 const MultiLineChart = dynamic(() => import("../charts/multi-line-chart"), { ssr: false })
-const MiniChart = dynamic(() => import("./mini-chart"), { ssr: false })
-const FullScreenChart = dynamic(() => import("./fullscreen-chart"), { ssr: false })
+const PERIODS = ["1Y", "3Y", "5Y", "10Y", "MAX"]
+const HEATMAP_PERIODS = ["1W", "1M", "3M", "YTD", "1Y"]
+const COLORS = ["#2563eb", "#0d9488", "#7c3aed", "#ea580c", "#0891b2", "#65a30d", "#db2777", "#9333ea", "#0284c7", "#16a34a", "#d97706"]
+
+const REASON_LABELS = {
+  point_in_time_constituent_weights_and_membership_history_unavailable:
+    "Historical point-in-time constituent weights and membership are not available from the connected source. Current weights are never substituted for past weights.",
+  verified_market_structure_sources_unavailable:
+    "The verified upstream sources are temporarily unavailable and no valid local snapshot exists.",
+  current_spy_holdings_unavailable: "Current official SPY holdings are unavailable.",
+  current_spy_sector_weights_unavailable: "Current official SPY sector weights are unavailable.",
+  sector_or_spy_adjusted_history_unavailable: "Adjusted history for SPY or one of the sector proxies is unavailable.",
+  one_or_more_style_series_unavailable: "One or more adjusted-price style series are unavailable.",
+}
+
+function hasValue(value) {
+  return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value))
+}
+
+function formatPercent(value, signed = false) {
+  if (!hasValue(value)) return "N/A"
+  const numericValue = Number(value)
+  return `${signed && numericValue > 0 ? "+" : ""}${numericValue.toFixed(2)}%`
+}
+
+function formatRetrieved(value) {
+  if (!value) return "N/A"
+  const parsed = new Date(value)
+  return Number.isFinite(parsed.getTime()) ? parsed.toLocaleString("en-GB", { timeZone: "UTC" }) + " UTC" : value
+}
+
+function metadataUnit(value) {
+  return {
+    percent_weight: "% weight",
+    percentage_points: "percentage points",
+    percentage_points_of_index_return: "percentage points of index return",
+    rebased_total_return_index: "index (start = 100)",
+  }[value] || value || "N/A"
+}
+
+function statusClasses(status) {
+  if (status === "available") return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+  if (status === "stale") return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
+  if (status === "partial") return "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-300"
+  return "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+}
+
+function MetadataStrip({ metadata, status, proxy = false }) {
+  if (!metadata) return null
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-3 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
+      <Badge variant="outline" className={statusClasses(status)}>{status || metadata.quality_status || "unknown"}</Badge>
+      {proxy && <Badge variant="outline">ETF proxy</Badge>}
+      <span>Source: {metadata.source || "N/A"}</span>
+      <span>Observation: {metadata.observation_date || "N/A"}</span>
+      <span>Retrieved: {formatRetrieved(metadata.retrieved_at)}</span>
+      <span>Unit: {metadataUnit(metadata.unit)}</span>
+      <span>Frequency: {metadata.frequency || "N/A"}</span>
+    </div>
+  )
+}
+
+function BlockHeader({ number, title, description, icon: Icon, status, proxy = false }) {
+  return (
+    <CardHeader className="space-y-2 pb-3">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="mb-1 text-xs font-medium uppercase tracking-[0.16em] text-blue-600 dark:text-blue-400">Block {number}</p>
+          <CardTitle className="text-lg text-slate-900 dark:text-white">{title}</CardTitle>
+        </div>
+        <span className="rounded-xl bg-blue-50 p-2.5 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300">
+          <Icon className="h-5 w-5" />
+        </span>
+      </div>
+      <CardDescription className="leading-5">{description}</CardDescription>
+      <div className="flex flex-wrap gap-2">
+        <Badge variant="outline" className={statusClasses(status)}>{status || "unavailable"}</Badge>
+        {proxy && <Badge variant="outline">ETF proxy</Badge>}
+      </div>
+    </CardHeader>
+  )
+}
+
+function UnavailablePanel({ block, children }) {
+  const reason = REASON_LABELS[block?.reason] || block?.metadata?.quality_reason || block?.reason || "Verified data is unavailable."
+  return (
+    <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/60 p-5 dark:border-amber-900 dark:bg-amber-950/20">
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+        <div>
+          <p className="font-medium text-amber-900 dark:text-amber-200">Data limitation</p>
+          <p className="mt-1 text-sm leading-6 text-amber-800/80 dark:text-amber-300/80">{reason}</p>
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CompanyConcentrationChart({ holdings, dark }) {
+  return (
+    <div className="h-[390px] min-w-0" aria-label="Top ten SPY constituent weights">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={holdings} layout="vertical" margin={{ top: 4, right: 36, bottom: 8, left: 12 }}>
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={dark ? "#27272a" : "#e2e8f0"} />
+          <XAxis type="number" unit="%" tick={{ fill: dark ? "#a1a1aa" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
+          <YAxis type="category" dataKey="symbol" width={54} tick={{ fill: dark ? "#e4e4e7" : "#334155", fontSize: 12, fontWeight: 600 }} axisLine={false} tickLine={false} />
+          <Tooltip
+            cursor={{ fill: dark ? "rgba(255,255,255,.04)" : "rgba(15,23,42,.04)" }}
+            formatter={(value) => [formatPercent(value), "SPY weight"]}
+            labelFormatter={(symbol, items) => `${symbol} · ${items?.[0]?.payload?.name || ""}`}
+            contentStyle={{ borderRadius: 12, borderColor: dark ? "#3f3f46" : "#e2e8f0", background: dark ? "#18181b" : "#fff" }}
+          />
+          <Bar dataKey="weight_pct" radius={[0, 5, 5, 0]}>
+            {holdings.map((holding, index) => <Cell key={holding.symbol} fill={COLORS[index % COLORS.length]} />)}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+function SectorTile(props) {
+  const { x, y, width, height, index, name, size } = props
+  if (width < 1 || height < 1) return null
+  const compact = width < 92 || height < 54
+  return (
+    <g>
+      <rect x={x} y={y} width={width} height={height} fill={COLORS[index % COLORS.length]} stroke="#fff" strokeWidth={2} rx={4} />
+      {width > 48 && height > 28 && (
+        <>
+          <text x={x + 8} y={y + 20} fill="#fff" fontSize={compact ? 10 : 12} fontWeight={700}>{name}</text>
+          {!compact && <text x={x + 8} y={y + 39} fill="rgba(255,255,255,.88)" fontSize={11}>{formatPercent(size)}</text>}
+        </>
+      )}
+    </g>
+  )
+}
+
+function SectorWeightTreemap({ sectors }) {
+  const data = sectors.map((item) => ({ name: item.sector, size: item.weight_pct }))
+  return (
+    <div className="h-[360px] min-w-0" aria-label="SPY GICS sector weight treemap">
+      <ResponsiveContainer width="100%" height="100%">
+        <Treemap data={data} dataKey="size" nameKey="name" stroke="#fff" content={<SectorTile />}>
+          <Tooltip formatter={(value) => [formatPercent(value), "SPY weight"]} />
+        </Treemap>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+function ChartLegend({ series }) {
+  return (
+    <div className="mb-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-600 dark:text-slate-300">
+      {series.map((item, index) => (
+        <span key={`${item.symbol}-${item.label}`} className="inline-flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ background: COLORS[index % COLORS.length] }} />
+          {item.label} ({item.symbol})
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function ComparisonChart({ title, description, series, textColor, height = 290 }) {
+  const validSeries = series.filter((item) => Array.isArray(item.data) && item.data.length > 1)
+  return (
+    <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+      <h3 className="font-semibold text-slate-900 dark:text-white">{title}</h3>
+      {description && <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>}
+      {validSeries.length ? (
+        <div className="mt-4">
+          <ChartLegend series={validSeries} />
+          <MultiLineChart dataSets={validSeries.map((item) => item.data)} height={height} textColor={textColor} seriesColors={COLORS} />
+        </div>
+      ) : (
+        <AnalysisState tone="neutral" title="No verified observations" description="The selected comparison cannot be drawn from the current snapshot." />
+      )}
+    </div>
+  )
+}
+
+function heatCellStyle(value, dark) {
+  if (!hasValue(value)) return { backgroundColor: dark ? "#27272a" : "#f1f5f9", color: dark ? "#a1a1aa" : "#64748b" }
+  const numericValue = Number(value)
+  const strength = Math.min(0.82, 0.16 + Math.abs(numericValue) / 14)
+  return {
+    backgroundColor: numericValue >= 0 ? `rgba(5, 150, 105, ${strength})` : `rgba(225, 29, 72, ${strength})`,
+    color: strength > 0.44 ? "#fff" : dark ? "#f4f4f5" : "#0f172a",
+  }
+}
+
+function SectorHeatmap({ rows, selectedSector, onSelect, dark }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+      <table className="w-full min-w-[700px] border-collapse text-sm">
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900/60">
+          <tr>
+            <th className="px-3 py-3 text-left">Sector ETF proxy</th>
+            {HEATMAP_PERIODS.map((horizon) => <th key={horizon} className="px-3 py-3 text-center">{horizon}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.sector_id} className="border-t border-slate-200 dark:border-slate-800">
+              <td className="p-1.5">
+                <button
+                  type="button"
+                  aria-pressed={selectedSector === row.sector_id}
+                  onClick={() => onSelect(row.sector_id)}
+                  className={`w-full rounded-lg px-2 py-2 text-left transition ${selectedSector === row.sector_id ? "bg-blue-50 text-blue-700 ring-1 ring-blue-300 dark:bg-blue-950/40 dark:text-blue-300" : "hover:bg-slate-50 dark:hover:bg-slate-900"}`}
+                >
+                  <span className="font-medium">{row.sector}</span>
+                  <span className="ml-2 text-xs text-slate-500">{row.symbol}</span>
+                </button>
+              </td>
+              {HEATMAP_PERIODS.map((horizon) => (
+                <td key={horizon} className="p-1.5 text-center">
+                  <span className="block rounded-md px-2 py-2 font-medium tabular-nums" style={heatCellStyle(row.returns?.[horizon], dark)}>
+                    {formatPercent(row.returns?.[horizon], true)}
+                  </span>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
 
 export default function MarketInternals() {
-    const [selectedFactor, setSelectedFactor] = useState('breadth-ratio')
-    const [selectedPeriod, setSelectedPeriod] = useState('5Y')
-    const [isFullScreen, setIsFullScreen] = useState(false)
-
-    // Market internals factors with mock data
-    const marketInternalsFactors = [
-        {
-            id: "breadth-ratio",
-            title: "Breadth (Adv/Decl)",
-            category: "Market Breadth",
-            currentValue: "1.8",
-            change: "+0.3",
-            trend: "up",
-            description: "Advance/Decline ratio measuring market breadth",
-            data: [
-                { date: "2024-01-02", value: 1.2 },
-                { date: "2024-02-01", value: 1.4 },
-                { date: "2024-03-01", value: 1.5 },
-                { date: "2024-04-01", value: 1.6 },
-                { date: "2024-05-01", value: 1.7 },
-                { date: "2024-06-01", value: 1.8 },
-            ],
-            source: "NYSE",
-            benchmark: ">1.5 = Strong Breadth, 1.0-1.5 = Moderate, <1.0 = Weak"
-        },
-        {
-            id: "volume",
-            title: "Trading Volume",
-            category: "Volume Analysis",
-            currentValue: "4.2B",
-            change: "+0.8B",
-            trend: "up",
-            description: "Daily trading volume across major exchanges",
-            data: [
-                { date: "2024-01-02", value: 3.1 },
-                { date: "2024-02-01", value: 3.4 },
-                { date: "2024-03-01", value: 3.6 },
-                { date: "2024-04-01", value: 3.8 },
-                { date: "2024-05-01", value: 4.0 },
-                { date: "2024-06-01", value: 4.2 },
-            ],
-            source: "NYSE/NASDAQ",
-            benchmark: ">5B = High Activity, 3-5B = Normal, <3B = Low Activity"
-        },
-        {
-            id: "rsi-macd",
-            title: "RSI/MACD",
-            category: "Technical Momentum",
-            currentValue: "65/Bullish",
-            change: "+5/Signal",
-            trend: "up",
-            description: "RSI and MACD momentum indicators",
-            data: [
-                { date: "2024-01-02", value: 45 },
-                { date: "2024-02-01", value: 52 },
-                { date: "2024-03-01", value: 58 },
-                { date: "2024-04-01", value: 61 },
-                { date: "2024-05-01", value: 63 },
-                { date: "2024-06-01", value: 65 },
-            ],
-            source: "Technical Analysis",
-            benchmark: ">70 = Overbought, 30-70 = Normal, <30 = Oversold"
-        },
-        {
-            id: "moving-averages",
-            title: "Moving Averages",
-            category: "Trend Analysis",
-            currentValue: "Above 200MA",
-            change: "+2.5%",
-            trend: "up",
-            description: "Position relative to key moving averages",
-            data: [
-                { date: "2024-01-02", value: 98.5 },
-                { date: "2024-02-01", value: 100.2 },
-                { date: "2024-03-01", value: 101.8 },
-                { date: "2024-04-01", value: 102.1 },
-                { date: "2024-05-01", value: 102.3 },
-                { date: "2024-06-01", value: 102.5 },
-            ],
-            source: "Market Data",
-            benchmark: ">200MA = Bullish, <200MA = Bearish, 50MA Cross = Signal"
-        }
-    ]
-
-    // Calculate overall score
-    const overallScore = (marketInternalsFactors.reduce((sum, factor) => sum + (factor.score || 7), 0) / marketInternalsFactors.length).toFixed(1)
-
-    const getScoreColor = (score) => {
-        if (score >= 8) return "text-green-600"
-        if (score >= 6) return "text-yellow-600"
-        return "text-red-600"
+  const { resolvedTheme } = useTheme()
+  const dark = resolvedTheme !== "light"
+  const chartTextColor = dark ? "#e4e4e7" : "#475569"
+  const [, setAnalysisRevision] = useState(0)
+  const [period, setPeriod] = useState("5Y")
+  const [selectedSector, setSelectedSector] = useState("technology")
+  const { data, loading, error } = useMarketStructureData(period)
+  const blocks = data?.blocks || {}
+  const concentration = blocks.company_concentration
+  const contribution = blocks.company_contribution
+  const capVsEqual = blocks.cap_vs_equal_weight
+  const sectorWeights = blocks.sector_weights
+  const relative = blocks.sector_relative_returns
+  const styles = blocks.styles
+  const selectedHeatmap = relative?.heatmap?.find((item) => item.sector_id === selectedSector) || relative?.heatmap?.[0]
+  const selectedSeries = selectedHeatmap ? relative?.sector_series?.[selectedHeatmap.sector_id] || [] : []
+  const styleSeries = useMemo(() => {
+    const bySymbol = Object.fromEntries((styles?.series || []).map((item) => [item.symbol, item]))
+    return {
+      growthValue: [bySymbol.IVW, bySymbol.IVE].filter(Boolean),
+      size: [bySymbol.SPY, bySymbol.IJR].filter(Boolean),
+      baskets: [bySymbol.CYCLICAL, bySymbol.DEFENSIVE].filter(Boolean),
     }
+  }, [styles?.series])
 
-    const getScoreBadge = (score) => {
-        if (score >= 8) return { label: "Strong", color: "bg-green-100 text-green-800" }
-        if (score >= 6) return { label: "Moderate", color: "bg-yellow-100 text-yellow-800" }
-        return { label: "Weak", color: "bg-red-100 text-red-800" }
-    }
+  return (
+    <AnalysisPageShell>
+      <AnalysisPageHeader
+        page="market-internals"
+        title="Market Structure, Sectors & Concentration"
+        description="Concentration, breadth, sector leadership and style participation across the S&P 500 ecosystem."
+        actions={<TimeframeSelector periods={PERIODS} value={period} onChange={setPeriod} />}
+      />
 
-    const getTrendIcon = (trend) => {
-        switch (trend) {
-            case "up":
-                return <TrendingUp className="h-4 w-4 text-green-500" />
-            case "down":
-                return <TrendingDown className="h-4 w-4 text-red-500" />
-            default:
-                return <Activity className="h-4 w-4 text-gray-400" />
-        }
-    }
+      <Card dir="rtl">
+        <CardContent className="p-6">
+          <DomainUnderstandingPanel
+            domainId="market_internals_sectors"
+            simple
+            onUpdated={() => setAnalysisRevision((value) => value + 1)}
+          />
+        </CardContent>
+      </Card>
 
-    const getTrendColor = (trend) => {
-        switch (trend) {
-            case "up":
-                return "text-green-600 dark:text-green-400"
-            case "down":
-                return "text-red-600 dark:text-red-400"
-            default:
-                return "text-gray-600 dark:text-gray-400"
-        }
-    }
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-[#1F1F23]">
+          <p className="text-xs text-slate-500">Verified chart coverage</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums">{data ? `${data.metadata?.available_chart_count || 0}/${data.metadata?.required_chart_count || 8}` : "—"}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-[#1F1F23]">
+          <p className="text-xs text-slate-500">Shared period</p>
+          <p className="mt-1 text-2xl font-semibold">{data?.selected_period || period}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-[#1F1F23]">
+          <p className="text-xs text-slate-500">Price field</p>
+          <p className="mt-1 text-base font-semibold">Adjusted close</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-[#1F1F23]">
+          <p className="text-xs text-slate-500">Missing values</p>
+          <p className="mt-1 text-base font-semibold">Null, never zero</p>
+        </div>
+      </div>
 
-    const handleFactorClick = (factor) => {
-        setSelectedFactor(factor.id)
-    }
+      {loading && <AnalysisState tone="neutral" title="Loading verified market-structure data" description="The six Group 6 blocks are being assembled from the local verified snapshot." />}
+      {!loading && error && <AnalysisState title="Market-structure API unavailable" description={error} />}
+      {!loading && !error && !data && <AnalysisState tone="neutral" title="No verified market-structure snapshot" />}
 
-    // Get selected factor data
-    const getSelectedFactor = () => {
-        return marketInternalsFactors.find(factor => factor.id === selectedFactor) || marketInternalsFactors[0]
-    }
+      {data && (
+        <>
+          <Card id="group6-company-concentration" className="border-slate-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+            <BlockHeader number="01" title="Company Concentration" description="Largest current SPY constituent weights from the official daily fund holdings file." icon={Building2} status={concentration?.status} proxy />
+            <CardContent className="space-y-5">
+              {concentration?.holdings?.length ? (
+                <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_250px]">
+                  <CompanyConcentrationChart holdings={concentration.holdings} dark={dark} />
+                  <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-6 text-white shadow-sm">
+                    <div>
+                      <p className="text-sm text-blue-100">Top 10 combined SPY weight</p>
+                      <p className="mt-3 text-5xl font-bold tabular-nums">{formatPercent(concentration.top_10_weight_pct)}</p>
+                      <p className="mt-3 text-sm leading-6 text-blue-100">Sum of the ten reported fund weights shown in the chart; no index-level estimate is inserted.</p>
+                    </div>
+                    <div className="mt-6 border-t border-white/20 pt-4 text-xs text-blue-100">As of {concentration.metadata?.observation_date || "N/A"}</div>
+                  </div>
+                </div>
+              ) : <UnavailablePanel block={concentration} />}
+              <MetadataStrip metadata={concentration?.metadata} status={concentration?.status} proxy />
+            </CardContent>
+          </Card>
 
-    const selectedFactorObject = getSelectedFactor()
-    const selectedFactorData = selectedFactorObject && Array.isArray(selectedFactorObject.data) && selectedFactorObject.data.length > 0 ?
-        [selectedFactorObject.data] : []
+          <Card id="group6-company-contribution" className="border-slate-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+            <BlockHeader number="02" title="Company Contribution to S&P 500 Return" description="A valid contribution calculation requires membership and weights measured at the start of the same return period." icon={Layers3} status={contribution?.status} />
+            <CardContent className="space-y-5">
+              <UnavailablePanel block={contribution}>
+                <code className="mt-3 block rounded-lg bg-white/70 px-3 py-2 text-xs text-slate-700 dark:bg-black/20 dark:text-slate-200">{contribution?.formula || "contribution_i = previous_weight_i x total_return_i"}</code>
+              </UnavailablePanel>
+              <MetadataStrip metadata={contribution?.metadata} status={contribution?.status} />
+            </CardContent>
+          </Card>
 
-    // Add source details for each factor
-    const getSourceDetails = (factorId) => {
-        switch (factorId) {
-            case "breadth-ratio":
-                return {
-                    title: "Market Breadth (Advance/Decline)",
-                    description: "Ratio of advancing stocks to declining stocks, measuring the breadth of market participation and underlying strength.",
-                    provider: "NYSE",
-                    frequency: "Daily",
-                    availability: "1960 to Present",
-                    methodology: "Number of advancing stocks divided by number of declining stocks across NYSE-listed securities.",
-                    url: "https://www.nyse.com/market-data",
-                    lastUpdated: "Updated daily after market close"
-                }
-            case "volume":
-                return {
-                    title: "Trading Volume",
-                    description: "Total number of shares traded across major exchanges, indicating market activity and liquidity levels.",
-                    provider: "NYSE/NASDAQ",
-                    frequency: "Real-time",
-                    availability: "1980 to Present",
-                    methodology: "Aggregate daily trading volume across NYSE, NASDAQ, and other major US equity exchanges.",
-                    url: "https://www.nasdaq.com/market-activity",
-                    lastUpdated: "Updated real-time during market hours"
-                }
-            case "rsi-macd":
-                return {
-                    title: "RSI & MACD Indicators",
-                    description: "Relative Strength Index and Moving Average Convergence Divergence, measuring momentum and trend strength.",
-                    provider: "Technical Analysis",
-                    frequency: "Daily",
-                    availability: "Market data dependent",
-                    methodology: "RSI: 14-period momentum oscillator. MACD: 12-day EMA minus 26-day EMA with 9-day signal line.",
-                    url: "https://www.investopedia.com/terms/r/rsi.asp",
-                    lastUpdated: "Updated daily with market close"
-                }
-            case "moving-averages":
-                return {
-                    title: "Moving Averages Analysis",
-                    description: "Position of market indices relative to key moving averages (50-day, 200-day), indicating trend direction and strength.",
-                    provider: "Market Data",
-                    frequency: "Daily",
-                    availability: "Historical data",
-                    methodology: "Comparison of current price levels to simple moving averages over various time periods.",
-                    url: "https://www.marketwatch.com/",
-                    lastUpdated: "Updated daily with market data"
-                }
-            default:
-                return {
-                    title: "Data Source",
-                    description: "Market internals data source information",
-                    provider: "Financial Data Providers",
-                    frequency: "Varies",
-                    availability: "Historical data",
-                    methodology: "Standard market internals measurement techniques",
-                    url: "#",
-                    lastUpdated: "Regular updates"
-                }
-        }
-    }
+          <Card id="group6-cap-vs-equal-weight" className="border-slate-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+            <BlockHeader number="03" title="S&P 500 vs Equal Weight" description={`SPY and RSP adjusted-close series rebased to 100 at the start of the selected ${period} window.`} icon={Scale} status={capVsEqual?.status} proxy />
+            <CardContent className="space-y-5">
+              {capVsEqual?.series?.length ? (
+                <ComparisonChart title="Market-cap leadership versus broad participation" description="A widening gap highlights whether the cap-weighted benchmark is being driven by its largest constituents." series={capVsEqual.series} textColor={chartTextColor} height={340} />
+              ) : <UnavailablePanel block={capVsEqual} />}
+              <MetadataStrip metadata={capVsEqual?.metadata} status={capVsEqual?.status} proxy />
+            </CardContent>
+          </Card>
 
-    const getIconComponent = (factorId) => {
-        switch (factorId) {
-            case "breadth-ratio":
-                return BarChart3
-            case "volume":
-                return Activity
-            case "rsi-macd":
-                return TrendingUp
-            case "moving-averages":
-                return PieChart
-            default:
-                return Zap
-        }
-    }
+          <Card id="group6-sector-weights" className="border-slate-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+            <BlockHeader number="04" title="S&P 500 Sector Weights" description="Current 11-sector GICS allocation reported for SPY by State Street." icon={Grid3X3} status={sectorWeights?.status} proxy />
+            <CardContent className="space-y-5">
+              {sectorWeights?.sectors?.length ? <SectorWeightTreemap sectors={sectorWeights.sectors} /> : <UnavailablePanel block={sectorWeights} />}
+              <MetadataStrip metadata={sectorWeights?.metadata} status={sectorWeights?.status} proxy />
+            </CardContent>
+          </Card>
 
-    return (
-        <AnalysisPageShell className="fade-in">
-            <AnalysisPageHeader page="market-internals" title="Market Internals Analysis" />
+          <Card id="group6-sector-relative-returns" className="border-slate-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+            <BlockHeader number="05" title="Sector Relative Return Heatmap" description="Adjusted total-return proxy for each Select Sector ETF minus SPY over five standard horizons." icon={BarChart3} status={relative?.status} proxy />
+            <CardContent className="space-y-5">
+              {relative?.heatmap?.length ? (
+                <>
+                  <SectorHeatmap rows={relative.heatmap} selectedSector={selectedHeatmap?.sector_id} onSelect={setSelectedSector} dark={dark} />
+                  <ComparisonChart
+                    title={`${selectedHeatmap?.sector || "Selected sector"} (${selectedHeatmap?.symbol || "N/A"}) relative to SPY`}
+                    description={`Historical relative total-return path for the selected ${period} window; 0 marks equal cumulative performance from the shared start date.`}
+                    series={[{ label: `${selectedHeatmap?.symbol || "Sector"} minus SPY`, symbol: selectedHeatmap?.symbol || "", data: selectedSeries }]}
+                    textColor={chartTextColor}
+                    height={320}
+                  />
+                </>
+              ) : <UnavailablePanel block={relative} />}
+              <MetadataStrip metadata={relative?.metadata} status={relative?.status} proxy />
+            </CardContent>
+          </Card>
 
-            {/* Top Section: Corporate Earnings Factor + Main Chart */}
-            <AnalysisOverviewGrid className="mb-8">
-                {/* Left: Selected Market Internals Factor (1/4 width) */}
-                <Card className="lg:col-span-2 slide-in-left stagger-1 hover:shadow-lg transition-all duration-200 cursor-pointer group border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23] card-glow">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center gap-2 group-hover:text-orange-600 transition-all duration-200 text-base font-semibold">
-                            <div className="p-1.5 bg-gradient-to-br from-orange-600 to-amber-600 rounded-lg shadow-md group-hover:scale-105 transition-transform duration-200">
-                                <Activity className="h-4 w-4 text-white" />
-                            </div>
-                            Market Health
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="text-center group-hover:scale-105 transition-transform duration-300 p-3 bg-gray-50 dark:bg-[#0F0F12] rounded-xl border border-gray-200 dark:border-[#2B2B30]">
-                            <div className={`text-4xl font-black ${getScoreColor(parseFloat(overallScore))} drop-shadow-lg mb-2 tracking-tight`}>
-                                {overallScore}
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">out of 10</div>
-                            <Badge className={`mt-1 px-3 py-1 text-xs font-semibold ${getScoreBadge(parseFloat(overallScore)).color} group-hover:shadow-md transition-all duration-300 hover:scale-105`}>
-                                {getScoreBadge(parseFloat(overallScore)).label}
-                            </Badge>
-                        </div>
+          <Card id="group6-style-comparisons" className="border-slate-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+            <BlockHeader number="06" title="Style & Participation Comparisons" description={`Three compact adjusted-return views, each rebased to 100 at the selected ${period} start.`} icon={TrendingUp} status={styles?.status} proxy />
+            <CardContent className="space-y-5">
+              <div className="grid gap-5 xl:grid-cols-3">
+                <ComparisonChart title="Growth vs Value" description="IVW versus IVE S&P 500 style proxies." series={styleSeries.growthValue} textColor={chartTextColor} height={260} />
+                <ComparisonChart title="Large vs Small" description="SPY versus the IJR S&P SmallCap 600 proxy." series={styleSeries.size} textColor={chartTextColor} height={260} />
+                <ComparisonChart title="Cyclical vs Defensive" description="Fixed equal-weight sector baskets calculated from adjusted ETF series." series={styleSeries.baskets} textColor={chartTextColor} height={260} />
+              </div>
+              <div className="grid gap-3 rounded-xl bg-slate-50 p-4 text-xs leading-5 text-slate-600 dark:bg-slate-900/60 dark:text-slate-300 md:grid-cols-3">
+                <div><strong className="text-slate-900 dark:text-white">Formula:</strong> {styles?.formula || "N/A"}</div>
+                <div><strong className="text-slate-900 dark:text-white">Cyclical:</strong> {(styles?.basket_composition?.cyclical || []).join(", ") || "N/A"}</div>
+                <div><strong className="text-slate-900 dark:text-white">Defensive:</strong> {(styles?.basket_composition?.defensive || []).join(", ") || "N/A"}</div>
+              </div>
+              <MetadataStrip metadata={styles?.metadata} status={styles?.status} proxy />
+            </CardContent>
+          </Card>
+        </>
+      )}
 
-                        {/* Key Insights */}
-                        <div className="space-y-2">
-                            <h4 className="font-semibold text-gray-900 dark:text-white text-xs">Key Insights</h4>
-                            <div className="space-y-1 text-xs">
-                                <div className="flex items-start gap-2 hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
-                                    <div className="w-1.5 h-1.5 bg-orange-500 rounded-full mt-1.5 flex-shrink-0"></div>
-                                    <span className="leading-tight">Breadth improving</span>
-                                </div>
-                                <div className="flex items-start gap-2 hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
-                                    <div className="w-1.5 h-1.5 bg-amber-500 rounded-full mt-1.5 flex-shrink-0"></div>
-                                    <span className="leading-tight">Volume elevated</span>
-                                </div>
-                                <div className="flex items-start gap-2 hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
-                                    <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mt-1.5 flex-shrink-0"></div>
-                                    <span className="leading-tight">Momentum bullish</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Market Outlook */}
-                        <div className="space-y-2">
-                            <h4 className="font-semibold text-gray-900 dark:text-white text-xs">Market Outlook</h4>
-                            <div className="space-y-1 text-xs">
-                                <div className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
-                                    <span>Breadth</span>
-                                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs hover:shadow-md transition-all duration-200 hover:scale-105">Healthy</Badge>
-                                </div>
-                                <div className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
-                                    <span>Momentum</span>
-                                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs hover:shadow-md transition-all duration-200 hover:scale-105">Bullish</Badge>
-                                </div>
-                                <div className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#0F0F12] p-1.5 rounded-lg transition-all duration-200 cursor-pointer">
-                                    <span>Trend</span>
-                                    <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs hover:shadow-md transition-all duration-200 hover:scale-105">Uptrend</Badge>
-                                </div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Right: Main Chart (3/4 width) */}
-                <Card className="lg:col-span-5 slide-in-right stagger-2 hover:shadow-lg transition-all duration-200 border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23] card-glow">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center justify-between text-lg font-semibold">
-                            <div className="flex items-center gap-3">
-                                {selectedFactorObject ? (
-                                    <div className="flex items-center gap-2">
-                                        {(() => {
-                                            const IconComponent = getIconComponent(selectedFactorObject.id)
-                                            return <IconComponent className="h-5 w-5 text-orange-600" />
-                                        })()}
-                                        {selectedFactorObject.title}
-                                    </div>
-                                ) : (
-                                    <span>Select a factor to view detailed chart</span>
-                                )}
-                                {selectedFactorObject && (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setIsFullScreen(true)}
-                                        className="h-8 w-8 p-0 ml-2 hover:bg-orange-50 dark:hover:bg-orange-900 hover:scale-105 transition-all duration-200 hover:shadow-md"
-                                        title="Full Screen"
-                                    >
-                                        <Maximize2 className="h-4 w-4" />
-                                    </Button>
-                                )}
-                            </div>
-                            <div className="flex gap-2">
-                                {['1M', '6M', '1Y', '5Y', '10Y', '25Y', 'MAX'].map((period) => (
-                                    <Button
-                                        key={period}
-                                        variant={selectedPeriod === period ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={() => setSelectedPeriod(period)}
-                                        className="transition-all  text-xs duration-200 hover:scale-105 hover:shadow-md"
-                                    >
-                                        {period}
-                                    </Button>
-                                ))}
-                            </div>
-                        </CardTitle>
-                        <CardDescription className="flex flex-wrap items-center gap-4 text-sm mt-2">
-                            <span>
-                                Current: {selectedFactorObject.currentValue} |
-                                <span className={`ml-1 ${getTrendColor(selectedFactorObject.trend)}`}>
-                                    {selectedFactorObject.change}
-                                </span>
-                            </span>
-                            <span className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                                <span>Source: {selectedFactorObject.source}</span>
-                            </span>
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        <div className="h-80 w-full">
-                            {selectedFactorObject ? (
-                                <MultiLineChart dataSets={selectedFactorData} />
-                            ) : (
-                                <div className="flex items-center justify-center h-full text-gray-500 text-base">
-                                    Click on any factor below to view its detailed chart
-                                </div>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-            </AnalysisOverviewGrid>
-
-            {/* Bottom Section: Market Internals Factors Grid */}
-            <AnalysisFactorGrid title="Market Internals Factors" className="gap-6 slide-in-up">
-                    {marketInternalsFactors.map((factor, index) => {
-                        const IconComponent = getIconComponent(factor.id)
-                        return (
-                            <Card
-                                key={factor.id}
-                                className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:-translate-y-1 ${selectedFactor === factor.id ? 'ring-2 ring-orange-500 shadow-lg scale-[1.02] bg-orange-50 dark:bg-orange-950/30' : ''
-                                    } slide-in-up stagger-${(index % 6) + 1} border border-gray-200 dark:border-[#2B2B30] shadow-sm bg-white dark:bg-[#1F1F23] group card-glow`}
-                                onClick={() => handleFactorClick(factor)}
-                            >
-                                <CardHeader className="pb-3">
-                                    <div className="flex items-center justify-between">
-                                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                                            <IconComponent className="h-4 w-4" />
-                                            {factor.title}
-                                        </CardTitle>
-                                        <div className="flex items-center gap-2">
-                                            {getTrendIcon(factor.trend)}
-                                            <Dialog>
-                                                <DialogTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-[#0F0F12]"
-                                                        title="View Source Details"
-                                                    >
-                                                        <Info className="h-3 w-3" />
-                                                    </Button>
-                                                </DialogTrigger>
-                                                <DialogContent className="max-w-lg bg-white dark:bg-[#1F1F23] border border-gray-200 dark:border-[#2B2B30]">
-                                                    <DialogHeader>
-                                                        <DialogTitle className="flex items-center gap-2">
-                                                            {(() => {
-                                                                const IconComponent = getIconComponent(factor.id)
-                                                                return <IconComponent className="h-5 w-5 text-orange-600" />
-                                                            })()}
-                                                            {getSourceDetails(factor.id).title}
-                                                        </DialogTitle>
-                                                        <DialogDescription asChild>
-                                                            <div className="space-y-4 text-left">
-                                                                <p className="text-sm text-gray-700 dark:text-gray-300">
-                                                                    {getSourceDetails(factor.id).description}
-                                                                </p>
-                                                                <div className="space-y-3 text-sm">
-                                                                    <div className="grid grid-cols-2 gap-4">
-                                                                        <div>
-                                                                            <div className="font-semibold text-gray-900 dark:text-white">Provider</div>
-                                                                            <div className="text-gray-600 dark:text-gray-400">{getSourceDetails(factor.id).provider}</div>
-                                                                        </div>
-                                                                        <div>
-                                                                            <div className="font-semibold text-gray-900 dark:text-white">Frequency</div>
-                                                                            <div className="text-gray-600 dark:text-gray-400">{getSourceDetails(factor.id).frequency}</div>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="grid grid-cols-2 gap-4">
-                                                                        <div>
-                                                                            <div className="font-semibold text-gray-900 dark:text-white">Data Range</div>
-                                                                            <div className="text-gray-600 dark:text-gray-400">{getSourceDetails(factor.id).availability}</div>
-                                                                        </div>
-                                                                        <div>
-                                                                            <div className="font-semibold text-gray-900 dark:text-white">Updates</div>
-                                                                            <div className="text-gray-600 dark:text-gray-400">{getSourceDetails(factor.id).lastUpdated}</div>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div>
-                                                                        <div className="font-semibold text-gray-900 dark:text-white">Methodology</div>
-                                                                        <div className="text-gray-600 dark:text-gray-400 text-xs leading-relaxed">{getSourceDetails(factor.id).methodology}</div>
-                                                                    </div>
-                                                                    <div className="pt-2 border-t border-gray-200 dark:border-[#2B2B30]">
-                                                                        <a
-                                                                            href={getSourceDetails(factor.id).url}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline text-sm font-medium"
-                                                                        >
-                                                                            <ExternalLink className="h-4 w-4" />
-                                                                            View Original Data Source
-                                                                        </a>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </DialogDescription>
-                                                    </DialogHeader>
-                                                </DialogContent>
-                                            </Dialog>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between mt-2">
-                                        <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                                            {factor.currentValue}
-                                        </span>
-                                        <div className="flex items-center gap-2">
-                                            <span className={`text-base font-medium ${getTrendColor(factor.trend)}`}>
-                                                {factor.change}
-                                            </span>
-                                            <Badge className="text-sm bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 px-2 py-1">
-                                                {factor.category}
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="pt-0">
-                                    <div className="h-20 mb-4 p-2 bg-transparent rounded-lg transition-all duration-300">
-                                        <MiniChart
-                                            data={factor.data}
-                                            trend={factor.trend}
-                                        />
-                                    </div>
-                                    <p className="text-base text-gray-600 dark:text-gray-400 line-clamp-3 mb-3 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors duration-300 leading-relaxed">
-                                        {factor.description}
-                                    </p>
-                                    <div className="flex items-center justify-between text-sm text-gray-500">
-                                        <div className="flex items-center gap-1">
-                                            <Badge className={`text-xs transition-all duration-300 hover:scale-105 ${
-                                                factor.trend === 'up' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-200' : 
-                                                factor.trend === 'down' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 hover:bg-red-200' : 
-                                                'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 hover:bg-gray-200'
-                                            } px-2 py-1`}>
-                                                {factor.trend === 'up' ? 'Bullish' : factor.trend === 'down' ? 'Bearish' : 'Neutral'}
-                                            </Badge>
-                                            <span className="text-xs">Signal</span>
-                                        </div>
-                                        <span className="truncate text-sm group-hover:text-gray-600 dark:group-hover:text-gray-400 transition-colors duration-300">{factor.source}</span>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )
-                    })}
-            </AnalysisFactorGrid>
-
-            {/* Full Screen Chart Modal */}
-            {isFullScreen && <FullScreenChart
-                isOpen={isFullScreen}
-                onClose={() => setIsFullScreen(false)}
-                selectedFactor={selectedFactorObject}
-            />}
-        </AnalysisPageShell>
-    )
+      <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+        <Database className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+        <span>Current weights and historical adjusted-price comparisons are kept as separate datasets. ETF series are explicitly labeled as proxies, all charts share the selected period, and missing observations remain null instead of being converted to zero.</span>
+      </div>
+    </AnalysisPageShell>
+  )
 }

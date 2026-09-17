@@ -8,8 +8,8 @@ display:
 source: {provider: FRED, series_id: DGS10, frequency: daily}
 raw_indicator: ten_year_treasury
 classification:
-  primary_domain: capital_flows_intermarket
-  related_domains: [monetary_liquidity, credit_financial_risk]
+  primary_domain: monetary_liquidity
+  related_domains: []
 feature_template: daily_interest_rate
 feature_overrides: {}
 semantics:

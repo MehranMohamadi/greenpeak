@@ -117,7 +117,7 @@ Place your CSV files in the `data/raw/` directory:
 
 - `S&P_ohlc.csv` - S&P 500 OHLC data
 - `DFF.csv` - Federal Funds Rate
-- `GDP.csv` - Real GDP data
+- `GDP.csv` - Nominal GDP level data (FRED series GDP)
 - `CPI.csv` - Consumer Price Index
 - `UNRATE.csv` - Unemployment rate
 - `WALCL.csv` - Federal Reserve balance sheet

@@ -1,12 +1,5 @@
-"use client"
+import { redirect } from "next/navigation"
 
-import Layout from "@/components/kokonutui/layout"
-import MacroCalendar from "@/components/analytics/macro-calendar"
-
-export default function MacroCalendarPage() {
-  return (
-    <Layout>
-      <MacroCalendar />
-    </Layout>
-  )
+export default function LegacyMacroCalendarPage() {
+  redirect("/analytics/events")
 }

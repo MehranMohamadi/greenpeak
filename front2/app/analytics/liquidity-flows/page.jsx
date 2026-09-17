@@ -1,10 +1,5 @@
-import Layout from "@/components/kokonutui/layout"
-import LiquidityFlows from "@/components/analytics/liquidity-flows"
+import { redirect } from "next/navigation"
 
 export default function LiquidityFlowsPage() {
-  return (
-    <Layout>
-      <LiquidityFlows />
-    </Layout>
-  )
+  redirect("/analytics/monetary-policy")
 }

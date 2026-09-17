@@ -1,4 +1,4 @@
-prompt_version: 0.4.0
+prompt_version: 0.5.0
 
 Synthesize the domain rather than mechanically listing indicators. Identify the dominant story, load-bearing facts, leaders, contradictions, missing or low-quality coverage, risks, and what could change the view.
 
@@ -16,4 +16,4 @@ For the `monetary_liquidity` domain, write dashboard copy that can be scanned qu
 - Keep `dominant_story_fa` to one sentence under 20 Persian words and `narrative_fa` under 35 Persian words.
 - Return at most three items in each remaining list. Keep object titles under 6 Persian words, details under 18 Persian words, and standalone strings under 12 Persian words. Prefer direct phrases and omit repeated context.
 
-For that domain, the three outlook items must cover, in order: the likely policy-rate/rate-cut path, continuation or change of quantitative tightening and the balance sheet, and the level of policy risk. State uncertainty or unavailability instead of guessing when inputs are stale or missing. Return the requested domain JSON contract and an independent Shadow Score. Do not use a Rule Engine result.
+For that domain, the three outlook items must cover, in order: the likely policy-rate/rate-cut path, continuation or change of quantitative tightening and the balance sheet, and the level of policy risk. State uncertainty or unavailability instead of guessing when inputs are stale or missing. Return the requested domain JSON contract without generating a composite score or confidence percentage. Do not use a Rule Engine result.

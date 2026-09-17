@@ -130,7 +130,7 @@ export default function RateFeatureCard({ factorId }) {
         <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-4 text-right" dir="rtl">
           <div className="flex items-center justify-between gap-3">
             <span className="font-semibold">تفسیر هوش مصنوعی</span>
-            {narrative && <Badge variant="outline">امتیاز سایه آزمایشی {narrative.llm_shadow_score}</Badge>}
+            {narrative && <Badge variant="outline">پوشش {narrative.coverage?.status || "نامشخص"}</Badge>}
           </div>
           {narrative ? <>
             <p className="mt-2 leading-7">{narrative.current_state_fa} {narrative.what_changed_fa}</p>

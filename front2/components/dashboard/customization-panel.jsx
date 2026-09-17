@@ -137,7 +137,7 @@ export default function CustomizationPanel({ onLayoutChange, onAlertsChange }) {
                 <h4 className="font-medium">Dashboard Components</h4>
 
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="market-watch">Market Watch</Label>
+                  <Label htmlFor="market-watch">دیده بان بازار</Label>
                   <Switch
                     id="market-watch"
                     checked={layoutSettings.showMarketWatch}

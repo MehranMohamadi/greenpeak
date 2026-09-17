@@ -3,110 +3,69 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSidebarHover } from "../../app/context/sidebar-hover-context";
+import { useSidebarHover } from "@/app/context/sidebar-hover-context";
+import { normalizeNavigationPath, US_MARKET } from "@/lib/navigation-state";
+
+const routeLabels = {
+  "/": "Dashboard",
+  "/analytics": US_MARKET.label,
+  "/analytics/monetary-policy": "Monetary Policy & System Liquidity",
+  "/analytics/systemic-risk": "Credit & Financial Stability",
+  "/analytics/macroeconomic": "Growth, Inflation & Labor",
+  "/analytics/corporate-earnings": "Corporate Fundamentals & Earnings",
+  "/analytics/valuation": "Valuation",
+  "/analytics/market-internals": "Market Structure, Sectors & Concentration",
+  "/analytics/intermarket": "Capital Flows & Intermarket",
+  "/analytics/sentiment": "Positioning, Sentiment & Volatility",
+  "/analytics/events": "News & Events",
+  "/analytics/feature-pipeline-debug": "Feature Pipeline JSON",
+  "/settings": "Settings",
+  "/help": "Help",
+  "/test-charts": "Test Charts",
+  "/fun": "حیاط",
+};
 
 export default function TopNav() {
-  const pathname = usePathname();
-  const { hoveredItem, selectedRightItem } = useSidebarHover();
-
-  const routeLabels = {
-    "/": "Dashboard",
-    "/analytics": "Analytics",
-    "/sp500": "S&P 500",
-    "/analytics/monetary-policy": "Monetary Policy",
-    "/analytics/systemic-risk": "Systemic Risk",
-    "/analytics/liquidity-flows": "Liquidity Flows",
-    "/analytics/macroeconomic": "Macroeconomic",
-    "/analytics/corporate-earnings": "Corporate Earnings",
-    "/analytics/valuation": "Valuation",
-    "/analytics/sector-performance": "Sector Performance",
-    "/analytics/derivatives": "Derivatives",
-    "/analytics/market-internals": "Market Internals",
-    "/analytics/intermarket": "Intermarket",
-    "/analytics/sentiment": "Sentiment",
-    "/analytics/macro-calendar": "Macro Calendar & News",
-    "/analytics/institutional": "Institutional",
-    "/analytics/feature-pipeline-debug": "Feature Pipeline JSON",
-    "/settings": "Settings",
-    "/help": "Help",
-    "/test-charts": "Test Charts",
-    "/fun": "حیاط",
-  };
-
-  const generateBreadcrumbs = () => {
-    const pathSegments = pathname.split("/").filter(Boolean);
-    const isFunRoute = pathname === "/fun" || pathname.startsWith("/fun/");
-    const breadcrumbs = isFunRoute
-      ? [{ label: "فان", href: "/fun" }]
-      : [{ label: "GreenPeak", href: "/" }];
-
-    if (pathname === "/") {
-      breadcrumbs.push({ label: "Dashboard", href: null });
-      return breadcrumbs;
-    }
-
-    let currentPath = "";
-    pathSegments.forEach((segment, index) => {
-      currentPath += `/${segment}`;
-      const isLast = index === pathSegments.length - 1;
-      const label =
-        routeLabels[currentPath] ||
-        segment.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-
-      breadcrumbs.push({
-        label,
-        href: isLast ? null : currentPath,
-      });
-    });
-
-    return breadcrumbs;
-  };
-
-  const breadcrumbs = generateBreadcrumbs();
+  const pathname = normalizeNavigationPath(usePathname());
+  const { hoveredItem } = useSidebarHover();
   const isFunRoute = pathname === "/fun" || pathname.startsWith("/fun/");
+  const pathSegments = pathname.split("/").filter(Boolean);
+  const breadcrumbs = isFunRoute
+    ? [{ label: "حال خوب", href: "/fun" }]
+    : [{ label: "GreenPeak", href: "/" }];
 
-  const effectiveBreadcrumbs = (() => {
-    if (isFunRoute) {
-      const rightItem = hoveredItem?.side === "right" ? hoveredItem : selectedRightItem;
-      return rightItem?.trail || [{ label: "فان", href: "/fun" }, { label: "حیاط" }];
-    }
-    const activeSide = isFunRoute ? "right" : "left";
-    if (!hoveredItem || hoveredItem.side !== activeSide || breadcrumbs.length === 0) return breadcrumbs;
-    const base = breadcrumbs.slice(0, -1);  
-    return [
-      ...base,
-      {
-        label: hoveredItem.label,
-      },
-    ];
-  })();
+  if (pathname === "/") breadcrumbs.push({ label: "Dashboard" });
+  let currentPath = "";
+  pathSegments.forEach((segment, index) => {
+    currentPath += `/${segment}`;
+    breadcrumbs.push({
+      label: routeLabels[currentPath] || segment.replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()),
+      href: index === pathSegments.length - 1 ? undefined : currentPath,
+    });
+  });
+
+  // Hover previews supplement the true route; an action never replaces breadcrumbs.
+  const preview = hoveredItem?.side === (isFunRoute ? "right" : "left") ? hoveredItem : null;
 
   return (
-    <nav className={`px-3 sm:px-6 flex items-center bg-white dark:bg-[#0F0F12] border-b border-gray-200 dark:border-[#1F1F23] h-full ${isFunRoute ? "justify-end" : "justify-start"}`}>
-      <div dir={isFunRoute ? "rtl" : "ltr"} className="font-medium text-sm hidden sm:flex items-center gap-1 truncate max-w-[500px]">
-        {effectiveBreadcrumbs.map((item, index) => (
-          <div key={`${item.label}-${index}`} className="flex items-center">
-            {index > 0 && (
-              isFunRoute
-                ? <ChevronLeft className="h-4 w-4 text-gray-500 dark:text-gray-400 mx-1" />
-                : <ChevronRight className="h-4 w-4 text-gray-500 dark:text-gray-400 mx-1" />
-            )}
+    <nav aria-label={isFunRoute ? "مسیر راهنما" : "Breadcrumb"} className={`flex h-full min-w-0 items-center gap-4 border-b border-gray-200 bg-white px-14 dark:border-[#1F1F23] dark:bg-[#0F0F12] lg:px-6 ${isFunRoute ? "justify-end" : "justify-start"}`}>
+      <ol dir={isFunRoute ? "rtl" : "ltr"} className="flex min-w-0 items-center gap-1 text-sm font-medium">
+        {breadcrumbs.map((item, index) => (
+          <li key={`${item.label}-${index}`} className={`min-w-0 items-center ${index < breadcrumbs.length - 2 ? "hidden sm:flex" : "flex"}`}>
+            {index > 0 && (isFunRoute
+              ? <ChevronLeft aria-hidden="true" className="mx-1 h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
+              : <ChevronRight aria-hidden="true" className="mx-1 h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />)}
             {item.href ? (
-              <Link
-                href={item.href}
-                className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-              >
+              <Link href={item.href} title={item.label} className="truncate rounded-sm text-gray-700 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 motion-reduce:transition-none dark:text-gray-300 dark:hover:text-gray-100">
                 {item.label}
               </Link>
             ) : (
-              <span className="text-gray-900 dark:text-gray-100">
-                {item.label}
-              </span>
+              <span aria-current="page" title={item.label} className="truncate text-gray-900 dark:text-gray-100">{item.label}</span>
             )}
-          </div>
+          </li>
         ))}
-      </div>
-
+      </ol>
+      {preview && <span dir="auto" aria-label={isFunRoute ? "پیش‌نمایش گزینه" : "Navigation preview"} className="hidden min-w-0 truncate border-s border-gray-200 ps-4 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400 xl:block">{isFunRoute ? "پیش‌نمایش: " : "Preview: "}{preview.label}</span>}
     </nav>
   );
 }

@@ -1,3 +1,4 @@
+import { normalizeChartData } from "@/lib/chart-data";
 import { useEffect, useState } from 'react';
 import { endpoints } from '../api/api';
 
@@ -33,26 +34,18 @@ export default function useDFFData() {
                     meta = json.metadata || null;
                 }
                 
-                const cleaned = arr
-                    .map(item => {
-                        const time = Number(item.time);
-                        if (isNaN(time)) return null;
-                        return {
-                            time,
-                            date: item.date,
-                            value: Number(item.rate || item.value),
-                            rate: Number(item.rate || item.value),
-                        };
-                    })
-                    .filter(Boolean)
-                    .sort((a, b) => a.time - b.time);
+                const cleaned = normalizeChartData(arr, ["rate", "value"]).map(point => ({
+                        time: Date.parse(point.time + 'T00:00:00Z') / 1000,
+                        date: point.time,
+                        value: point.value,
+                        rate: point.value,
+                    }));
                     
                 setData(cleaned);
                 setMetadata(meta);
                 setError(null);
             })
             .catch(err => {
-                console.error("DFF fetch error:", err);
                 setError(err.message);
                 setData([]);
                 setMetadata(null);

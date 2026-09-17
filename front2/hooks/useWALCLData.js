@@ -1,3 +1,4 @@
+import { normalizeChartData } from "@/lib/chart-data";
 import { useEffect, useState } from 'react';
 import { endpoints } from '../api/api';
 
@@ -19,27 +20,19 @@ export default function useWALCLData() {
             .then(json => {
                 // Handle nested response structure
                 const responseData = json.data || json;
-                const cleaned = responseData
-                    .map(item => {
-                        const time = Number(item.time);
-                        if (isNaN(time)) return null;
-                        return {
-                            time,
-                            date: item.date,
-                            value: Number(item.value || item.walcl || item.balance_sheet),
-                            walcl: Number(item.walcl || item.value),
-                            balance_sheet: Number(item.balance_sheet || item.value),
-                        };
-                    })
-                    .filter(Boolean)
-                    .sort((a, b) => a.time - b.time);
+                const cleaned = normalizeChartData(responseData, ["value", "walcl", "balance_sheet"]).map(point => ({
+                        time: Date.parse(point.time + 'T00:00:00Z') / 1000,
+                        date: point.time,
+                        value: point.value,
+                        walcl: point.value,
+                        balance_sheet: point.value,
+                    }));
                 
                 setData(cleaned);
                 setMetadata(json.metadata || null);
                 setError(null);
             })
             .catch(err => {
-                console.error("WALCL fetch error:", err);
                 setError(err.message);
                 setData([]);
                 setMetadata(null);

@@ -1,0 +1,11 @@
+indicator_id: spx_put_call_ratio
+definition_version: "1.0"
+enabled: true
+display: {name_en: "SPX + SPXW Put/Call Ratio", name_fa: "نسبت اختیار فروش به خرید SPX و SPXW", unit: ratio}
+source: {provider: Cboe, series_id: SPX+SPXW_PUT_CALL_RATIO, frequency: daily, collection: positioning_sentiment}
+raw_indicator: spx_put_call_ratio
+classification: {primary_domain: positioning_sentiment_derivatives_volatility, related_domains: []}
+feature_template: daily_level
+feature_overrides: {family: sentiment_ratio, trend_threshold_bp: 0.02}
+semantics: {category: options_sentiment, higher_is: higher_put_demand_relative_to_calls, value_meaning: reported_spx_and_spxw_put_volume_divided_by_call_volume}
+llm: {enabled: true, include_in_domain_analysis: true}
