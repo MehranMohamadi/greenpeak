@@ -69,6 +69,9 @@ class MemoryService:
     def latest_by_account(self):
         return [self.document] if self.document is not None else []
 
+    def all_snapshots(self):
+        return [self.document] if self.document is not None else []
+
 
 def test_ingestion_requires_token(monkeypatch):
     monkeypatch.setattr("src.api.v1.endpoints.mt5._configured_tokens", lambda: ("secret",))
@@ -89,11 +92,14 @@ def test_snapshot_round_trip_and_idempotency(monkeypatch):
     monkeypatch.setattr("src.api.v1.endpoints.mt5._configured_tokens", lambda: ("secret",))
     client = TestClient(app)
     headers = {"Authorization": "Bearer secret"}
+    payload = deepcopy(SNAPSHOT)
+    payload["additional_snapshot_data"] = {"nested_value": "preserved"}
     try:
-        first = client.post("/api/v1/mt5/snapshots", json=deepcopy(SNAPSHOT), headers=headers)
-        second = client.post("/api/v1/mt5/snapshots", json=deepcopy(SNAPSHOT), headers=headers)
+        first = client.post("/api/v1/mt5/snapshots", json=payload, headers=headers)
+        second = client.post("/api/v1/mt5/snapshots", json=payload, headers=headers)
         latest = client.get("/api/v1/mt5/snapshots/latest?account_identifier=123456", headers=headers)
         accounts = client.get("/api/v1/mt5/snapshots/latest-by-account", headers=headers)
+        all_snapshots = client.get("/api/v1/mt5/snapshots", headers=headers)
     finally:
         app.dependency_overrides.clear()
     assert first.status_code == 200
@@ -103,6 +109,9 @@ def test_snapshot_round_trip_and_idempotency(monkeypatch):
     assert latest.json()["portfolio_metrics"]["gross_portfolio_exposure_usd"] == 60000
     assert accounts.status_code == 200
     assert [item["source"]["account_identifier"] for item in accounts.json()] == ["123456"]
+    assert all_snapshots.status_code == 200
+    assert all_snapshots.json()[0]["snapshot_id"] == SNAPSHOT["snapshot_id"]
+    assert all_snapshots.json()[0]["additional_snapshot_data"] == {"nested_value": "preserved"}
 
 
 def test_non_utc_timestamp_is_rejected(monkeypatch):
@@ -155,4 +164,31 @@ def test_latest_by_account_groups_on_broker_server_and_account():
     identity = collection.pipeline[1]["$group"]["_id"]
 
     assert set(identity) == {"broker_company", "trade_server", "account_identifier"}
+    assert result[0]["timestamp_utc"].tzinfo is timezone.utc
+
+
+def test_all_snapshots_are_sorted_newest_first():
+    document = deepcopy(SNAPSHOT)
+    document["timestamp_utc"] = datetime(2026, 8, 27, 10, 0)
+
+    class Collection:
+        def __init__(self):
+            self.query = None
+            self.sort = None
+
+        def find(self, query, sort):
+            self.query = query
+            self.sort = sort
+            return [document]
+
+    collection = Collection()
+
+    class MongoDB:
+        def get_collection(self, name):
+            return collection
+
+    result = MT5SnapshotService(MongoDB()).all_snapshots()
+
+    assert collection.query == {}
+    assert collection.sort == [("timestamp_utc", -1)]
     assert result[0]["timestamp_utc"].tzinfo is timezone.utc

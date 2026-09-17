@@ -17,15 +17,15 @@ export default function Portfolio({ snapshots = [] }) {
         <AccountHeading snapshot={snapshot} />
         <div className="space-y-2">
           <h4 className="text-xs font-semibold text-muted-foreground">سرمایه و Margin حساب</h4>
-          <FieldGrid data={snapshot.account} currency={snapshot.account?.currency} />
+          <FieldGrid data={snapshot.account} currency={snapshot.account?.currency} excludeFields={["currency"]} />
         </div>
         <div className="space-y-2 border-t pt-3 dark:border-[#2B2B30]">
           <h4 className="text-xs font-semibold text-muted-foreground">Exposure و ریسک Portfolio</h4>
-          <FieldGrid data={snapshot.portfolio_metrics} currency={snapshot.account?.currency} />
+          <FieldGrid data={snapshot.portfolio_metrics} currency={snapshot.account?.currency} excludeFields={["required_deposit_for_gross_portfolio_usd"]} />
         </div>
         <div className="space-y-2 border-t pt-3 dark:border-[#2B2B30]">
           <h4 className="text-xs font-semibold text-muted-foreground">Swap و تأمین مالی</h4>
-          <FieldGrid data={snapshot.swap_metrics} currency={snapshot.account?.currency} />
+          <FieldGrid data={snapshot.swap_metrics} currency={snapshot.account?.currency} excludeFields={["swap_mode"]} />
         </div>
       </section>)}
     </CardContent>

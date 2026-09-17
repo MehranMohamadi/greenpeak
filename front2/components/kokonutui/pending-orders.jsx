@@ -23,7 +23,7 @@ export default function PendingOrders({ snapshots = [] }) {
           <div className="flex items-center gap-2"><Badge variant="outline">{order.order_type ?? order.type ?? "Order"}</Badge><span className="text-sm font-semibold">{order.symbol || "نماد نامشخص"}</span></div>
           <AccountBadge snapshot={snapshot} />
         </div>
-        <FieldGrid data={order} currency={snapshot.account?.currency} />
+        <FieldGrid data={order} currency={snapshot.account?.currency} excludeFields={["ticket", "order_identifier"]} />
       </article>)}
     </CardContent>
   </Card>

@@ -55,6 +55,21 @@ def ingest_snapshot(
     )
 
 
+@router.get(
+    "/snapshots",
+    response_model=list[MT5Snapshot],
+    dependencies=[Depends(require_mt5_token)],
+)
+def all_snapshots(
+    service: MT5SnapshotService = Depends(snapshot_service),
+) -> list[MT5Snapshot]:
+    try:
+        snapshots = service.all_snapshots()
+    except PyMongoError as exc:
+        raise HTTPException(status_code=503, detail="Snapshot storage unavailable") from exc
+    return [MT5Snapshot.model_validate(snapshot) for snapshot in snapshots]
+
+
 @router.get("/snapshots/latest", response_model=MT5Snapshot, dependencies=[Depends(require_mt5_token)])
 def latest_snapshot(
     account_identifier: str | None = Query(default=None, max_length=128),

@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge"
 
-export const tradingCardClass = "flex h-[22rem] flex-col overflow-hidden border-gray-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]"
+export const tradingCardClass = "flex h-[17.6rem] flex-col overflow-hidden border-gray-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]"
 export const tradingCardHeaderClass = "shrink-0 p-4 pb-2"
 export const tradingCardContentClass = "min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-0"
 
@@ -11,7 +11,7 @@ const labels = {
   annualized_long_swap_rate_pct: "نرخ سالانه Swap خرید",
   annualized_short_swap_rate_pct: "نرخ سالانه Swap فروش",
   ask: "Ask",
-  balance: "Balance حساب",
+  balance: "Balance",
   bid: "Bid",
   break_even_price: "قیمت سربه‌سر",
   break_even_status: "وضعیت سربه‌سر",
@@ -38,14 +38,14 @@ const labels = {
   final_leverage_price: "قیمت Leverage نهایی",
   final_leverage_status: "وضعیت Leverage نهایی",
   floating_profit_loss: "Floating P/L",
-  free_margin: "Margin آزاد",
+  free_margin: "Free Margin",
   gross_portfolio_exposure_usd: "Exposure ناخالص",
   gross_portfolio_leverage: "Leverage ناخالص",
   initial_volume_lots: "حجم اولیه",
   last_update_time_utc: "آخرین به‌روزرسانی",
   long_symbol_notional_usd: "ارزش Long",
   magic_number: "Magic Number",
-  margin_level_pct: "سطح Margin",
+  margin_level_pct: "Margin Level",
   minimum_volume: "حداقل حجم",
   net_portfolio_exposure_usd: "Exposure خالص",
   net_portfolio_leverage: "Leverage خالص",
@@ -89,7 +89,7 @@ const labels = {
   trade_history_window_days: "بازه تاریخچه معاملات",
   trade_server: "سرور معامله",
   trading_status: "وضعیت معامله",
-  used_margin: "Margin مصرف‌شده",
+  used_margin: "Used Margin",
   volume: "Volume",
   volume_lots: "حجم Lot",
   volume_step: "گام حجم",
@@ -117,7 +117,7 @@ export function formatField(value, key, currency = "USD") {
     return value
   }
   if (typeof value !== "number" || !Number.isFinite(value)) return String(value)
-  if (key.includes("_pct")) return `${number(value)}%`
+  if (key.includes("_pct")) return `${number(value, 2, 2)}%`
   if (key.includes("leverage") && key !== "broker_leverage") return `${number(value)}×`
   if (key.endsWith("_usd")) return money(value, "USD")
   if (accountMoneyFields.has(key)) return money(value, currency)
@@ -133,9 +133,9 @@ export function money(value, currency = "USD") {
   }
 }
 
-export function number(value, maximumFractionDigits = 8) {
+export function number(value, maximumFractionDigits = 8, minimumFractionDigits = 0) {
   if (value == null || !Number.isFinite(Number(value))) return "—"
-  return Number(value).toLocaleString("en-US", { maximumFractionDigits })
+  return Number(value).toLocaleString("en-US", { maximumFractionDigits, minimumFractionDigits })
 }
 
 export function accountKey(snapshot) {
@@ -148,20 +148,24 @@ export function accountLabel(snapshot) {
   return [source.broker_company, source.trade_server].filter(Boolean).join(" · ") || "حساب معاملاتی"
 }
 
-export function AccountHeading({ snapshot, children }) {
+export function AccountHeading({ snapshot, children, showAccountIdentifier = true, showTradeServer = true }) {
+  const headingLabel = showTradeServer
+    ? accountLabel(snapshot)
+    : snapshot.source?.broker_company || "حساب معاملاتی"
   return <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 pb-1.5 dark:border-[#2B2B30]">
     <div>
-      <p className="text-sm font-medium text-gray-900 dark:text-white">{accountLabel(snapshot)}</p>
-      <p className="mt-0.5 text-[11px] text-muted-foreground">حساب {snapshot.source?.account_identifier || "—"}</p>
+      <p className="text-sm font-medium text-gray-900 dark:text-white">{headingLabel}</p>
+      {showAccountIdentifier && <p className="mt-0.5 text-[11px] text-muted-foreground">حساب {snapshot.source?.account_identifier || "—"}</p>}
     </div>
     {children}
   </div>
 }
 
-export function FieldGrid({ data, currency = "USD", className = "" }) {
-  const entries = Object.entries(data || {})
+export function FieldGrid({ data, currency = "USD", className = "", excludeFields = [] }) {
+  const excluded = new Set(excludeFields)
+  const entries = Object.entries(data || {}).filter(([key]) => !excluded.has(key))
   if (!entries.length) return <p className="text-xs text-muted-foreground">داده‌ای ارسال نشده است.</p>
-  return <dl className={`grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:grid-cols-3 lg:grid-cols-5 ${className}`}>
+  return <dl className={`grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:grid-cols-3 lg:grid-cols-6 ${className}`}>
     {entries.map(([key, value]) => <div key={key} className="min-w-0">
       <dt className="text-[11px] leading-4 text-muted-foreground">{fieldLabel(key)}</dt>
       <dd className="mt-0.5 break-words font-medium leading-4 tabular-nums text-gray-900 dark:text-white" title={typeof value === "object" ? JSON.stringify(value) : undefined}>{formatField(value, key, currency)}</dd>

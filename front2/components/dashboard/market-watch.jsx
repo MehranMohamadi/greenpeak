@@ -31,9 +31,10 @@ const marketSeries = [
   {
     id: "pe-ratio",
     symbol: "نسبت P/E",
-    url: withLimit(endpoints.valuation.peRatio),
+    url: `/api/market/pe-ratio?limit=${DATABASE_POINT_LIMIT}`,
     suffix: "×",
     decimals: 2,
+    windowMs: null,
   },
   {
     id: "vix",
@@ -44,13 +45,13 @@ const marketSeries = [
   {
     id: "dollar-index",
     symbol: "شاخص دلار",
-    url: withLimit(endpoints.systemicRisk.dollarIndex),
+    url: "/api/intermarket?series=DTWEXBGS&range=1mo",
     decimals: 2,
   },
   {
     id: "gold",
     symbol: "طلا",
-    url: withLimit(endpoints.systemicRisk.gold),
+    url: "/api/intermarket?series=GOLDAMGBD228NLBM&range=1mo",
     prefix: "$",
     decimals: 2,
   },
@@ -71,7 +72,7 @@ function pointValue(point, responseType) {
   return Number.isFinite(value) ? value : null
 }
 
-function normalizePoints(payload, responseType) {
+function normalizePoints(payload, responseType, windowMs = WEEK_WINDOW_MS) {
   const source = responseType === "ohlc" ? payload : payload?.data
   if (!Array.isArray(source)) return []
 
@@ -84,8 +85,9 @@ function normalizePoints(payload, responseType) {
     .sort((a, b) => a.timestamp - b.timestamp)
 
   if (points.length === 0) return []
+  if (windowMs === null) return points.slice(-DATABASE_POINT_LIMIT)
   const latestTimestamp = points.at(-1).timestamp
-  return points.filter((point) => point.timestamp >= latestTimestamp - WEEK_WINDOW_MS)
+  return points.filter((point) => point.timestamp >= latestTimestamp - windowMs)
 }
 
 function formatNumber(value, decimals = 2) {
@@ -114,7 +116,7 @@ function formatObservationDate(timestamp) {
 }
 
 function buildMarketItem(series, payload) {
-  const points = normalizePoints(payload, series.responseType)
+  const points = normalizePoints(payload, series.responseType, series.windowMs)
   if (points.length === 0) throw new Error("No valid observations")
 
   const latest = points.at(-1)
@@ -133,7 +135,7 @@ function buildMarketItem(series, payload) {
     trend,
     chartData: points.map((point) => point.value),
     observationDate: formatObservationDate(latest.timestamp),
-    source: payload?.metadata?.source || (series.responseType === "ohlc" ? "Yahoo Finance" : ""),
+    source: payload?.metadata?.source || payload?.metadata?.source_provider || (series.responseType === "ohlc" ? "Yahoo Finance" : ""),
     error: null,
   }
 }
@@ -173,14 +175,18 @@ function MiniChart({ data, trend }) {
   const min = Math.min(...data)
   const range = max - min
   const denominator = Math.max(data.length - 1, 1)
+  const horizontalInset = 3
+  const verticalInset = 8
+  const chartWidth = 100 - horizontalInset * 2
+  const chartHeight = 100 - verticalInset * 2
   const points = data
     .map((value, index) => {
-      const x = (index / denominator) * 100
-      const y = range === 0 ? 50 : 100 - ((value - min) / range) * 100
+      const x = horizontalInset + (index / denominator) * chartWidth
+      const y = range === 0 ? 50 : verticalInset + (1 - (value - min) / range) * chartHeight
       return `${x},${y}`
     })
     .join(" ")
-  const latestY = range === 0 ? 50 : 100 - ((data.at(-1) - min) / range) * 100
+  const latestY = range === 0 ? 50 : verticalInset + (1 - (data.at(-1) - min) / range) * chartHeight
   const stroke = trendStroke(trend)
 
   return (
@@ -189,7 +195,7 @@ function MiniChart({ data, trend }) {
         <motion.polyline
           fill="none"
           stroke={stroke}
-          strokeWidth="2"
+          strokeWidth="1"
           vectorEffect="non-scaling-stroke"
           points={points}
           initial={{ pathLength: 0, opacity: 0 }}
@@ -197,9 +203,9 @@ function MiniChart({ data, trend }) {
           transition={{ duration: 1, ease: "easeInOut" }}
         />
         <motion.circle
-          cx={data.length > 1 ? 100 : 0}
+          cx={data.length > 1 ? 100 - horizontalInset : horizontalInset}
           cy={latestY}
-          r="2"
+          r="1.5"
           fill={stroke}
           className="chart-point-pulse"
           initial={{ scale: 0 }}

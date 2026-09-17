@@ -19,6 +19,7 @@ const routeLabels = {
   "/analytics/sentiment": "Positioning, Sentiment & Volatility",
   "/analytics/events": "News & Events",
   "/analytics/feature-pipeline-debug": "Feature Pipeline JSON",
+  "/analytics/mt5-snapshots": "MetaTrader Snapshot JSON",
   "/settings": "Settings",
   "/help": "Help",
   "/test-charts": "Test Charts",

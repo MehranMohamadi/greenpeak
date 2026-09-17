@@ -20,10 +20,6 @@ export default function RiskAndSymbols({ snapshots = [] }) {
         const symbols = [...new Set([...riskBySymbol.keys(), ...brokerBySymbol.keys()])]
         return <section key={accountKey(snapshot)} className="space-y-3 rounded-lg border bg-gray-50 p-3 dark:border-[#2B2B30] dark:bg-[#0F0F12]">
           <AccountHeading snapshot={snapshot} />
-          <div className="space-y-2">
-            <h4 className="text-xs font-semibold text-muted-foreground">وضعیت محاسبات</h4>
-            <FieldGrid data={snapshot.calculation_status} currency={snapshot.account?.currency} />
-          </div>
           {!symbols.length && <EmptyCollection>اطلاعات ریسک Symbol یا مشخصات Broker گزارش نشده است.</EmptyCollection>}
           {symbols.map((symbol) => <article key={symbol} className="space-y-3 border-t pt-3 dark:border-[#2B2B30]">
             <Badge variant="outline">{symbol || "نماد نامشخص"}</Badge>
@@ -33,7 +29,11 @@ export default function RiskAndSymbols({ snapshots = [] }) {
             </div>}
             {brokerBySymbol.has(symbol) && <div className="space-y-2">
               <h5 className="text-xs font-semibold text-muted-foreground">مشخصات Quote و Contract</h5>
-              <FieldGrid data={brokerBySymbol.get(symbol)} currency={snapshot.account?.currency} />
+              <FieldGrid
+                data={brokerBySymbol.get(symbol)}
+                currency={snapshot.account?.currency}
+                excludeFields={["swap_mode", "trade_calculation_mode", "execution_mode", "trading_status", "quote_timestamp_utc"]}
+              />
             </div>}
           </article>)}
         </section>

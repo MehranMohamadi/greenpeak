@@ -74,3 +74,10 @@ class MT5SnapshotService:
         ]
         documents = self.mongodb.get_collection(COLLECTION).aggregate(pipeline)
         return [_prepare_for_response(document) for document in documents]
+
+    def all_snapshots(self) -> list[dict[str, Any]]:
+        """Return every stored snapshot, newest first, for the complete JSON view."""
+        documents = self.mongodb.get_collection(COLLECTION).find(
+            {}, sort=[("timestamp_utc", -1)]
+        )
+        return [_prepare_for_response(document) for document in documents]

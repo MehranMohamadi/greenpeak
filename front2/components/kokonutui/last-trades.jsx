@@ -25,7 +25,7 @@ export default function LastTrades({ snapshots = [] }) {
           <div className="flex items-center gap-2"><Badge variant="outline">{trade.direction || "Deal"}</Badge><span className="text-sm font-semibold">{trade.symbol || "نماد نامشخص"}</span></div>
           <AccountBadge snapshot={snapshot} />
         </div>
-        <FieldGrid data={trade} currency={snapshot.account?.currency} />
+        <FieldGrid data={trade} currency={snapshot.account?.currency} excludeFields={["deal_identifier", "order_identifier"]} />
       </article>)}
     </CardContent>
   </Card>

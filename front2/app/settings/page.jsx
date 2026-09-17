@@ -5,7 +5,7 @@ import DashboardThemes from "@/components/dashboard/dashboard-themes"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Settings, LayoutIcon, Star, Database } from "lucide-react"
+import { Settings, LayoutIcon, Star, Database, FileJson2 } from "lucide-react"
 
 export default function SettingsPage() {
   return (
@@ -50,6 +50,21 @@ export default function SettingsPage() {
             <CardContent>
               <Button asChild>
                 <Link href="/analytics/feature-pipeline-debug">Open Pipeline JSON</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileJson2 className="h-5 w-5" />
+                MetaTrader Snapshots
+              </CardTitle>
+              <CardDescription>View every stored MetaTrader snapshot as complete, unfiltered JSON</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild>
+                <Link href="/analytics/mt5-snapshots">Open Snapshot JSON</Link>
               </Button>
             </CardContent>
           </Card>
