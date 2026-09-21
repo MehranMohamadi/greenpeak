@@ -50,7 +50,9 @@ export default function MT5AccountSnapshot() {
   }
 
   if (snapshots.length === 0) {
-    return <Card className="border-gray-200 bg-white dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+    return <div className="space-y-3">
+      <MT5Pairing accessToken={accessToken} />
+      <Card className="border-gray-200 bg-white dark:border-[#2B2B30] dark:bg-[#1F1F23]">
       <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4" dir="rtl">
         <div className="flex items-center gap-3">
           <AlertTriangle className="h-5 w-5 text-amber-500" />
@@ -58,7 +60,8 @@ export default function MT5AccountSnapshot() {
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تلاش دوباره</Button>
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   }
 
   return <section className="space-y-3" aria-labelledby="trading-accounts-title" dir="rtl">
