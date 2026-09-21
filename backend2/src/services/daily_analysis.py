@@ -218,7 +218,7 @@ def create_daily_analysis_scheduler() -> BackgroundScheduler | None:
         coalesce=True,
         max_instances=1,
     )
-    # A restart before 16:00 must not generate an early analysis. If the server
+    # A restart before the configured local run time must not generate an early analysis. If the server
     # comes back after the configured run time, catch up once; the shared Mongo
     # run key prevents a second generation for the same Tehran calendar day.
     if should_schedule_catchup(datetime.now(timezone), settings.greenpeak_daily_analysis_hour, settings.greenpeak_daily_analysis_minute):
