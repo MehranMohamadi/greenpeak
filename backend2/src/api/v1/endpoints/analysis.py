@@ -8,6 +8,7 @@ from pymongo.errors import PyMongoError
 
 from ....core.config import get_settings
 from ....services.greenpeak_config import load_registry
+from ....services.daily_analysis import next_scheduled_analysis_at
 from ....services.llm_engine.repository import MongoNarrativeRepository
 from ....services.llm_engine.schemas import DomainNarrative, IndicatorNarrative, MarketNarrative
 from ....services.llm_engine.provider import OpenAICompatibleProvider
@@ -51,7 +52,12 @@ def latest_domain_analysis(domain_id: str):
 
 @router.get("/market/analysis/latest")
 def latest_market_analysis():
-    return _latest("market", "sp500", MarketNarrative)
+    response = _latest("market", "sp500", MarketNarrative)
+    next_analysis_at = next_scheduled_analysis_at()
+    response["metadata"] = {
+        "next_analysis_at": next_analysis_at.isoformat() if next_analysis_at else None,
+    }
+    return response
 
 
 def _authorize_manual_run(authorization: str | None) -> None:

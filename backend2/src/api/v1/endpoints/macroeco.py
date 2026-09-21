@@ -111,13 +111,58 @@ async def get_cpi_data(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
+@router.get("/core-cpi", response_model=DataResponse)
+async def get_core_cpi_data(
+    limit: Optional[int] = Query(None, description="Limit number of records"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+):
+    """Get Core CPI year-over-year inflation from CPILFENS."""
+    try:
+        return data_service.get_macro_core_cpi_inflation_data(
+            limit=limit, start_date=start_date, end_date=end_date
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/core-pce", response_model=DataResponse)
+async def get_core_pce_data(
+    limit: Optional[int] = Query(None, description="Limit number of records"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+):
+    """Get Core PCE Price Index year-over-year inflation from PCEPILFE."""
+    try:
+        return data_service.get_macro_core_pce_inflation_data(
+            limit=limit, start_date=start_date, end_date=end_date
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/ppi", response_model=DataResponse)
+async def get_ppi_data(
+    limit: Optional[int] = Query(None, description="Limit number of records"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+):
+    """Get Final Demand PPI year-over-year inflation from PPIFID."""
+    try:
+        return data_service.get_macro_ppi_final_demand_inflation_data(
+            limit=limit, start_date=start_date, end_date=end_date
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 @router.get("/retail-sales", response_model=DataResponse)
 async def get_retail_sales_data(
     limit: Optional[int] = Query(None, description="Limit number of records"),
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
 ):
-    """Get Retail Sales data from MongoDB or fallback to CSV."""
+    """Get month-over-month Retail Sales growth from RSXFS."""
     try:
         return data_service.get_macro_retail_sales_data(
             limit=limit, start_date=start_date, end_date=end_date

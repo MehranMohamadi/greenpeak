@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 const ALLOWED_PATHS = new Set([
   "market/analysis/latest",
   "news/sources/alpha_vantage",
+  "news/calendar/upcoming",
 ])
 
 export async function GET(request, { params }) {

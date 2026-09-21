@@ -24,6 +24,27 @@ def should_schedule_catchup(now: datetime, hour: int, minute: int) -> bool:
     return now >= scheduled_at
 
 
+def next_scheduled_analysis_at(now: datetime | None = None) -> datetime | None:
+    """Return the next configured daily-analysis run in its local timezone."""
+    settings = get_settings()
+    if not settings.greenpeak_daily_analysis_enabled:
+        return None
+    if settings.greenpeak_llm_provider != "openai-compatible" or not settings.greenpeak_llm_api_key or not settings.greenpeak_llm_model:
+        return None
+    try:
+        timezone = ZoneInfo(settings.greenpeak_daily_analysis_timezone)
+    except ZoneInfoNotFoundError:
+        return None
+
+    current = now.astimezone(timezone) if now else datetime.now(timezone)
+    trigger = CronTrigger(
+        hour=settings.greenpeak_daily_analysis_hour,
+        minute=settings.greenpeak_daily_analysis_minute,
+        timezone=timezone,
+    )
+    return trigger.get_next_fire_time(None, current)
+
+
 def run_daily_analysis() -> None:
     """Generate one shared analysis per configured local calendar day."""
     settings = get_settings()

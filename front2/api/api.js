@@ -83,6 +83,9 @@ export const endpoints = {
         payroll: `${API_BASE}/macroeco/payroll`,
         confidence: `${API_BASE}/macroeco/confidence`,
         cpi: `${API_BASE}/macroeco/cpi`,
+        coreCpi: `${API_BASE}/macroeco/core-cpi`,
+        corePce: `${API_BASE}/macroeco/core-pce`,
+        ppi: `${API_BASE}/macroeco/ppi`,
         retailSales: `${API_BASE}/macroeco/retail-sales`,
     },
     corporate: {

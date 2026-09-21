@@ -20,9 +20,12 @@ const MiniChart = dynamic(() => import("./mini-chart"), { ssr: false })
 
 const FACTORS = [
   { id: "gdp-growth", indicatorId: "real_gdp", key: "gdp", title: "Real GDP Growth", group: "Growth & demand", icon: LineChart, format: "percent", detail: "Annualized quarter-over-quarter growth calculated from GDPC1 levels." },
-  { id: "retail-sales", indicatorId: "retail_sales", key: "retailSales", title: "Retail Sales Level", group: "Growth & demand", icon: ShoppingCart, format: "millions", detail: "Seasonally adjusted retail and food-services sales level; not a growth rate." },
+  { id: "retail-sales", indicatorId: "retail_sales_growth_mom", key: "retailSales", title: "Retail Sales Growth", group: "Growth & demand", icon: ShoppingCart, format: "percent", detail: "Month-over-month percent change in seasonally adjusted U.S. retail and food-services sales." },
   { id: "consumer-confidence", indicatorId: "consumer_confidence", key: "confidence", title: "Consumer Confidence", group: "Growth & demand", icon: Gauge, format: "index", detail: "Consumer-confidence index level, with its exact series identified in metadata." },
-  { id: "cpi-inflation", indicatorId: "cpi_index", key: "cpi", title: "CPI Inflation", group: "Inflation", icon: Building2, format: "percent", detail: "12-month percent change calculated from the CPIAUCSL index level." },
+  { id: "cpi-inflation", indicatorId: "cpi_inflation_yoy", key: "cpi", title: "CPI YoY", group: "Inflation", icon: Building2, format: "percent", detail: "12-month percent change in the not-seasonally-adjusted CPIAUCNS index." },
+  { id: "core-cpi-inflation", indicatorId: "core_cpi_inflation_yoy", key: "coreCpi", title: "Core CPI YoY", group: "Inflation", icon: Building2, format: "percent", detail: "12-month percent change in consumer prices excluding food and energy (CPILFENS)." },
+  { id: "core-pce-inflation", indicatorId: "core_pce_inflation_yoy", key: "corePce", title: "Core PCE Price Index YoY", group: "Inflation", icon: Building2, format: "percent", detail: "12-month percent change in the Core PCE Price Index (PCEPILFE)." },
+  { id: "ppi-inflation", indicatorId: "ppi_final_demand_inflation_yoy", key: "ppi", title: "PPI Final Demand YoY", group: "Inflation", icon: Building2, format: "percent", detail: "12-month percent change in the Producer Price Index for Final Demand (PPIFID)." },
   { id: "unemployment-rate", indicatorId: "unemployment_rate", key: "unemployment", title: "Unemployment Rate", group: "Labor", icon: Users, format: "percent", detail: "Share of the labor force that is unemployed, seasonally adjusted." },
   { id: "nonfarm-payrolls", indicatorId: "nonfarm_payrolls", key: "payroll", title: "Total Nonfarm Payrolls", group: "Labor", icon: BriefcaseBusiness, format: "payroll", detail: "Total payroll-employment level in thousands of persons; not the monthly change." },
 ]
@@ -61,7 +64,7 @@ export default function Macroeconomic() {
 
   const observationDate = selectedMetadata?.observation_date || selectedMetadata?.latest_date || selectedData.at(-1)?.date || "N/A"
   const unit = selected.format === "percent" ? "%" : selected.format === "millions" ? "USD millions" : selected.format === "payroll" ? "Thousands of persons" : "Index"
-  const sourceLine = <>{selectedMetadata?.source || "Source unavailable"} · {observationDate} · {unit}{(selectedMetadata?.source_series_id || selectedMetadata?.fred_series) && <> · {selectedMetadata.source_series_id || selectedMetadata.fred_series}</>}{selectedMetadata?.quality_status === "stale" && <span className="ml-2 text-amber-700 dark:text-amber-400">Data is outdated</span>}</>
+  const sourceLine = <>{selectedMetadata?.source || "Source unavailable"} · {observationDate} · {unit}{(selectedMetadata?.source_series_id || selectedMetadata?.fred_series) && <> · {selectedMetadata.source_series_id || selectedMetadata.fred_series}</>}{selectedMetadata?.latest_observation_status && <> · {selectedMetadata.latest_observation_status}</>}{selectedMetadata?.quality_status === "stale" && <span className="ml-2 text-amber-700 dark:text-amber-400">Data is outdated</span>}</>
   const periodControls = <div className="flex flex-wrap gap-1">{PERIODS.map((item) => <Button key={item} size="sm" variant={period === item ? "default" : "outline"} onClick={() => setPeriod(item)}>{item}</Button>)}</div>
 
   return (
@@ -107,7 +110,7 @@ export default function Macroeconomic() {
                 <CardContent className="p-4 pt-0">
                   <div className="text-2xl font-semibold tabular-nums">{loading ? "Loading…" : unavailable ? "N/A" : formatValue(latest, factor.format)}</div>
                   <div className="pointer-events-none mt-3 h-20 rounded-lg bg-transparent p-2 mini-chart-container" aria-hidden="true">{loading ? <div className="h-full animate-pulse rounded bg-slate-100 dark:bg-slate-800" /> : <MiniChart data={series} trend={trend} />}</div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400"><Badge variant="outline">{unavailable ? (meta?.quality_status || "unavailable") : meta?.quality_status === "stale" ? "stale" : (meta?.frequency || "frequency N/A")}</Badge><span>{meta?.observation_date || meta?.latest_date || series.at(-1)?.date || "No observation date"}</span></div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400"><Badge variant="outline">{unavailable ? (meta?.quality_status || "unavailable") : meta?.quality_status === "stale" ? "stale" : (meta?.frequency || "frequency N/A")}</Badge>{meta?.latest_observation_status && <Badge variant="outline">{meta.latest_observation_status}</Badge>}<span>{meta?.observation_date || meta?.latest_date || series.at(-1)?.date || "No observation date"}</span></div>
                 </CardContent>
               </AnalysisFactorCard>
             </button>

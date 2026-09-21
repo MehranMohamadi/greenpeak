@@ -4,63 +4,85 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Card } from "@/components/ui/card"
 import { Calendar, TrendingUp, AlertCircle } from "lucide-react"
+import { endpoints } from "@/api/api"
 
-const newsItems = [
-  {
-    id: 1,
-    title: "Fed Chair Powell speaks at Jackson Hole Symposium",
-    time: "2 hours ago",
-    impact: "high",
-    icon: TrendingUp,
-  },
-  {
-    id: 2,
-    title: "US GDP Growth revised to 2.9% for Q2",
-    time: "4 hours ago",
-    impact: "medium",
-    icon: Calendar,
-  },
-  {
-    id: 3,
-    title: "Apple earnings beat expectations, stock up 3%",
-    time: "6 hours ago",
-    impact: "medium",
-    icon: TrendingUp,
-  },
-  {
-    id: 4,
-    title: "ECB signals potential rate cut in December",
-    time: "8 hours ago",
-    impact: "high",
-    icon: AlertCircle,
-  },
+const VISIBLE_NEWS_COUNT = 4
+const NEWS_PRESENTATION = [
+  { icon: TrendingUp, colorClass: "text-red-600 dark:text-red-400" },
+  { icon: Calendar, colorClass: "text-yellow-600 dark:text-yellow-400" },
+  { icon: TrendingUp, colorClass: "text-yellow-600 dark:text-yellow-400" },
+  { icon: AlertCircle, colorClass: "text-red-600 dark:text-red-400" },
 ]
 
+function formatRelativeTime(value) {
+  const publishedAt = new Date(value)
+  if (Number.isNaN(publishedAt.getTime())) return ""
+
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - publishedAt.getTime()) / 1000))
+  if (elapsedSeconds < 60) return "just now"
+
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60)
+  if (elapsedMinutes < 60) return `${elapsedMinutes} ${elapsedMinutes === 1 ? "minute" : "minutes"} ago`
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60)
+  if (elapsedHours < 24) return `${elapsedHours} ${elapsedHours === 1 ? "hour" : "hours"} ago`
+
+  const elapsedDays = Math.floor(elapsedHours / 24)
+  return `${elapsedDays} ${elapsedDays === 1 ? "day" : "days"} ago`
+}
+
 export default function NewsTicker() {
+  const [newsItems, setNewsItems] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [loadFailed, setLoadFailed] = useState(false)
 
   useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadNews() {
+      try {
+        const response = await fetch(endpoints.news.source("cnbc_rss", 20), { signal: controller.signal })
+        if (!response.ok) throw new Error("CNBC news is unavailable")
+
+        const payload = await response.json()
+        const items = (payload.data?.items || []).slice(0, VISIBLE_NEWS_COUNT).map((article, index) => ({
+          ...NEWS_PRESENTATION[index],
+          id: article.item_id || article.url,
+          title: article.title,
+          time: formatRelativeTime(article.published_at),
+        }))
+
+        if (items.length > 0) {
+          setNewsItems(items)
+          setCurrentIndex(0)
+        } else {
+          setLoadFailed(true)
+        }
+      } catch (error) {
+        if (error.name !== "AbortError") setLoadFailed(true)
+      }
+    }
+
+    loadNews()
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => {
+    if (newsItems.length < 2) return undefined
+
     const timer = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % newsItems.length)
     }, 5000)
 
     return () => clearInterval(timer)
-  }, [])
+  }, [newsItems.length])
 
-  const getImpactColor = (impact) => {
-    switch (impact) {
-      case "high":
-        return "text-red-600 dark:text-red-400"
-      case "medium":
-        return "text-yellow-600 dark:text-yellow-400"
-      case "low":
-        return "text-green-600 dark:text-green-400"
-      default:
-        return "text-gray-600 dark:text-gray-400"
-    }
+  const currentNews = newsItems[currentIndex] || {
+    id: "cnbc-status",
+    title: loadFailed ? "CNBC news is temporarily unavailable" : "Loading CNBC news...",
+    time: "",
+    ...NEWS_PRESENTATION[0],
   }
-
-  const currentNews = newsItems[currentIndex]
   const Icon = currentNews.icon
 
   return (
@@ -101,7 +123,7 @@ export default function NewsTicker() {
                   }}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
-                  <Icon className={`h-4 w-4 ${getImpactColor(currentNews.impact)} flex-shrink-0`} />
+                  <Icon className={`h-4 w-4 ${currentNews.colorClass} flex-shrink-0`} />
                 </motion.div>
                 <motion.span 
                   className="text-sm font-medium text-gray-900 dark:text-white truncate"
@@ -124,7 +146,7 @@ export default function NewsTicker() {
           </div>
           
           <div className="flex gap-1">
-            {newsItems.map((_, index) => (
+            {Array.from({ length: newsItems.length || VISIBLE_NEWS_COUNT }).map((_, index) => (
               <motion.div
                 key={index}
                 initial={{ scale: 0 }}

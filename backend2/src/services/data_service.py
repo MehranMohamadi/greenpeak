@@ -1,6 +1,6 @@
 """Data service for financial market data."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from ..models.schemas import (
     OHLCDataPoint, 
@@ -19,6 +19,9 @@ from ..utils.data_utils import (
     safe_timestamp,
 )
 from .mongodb_service import MongoDBService
+from .fred_public import FredPublicSeriesClient, FredPublicSourceError
+from .umich_consumer import UmichConsumerClient, UmichConsumerSourceError
+from .valuation_sources import PublishedValuationSeries, ValuationSourceClient
 import logging
 import pandas as pd
 
@@ -127,6 +130,34 @@ SERIES_CONTRACTS = {
         "seasonal_adjustment": "seasonally_adjusted",
         "transformation": "source_index_level_1982_84_100",
     },
+    "CPIAUCNS": {
+        "indicator_id": "cpi_inflation_yoy",
+        "owner_group": "growth_inflation_labor",
+        "population": "All Urban Consumers, U.S. city average, all items",
+        "seasonal_adjustment": "not_seasonally_adjusted",
+        "transformation": "year_over_year_percent_change_from_index_level",
+    },
+    "CPILFENS": {
+        "indicator_id": "core_cpi_inflation_yoy",
+        "owner_group": "growth_inflation_labor",
+        "population": "All Urban Consumers, U.S. city average, all items less food and energy",
+        "seasonal_adjustment": "not_seasonally_adjusted",
+        "transformation": "year_over_year_percent_change_from_index_level",
+    },
+    "PCEPILFE": {
+        "indicator_id": "core_pce_inflation_yoy",
+        "owner_group": "growth_inflation_labor",
+        "population": "U.S. personal consumption expenditures excluding food and energy",
+        "seasonal_adjustment": "seasonally_adjusted",
+        "transformation": "year_over_year_percent_change_from_index_level",
+    },
+    "PPIFID": {
+        "indicator_id": "ppi_final_demand_inflation_yoy",
+        "owner_group": "growth_inflation_labor",
+        "population": "U.S. final-demand producer output",
+        "seasonal_adjustment": "not_seasonally_adjusted",
+        "transformation": "year_over_year_percent_change_from_index_level",
+    },
     "RSXFS": {
         "indicator_id": "retail_sales",
         "owner_group": "growth_inflation_labor",
@@ -190,6 +221,9 @@ class DataService:
             logger.info("DataService initialized with MongoDB")
         except Exception as e:
             logger.warning(f"MongoDB initialization failed: {e}. Falling back to CSV files.")
+        self.fred_public = FredPublicSeriesClient()
+        self.umich_consumer = UmichConsumerClient()
+        self.valuation_sources = ValuationSourceClient()
 
     @staticmethod
     def _build_metadata(
@@ -209,6 +243,7 @@ class DataService:
         transformation: Optional[str] = None,
         quality_status: Optional[str] = None,
         quality_reason: Optional[str] = None,
+        stale_after_days: Optional[int] = None,
     ) -> DataMetadata:
         """Build traceable metadata without inventing unavailable semantics."""
         contract = SERIES_CONTRACTS.get(source_series_id or "", {})
@@ -218,19 +253,21 @@ class DataService:
         )
         resolved_reason = quality_reason
         if resolved_status == "available" and latest_date:
-            stale_after_days = {
-                "daily": 10,
-                "weekly": 21,
-                "monthly": 62,
-                "quarterly": 185,
-                "annually": 550,
-                "annual": 550,
-            }.get(normalized_frequency)
-            if stale_after_days is not None:
+            freshness_limit_days = stale_after_days
+            if freshness_limit_days is None:
+                freshness_limit_days = {
+                    "daily": 10,
+                    "weekly": 21,
+                    "monthly": 62,
+                    "quarterly": 185,
+                    "annually": 550,
+                    "annual": 550,
+                }.get(normalized_frequency)
+            if freshness_limit_days is not None:
                 try:
                     observation_day = datetime.fromisoformat(str(latest_date)[:10]).date()
                     age_days = (datetime.utcnow().date() - observation_day).days
-                    if age_days > stale_after_days:
+                    if age_days > freshness_limit_days:
                         resolved_status = "stale"
                         resolved_reason = "observation_older_than_frequency_threshold"
                 except ValueError:
@@ -1940,7 +1977,8 @@ class DataService:
         unit: str = "",
         frequency: str = "",
         source: str = "",
-        fred_series: Optional[str] = None
+        fred_series: Optional[str] = None,
+        required_series_id: Optional[str] = None,
     ) -> DataResponse:
         """Get macro economics data from the unified macro_economics collection."""
         if not self.mongodb:
@@ -1950,6 +1988,8 @@ class DataService:
         
         # Build query filter
         query_filter = {"indicator": indicator_name}
+        if required_series_id:
+            query_filter["fred_series_id"] = required_series_id
         if start_date or end_date:
             date_filter = {}
             if start_date:
@@ -1958,14 +1998,12 @@ class DataService:
                 date_filter["$lte"] = end_date
             query_filter["date"] = date_filter
         
-        cursor = collection.find(query_filter).sort("date", 1)
-        if limit:
-            cursor = cursor.limit(limit)
+        documents = self._find_time_series_documents(collection, query_filter, limit)
         
         result = []
         values = []
         
-        for doc in cursor:
+        for doc in documents:
             try:
                 # Handle different date formats and edge cases
                 date_str = doc.get("date", "")
@@ -2260,6 +2298,152 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
+        """Merge FRED history with the latest public Michigan headline release."""
+        fred_client = getattr(self, "fred_public", None) or FredPublicSeriesClient()
+        direct_client = getattr(self, "umich_consumer", None) or UmichConsumerClient()
+        self.fred_public = fred_client
+        self.umich_consumer = direct_client
+
+        values_by_date = {}
+        direct_status_by_date = {}
+        fred_source_url = None
+        history_available = False
+        direct_release = None
+
+        try:
+            fred_series = fred_client.get_series("UMCSENT")
+            values_by_date.update(
+                {observation.date: observation.value for observation in fred_series.observations}
+            )
+            fred_source_url = fred_series.source_url
+            history_available = True
+        except FredPublicSourceError as e:
+            logger.warning("Public FRED history refresh failed for UMCSENT: %s", e)
+
+        if not history_available and self.mongodb:
+            try:
+                cached = self.get_macro_economics_data(
+                    indicator_name="consumer_confidence",
+                    limit=None,
+                    description="University of Michigan: Consumer Sentiment",
+                    unit="index_1966_q1_100",
+                    frequency="monthly",
+                    source="University of Michigan",
+                    fred_series="UMCSENT",
+                    required_series_id="UMCSENT",
+                )
+                values_by_date.update(
+                    {
+                        point.date: point.value
+                        for point in cached.data
+                        if point.value is not None
+                    }
+                )
+                history_available = bool(values_by_date)
+            except Exception as e:
+                logger.warning("MongoDB failed for verified UMCSENT history: %s", e)
+
+        try:
+            direct_release = direct_client.get_release()
+            for observation in direct_release.observations:
+                values_by_date[observation.date] = observation.value
+                direct_status_by_date[observation.date] = observation.release_status
+        except UmichConsumerSourceError as e:
+            logger.warning("Direct University of Michigan release refresh failed: %s", e)
+
+        if not values_by_date:
+            return self._unavailable_response(
+                indicator_id="consumer_confidence",
+                owner_group="growth_inflation_labor",
+                description="University of Michigan: Consumer Sentiment",
+                unit="index_1966_q1_100",
+                frequency="monthly",
+                source="University of Michigan Surveys of Consumers",
+                source_series_id="UMCSENT",
+                quality_status="unavailable",
+                quality_reason="direct_release_and_verified_history_unavailable",
+                transformation="source_index_level",
+                seasonal_adjustment="not_seasonally_adjusted",
+                population="United States consumers surveyed by the University of Michigan",
+            )
+
+        selected = [
+            (observation_date, value)
+            for observation_date, value in sorted(values_by_date.items())
+            if (not start_date or observation_date >= start_date)
+            and (not end_date or observation_date <= end_date)
+        ]
+        if limit and limit > 0:
+            selected = selected[-limit:]
+
+        data_points = [
+            EconomicDataPoint(
+                time=int(
+                    datetime.fromisoformat(observation_date)
+                    .replace(tzinfo=timezone.utc)
+                    .timestamp()
+                ),
+                date=observation_date,
+                value=value,
+                rate=value,
+            )
+            for observation_date, value in selected
+        ]
+
+        if not data_points:
+            quality_status = "unavailable"
+            quality_reason = "no_observations_in_requested_range"
+        elif direct_release and history_available:
+            quality_status = "available"
+            quality_reason = None
+        elif direct_release:
+            quality_status = "available"
+            quality_reason = "historical_source_unavailable_direct_release_only"
+        else:
+            quality_status = "stale"
+            quality_reason = "direct_release_unavailable_using_delayed_history"
+
+        latest_date = data_points[-1].date if data_points else None
+        metadata = self._build_metadata(
+            indicator_id="consumer_confidence",
+            owner_group="growth_inflation_labor",
+            latest_value=data_points[-1].value if data_points else None,
+            latest_date=latest_date,
+            total_records=len(data_points),
+            description="University of Michigan: Consumer Sentiment",
+            unit="index_1966_q1_100",
+            frequency="monthly",
+            source=(
+                "University of Michigan direct release + FRED history"
+                if direct_release and history_available
+                else "University of Michigan Surveys of Consumers"
+                if direct_release
+                else "University of Michigan via FRED"
+            ),
+            source_series_id="UMCSENT",
+            population="United States consumers surveyed by the University of Michigan",
+            seasonal_adjustment="not_seasonally_adjusted",
+            transformation=(
+                "FRED history overlaid by the latest headline observations "
+                "from the official University of Michigan public release"
+            ),
+            quality_status=quality_status,
+            quality_reason=quality_reason,
+            stale_after_days=100,
+        )
+        metadata.source_provider = "University of Michigan Surveys of Consumers"
+        metadata.source_url = (
+            direct_release.source_url if direct_release else fred_source_url
+        )
+        metadata.latest_observation_status = direct_status_by_date.get(latest_date)
+        return DataResponse(data=data_points, metadata=metadata)
+
+    def _get_macro_consumer_confidence_legacy(
+        self,
+        limit: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> DataResponse:
         """Get Consumer Confidence data from MongoDB or fallback to CSV."""
         # Try MongoDB first
         if self.mongodb:
@@ -2301,82 +2485,230 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Return 12-month CPI inflation calculated from CPIAUCSL levels."""
-        raw = None
-        if self.mongodb:
+        """Return headline CPI inflation as a 12-month change in CPIAUCNS."""
+        return self._get_macro_fred_growth_data(
+            series_id="CPIAUCNS",
+            mongo_indicator_name="cpi_inflation",
+            indicator_id="cpi_inflation_yoy",
+            description="Consumer Price Index: All Items, 12-month percent change",
+            source="U.S. Bureau of Labor Statistics via FRED",
+            population="All Urban Consumers, U.S. city average, all items",
+            seasonal_adjustment="not_seasonally_adjusted",
+            comparison_months=12,
+            limit=limit,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def get_macro_core_cpi_inflation_data(
+        self,
+        limit: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> DataResponse:
+        """Return core CPI inflation as a 12-month change in CPILFENS."""
+        return self._get_macro_fred_growth_data(
+            series_id="CPILFENS",
+            mongo_indicator_name="core_cpi_inflation",
+            indicator_id="core_cpi_inflation_yoy",
+            description="Consumer Price Index Less Food and Energy, 12-month percent change",
+            source="U.S. Bureau of Labor Statistics via FRED",
+            population="All Urban Consumers, U.S. city average, all items less food and energy",
+            seasonal_adjustment="not_seasonally_adjusted",
+            comparison_months=12,
+            limit=limit,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def get_macro_core_pce_inflation_data(
+        self,
+        limit: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> DataResponse:
+        """Return core PCE price inflation as a 12-month change in PCEPILFE."""
+        return self._get_macro_fred_growth_data(
+            series_id="PCEPILFE",
+            mongo_indicator_name="core_pce_inflation",
+            indicator_id="core_pce_inflation_yoy",
+            description="Core PCE Price Index, 12-month percent change",
+            source="U.S. Bureau of Economic Analysis via FRED",
+            population="U.S. personal consumption expenditures excluding food and energy",
+            seasonal_adjustment="seasonally_adjusted",
+            comparison_months=12,
+            limit=limit,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def get_macro_ppi_final_demand_inflation_data(
+        self,
+        limit: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> DataResponse:
+        """Return final-demand PPI inflation as a 12-month change in PPIFID."""
+        return self._get_macro_fred_growth_data(
+            series_id="PPIFID",
+            mongo_indicator_name="ppi_final_demand",
+            indicator_id="ppi_final_demand_inflation_yoy",
+            description="Producer Price Index: Final Demand, 12-month percent change",
+            source="U.S. Bureau of Labor Statistics via FRED",
+            population="U.S. final-demand producer output",
+            seasonal_adjustment="not_seasonally_adjusted",
+            comparison_months=12,
+            limit=limit,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def _get_macro_fred_growth_data(
+        self,
+        *,
+        series_id: str,
+        mongo_indicator_name: str,
+        indicator_id: str,
+        description: str,
+        source: str,
+        population: str,
+        seasonal_adjustment: str,
+        comparison_months: int,
+        limit: Optional[int],
+        start_date: Optional[str],
+        end_date: Optional[str],
+    ) -> DataResponse:
+        """Fetch one exact FRED level series and calculate a calendar-month growth rate."""
+        client = getattr(self, "fred_public", None) or FredPublicSeriesClient()
+        self.fred_public = client
+        levels = []
+        source_url = f"https://fred.stlouisfed.org/series/{series_id}"
+        using_cached_mongo = False
+
+        try:
+            public_series = client.get_series(series_id)
+            source_url = public_series.source_url
+            levels = [
+                EconomicDataPoint(
+                    time=int(
+                        datetime.fromisoformat(observation.date)
+                        .replace(tzinfo=timezone.utc)
+                        .timestamp()
+                    ),
+                    date=observation.date,
+                    value=observation.value,
+                    rate=observation.value,
+                )
+                for observation in public_series.observations
+            ]
+        except FredPublicSourceError as exc:
+            logger.warning("Public FRED refresh failed for %s: %s", series_id, exc)
+
+        if not levels and self.mongodb:
             try:
-                raw = self.get_macro_economics_data(
-                    indicator_name="cpi_inflation",
+                cached = self.get_macro_economics_data(
+                    indicator_name=mongo_indicator_name,
                     limit=None,
                     start_date=None,
                     end_date=end_date,
-                    description="Consumer Price Index for All Urban Consumers: All Items",
-                    unit="index_1982_84_100",
+                    description=description,
+                    unit="source_index_or_level",
                     frequency="monthly",
-                    source="U.S. Bureau of Labor Statistics via FRED",
-                    fred_series="CPIAUCSL",
+                    source=source,
+                    fred_series=series_id,
+                    required_series_id=series_id,
                 )
-                if not raw.data:
-                    raw = None
-            except Exception as e:
-                logger.warning(f"MongoDB failed for CPIAUCSL: {e}. Falling back to CSV.")
+                levels = [point for point in cached.data if point.value is not None]
+                using_cached_mongo = bool(levels)
+            except Exception as exc:
+                logger.warning("Verified MongoDB fallback failed for %s: %s", series_id, exc)
 
-        if raw is None:
-            raw = self.get_economic_data(
-                filename="CPI.csv",
-                date_column="observation_date",
-                value_column="CPIAUCSL",
-                limit=None,
-                start_date=None,
-                end_date=end_date,
-                description="Consumer Price Index for All Urban Consumers: All Items",
-                unit="index_1982_84_100",
+        transformation = (
+            "month_over_month_percent_change_from_source_level"
+            if comparison_months == 1
+            else "year_over_year_percent_change_from_source_index"
+        )
+        unit = (
+            "percent_change_from_previous_month"
+            if comparison_months == 1
+            else "percent_change_from_year_ago"
+        )
+        if not levels:
+            response = self._unavailable_response(
+                indicator_id=indicator_id,
+                owner_group="growth_inflation_labor",
+                description=description,
+                unit=unit,
                 frequency="monthly",
-                source="U.S. Bureau of Labor Statistics via FRED",
-                fred_series="CPIAUCSL",
+                source=source,
+                source_series_id=series_id,
+                quality_status="unavailable",
+                quality_reason="public_fred_and_verified_cache_unavailable",
+                transformation=transformation,
+                seasonal_adjustment=seasonal_adjustment,
+                population=population,
             )
+            response.metadata.source_provider = "Federal Reserve Bank of St. Louis (FRED)"
+            response.metadata.source_url = source_url
+            return response
 
-        levels = [point for point in raw.data if point.value is not None and point.value > 0]
-        levels_by_month = {
-            (parsed.year, parsed.month): point
-            for point in levels
-            for parsed in [datetime.strptime(point.date[:10], "%Y-%m-%d")]
-        }
-        inflation_points = []
-        for current in levels:
-            parsed = datetime.strptime(current.date[:10], "%Y-%m-%d")
-            year_ago = levels_by_month.get((parsed.year - 1, parsed.month))
-            if year_ago is None:
+        valid_levels = [point for point in levels if point.value is not None and point.value > 0]
+        levels_by_month = {}
+        for point in valid_levels:
+            try:
+                parsed = datetime.strptime(point.date[:10], "%Y-%m-%d")
+            except ValueError:
                 continue
-            inflation = ((current.value / year_ago.value) - 1) * 100
-            inflation_points.append(EconomicDataPoint(
-                time=current.time, date=current.date, value=inflation, rate=inflation
+            levels_by_month[(parsed.year, parsed.month)] = point
+
+        growth_points = []
+        for current in valid_levels:
+            try:
+                parsed = datetime.strptime(current.date[:10], "%Y-%m-%d")
+            except ValueError:
+                continue
+            target_index = parsed.year * 12 + parsed.month - 1 - comparison_months
+            comparison = levels_by_month.get((target_index // 12, target_index % 12 + 1))
+            if comparison is None or comparison.value <= 0:
+                continue
+            growth = ((current.value / comparison.value) - 1) * 100
+            growth_points.append(EconomicDataPoint(
+                time=current.time,
+                date=current.date,
+                value=growth,
+                rate=growth,
             ))
 
-        inflation_points = self._filter_transformed_points(
-            inflation_points, limit, start_date, end_date
+        growth_points = self._filter_transformed_points(
+            growth_points, limit, start_date, end_date
         )
-        latest_value = inflation_points[-1].value if inflation_points else None
-        latest_date = inflation_points[-1].date if inflation_points else None
-        return DataResponse(
-            data=inflation_points,
-            metadata=self._build_metadata(
-                indicator_id="cpi_inflation_yoy",
-                owner_group="growth_inflation_labor",
-                latest_value=latest_value,
-                latest_date=latest_date,
-                total_records=len(inflation_points),
-                description="12-month percent change in CPIAUCSL",
-                unit="percent_change_from_year_ago",
-                frequency="monthly",
-                source="U.S. Bureau of Labor Statistics via FRED",
-                source_series_id="CPIAUCSL",
-                population="All Urban Consumers, U.S. city average, all items",
-                seasonal_adjustment="seasonally_adjusted",
-                transformation="year_over_year_percent_change_from_index_level",
-                quality_reason=None if inflation_points else "insufficient_12_month_history",
+        latest_value = growth_points[-1].value if growth_points else None
+        latest_date = growth_points[-1].date if growth_points else None
+        metadata = self._build_metadata(
+            indicator_id=indicator_id,
+            owner_group="growth_inflation_labor",
+            latest_value=latest_value,
+            latest_date=latest_date,
+            total_records=len(growth_points),
+            description=description,
+            unit=unit,
+            frequency="monthly",
+            source=source,
+            source_series_id=series_id,
+            population=population,
+            seasonal_adjustment=seasonal_adjustment,
+            transformation=transformation,
+            quality_reason=(
+                "public_fred_unavailable_using_verified_cache"
+                if using_cached_mongo
+                else None if growth_points
+                else f"insufficient_{comparison_months}_month_history"
             ),
+            stale_after_days=100,
         )
+        metadata.source_provider = "Federal Reserve Bank of St. Louis (FRED)"
+        metadata.source_url = source_url
+        return DataResponse(data=growth_points, metadata=metadata)
 
     def get_macro_retail_sales_data(
         self,
@@ -2384,39 +2716,19 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Get Retail Sales data from MongoDB or fallback to CSV."""
-        # Try MongoDB first
-        if self.mongodb:
-            try:
-                response = self.get_macro_economics_data(
-                    indicator_name="retail_sales",
-                    limit=limit,
-                    start_date=start_date,
-                    end_date=end_date,
-                    description="Advance Retail Sales: Retail Trade and Food Services",
-                    unit="millions_of_dollars",
-                    frequency="monthly",
-                    source="U.S. Census Bureau",
-                    fred_series="RSXFS"
-                )
-                if response.data:
-                    return response
-            except Exception as e:
-                logger.warning(f"MongoDB failed for retail_sales: {e}. Falling back to CSV.")
-        
-        # Fallback to CSV
-        return self.get_economic_data(
-            filename="RSXFS.csv",  # Need to add this CSV file if fallback is needed
-            date_column="observation_date",
-            value_column="RSXFS",
+        """Return month-over-month retail-sales growth from live RSXFS levels."""
+        return self._get_macro_fred_growth_data(
+            series_id="RSXFS",
+            mongo_indicator_name="retail_sales",
+            indicator_id="retail_sales_growth_mom",
+            description="Advance Retail Sales: Retail Trade and Food Services, monthly growth",
+            source="U.S. Census Bureau via FRED",
+            population="U.S. retail and food services sales",
+            seasonal_adjustment="seasonally_adjusted",
+            comparison_months=1,
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="Advance Retail Sales: Retail Trade and Food Services",
-            unit="millions_of_dollars",
-            frequency="monthly",
-            source="U.S. Census Bureau via FRED®",
-            fred_series="RSXFS"
         )
 
     # Corporate Earnings Data Methods
@@ -2638,6 +2950,70 @@ class DataService:
         )
 
     # Valuation Data Methods
+    def _get_published_valuation_data(
+        self,
+        indicator_name: str,
+        limit: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> DataResponse:
+        """Read one unmodified published valuation series from its source adapter."""
+        source_client = getattr(self, "valuation_sources", None)
+        if source_client is None:
+            source_client = ValuationSourceClient()
+            self.valuation_sources = source_client
+
+        series: PublishedValuationSeries = source_client.get_series(indicator_name)
+        published_points = [
+            point
+            for point in series.points
+            if (not start_date or point.date >= start_date)
+            and (not end_date or point.date <= end_date)
+        ]
+        if limit and limit > 0:
+            published_points = published_points[-limit:]
+
+        data_points = [
+            EconomicDataPoint(
+                time=int(
+                    datetime.fromisoformat(point.date)
+                    .replace(tzinfo=timezone.utc)
+                    .timestamp()
+                ),
+                date=point.date,
+                value=point.value,
+                rate=point.value,
+            )
+            for point in published_points
+        ]
+        latest_source_point = published_points[-1] if published_points else None
+        metadata = self._build_metadata(
+            indicator_id=series.indicator_id,
+            owner_group="valuation",
+            latest_value=data_points[-1].value if data_points else None,
+            latest_date=data_points[-1].date if data_points else None,
+            total_records=len(data_points),
+            description=series.description,
+            unit=series.unit,
+            frequency=series.frequency,
+            source=series.source,
+            source_series_id=series.source_series_id,
+            population=series.population,
+            seasonal_adjustment="not_applicable",
+            transformation=series.transformation,
+            quality_reason=(
+                "latest_source_observation_is_estimate"
+                if latest_source_point and latest_source_point.is_estimate
+                else None
+            ),
+        )
+        metadata.source_provider = series.source_provider
+        metadata.source_url = series.source_url
+        metadata.latest_observation_is_estimate = (
+            latest_source_point.is_estimate if latest_source_point else None
+        )
+        return DataResponse(data=data_points, metadata=metadata)
+
     def get_valuation_data(
         self,
         indicator_name: str,
@@ -2736,16 +3112,11 @@ class DataService:
         end_date: Optional[str] = None
     ) -> DataResponse:
         """Get P/E Ratio data for S&P 500 from valuation metrics."""
-        return self.get_valuation_data(
+        return self._get_published_valuation_data(
             indicator_name="pe_ratio",
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="S&P 500 Price-to-Earnings ratio",
-            unit="ratio",
-            frequency="monthly",
-            source="Yahoo Finance",
-            symbol="^GSPC"
         )
 
     def get_forward_pe_data(
@@ -2754,17 +3125,12 @@ class DataService:
         start_date: Optional[str] = None, 
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Get Forward P/E Ratio data from major S&P 500 companies."""
-        return self.get_valuation_data(
+        """Get the published aggregate S&P 500 12-month Forward P/E series."""
+        return self._get_published_valuation_data(
             indicator_name="forward_pe",
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="Forward Price-to-Earnings ratio from major S&P 500 companies",
-            unit="ratio",
-            frequency="daily",
-            source="Yahoo Finance (Aggregated)",
-            symbol="Multiple"
         )
 
     def get_price_to_book_data(
@@ -2774,16 +3140,11 @@ class DataService:
         end_date: Optional[str] = None
     ) -> DataResponse:
         """Get Price-to-Book ratio data."""
-        return self.get_valuation_data(
+        return self._get_published_valuation_data(
             indicator_name="price_to_book",
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="Price-to-Book value ratio for S&P 500 companies",
-            unit="ratio",
-            frequency="daily",
-            source="Yahoo Finance",
-            symbol="Multiple"
         )
 
     def get_price_to_sales_data(
@@ -2793,16 +3154,11 @@ class DataService:
         end_date: Optional[str] = None
     ) -> DataResponse:
         """Get Price-to-Sales ratio data."""
-        return self.get_valuation_data(
+        return self._get_published_valuation_data(
             indicator_name="price_to_sales",
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="Price-to-Sales ratio from major S&P 500 companies",
-            unit="ratio",
-            frequency="daily",
-            source="Yahoo Finance (Aggregated)",
-            symbol="Multiple"
         )
 
     def get_peg_ratio_data(
@@ -2831,16 +3187,11 @@ class DataService:
         end_date: Optional[str] = None
     ) -> DataResponse:
         """Get Dividend Yield data from valuation metrics."""
-        return self.get_valuation_data(
+        return self._get_published_valuation_data(
             indicator_name="dividend_yield",
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="S&P 500 dividend yield via SPY ETF",
-            unit="percent",
-            frequency="monthly",
-            source="Yahoo Finance",
-            symbol="SPY"
         )
 
     # Sector Performance Data Methods

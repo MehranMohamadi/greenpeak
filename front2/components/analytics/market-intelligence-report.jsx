@@ -19,7 +19,10 @@ export default function MarketIntelligenceReport() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const payload = await response.json()
       if (!payload?.data) throw new Error("empty market analysis")
-      setMarket(payload.data)
+      setMarket({
+        ...payload.data,
+        next_analysis_at: payload.metadata?.next_analysis_at,
+      })
     } catch {
       setError("آخرین تحلیل معتبر بازار در دسترس نیست.")
     } finally {

@@ -8,6 +8,9 @@ const SOURCES = {
   payroll: endpoints.macroeco.payroll,
   confidence: endpoints.macroeco.confidence,
   cpi: endpoints.macroeco.cpi,
+  coreCpi: endpoints.macroeco.coreCpi,
+  corePce: endpoints.macroeco.corePce,
+  ppi: endpoints.macroeco.ppi,
   retailSales: endpoints.macroeco.retailSales,
 }
 

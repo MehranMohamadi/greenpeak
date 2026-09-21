@@ -106,7 +106,7 @@ export const sharedAnalyticsRoutes = ["events"]
 
 export const indicatorOwnership = {
   monetary_policy: ["DFF", "DGS10", "SOFR", "REAINTRATREARAT10Y", "WALCL", "M2SL", "RRPONTSYD"],
-  macroeconomic: ["GDPC1", "CPIAUCSL", "UNRATE", "PAYEMS", "RSAFS"],
+  macroeconomic: ["GDPC1", "RSXFS", "CPIAUCNS", "CPILFENS", "PCEPILFE", "PPIFID", "UNRATE", "PAYEMS"],
   systemic_risk: ["BAMLH0A0HYM2", "BAMLC0A4CBBB", "STLFSI4", "T10Y2Y"],
   corporate_earnings: ["sp500_eps", "revenue_growth", "profit_margins"],
   valuation: ["sp500_pe", "earnings_yield", "dividend_yield"],

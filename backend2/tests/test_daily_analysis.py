@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 os.environ["DEBUG"] = "false"
 
 from src.core.config import get_settings
-from src.services.daily_analysis import create_daily_analysis_scheduler, should_schedule_catchup
+from src.services.daily_analysis import create_daily_analysis_scheduler, next_scheduled_analysis_at, should_schedule_catchup
 
 
 def test_daily_scheduler_can_be_disabled(monkeypatch):
@@ -32,3 +32,18 @@ def test_catchup_only_runs_after_the_configured_tehran_time():
     timezone = ZoneInfo("Asia/Tehran")
     assert not should_schedule_catchup(datetime(2026, 9, 17, 15, 59, tzinfo=timezone), 16, 0)
     assert should_schedule_catchup(datetime(2026, 9, 17, 16, 0, tzinfo=timezone), 16, 0)
+
+
+def test_next_scheduled_analysis_uses_configured_tehran_time(monkeypatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "greenpeak_daily_analysis_enabled", True)
+    monkeypatch.setattr(settings, "greenpeak_llm_provider", "openai-compatible")
+    monkeypatch.setattr(settings, "greenpeak_llm_api_key", "test-key")
+    monkeypatch.setattr(settings, "greenpeak_llm_model", "test-model")
+    monkeypatch.setattr(settings, "greenpeak_daily_analysis_hour", 16)
+    monkeypatch.setattr(settings, "greenpeak_daily_analysis_minute", 0)
+    timezone = ZoneInfo("Asia/Tehran")
+
+    next_run = next_scheduled_analysis_at(datetime(2026, 9, 17, 16, 1, tzinfo=timezone))
+
+    assert next_run == datetime(2026, 9, 18, 16, 0, tzinfo=timezone)

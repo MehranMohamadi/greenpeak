@@ -241,6 +241,8 @@ class DataMetadata(BaseModel):
     unit: str = Field("", description="Unit of measurement")
     frequency: str = Field("", description="Data frequency (daily, monthly, etc.)")
     source: str = Field("", description="Data source")
+    source_provider: Optional[str] = Field(None, description="Upstream data provider")
+    source_url: Optional[str] = Field(None, description="Public upstream source URL")
     fred_series: Optional[str] = Field(None, description="FRED series ID if applicable")
     source_series_id: Optional[str] = Field(None, description="Upstream series identifier")
     population: Optional[str] = Field(None, description="Population or universe represented")
@@ -250,6 +252,12 @@ class DataMetadata(BaseModel):
     retrieved_at: Optional[datetime] = Field(None, description="Time this response was assembled")
     quality_status: str = Field("available", description="available, stale, unavailable, or invalid")
     quality_reason: Optional[str] = Field(None, description="Machine-readable quality explanation")
+    latest_observation_is_estimate: Optional[bool] = Field(
+        None, description="Whether the source marks the latest observation as an estimate"
+    )
+    latest_observation_status: Optional[str] = Field(
+        None, description="Upstream release status such as preliminary or final"
+    )
     data_version: Optional[str] = Field(None, description="Version of data/transformation contract")
 
 

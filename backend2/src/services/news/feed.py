@@ -10,6 +10,23 @@ ALPHA_MEDIUM_RELEVANCE = 0.5
 SEARCH_TOPICS = ("financial_markets", "economy_monetary", "economy_macro", "earnings")
 SOURCE_IDS = ("alpha_vantage", "cnbc_rss", "investing_rss")
 
+TOPIC_LABELS_FA = {
+    "Financial Markets": "بازارهای مالی",
+    "Economy - Monetary": "سیاست پولی",
+    "Economy - Macro": "اقتصاد کلان",
+    "Earnings": "گزارش‌های درآمدی شرکت‌ها",
+    "Technology": "فناوری",
+    "Finance": "بخش مالی",
+}
+
+SENTIMENT_LABELS_FA = {
+    "Bullish": "مثبت",
+    "Somewhat-Bullish": "نسبتاً مثبت",
+    "Neutral": "خنثی",
+    "Somewhat-Bearish": "نسبتاً منفی",
+    "Bearish": "منفی",
+}
+
 
 def stable_item_id(item) -> str:
     identity = item.source_item_id or str(item.canonical_url or item.url)
@@ -46,11 +63,42 @@ def _plain_text(value: str | None) -> str | None:
     return " ".join(clean.split()) or None
 
 
+def _persian_news_analysis(document: dict, score: float | None) -> dict[str, str]:
+    topics = [TOPIC_LABELS_FA.get(str(item), "") for item in document.get("topics") or []]
+    topics = list(dict.fromkeys(item for item in topics if item))
+    topic_text = "، ".join(topics[:3]) or "بازار آمریکا"
+    tickers = [str(item).strip() for item in document.get("tickers") or [] if str(item).strip()]
+    ticker_text = "، ".join(tickers[:5])
+    sentiment = SENTIMENT_LABELS_FA.get(str(document.get("alpha_overall_sentiment_label") or ""), "نامشخص")
+    if score is None:
+        relevance = "نامشخص"
+    elif score >= .75:
+        relevance = "بالا"
+    elif score >= ALPHA_MEDIUM_RELEVANCE:
+        relevance = "متوسط"
+    else:
+        relevance = "محدود"
+    sentences = [
+        f"این خبر در حوزه {topic_text} قرار می‌گیرد و میزان ارتباط آن با بازار آمریکا {relevance} ارزیابی شده است.",
+        f"برچسب احساس ثبت‌شده توسط منبع {sentiment} است؛ این برچسب جهت قطعی حرکت بازار را تضمین نمی‌کند.",
+    ]
+    if ticker_text:
+        sentences.append(f"نمادهای مرتبط ثبت‌شده در منبع شامل {ticker_text} هستند.")
+    sentences.append("این جمع‌بندی فقط از متادیتای همراه خبر ساخته شده و به‌تنهایی سیگنال معاملاتی نیست.")
+    return {
+        "analysis_title_fa": f"تحلیل خبر مرتبط با {topics[0] if topics else 'بازار آمریکا'}",
+        "analysis_fa": " ".join(sentences),
+        "sentiment_fa": sentiment,
+        "relevance_fa": relevance,
+    }
+
+
 def build_source_feed(source: str, documents: list[dict], limit: int) -> dict:
     items = []
     for document in documents:
         score = alpha_source_score(document) if source == "alpha_vantage" else None
         published = document.get("published_at")
+        analysis = _persian_news_analysis(document, score) if source == "alpha_vantage" else {}
         items.append({
             "item_id": document.get("item_id"), "title": document.get("title"),
             "summary": _plain_text(document.get("summary")), "url": str(document.get("url")),
@@ -60,6 +108,7 @@ def build_source_feed(source: str, documents: list[dict], limit: int) -> dict:
             "alpha_sentiment_score": document.get("alpha_overall_sentiment_score"),
             "alpha_sentiment_label": document.get("alpha_overall_sentiment_label"),
             "minimum_backfill": False,
+            **analysis,
         })
     if source == "alpha_vantage":
         items.sort(key=lambda x: (x["source_score"] is not None, x["source_score"] if x["source_score"] is not None else -1, _published_key(x["published_at"])), reverse=True)

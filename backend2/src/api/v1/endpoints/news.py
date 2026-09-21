@@ -1,11 +1,13 @@
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
 from ....core.config import get_settings
+from ....services.economic_calendar import TRADAYS_BASE_URL, fetch_upcoming_us_events
 from ....services.news.feed import SEARCH_TOPICS, SOURCE_IDS, build_source_feed
 from ....services.news.repository import MongoNewsRepository
 from ....services.news.scheduler import ingest_news
@@ -42,6 +44,29 @@ def source_news(source: str, limit: int = Query(default=50, ge=20, le=100)):
     except HTTPException: raise
     except PyMongoError: raise HTTPException(503, detail={"code": "NEWS_STORE_UNAVAILABLE", "message": "News storage is temporarily unavailable."})
     finally: client.close()
+
+
+@router.get("/calendar/upcoming")
+def upcoming_calendar_events(limit: int = Query(default=6, ge=1, le=10)):
+    try:
+        items = fetch_upcoming_us_events(limit=limit)
+        return {
+            "ok": True,
+            "data": {
+                "items": items,
+                "count": len(items),
+                "source": "Tradays / MQL5",
+                "source_url": TRADAYS_BASE_URL,
+            },
+        }
+    except (httpx.HTTPError, ValueError):
+        raise HTTPException(
+            503,
+            detail={
+                "code": "CALENDAR_SOURCE_UNAVAILABLE",
+                "message": "Economic calendar is temporarily unavailable.",
+            },
+        )
 
 
 @router.post("/bootstrap", status_code=202)

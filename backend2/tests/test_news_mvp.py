@@ -34,6 +34,10 @@ def test_alpha_uses_native_relevance_and_prioritizes_medium_or_higher():
     assert feed["items"][0]["source_score"] > feed["items"][-1]["source_score"]
     assert all(item["importance"] in {"high", "medium"} for item in feed["items"])
     assert feed["searched_topics"] == ["financial_markets", "economy_monetary", "economy_macro", "earnings"]
+    assert feed["items"][0]["analysis_title_fa"] == "تحلیل خبر مرتبط با بازارهای مالی"
+    assert "لحن" not in feed["items"][0]["analysis_fa"]
+    assert feed["items"][0]["sentiment_fa"] == "نسبتاً مثبت"
+    assert feed["items"][0]["relevance_fa"] == "بالا"
 
 
 def test_alpha_backfills_to_twenty_when_medium_pool_is_short():
@@ -92,3 +96,25 @@ def test_source_api_and_bootstrap_contract(monkeypatch):
     assert client.get("/api/v1/news/sources/alpha_vantage?limit=19").status_code == 422
     bootstrap = client.post("/api/v1/news/bootstrap")
     assert bootstrap.status_code == 202 and bootstrap.json()["data"]["status"] == "queued"
+
+
+def test_upcoming_calendar_api_contract(monkeypatch):
+    monkeypatch.setattr(
+        news_endpoint,
+        "fetch_upcoming_us_events",
+        lambda limit: [
+            {
+                "event_id": "1",
+                "title_fa": "نرخ بیکاری آمریکا",
+                "release_at": "2026-09-25T12:30:00+00:00",
+                "importance": "high",
+                "forecast": "4.1%",
+                "previous": "4.0%",
+                "source": "Tradays / MQL5",
+                "source_url": "https://www.tradays.com/event",
+            }
+        ][:limit],
+    )
+    response = TestClient(app).get("/api/v1/news/calendar/upcoming?limit=4")
+    assert response.status_code == 200
+    assert response.json()["data"]["items"][0]["title_fa"] == "نرخ بیکاری آمریکا"

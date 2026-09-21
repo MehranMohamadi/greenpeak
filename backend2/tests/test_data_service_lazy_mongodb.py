@@ -4,6 +4,16 @@ import pytest
 os.environ["DEBUG"] = "false"
 
 from src.services.data_service import DataService
+from src.services.fred_public import (
+    FredObservation,
+    FredPublicSeries,
+    FredPublicSourceError,
+)
+from src.services.umich_consumer import (
+    UmichConsumerSourceError,
+    UmichSentimentObservation,
+    UmichSentimentRelease,
+)
 from src.models.schemas import DataMetadata, DataResponse, EconomicDataPoint
 
 
@@ -97,23 +107,85 @@ def test_credit_spread_percent_is_converted_to_basis_points():
     assert response.metadata.unit == "basis_points"
 
 
-def test_cpi_endpoint_returns_yoy_change_not_index_level():
+class _SingleSeriesFredClient:
+    def __init__(self, series_id, observations):
+        self.series_id = series_id
+        self.observations = tuple(observations)
+
+    def get_series(self, series_id):
+        assert series_id == self.series_id
+        return FredPublicSeries(
+            series_id=series_id,
+            source_url=f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}",
+            observations=self.observations,
+        )
+
+
+def test_cpi_endpoint_returns_yoy_change_from_live_cpiaucns_levels():
     service = DataService.__new__(DataService)
     service.mongodb = None
-    levels = [
-        EconomicDataPoint(time=index, date=f"2024-{index + 1:02d}-01", value=100 + index, rate=100 + index)
-        for index in range(12)
-    ] + [EconomicDataPoint(time=12, date="2025-01-01", value=112, rate=112)]
-    service.get_economic_data = lambda **_: DataResponse(
-        data=levels,
-        metadata=DataMetadata(description="CPI", unit="index", frequency="monthly", source="FRED", fred_series="CPIAUCSL"),
+    service.fred_public = _SingleSeriesFredClient(
+        "CPIAUCNS",
+        [
+            FredObservation("2024-01-01", 100),
+            FredObservation("2025-01-01", 112),
+        ],
     )
 
     response = service.get_macro_cpi_inflation_data()
 
     assert response.data[-1].value == pytest.approx(12)
+    assert response.metadata.source_series_id == "CPIAUCNS"
+    assert response.metadata.seasonal_adjustment == "not_seasonally_adjusted"
     assert response.metadata.unit == "percent_change_from_year_ago"
-    assert response.metadata.transformation == "year_over_year_percent_change_from_index_level"
+    assert response.metadata.transformation == "year_over_year_percent_change_from_source_index"
+
+
+@pytest.mark.parametrize(
+    ("method_name", "series_id", "indicator_id"),
+    [
+        ("get_macro_core_cpi_inflation_data", "CPILFENS", "core_cpi_inflation_yoy"),
+        ("get_macro_core_pce_inflation_data", "PCEPILFE", "core_pce_inflation_yoy"),
+        ("get_macro_ppi_final_demand_inflation_data", "PPIFID", "ppi_final_demand_inflation_yoy"),
+    ],
+)
+def test_new_inflation_endpoints_return_exact_fred_series_yoy(
+    method_name, series_id, indicator_id
+):
+    service = DataService.__new__(DataService)
+    service.mongodb = None
+    service.fred_public = _SingleSeriesFredClient(
+        series_id,
+        [
+            FredObservation("2024-02-01", 200),
+            FredObservation("2025-02-01", 205),
+        ],
+    )
+
+    response = getattr(service, method_name)()
+
+    assert response.data[-1].value == pytest.approx(2.5)
+    assert response.metadata.indicator_id == indicator_id
+    assert response.metadata.source_series_id == series_id
+
+
+def test_retail_sales_endpoint_returns_month_over_month_growth():
+    service = DataService.__new__(DataService)
+    service.mongodb = None
+    service.fred_public = _SingleSeriesFredClient(
+        "RSXFS",
+        [
+            FredObservation("2025-01-01", 100),
+            FredObservation("2025-02-01", 101.2),
+        ],
+    )
+
+    response = service.get_macro_retail_sales_data()
+
+    assert response.data[-1].value == pytest.approx(1.2)
+    assert response.metadata.indicator_id == "retail_sales_growth_mom"
+    assert response.metadata.unit == "percent_change_from_previous_month"
+    assert response.metadata.source_series_id == "RSXFS"
 
 
 def test_gdp_growth_is_unavailable_without_verified_gdpc1_levels():
@@ -145,6 +217,96 @@ def test_gdp_growth_is_annualized_from_consecutive_quarter_levels():
     assert len(response.data) == 1
     assert response.data[0].value == pytest.approx(((101 / 100) ** 4 - 1) * 100)
     assert response.metadata.transformation == "annualized_quarter_over_quarter_percent_change"
+
+
+class _FakeFredPublicClient:
+    def get_series(self, series_id):
+        assert series_id == "UMCSENT"
+        return FredPublicSeries(
+            series_id="UMCSENT",
+            source_url="https://fred.stlouisfed.org/graph/fredgraph.csv?id=UMCSENT",
+            observations=(
+                FredObservation("2099-05-01", 44.8),
+                FredObservation("2099-06-01", 49.5),
+                FredObservation("2099-07-01", 55.2),
+            ),
+        )
+
+
+class _FakeUmichConsumerClient:
+    def get_release(self):
+        return UmichSentimentRelease(
+            title="Preliminary Results for September 2099",
+            release_status="preliminary",
+            source_url="https://www.sca.isr.umich.edu/",
+            observations=(
+                UmichSentimentObservation("2099-08-01", 51.7, "final"),
+                UmichSentimentObservation("2099-09-01", 47.8, "preliminary"),
+            ),
+        )
+
+
+def test_consumer_confidence_uses_live_umcsent_and_latest_limit():
+    service = DataService.__new__(DataService)
+    service.mongodb = None
+    service.fred_public = _FakeFredPublicClient()
+    service.umich_consumer = _FakeUmichConsumerClient()
+
+    response = service.get_macro_consumer_confidence_data(limit=3)
+
+    assert [point.date for point in response.data] == [
+        "2099-07-01",
+        "2099-08-01",
+        "2099-09-01",
+    ]
+    assert response.data[-1].value == 47.8
+    assert response.metadata.source_series_id == "UMCSENT"
+    assert response.metadata.source == "University of Michigan direct release + FRED history"
+    assert response.metadata.source_url == "https://www.sca.isr.umich.edu/"
+    assert response.metadata.latest_observation_status == "preliminary"
+    assert response.metadata.quality_status == "available"
+
+
+class _FailedFredPublicClient:
+    def get_series(self, series_id):
+        raise FredPublicSourceError("offline")
+
+
+class _FailedUmichConsumerClient:
+    def get_release(self):
+        raise UmichConsumerSourceError("offline")
+
+
+def test_consumer_confidence_fallback_only_accepts_matching_umcsent_documents():
+    service = make_service({
+        "macro_economics": FakeCollection([
+            {
+                "indicator": "consumer_confidence",
+                "fred_series_id": "CSCICP03USM665S",
+                "date": "2024-01-01",
+                "value": 98.91,
+            },
+            {
+                "indicator": "consumer_confidence",
+                "fred_series_id": "UMCSENT",
+                "date": "2025-12-01",
+                "value": 52.9,
+            },
+            {
+                "indicator": "consumer_confidence",
+                "fred_series_id": "UMCSENT",
+                "date": "2026-07-01",
+                "value": 55.2,
+            },
+        ])
+    })
+    service.fred_public = _FailedFredPublicClient()
+    service.umich_consumer = _FailedUmichConsumerClient()
+
+    response = service.get_macro_consumer_confidence_data(limit=1)
+
+    assert [(point.date, point.value) for point in response.data] == [("2026-07-01", 55.2)]
+    assert response.metadata.source_series_id == "UMCSENT"
 
 
 def test_empty_corporate_data_returns_valid_metadata():
@@ -180,22 +342,22 @@ def test_sector_latest_uses_lazy_collection_accessor():
     }
 
 
-def test_valuation_data_uses_lazy_collection_accessor():
+def test_unconnected_peg_data_still_uses_lazy_collection_accessor():
     service = make_service({
         "valuation": FakeCollection([
             {
-                "indicator": "pe_ratio",
+                "indicator": "peg_ratio",
                 "date": "2025-08-01",
-                "value": 24.75,
-                "metadata": {"symbol": "^GSPC"},
+                "value": 1.75,
+                "metadata": {"symbol": "Multiple"},
             }
         ])
     })
 
-    response = service.get_valuation_pe_ratio_data()
+    response = service.get_peg_ratio_data()
 
     assert service.mongodb.requested == ["valuation"]
-    assert response.data[0].value == 24.75
+    assert response.data[0].value == 1.75
     assert response.metadata.total_records == 1
 
 
