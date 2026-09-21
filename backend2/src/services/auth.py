@@ -95,6 +95,30 @@ class AuthService:
         user = {"id": str(document["_id"]), "username": document["username"], "role": document.get("role", "user")}
         return user, self.create_token(user)
 
+    def ensure_test_user(self, username: str, password: str) -> None:
+        """Create the local-only test account once without resetting its password."""
+        normalized = username.casefold()
+        if self.collection.find_one({"username_normalized": normalized}):
+            return
+        self.ensure_indexes()
+        now = datetime.now(timezone.utc)
+        try:
+            self.collection.insert_one(
+                {
+                    "username": username,
+                    "username_normalized": normalized,
+                    "password_hash": hash_password(password),
+                    "role": "user",
+                    "is_active": True,
+                    "created_at": now,
+                    "updated_at": now,
+                    "is_local_test_user": True,
+                }
+            )
+        except DuplicateKeyError:
+            # Another local request initialized the same account first.
+            return
+
     def create_token(self, user: dict[str, Any]) -> str:
         payload = {
             "sub": user["id"],

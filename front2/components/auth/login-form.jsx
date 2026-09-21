@@ -262,6 +262,11 @@ export default function LoginForm() {
               </Button>
             </form>
             
+            {process.env.NODE_ENV !== "production" && (
+              <div className="rounded-lg border border-slate-700/50 bg-slate-800/30 p-3 text-center text-sm text-slate-300">
+                Local test account: <span className="font-mono text-green-400">greenpeak</span> / <span className="font-mono text-green-400">greenpeak</span>
+              </div>
+            )}
             <p className="text-center text-sm text-slate-400">
               Don&apos;t have an account?{" "}
               <Link href="/signup" className="font-semibold text-green-400 hover:text-green-300">Create one</Link>

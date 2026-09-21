@@ -99,6 +99,9 @@ class Settings(BaseSettings):
     # Authentication. Override the secret in production with a long random value.
     auth_secret_key: str = "development-only-change-me"
     auth_token_ttl_seconds: int = 604800
+    auth_local_test_user_enabled: bool = True
+    auth_local_test_username: str = "greenpeak"
+    auth_local_test_password: str = "greenpeak"
 
     # Environment-specific settings
     environment: str = "development"

@@ -66,3 +66,14 @@ def test_duplicate_username_and_wrong_password_are_rejected():
     assert client.post("/api/v1/auth/signup", json=payload).status_code == 201
     assert client.post("/api/v1/auth/signup", json=payload).status_code == 409
     assert client.post("/api/v1/auth/login", json={**payload, "password": "wrong12"}).status_code == 401
+
+
+def test_test_user_is_created_once_without_replacing_an_existing_user():
+    _client, collection = make_client()
+    service = AuthService(collection, "test-secret")
+    service.ensure_test_user("greenpeak", "greenpeak")
+    first_hash = collection.documents[0]["password_hash"]
+    service.ensure_test_user("greenpeak", "another-password")
+
+    assert len(collection.documents) == 1
+    assert verify_password("greenpeak", first_hash)

@@ -57,6 +57,9 @@ def signup(credentials: Credentials, service: Annotated[AuthService, Depends(get
 @router.post("/login", response_model=AuthResponse)
 def login(credentials: Credentials, service: Annotated[AuthService, Depends(get_auth_service)]):
     try:
+        settings = get_settings()
+        if settings.environment == "development" and settings.auth_local_test_user_enabled:
+            service.ensure_test_user(settings.auth_local_test_username, settings.auth_local_test_password)
         user, token = service.login(credentials.username, credentials.password)
         return AuthResponse(access_token=token, user=UserResponse(**user))
     except (AuthError, PyMongoError) as exc:
