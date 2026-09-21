@@ -1,12 +1,12 @@
 """Once-daily persisted LLM analysis, coordinated across API workers."""
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from pymongo import MongoClient
+from pymongo import MongoClient, ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from ..core.config import get_settings
@@ -16,6 +16,7 @@ from ..utils.telegram import build_telegram_market_report, send_telegram_market_
 
 logger = logging.getLogger(__name__)
 RUN_COLLECTION = "gp_scheduled_analysis_runs"
+NOTIFICATION_RETRY_MINUTES = 10
 
 
 def should_schedule_catchup(now: datetime, hour: int, minute: int) -> bool:
@@ -43,6 +44,78 @@ def next_scheduled_analysis_at(now: datetime | None = None) -> datetime | None:
         timezone=timezone,
     )
     return trigger.get_next_fire_time(None, current)
+
+
+def market_analysis_completed(result: dict) -> bool:
+    """Return whether this pipeline run produced a current market narrative."""
+    return bool(result.get("llm", {}).get("market"))
+
+
+def _market_report_date(report: dict) -> str | None:
+    market = report.get("market", report)
+    value = market.get("as_of_date") or market.get("data_as_of")
+    if isinstance(value, (date, datetime)):
+        return value.date().isoformat() if isinstance(value, datetime) else value.isoformat()
+    return str(value)[:10] if value else None
+
+
+def _deliver_daily_notification(client, runs, run_key: str, local_day: date) -> None:
+    """Claim and deliver one notification attempt for a completed market run."""
+    now = datetime.now(UTC)
+    run = runs.find_one_and_update(
+        {
+            "run_key": run_key,
+            "status": {"$in": ["success", "partial"]},
+            "result.llm.market": {"$ne": None},
+            "notification.status": {"$in": ["pending", "failed"]},
+        },
+        {
+            "$set": {"notification.status": "sending", "notification.last_attempt_at": now},
+            "$inc": {"notification.attempts": 1},
+        },
+        return_document=ReturnDocument.AFTER,
+    )
+    if not run:
+        return
+
+    settings = get_settings()
+    outcome = {"notification.status": "failed", "notification.error_code": "telegram_send_failed"}
+    try:
+        market_data = build_telegram_market_report(client, settings.mongodb_database)
+        if not market_data:
+            outcome["notification.error_code"] = "market_report_missing"
+        elif _market_report_date(market_data) != local_day.isoformat():
+            outcome["notification.error_code"] = "market_report_date_mismatch"
+        elif send_telegram_market_report(market_data):
+            outcome = {
+                "notification.status": "sent",
+                "notification.sent_at": datetime.now(UTC),
+                "notification.error_code": None,
+            }
+    except Exception:
+        logger.exception("Daily Telegram notification failed")
+    runs.update_one({"run_key": run_key}, {"$set": outcome})
+
+
+def retry_daily_notification() -> None:
+    """Retry today's failed Telegram delivery without regenerating analysis."""
+    settings = get_settings()
+    try:
+        timezone = ZoneInfo(settings.greenpeak_daily_analysis_timezone)
+    except ZoneInfoNotFoundError:
+        logger.error("Daily analysis timezone is invalid; notification retry skipped")
+        return
+
+    local_day = datetime.now(timezone).date()
+    run_key = f"daily:{local_day.isoformat()}"
+    client = MongoClient(settings.mongodb_url, serverSelectionTimeoutMS=5000)
+    try:
+        runs = client[settings.mongodb_database][RUN_COLLECTION]
+        _deliver_daily_notification(client, runs, run_key, local_day)
+    except Exception:
+        logger.exception("Daily Telegram notification retry failed")
+    finally:
+        client.close()
 
 
 def run_daily_analysis() -> None:
@@ -86,17 +159,24 @@ def run_daily_analysis() -> None:
             force_llm=True,
         )
         status = "partial" if result["errors"] else "success"
+        notification_status = "pending" if market_analysis_completed(result) else "unavailable"
         runs.update_one(
             {"run_key": run_key},
-            {"$set": {"status": status, "finished_at": datetime.now(UTC), "result": result}},
+            {
+                "$set": {
+                    "status": status,
+                    "finished_at": datetime.now(UTC),
+                    "result": result,
+                    "notification": {
+                        "status": notification_status,
+                        "attempts": 0,
+                        "error_code": None if notification_status == "pending" else "market_not_generated",
+                    },
+                }
+            },
         )
-        if status == "success":
-            try:
-                market_data = build_telegram_market_report(client, settings.mongodb_database)
-                if market_data:
-                    send_telegram_market_report(market_data)
-            except Exception:
-                logger.exception("Daily market analysis succeeded but Telegram notification failed")
+        if notification_status == "pending":
+            _deliver_daily_notification(client, runs, run_key, local_day)
     except Exception as exc:
         logger.exception("Daily analysis failed")
         runs.update_one(
@@ -126,6 +206,14 @@ def create_daily_analysis_scheduler() -> BackgroundScheduler | None:
             timezone=timezone,
         ),
         id="greenpeak-daily-analysis",
+        replace_existing=True,
+        coalesce=True,
+        max_instances=1,
+    )
+    scheduler.add_job(
+        retry_daily_notification,
+        CronTrigger(minute=f"*/{NOTIFICATION_RETRY_MINUTES}", timezone=timezone),
+        id="greenpeak-daily-analysis-notification-retry",
         replace_existing=True,
         coalesce=True,
         max_instances=1,
