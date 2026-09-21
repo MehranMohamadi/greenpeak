@@ -11,6 +11,11 @@ const API_BASE = configuredApiBase || (isProduction
 export { API_BASE };
 
 export const endpoints = {
+    auth: {
+        signup: `${API_BASE}/auth/signup`,
+        login: `${API_BASE}/auth/login`,
+        me: `${API_BASE}/auth/me`,
+    },
     news: {
         bootstrap: `${API_BASE}/news/bootstrap`,
         source: (sourceId, limit = 20) => `${API_BASE}/news/sources/${sourceId}?limit=${limit}`,
@@ -23,6 +28,7 @@ export const endpoints = {
     },
     mt5: {
         latestSnapshot: `${API_BASE}/mt5/snapshots/latest`,
+        connections: `${API_BASE}/mt5/connections`,
     },
     indicatorFeatures: {
         latest: (indicatorId, debug = false) => `${API_BASE}/indicators/${indicatorId}/features/latest${debug ? "?mode=debug" : ""}`,

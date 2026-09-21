@@ -96,6 +96,10 @@ class Settings(BaseSettings):
     mongodb_url: str = "mongodb://127.0.0.1:27017"
     mongodb_database: str = "sp500_dashboard"
 
+    # Authentication. Override the secret in production with a long random value.
+    auth_secret_key: str = "development-only-change-me"
+    auth_token_ttl_seconds: int = 604800
+
     # Environment-specific settings
     environment: str = "development"
 

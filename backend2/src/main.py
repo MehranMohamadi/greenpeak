@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .core.config import get_settings
-from .api.v1.endpoints import analysis_router, rules_router, features_router, market_router, monetary_router, economic_router, system_router, systemrisk_router, liquidity_router, macroeco_router, corporate_router, valuation_router, sectors_router, mt5_router, news_router
+from .api.v1.endpoints import analysis_router, rules_router, features_router, market_router, monetary_router, economic_router, system_router, systemrisk_router, liquidity_router, macroeco_router, corporate_router, valuation_router, sectors_router, mt5_router, news_router, auth_router
 from .services.daily_analysis import create_daily_analysis_scheduler
 from .services.news.scheduler import create_news_scheduler
 from .services.official_sentiment_scheduler import create_official_sentiment_scheduler
@@ -74,6 +74,7 @@ def create_app() -> FastAPI:
     app.include_router(rules_router, prefix="/api/v1")
     app.include_router(mt5_router, prefix="/api/v1")
     app.include_router(news_router, prefix="/api/v1")
+    app.include_router(auth_router, prefix="/api/v1")
 
     return app
 

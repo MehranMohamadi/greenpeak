@@ -1,157 +1,84 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useEffect, useState } from "react"
+import { endpoints } from "@/api/api"
 
-const AuthContext = createContext({})
+const AuthContext = createContext(undefined)
+const TOKEN_KEY = "sp500_access_token"
 
-// Demo credentials - accepts any username/password
-const VALID_CREDENTIALS = {
-  username: "greenpeak",
-  password: "123456",
-  role: "admin",
-  name: "Demo User"
+async function readError(response) {
+  try {
+    const body = await response.json()
+    return typeof body.detail === "string" ? body.detail : "Authentication failed."
+  } catch {
+    return "Authentication service is unavailable."
+  }
 }
 
 export function AuthProvider({ children }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [user, setUser] = useState(null)
+  const [accessToken, setAccessToken] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Check authentication status on mount
   useEffect(() => {
-    const checkAuth = () => {
-      console.log('🔍 Checking authentication status on mount')
-      
-      // Check if localStorage is available
-      if (typeof window === 'undefined' || !window.localStorage) {
-        console.log('❌ localStorage not available')
+    const restoreSession = async () => {
+      const token = window.localStorage.getItem(TOKEN_KEY)
+      if (!token) {
         setIsLoading(false)
         return
       }
-      
       try {
-        const storedAuth = localStorage.getItem('sp500_auth')
-        const storedUser = localStorage.getItem('sp500_user')
-        
-        console.log('💾 localStorage values:', { 
-          storedAuth, 
-          storedUser: storedUser ? 'present' : 'null' 
-        })
-        
-        if (storedAuth === 'true' && storedUser) {
-          const userData = JSON.parse(storedUser)
-          console.log('✅ Found valid auth data, setting authenticated')
-          setIsAuthenticated(true)
-          setUser(userData)
-        } else {
-          console.log('❌ No valid auth data found')
-        }
-      } catch (error) {
-        console.error('🚨 Auth check error:', error)
-        // Clear invalid data
-        localStorage.removeItem('sp500_auth')
-        localStorage.removeItem('sp500_user')
+        setAccessToken(token)
+        const response = await fetch(endpoints.auth.me, { headers: { Authorization: `Bearer ${token}` } })
+        if (!response.ok) throw new Error("Invalid session")
+        setUser(await response.json())
+      } catch {
+        window.localStorage.removeItem(TOKEN_KEY)
+        setAccessToken(null)
+      } finally {
+        setIsLoading(false)
       }
-      console.log('🏁 Auth check complete, setting loading to false')
-      setIsLoading(false)
     }
-
-    checkAuth()
+    restoreSession()
   }, [])
 
-  const login = async (username, password) => {
-    console.log('🔐 Login attempt:', { username, password: '***' })
-    
-    // Check if localStorage is available
-    if (typeof window === 'undefined' || !window.localStorage) {
-      console.log('❌ localStorage not available during login')
-      return { 
-        success: false, 
-        error: 'Storage not available. Please ensure cookies/localStorage are enabled.' 
-      }
-    }
-    
+  const authenticate = async (url, username, password) => {
     try {
-      // Demo mode - accept any credentials
-      if (username && password) {
-        console.log('✅ Credentials valid (demo mode)')
-        const userData = {
-          username: username,
-          name: username === VALID_CREDENTIALS.username ? VALID_CREDENTIALS.name : username,
-          role: "demo",
-          loginTime: new Date().toISOString()
-        }
-
-        // Store authentication state
-        console.log('💾 Storing auth data in localStorage')
-        localStorage.setItem('sp500_auth', 'true')
-        localStorage.setItem('sp500_user', JSON.stringify(userData))
-        
-        // Verify storage worked
-        const verifyAuth = localStorage.getItem('sp500_auth')
-        const verifyUser = localStorage.getItem('sp500_user')
-        console.log('🔍 Verification:', { verifyAuth, verifyUser: verifyUser ? 'stored' : 'failed' })
-        
-        console.log('🔄 Setting auth state')
-        setIsAuthenticated(true)
-        setUser(userData)
-        
-        console.log('✅ Login successful:', userData)
-        return { success: true, user: userData }
-      } else {
-        console.log('❌ Invalid credentials')
-        return { 
-          success: false, 
-          error: 'Invalid credentials. Please check your username and password.' 
-        }
-      }
-    } catch (error) {
-      console.error('🚨 Login error:', error)
-      return { 
-        success: false, 
-        error: 'An unexpected error occurred. Please try again.' 
-      }
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      })
+      if (!response.ok) return { success: false, error: await readError(response) }
+      const data = await response.json()
+      window.localStorage.setItem(TOKEN_KEY, data.access_token)
+      setAccessToken(data.access_token)
+      setUser(data.user)
+      return { success: true, user: data.user }
+    } catch {
+      return { success: false, error: "Cannot connect to the authentication service." }
     }
   }
+
+  const login = (username, password) => authenticate(endpoints.auth.login, username, password)
+  const signup = (username, password) => authenticate(endpoints.auth.signup, username, password)
 
   const logout = () => {
-    try {
-      // Clear storage
-      localStorage.removeItem('sp500_auth')
-      localStorage.removeItem('sp500_user')
-      
-      // Reset state
-      setIsAuthenticated(false)
-      setUser(null)
-      
-      // Force page reload to ensure clean state
-      window.location.href = '/login'
-    } catch (error) {
-      console.error('Logout error:', error)
-      // Force reload even if there's an error
-      window.location.href = '/login'
-    }
-  }
-
-  const value = {
-    isAuthenticated,
-    user,
-    isLoading,
-    login,
-    logout
+    window.localStorage.removeItem(TOKEN_KEY)
+    setAccessToken(null)
+    setUser(null)
+    window.location.href = "/login"
   }
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ isAuthenticated: Boolean(user), user, accessToken, isLoading, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   )
 }
 
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
+  if (context === undefined) throw new Error("useAuth must be used within an AuthProvider")
   return context
 }

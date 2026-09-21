@@ -11,9 +11,15 @@ one versioned JSON snapshot to GreenPeak. It contains no trading functions.
 2. In MT5, add the exact HTTPS origin from `GreenPeakApiUrl` to **Tools > Options
    > Expert Advisors > Allow WebRequest for listed URL**.
 3. Attach the EA to a chart, set `GreenPeakApiUrl` to
-   `https://<host>/api/v1/mt5/snapshots`, and supply a dedicated token configured
-   server-side in `GREENPEAK_MT5_API_TOKENS`.
+   `https://<host>/api/v1/mt5/snapshots`. While signed in to GreenPeak, use
+   **Connect MetaTrader 5** to generate a pairing token and paste it into the
+   EA's `GreenPeakApiToken` input.
 4. Keep `AutoSendEnabled=false` for manual use. Click **Send to GreenPeak**.
+
+The token is displayed once and stored by GreenPeak only as a SHA-256 hash. The
+first accepted snapshot binds it to that signed-in user and exact
+broker/server/account identity. Revoke a connection in the dashboard before
+pairing a replacement account.
 
 The account identifier and token are never drawn or printed. JSON schema `1.0`
 is additive: the backend preserves unknown future fields. MongoDB collection

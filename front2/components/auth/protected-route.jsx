@@ -11,7 +11,7 @@ export default function ProtectedRoute({ children }) {
 
   useEffect(() => {
     // Don't redirect if still loading or already on login page
-    if (isLoading || pathname === '/login') return
+    if (isLoading || pathname === '/login' || pathname === '/signup') return
 
     // Redirect to login if not authenticated
     if (!isAuthenticated) {
@@ -32,7 +32,7 @@ export default function ProtectedRoute({ children }) {
   }
 
   // Show login redirect message if not authenticated
-  if (!isAuthenticated && pathname !== '/login') {
+  if (!isAuthenticated && pathname !== '/login' && pathname !== '/signup') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0F0F12]">
         <div className="flex flex-col items-center space-y-4">

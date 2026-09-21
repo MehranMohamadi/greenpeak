@@ -6,8 +6,8 @@ import ProtectedRoute from "@/components/auth/protected-route"
 export default function AuthWrapper({ children }) {
   const pathname = usePathname()
   
-  // Don't protect the login page
-  if (pathname === '/login') {
+  // Authentication pages are public.
+  if (pathname === '/login' || pathname === '/signup') {
     return children
   }
   

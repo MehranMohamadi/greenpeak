@@ -6,6 +6,7 @@ import { AlertTriangle, Database, RefreshCw } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useAuth } from "@/components/auth/auth-context"
 
 function errorMessage(value, fallback) {
   if (typeof value === "string") return value
@@ -15,12 +16,14 @@ function errorMessage(value, fallback) {
 }
 
 export default function MT5SnapshotsDebug() {
+  const { accessToken } = useAuth()
   const [snapshots, setSnapshots] = useState([])
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(true)
   const requestController = useRef(null)
 
   const load = useCallback(async () => {
+    if (!accessToken) return
     requestController.current?.abort()
     const controller = new AbortController()
     requestController.current = controller
@@ -31,6 +34,7 @@ export default function MT5SnapshotsDebug() {
       const response = await fetch("/dashboard-data/mt5/snapshots", {
         cache: "no-store",
         signal: controller.signal,
+        headers: { Authorization: `Bearer ${accessToken}` },
       })
       const body = await response.json()
       if (!response.ok) throw new Error(errorMessage(body, `Snapshot request failed (${response.status})`))
@@ -47,7 +51,7 @@ export default function MT5SnapshotsDebug() {
         setLoading(false)
       }
     }
-  }, [])
+  }, [accessToken])
 
   useEffect(() => {
     const timer = window.setTimeout(load, 0)

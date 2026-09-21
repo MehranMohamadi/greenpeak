@@ -11,8 +11,11 @@ import PendingOrders from "@/components/kokonutui/pending-orders"
 import Portfolio from "@/components/kokonutui/portfolio"
 import RiskAndSymbols from "@/components/kokonutui/risk-and-symbols"
 import TradingPositions from "@/components/kokonutui/trading-positions"
+import MT5Pairing from "@/components/dashboard/mt5-pairing"
+import { useAuth } from "@/components/auth/auth-context"
 
 export default function MT5AccountSnapshot() {
+  const { accessToken } = useAuth()
   const [snapshots, setSnapshots] = useState([])
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(true)
@@ -20,7 +23,11 @@ export default function MT5AccountSnapshot() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await fetch("/dashboard-data/mt5/accounts", { cache: "no-store" })
+      if (!accessToken) return
+      const response = await fetch("/dashboard-data/mt5/accounts", {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
       const body = await response.json()
       if (!response.ok) throw new Error(response.status === 503 ? "سرویس حساب‌های معاملاتی در دسترس نیست" : "دریافت حساب‌های معاملاتی ممکن نشد")
       setSnapshots(body)
@@ -30,16 +37,16 @@ export default function MT5AccountSnapshot() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [accessToken])
 
   useEffect(() => { load() }, [load])
 
   if (loading && snapshots.length === 0) {
-    return <Card className="border-gray-200 bg-white dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+    return <div className="space-y-3"><MT5Pairing accessToken={accessToken} /><Card className="border-gray-200 bg-white dark:border-[#2B2B30] dark:bg-[#1F1F23]">
       <CardContent className="flex items-center gap-3 p-4 text-sm text-muted-foreground" dir="rtl">
         <RefreshCw className="h-4 w-4 animate-spin" />در حال دریافت حساب‌های معاملاتی…
       </CardContent>
-    </Card>
+    </Card></div>
   }
 
   if (snapshots.length === 0) {
@@ -55,6 +62,7 @@ export default function MT5AccountSnapshot() {
   }
 
   return <section className="space-y-3" aria-labelledby="trading-accounts-title" dir="rtl">
+    <div dir="ltr"><MT5Pairing accessToken={accessToken} /></div>
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-2">
         <Server className="h-5 w-5 text-emerald-500" />

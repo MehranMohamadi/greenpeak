@@ -5,7 +5,8 @@ from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 
-from src.api.v1.endpoints.mt5 import snapshot_service
+from src.api.v1.endpoints.auth import require_user
+from src.api.v1.endpoints.mt5 import connection_service, snapshot_service
 from src.main import app
 from src.services.mt5_snapshot_service import MT5SnapshotService
 
@@ -53,53 +54,65 @@ class MemoryService:
     def __init__(self):
         self.document = None
 
-    def store(self, snapshot):
+    def store(self, snapshot, owner_user_id, connection_id):
         if self.document is not None:
             return "already_exists"
         self.document = snapshot.model_dump(mode="python")
         return "accepted"
 
-    def latest(self, account_identifier=None):
+    def latest(self, owner_user_id, account_identifier=None):
         if self.document is None:
             return None
         if account_identifier and self.document["source"]["account_identifier"] != account_identifier:
             return None
         return self.document
 
-    def latest_by_account(self):
+    def latest_by_account(self, owner_user_id):
         return [self.document] if self.document is not None else []
 
-    def all_snapshots(self):
+    def all_snapshots(self, owner_user_id):
         return [self.document] if self.document is not None else []
 
 
-def test_ingestion_requires_token(monkeypatch):
-    monkeypatch.setattr("src.api.v1.endpoints.mt5._configured_tokens", lambda: ("secret",))
+class MemoryConnections:
+    def resolve_and_bind(self, token, source):
+        if token != "pairing-secret":
+            return None
+        return {"_id": "connection-1", "user_id": "user-1"}
+
+
+def test_ingestion_requires_token():
     response = TestClient(app).post("/api/v1/mt5/snapshots", json=SNAPSHOT)
     assert response.status_code == 401
 
 
-def test_ingestion_reports_missing_server_token(monkeypatch):
-    monkeypatch.setattr("src.api.v1.endpoints.mt5._configured_tokens", lambda: ())
-    response = TestClient(app).post("/api/v1/mt5/snapshots", json=SNAPSHOT)
-    assert response.status_code == 503
-    assert response.json()["detail"] == "MT5 API authentication is not configured"
+def test_ingestion_rejects_invalid_pairing_token():
+    app.dependency_overrides[connection_service] = lambda: MemoryConnections()
+    try:
+        response = TestClient(app).post(
+            "/api/v1/mt5/snapshots", json=SNAPSHOT, headers={"Authorization": "Bearer invalid"}
+        )
+    finally:
+        app.dependency_overrides.clear()
+    assert response.status_code == 401
 
 
-def test_snapshot_round_trip_and_idempotency(monkeypatch):
+def test_snapshot_round_trip_and_idempotency():
     service = MemoryService()
     app.dependency_overrides[snapshot_service] = lambda: service
-    monkeypatch.setattr("src.api.v1.endpoints.mt5._configured_tokens", lambda: ("secret",))
+    app.dependency_overrides[connection_service] = lambda: MemoryConnections()
+    app.dependency_overrides[require_user] = lambda: {"id": "user-1", "username": "member", "role": "user"}
     client = TestClient(app)
-    headers = {"Authorization": "Bearer secret"}
+    pairing_headers = {"Authorization": "Bearer pairing-secret"}
+    user_headers = {"Authorization": "Bearer user-session"}
     payload = deepcopy(SNAPSHOT)
     payload["additional_snapshot_data"] = {"nested_value": "preserved"}
     try:
-        first = client.post("/api/v1/mt5/snapshots", json=payload, headers=headers)
-        second = client.post("/api/v1/mt5/snapshots", json=payload, headers=headers)
-        latest = client.get("/api/v1/mt5/snapshots/latest?account_identifier=123456", headers=headers)
-        accounts = client.get("/api/v1/mt5/snapshots/latest-by-account", headers=headers)
-        all_snapshots = client.get("/api/v1/mt5/snapshots", headers=headers)
+        first = client.post("/api/v1/mt5/snapshots", json=payload, headers=pairing_headers)
+        second = client.post("/api/v1/mt5/snapshots", json=payload, headers=pairing_headers)
+        latest = client.get("/api/v1/mt5/snapshots/latest?account_identifier=123456", headers=user_headers)
+        accounts = client.get("/api/v1/mt5/snapshots/latest-by-account", headers=user_headers)
+        all_snapshots = client.get("/api/v1/mt5/snapshots", headers=user_headers)
     finally:
         app.dependency_overrides.clear()
     assert first.status_code == 200
@@ -114,12 +127,11 @@ def test_snapshot_round_trip_and_idempotency(monkeypatch):
     assert all_snapshots.json()[0]["additional_snapshot_data"] == {"nested_value": "preserved"}
 
 
-def test_non_utc_timestamp_is_rejected(monkeypatch):
-    monkeypatch.setattr("src.api.v1.endpoints.mt5._configured_tokens", lambda: ("secret",))
+def test_non_utc_timestamp_is_rejected():
     payload = deepcopy(SNAPSHOT)
     payload["timestamp_utc"] = "2026-08-27T13:30:00+03:30"
     response = TestClient(app).post(
-        "/api/v1/mt5/snapshots", json=payload, headers={"Authorization": "Bearer secret"}
+        "/api/v1/mt5/snapshots", json=payload, headers={"Authorization": "Bearer pairing-secret"}
     )
     assert response.status_code == 422
 
@@ -136,7 +148,7 @@ def test_latest_snapshot_restores_mongodb_utc_timezone():
         def get_collection(self, name):
             return Collection()
 
-    result = MT5SnapshotService(MongoDB()).latest("123456")
+    result = MT5SnapshotService(MongoDB()).latest("user-1", "123456")
 
     assert result is not None
     assert result["timestamp_utc"].tzinfo is timezone.utc
@@ -160,9 +172,10 @@ def test_latest_by_account_groups_on_broker_server_and_account():
         def get_collection(self, name):
             return collection
 
-    result = MT5SnapshotService(MongoDB()).latest_by_account()
-    identity = collection.pipeline[1]["$group"]["_id"]
+    result = MT5SnapshotService(MongoDB()).latest_by_account("user-1")
+    identity = collection.pipeline[2]["$group"]["_id"]
 
+    assert collection.pipeline[0] == {"$match": {"owner_user_id": "user-1"}}
     assert set(identity) == {"broker_company", "trade_server", "account_identifier"}
     assert result[0]["timestamp_utc"].tzinfo is timezone.utc
 
@@ -187,8 +200,8 @@ def test_all_snapshots_are_sorted_newest_first():
         def get_collection(self, name):
             return collection
 
-    result = MT5SnapshotService(MongoDB()).all_snapshots()
+    result = MT5SnapshotService(MongoDB()).all_snapshots("user-1")
 
-    assert collection.query == {}
+    assert collection.query == {"owner_user_id": "user-1"}
     assert collection.sort == [("timestamp_utc", -1)]
     assert result[0]["timestamp_utc"].tzinfo is timezone.utc

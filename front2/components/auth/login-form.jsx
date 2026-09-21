@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { useAuth } from "./auth-context"
 import { TrendingUp, Lock, User, Eye, EyeOff, Shield, ChevronRight } from "lucide-react"
 import { motion } from "framer-motion"
+import Link from "next/link"
 
 export default function LoginForm() {
   const { login } = useAuth()
@@ -261,28 +262,10 @@ export default function LoginForm() {
               </Button>
             </form>
             
-            {/* Demo credentials display */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="mt-4 p-4 bg-slate-800/30 border border-slate-700/50 rounded-lg"
-            >
-              <div className="text-center space-y-2">
-                <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Demo Credentials</p>
-                <div className="space-y-1">
-                  <p className="text-sm text-slate-300">
-                    <span className="text-slate-400">Username:</span>{" "}
-                    <span className="font-mono text-green-400 font-semibold">greenpeak</span>
-                  </p>
-                  <p className="text-sm text-slate-300">
-                    <span className="text-slate-400">Password:</span>{" "}
-                    <span className="font-mono text-green-400 font-semibold">123456</span>
-                  </p>
-                </div>
-                <p className="text-xs text-slate-500 mt-2 italic">Any credentials will work for demo purposes</p>
-              </div>
-            </motion.div>
+            <p className="text-center text-sm text-slate-400">
+              Don&apos;t have an account?{" "}
+              <Link href="/signup" className="font-semibold text-green-400 hover:text-green-300">Create one</Link>
+            </p>
 
           </CardContent>
         </Card>

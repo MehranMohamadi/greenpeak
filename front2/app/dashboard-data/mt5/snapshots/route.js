@@ -2,18 +2,16 @@ import { NextResponse } from "next/server"
 
 export const dynamic = "force-dynamic"
 
-export async function GET() {
+export async function GET(request) {
   const apiBase = (process.env.GREENPEAK_INTERNAL_API_BASE_URL || "http://127.0.0.1:8000/api/v1").replace(/\/$/, "")
-  const token = process.env.GREENPEAK_MT5_DASHBOARD_TOKEN
-    || process.env.GREENPEAK_MT5_API_TOKENS?.split(",").map((value) => value.trim()).find(Boolean)
-
-  if (!token) {
-    return NextResponse.json({ detail: "Trading account connection is not configured" }, { status: 503 })
+  const authorization = request.headers.get("authorization")
+  if (!authorization) {
+    return NextResponse.json({ detail: "Authentication required" }, { status: 401 })
   }
 
   try {
     const response = await fetch(`${apiBase}/mt5/snapshots`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: authorization },
       cache: "no-store",
     })
     const body = await response.json().catch(() => ({ detail: "Invalid backend response" }))
