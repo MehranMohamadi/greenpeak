@@ -61,17 +61,12 @@ def _release_at(row: dict[str, Any]) -> datetime | None:
         return None
 
 
-def fetch_upcoming_us_events(
-    *,
-    now: datetime | None = None,
-    days: int = 14,
-    limit: int = 6,
-    timeout: float = 15,
-) -> list[dict[str, Any]]:
-    """Return high-importance upcoming U.S. events from the site's calendar source."""
-    anchor = (now or datetime.now(UTC)).astimezone(UTC)
-    start = anchor.replace(hour=0, minute=0, second=0, microsecond=0)
-    end = anchor + timedelta(days=days)
+def _calendar_value(row: dict[str, Any], key: str) -> Any | None:
+    value = row.get(key)
+    return value if value not in {None, ""} else None
+
+
+def _fetch_calendar_rows(start: datetime, end: datetime, timeout: float) -> list[dict[str, Any]]:
     response = httpx.get(
         TRADAYS_CONTENT_URL,
         params={
@@ -92,6 +87,44 @@ def fetch_upcoming_us_events(
     payload = response.json()
     if not isinstance(payload, list):
         raise ValueError("Unexpected calendar response")
+    return payload
+
+
+def _calendar_event(row: dict[str, Any], release_at: datetime) -> dict[str, Any]:
+    source_path = str(row.get("Url") or "")
+    return {
+        "event_id": str(row.get("Id") or f"{_event_slug(source_path)}-{int(release_at.timestamp())}"),
+        "title_fa": _title_fa(row),
+        "release_at": release_at.isoformat(),
+        "importance": "high",
+        "actual": _calendar_value(row, "ActualValue"),
+        "forecast": _calendar_value(row, "ForecastValue"),
+        "previous": _calendar_value(row, "PreviousValue"),
+        "source": "Tradays / MQL5",
+        "source_url": f"{TRADAYS_BASE_URL}{source_path}" if source_path.startswith("/") else TRADAYS_BASE_URL,
+    }
+
+
+def _is_high_importance_us_event(row: dict[str, Any]) -> bool:
+    return (
+        row.get("Importance") == "high"
+        and row.get("CurrencyCode") == "USD"
+        and row.get("Country") == 840
+    )
+
+
+def fetch_upcoming_us_events(
+    *,
+    now: datetime | None = None,
+    days: int = 14,
+    limit: int = 6,
+    timeout: float = 15,
+) -> list[dict[str, Any]]:
+    """Return high-importance upcoming U.S. events from the site's calendar source."""
+    anchor = (now or datetime.now(UTC)).astimezone(UTC)
+    start = anchor.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = anchor + timedelta(days=days)
+    payload = _fetch_calendar_rows(start, end, timeout)
 
     events = []
     for row in payload:
@@ -101,24 +134,40 @@ def fetch_upcoming_us_events(
         if (
             release_at is None
             or release_at < anchor
-            or row.get("Importance") != "high"
-            or row.get("CurrencyCode") != "USD"
-            or row.get("Country") != 840
+            or not _is_high_importance_us_event(row)
         ):
             continue
-        source_path = str(row.get("Url") or "")
-        events.append(
-            {
-                "event_id": str(row.get("Id") or f"{_event_slug(source_path)}-{int(release_at.timestamp())}"),
-                "title_fa": _title_fa(row),
-                "release_at": release_at.isoformat(),
-                "importance": "high",
-                "forecast": row.get("ForecastValue") or None,
-                "previous": row.get("PreviousValue") or None,
-                "source": "Tradays / MQL5",
-                "source_url": f"{TRADAYS_BASE_URL}{source_path}" if source_path.startswith("/") else TRADAYS_BASE_URL,
-            }
-        )
+        events.append(_calendar_event(row, release_at))
 
     events.sort(key=lambda item: item["release_at"])
+    return events[:limit]
+
+
+def fetch_recent_us_events(
+    *,
+    now: datetime | None = None,
+    days: int = 14,
+    limit: int = 6,
+    timeout: float = 15,
+) -> list[dict[str, Any]]:
+    """Return recently released high-importance U.S. events with actual values."""
+    anchor = (now or datetime.now(UTC)).astimezone(UTC)
+    start = anchor - timedelta(days=days)
+    payload = _fetch_calendar_rows(start, anchor, timeout)
+
+    events = []
+    for row in payload:
+        if not isinstance(row, dict):
+            continue
+        release_at = _release_at(row)
+        if (
+            release_at is None
+            or release_at > anchor
+            or not _is_high_importance_us_event(row)
+            or _calendar_value(row, "ActualValue") is None
+        ):
+            continue
+        events.append(_calendar_event(row, release_at))
+
+    events.sort(key=lambda item: item["release_at"], reverse=True)
     return events[:limit]

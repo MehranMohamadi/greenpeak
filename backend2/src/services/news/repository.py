@@ -11,6 +11,7 @@ class MongoNewsRepository:
         self.db.gp_news_raw.create_index([("item_id", ASCENDING)], unique=True)
         self.db.gp_news_raw.create_index([("source", ASCENDING), ("published_at", DESCENDING)])
         self.db.gp_news_runs.create_index([("run_key", ASCENDING)], unique=True)
+        self.db.gp_news_article_analyses.create_index([("item_id", ASCENDING)], unique=True)
 
     def save_raw(self, documents: list[dict]) -> int:
         written = 0
@@ -26,6 +27,19 @@ class MongoNewsRepository:
         return list(self.db.gp_news_raw.find(
             {"source": source, "published_at": {"$gte": since}}, {"_id": False}
         ).sort("published_at", DESCENDING).limit(limit))
+
+    def item_by_id(self, item_id: str) -> dict | None:
+        return self.db.gp_news_raw.find_one({"item_id": item_id}, {"_id": False})
+
+    def article_analysis(self, item_id: str, analysis_version: str) -> dict | None:
+        return self.db.gp_news_article_analyses.find_one(
+            {"item_id": item_id, "analysis_version": analysis_version}, {"_id": False}
+        )
+
+    def save_article_analysis(self, document: dict) -> None:
+        self.db.gp_news_article_analyses.replace_one(
+            {"item_id": document["item_id"]}, document, upsert=True
+        )
 
     def claim_run(self, run_key: str, kind: str) -> bool:
         try:

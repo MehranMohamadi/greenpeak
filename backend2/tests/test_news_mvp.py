@@ -118,3 +118,26 @@ def test_upcoming_calendar_api_contract(monkeypatch):
     response = TestClient(app).get("/api/v1/news/calendar/upcoming?limit=4")
     assert response.status_code == 200
     assert response.json()["data"]["items"][0]["title_fa"] == "نرخ بیکاری آمریکا"
+
+
+def test_released_calendar_api_contract(monkeypatch):
+    monkeypatch.setattr(
+        news_endpoint,
+        "fetch_recent_us_events",
+        lambda limit: [
+            {
+                "event_id": "2",
+                "title_fa": "تورم مصرف‌کننده سالانه",
+                "release_at": "2026-09-20T12:30:00+00:00",
+                "importance": "high",
+                "actual": "2.5%",
+                "forecast": "2.6%",
+                "previous": "2.7%",
+                "source": "Tradays / MQL5",
+                "source_url": "https://www.tradays.com/event",
+            }
+        ][:limit],
+    )
+    response = TestClient(app).get("/api/v1/news/calendar/released?limit=4")
+    assert response.status_code == 200
+    assert response.json()["data"]["items"][0]["actual"] == "2.5%"

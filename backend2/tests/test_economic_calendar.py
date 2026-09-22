@@ -43,6 +43,18 @@ class FakeResponse:
                 "Country": 840,
                 "ReleaseDate": 1_790_260_000_000,
             },
+            {
+                "Id": 4,
+                "Url": "/en/economic-calendar/widget/united-states/retail-sales-mm",
+                "EventName": "Retail Sales",
+                "Importance": "high",
+                "CurrencyCode": "USD",
+                "Country": 840,
+                "ReleaseDate": 1_789_900_000_000,
+                "ActualValue": "0.4%",
+                "ForecastValue": "0.2%",
+                "PreviousValue": "-0.1%",
+            },
         ]
 
 
@@ -68,3 +80,19 @@ def test_upcoming_calendar_filters_sorts_and_translates(monkeypatch):
     assert events[0]["title_fa"] == "درخواست‌های اولیه بیمه بیکاری"
     assert events[1]["title_fa"] == "اشتغال غیرکشاورزی آمریکا"
     assert events[0]["release_at"].endswith("+00:00")
+
+
+def test_recent_calendar_returns_released_values_without_country(monkeypatch):
+    monkeypatch.setattr(economic_calendar.httpx, "get", lambda *args, **kwargs: FakeResponse())
+    events = economic_calendar.fetch_recent_us_events(
+        now=datetime.fromtimestamp(1_790_253_000, tz=UTC),
+        days=14,
+        limit=6,
+    )
+
+    assert len(events) == 1
+    assert events[0]["title_fa"] == "خرده‌فروشی ماهانه آمریکا"
+    assert events[0]["actual"] == "0.4%"
+    assert events[0]["forecast"] == "0.2%"
+    assert events[0]["previous"] == "-0.1%"
+    assert "country" not in events[0]

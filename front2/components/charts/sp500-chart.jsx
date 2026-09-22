@@ -36,8 +36,8 @@ function normalizeCandles(data) {
   return Array.from(candlesByTime.values()).sort((a, b) => a.time - b.time)
 }
 
-/** @param {{ data?: SP500Candle[] }} props */
-export default function SP500Chart({ data = [] }) {
+/** @param {{ data?: SP500Candle[], className?: string }} props */
+export default function SP500Chart({ data = [], className = "h-[420px] w-full sm:h-[520px] lg:h-[600px]" }) {
   const chartContainerRef = useRef(null)
   const [error, setError] = useState(null)
   const { theme, resolvedTheme } = useTheme()
@@ -155,7 +155,7 @@ export default function SP500Chart({ data = [] }) {
 
   if (error) {
     return (
-      <div className="flex h-[420px] items-center justify-center bg-slate-50 p-6 text-center text-sm text-red-500 sm:h-[520px] lg:h-[600px] dark:bg-slate-950/50">
+      <div className={`flex items-center justify-center bg-slate-50 p-6 text-center text-sm text-red-500 dark:bg-slate-950/50 ${className}`}>
         {error}
       </div>
     )
@@ -164,7 +164,7 @@ export default function SP500Chart({ data = [] }) {
   return (
     <div
       ref={chartContainerRef}
-      className="h-[420px] w-full sm:h-[520px] lg:h-[600px]"
+      className={className}
       aria-label="S&P 500 candlestick chart"
     />
   )

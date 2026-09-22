@@ -44,7 +44,7 @@ const analysisLinks = [
 
 const chartTimeframes = ["1D", "5D", "1M", "6M", "YTD", "1Y", "5Y", "MAX"]
 
-export default function SP500Dashboard() {
+export default function SP500Dashboard({ compact = false }: { compact?: boolean }) {
   const [selectedTab, setSelectedTab] = useState("overview")
   const [selectedTimeframe, setSelectedTimeframe] = useState("5D")
   const { data, loading, refreshing, error, lastUpdated, refresh } =
@@ -56,6 +56,64 @@ export default function SP500Dashboard() {
         second: "2-digit",
       }).format(lastUpdated)
     : null
+
+  if (compact) {
+    return (
+      <Card className="flex h-64 min-h-0 flex-col overflow-hidden border-slate-700/60 bg-[#111c33]/90 text-slate-100" dir="ltr">
+        <CardHeader className="shrink-0 space-y-2 border-b border-slate-700/60 p-3 pb-2">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
+              <Activity className="h-4 w-4 shrink-0 text-cyan-400" />
+              <span className="truncate">S&amp;P 500</span>
+            </CardTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={refresh}
+              disabled={loading || refreshing}
+              className="h-7 w-7 shrink-0 text-slate-400 hover:bg-slate-800 hover:text-cyan-300"
+              aria-label="Refresh S&P 500 chart"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+          <div className="grid grid-cols-4 gap-1" role="group" aria-label="S&P 500 chart timeframe">
+            {["1D", "5D", "1M", "6M"].map((timeframe) => (
+              <button
+                key={timeframe}
+                type="button"
+                onClick={() => setSelectedTimeframe(timeframe)}
+                aria-pressed={selectedTimeframe === timeframe}
+                className={`rounded px-1 py-1 text-[10px] font-medium transition-colors ${
+                  selectedTimeframe === timeframe
+                    ? "bg-cyan-500/15 text-cyan-300"
+                    : "text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                }`}
+              >
+                {timeframe}
+              </button>
+            ))}
+          </div>
+        </CardHeader>
+        <CardContent className="min-h-0 flex-1 p-0">
+          {loading && data.length === 0 ? (
+            <div className="flex h-full items-center justify-center text-xs text-slate-400">
+              <LoaderCircle className="mr-2 h-4 w-4 animate-spin text-cyan-400" />
+              Loading…
+            </div>
+          ) : error && data.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center text-xs text-slate-400">
+              <AlertCircle className="h-5 w-5 text-amber-400" />
+              S&amp;P 500 data is unavailable.
+            </div>
+          ) : (
+            <SP500Chart data={data} className="h-full min-h-[150px] w-full" />
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="min-h-screen w-full bg-white dark:bg-[#0F0F12]">

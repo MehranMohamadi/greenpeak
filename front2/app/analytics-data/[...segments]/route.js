@@ -4,12 +4,16 @@ const ALLOWED_PATHS = new Set([
   "market/analysis/latest",
   "news/sources/alpha_vantage",
   "news/calendar/upcoming",
+  "news/calendar/released",
 ])
+
+const isAllowedPath = (path) =>
+  ALLOWED_PATHS.has(path) || /^news\/items\/[a-zA-Z0-9_-]{1,80}\/analysis$/.test(path)
 
 export async function GET(request, { params }) {
   const { segments } = await params
   const path = segments.join("/")
-  if (!ALLOWED_PATHS.has(path)) {
+  if (!isAllowedPath(path)) {
     return NextResponse.json({ detail: "Unsupported analytics data path." }, { status: 404 })
   }
 
