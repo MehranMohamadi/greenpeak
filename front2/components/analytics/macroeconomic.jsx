@@ -71,7 +71,7 @@ export default function Macroeconomic() {
     <AnalysisPageShell>
       <AnalysisPageHeader page="macroeconomic" title="Growth, Inflation & Labor" showDescription={false} />
       <Card dir="rtl">
-        <CardContent className="p-4"><DomainUnderstandingPanel domainId="growth_inflation_labor" simple onUpdated={() => setRevision((value) => value + 1)} /></CardContent>
+        <CardContent className="px-4 pb-4 !pt-2.5"><DomainUnderstandingPanel domainId="growth_inflation_labor" simple onUpdated={() => setRevision((value) => value + 1)} /></CardContent>
       </Card>
       {error && <AnalysisState tone="neutral" title="Macroeconomic service unavailable" description={error} />}
       <div dir="ltr" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
@@ -85,11 +85,11 @@ export default function Macroeconomic() {
           <CardContent>
             {loading && <AnalysisState tone="neutral" title="Loading observations" />}
             {!loading && chartData.length === 0 && <AnalysisState tone="neutral" title="No verified observations" description={errors[selected.key] || selectedMetadata?.quality_reason || "No observations were returned."} />}
-            {!loading && chartData.length > 0 && <div className="h-[360px] w-full overflow-hidden"><MultiLineChart dataSets={[chartData]} height={360} textColor={chartTextColor} /></div>}
+            {!loading && chartData.length > 0 && <div className="h-[200px] w-full overflow-hidden"><MultiLineChart dataSets={[chartData]} height={200} textColor={chartTextColor} /></div>}
           </CardContent>
         </Card>
         <div className="min-w-0 [overflow-wrap:anywhere] relative min-h-0 lg:col-start-2 lg:row-start-1">
-          <IndicatorNarrativeAnalysis key={selected.indicatorId} indicatorId={selected.indicatorId} title={selected.title} observationDate={observationDate} revision={revision}
+          <IndicatorNarrativeAnalysis key={selected.indicatorId} indicatorId={selected.indicatorId} title={selected.title} observationDate={observationDate} revision={revision} compact
             note={selected.key === "gdp" ? "تحلیل مربوط به تولید ناخالص داخلی واقعی است؛ نمودار، نرخ رشد فصلی سالانه‌شدهٔ آن را نشان می‌دهد." : selected.key === "cpi" ? "تحلیل مربوط به شاخص قیمت مصرف‌کننده است؛ نمودار، تغییر دوازده‌ماههٔ آن را نشان می‌دهد." : undefined} />
         </div>
       </div>
