@@ -29,7 +29,7 @@ import { AnalysisFactorCard, AnalysisPageHeader, AnalysisPageShell, AnalysisStat
 
 const MultiLineChart = dynamic(() => import("../charts/multi-line-chart"), { ssr: false })
 const MiniChart = dynamic(() => import("./mini-chart"), { ssr: false })
-const INLINE_CHART_HEIGHT = 224
+const INLINE_CHART_HEIGHT = 200
 const PERIODS = ["1M", "6M", "1Y", "5Y", "10Y", "25Y", "MAX"]
 const MONETARY_CHART_COLOR = "#06B6D4"
 
@@ -104,16 +104,16 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
       />
 
       <Card dir="rtl">
-        <CardContent className="p-4"><DomainUnderstandingPanel domainId="monetary_liquidity" simple onUpdated={() => setAnalysisRevision((value) => value + 1)} /></CardContent>
+        <CardContent className="px-4 pb-4 !pt-2.5"><DomainUnderstandingPanel domainId="monetary_liquidity" simple onUpdated={() => setAnalysisRevision((value) => value + 1)} /></CardContent>
       </Card>
 
       <div dir="ltr" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
         <Card ref={chartSectionRef} className="min-w-0 lg:col-start-1 lg:row-start-1">
-          <CardHeader><div className="flex flex-col gap-4"><div><CardTitle className="flex items-start justify-between gap-3 text-base"><span className="min-w-0 break-words">{selected.title}</span><Button variant="outline" size="icon" title="Expand chart" aria-label="Expand chart" onClick={() => setIsFullScreen(true)} disabled={!selectedData.length}><Maximize2 className="h-4 w-4" /></Button></CardTitle><CardDescription className="mt-2 text-xs">{selected.metadata?.source || "Source unavailable"} &middot; {selectedDate} &middot; {selected.format === "rate" ? "%" : selected.format === "trillions" ? "USD trillions" : "USD billions"}{selected.metadata?.quality_status === "stale" && <span className="ml-2 text-amber-700 dark:text-amber-400">Data is outdated</span>}</CardDescription></div><PeriodControls period={period} onChange={setPeriod} /></div></CardHeader>
+          <CardHeader className="!pt-2.5"><div className="flex flex-col gap-4"><div><CardTitle className="flex items-start justify-between gap-3 text-base"><span className="min-w-0 break-words">{selected.title}</span><Button variant="outline" size="icon" title="Expand chart" aria-label="Expand chart" onClick={() => setIsFullScreen(true)} disabled={!selectedData.length}><Maximize2 className="h-4 w-4" /></Button></CardTitle><CardDescription className="mt-2 text-xs">{selected.metadata?.source || "Source unavailable"} &middot; {selectedDate} &middot; {selected.format === "rate" ? "%" : selected.format === "trillions" ? "USD trillions" : "USD billions"}{selected.metadata?.quality_status === "stale" && <span className="ml-2 text-amber-700 dark:text-amber-400">Data is outdated</span>}</CardDescription></div><PeriodControls period={period} onChange={setPeriod} /></div></CardHeader>
           <CardContent>
             {selected.loading && <AnalysisState tone="neutral" title="Loading observations" />}
             {!selected.loading && selectedData.length === 0 && <AnalysisState tone="neutral" title="Chart data unavailable" description={selected.error === "Failed to fetch" ? "Unable to reach the data API. Check that the local backend is running on port 8000, then reload this page." : selected.error?.message || selected.error || "No observations were returned for this indicator."} />}
-            {!selected.loading && selectedData.length > 0 && <div className="h-[224px] w-full overflow-hidden"><MultiLineChart textColor={chartTextColor} dataSets={[selectedData]} height={INLINE_CHART_HEIGHT} seriesColors={[MONETARY_CHART_COLOR]} /></div>}
+            {!selected.loading && selectedData.length > 0 && <div className="h-[200px] w-full overflow-hidden"><MultiLineChart textColor={chartTextColor} dataSets={[selectedData]} height={INLINE_CHART_HEIGHT} seriesColors={[MONETARY_CHART_COLOR]} /></div>}
           </CardContent>
         </Card>
         <div className="min-w-0 [overflow-wrap:anywhere] relative min-h-0 lg:col-start-2 lg:row-start-1">
@@ -140,7 +140,7 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
                       ? "!border-cyan-500/60 !bg-cyan-500/10 !ring-cyan-500/30 dark:!border-cyan-400/60 dark:!bg-cyan-400/10 dark:!ring-cyan-400/30"
                       : ""}
                   >
-                    <CardHeader className="p-4 pb-3"><p className="text-xs text-slate-500">{factor.group}</p><CardTitle className="flex items-center justify-between gap-3 text-base"><span className="min-w-0 break-words">{factor.title}</span><Icon className="h-4 w-4 shrink-0 text-primary" /></CardTitle></CardHeader>
+                    <CardHeader className="px-4 pb-3 !pt-2.5"><p className="text-xs text-slate-500">{factor.group}</p><CardTitle className="flex items-center justify-between gap-3 text-base"><span className="min-w-0 break-words">{factor.title}</span><Icon className="h-4 w-4 shrink-0 text-primary" /></CardTitle></CardHeader>
                     <CardContent className="p-4 pt-0">
                       <div className="text-2xl font-semibold tabular-nums">{factor.loading ? "Loading…" : unavailable ? "N/A" : formatValue(latest, factor.format)}</div>
                       <div className="pointer-events-none mt-3 h-20 p-2 bg-transparent rounded-lg mini-chart-container" aria-hidden="true">{factor.loading ? <div className="h-full animate-pulse rounded bg-slate-100 dark:bg-slate-800" /> : <MiniChart data={view} trend={trend} upColor={MONETARY_CHART_COLOR} />}</div>
