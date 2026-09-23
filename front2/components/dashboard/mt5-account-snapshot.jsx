@@ -10,7 +10,6 @@ import LastTrades from "@/components/kokonutui/last-trades"
 import PendingOrders from "@/components/kokonutui/pending-orders"
 import Portfolio from "@/components/kokonutui/portfolio"
 import RiskAndSymbols from "@/components/kokonutui/risk-and-symbols"
-import TradingPositions from "@/components/kokonutui/trading-positions"
 import MT5Pairing from "@/components/dashboard/mt5-pairing"
 import { useAuth } from "@/components/auth/auth-context"
 
@@ -68,7 +67,7 @@ export default function MT5AccountSnapshot() {
     <div dir="ltr"><MT5Pairing accessToken={accessToken} /></div>
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-2">
-        <Server className="h-5 w-5 text-emerald-500" />
+        <Server className="h-5 w-5 text-primary" />
         <h2 id="trading-accounts-title" className="text-lg font-semibold text-gray-900 dark:text-white">حساب‌های معاملاتی متصل</h2>
         <Badge variant="secondary">{snapshots.length}</Badge>
       </div>
@@ -79,7 +78,6 @@ export default function MT5AccountSnapshot() {
       <Portfolio snapshots={snapshots} />
       <LastTrades snapshots={snapshots} />
       <BrokerAccounts snapshots={snapshots} />
-      <TradingPositions snapshots={snapshots} />
       <PendingOrders snapshots={snapshots} />
       <RiskAndSymbols snapshots={snapshots} />
     </div>
