@@ -96,7 +96,7 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
             ))}
           </div>
         </CardHeader>
-        <CardContent className="min-h-0 flex-1 p-0">
+        <CardContent className="min-h-0 flex-1 p-0 pl-2">
           {loading && data.length === 0 ? (
             <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
               <LoaderCircle className="mr-2 h-4 w-4 animate-spin text-primary" />

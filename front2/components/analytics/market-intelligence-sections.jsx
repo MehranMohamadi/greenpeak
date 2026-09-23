@@ -191,12 +191,16 @@ function Drivers({ title, items, tone }) {
 }
 
 function CardConnector({ active = false, label }) {
-  return <div className="flex items-center justify-center py-1 lg:h-full lg:px-0.5 lg:py-0" role="img" aria-label={label}>
-    <span aria-hidden="true" className={`select-none rounded-full border px-2.5 py-1 text-xl font-semibold leading-none ${active ? "border-primary/70 bg-primary/15 text-primary shadow-sm" : "border-border bg-muted/40 text-muted-foreground"}`}>↔</span>
+  return <div className="relative z-20 -my-1 flex h-6 items-center justify-center lg:pointer-events-none lg:absolute lg:inset-y-0 lg:left-1/2 lg:my-0 lg:h-auto lg:-translate-x-1/2" role="img" aria-label={label}>
+    <span
+      aria-hidden="true"
+      className={`flex h-6 w-9 select-none items-center justify-center rounded-full border text-[25px] font-medium leading-none ring-[3px] ring-background shadow-[0_3px_10px_hsl(var(--foreground)/0.10)] ${active ? "border-primary/60 bg-primary/10 text-primary" : "border-border bg-card text-foreground/75"}`}
+      style={{ fontFamily: '"Segoe UI Symbol", "Noto Sans Symbols 2", sans-serif' }}
+    >↔</span>
   </div>
 }
 
-function ExpandableAnalysisList({ items, tone, emptyText }) {
+function ExpandableAnalysisList({ items, emptyText }) {
   const values = (items || []).filter(Boolean).map((item, index) => {
     if (typeof item === "string") return { title: item, detail: "", refs: [], key: `${index}-${item}` }
     return {
@@ -206,11 +210,8 @@ function ExpandableAnalysisList({ items, tone, emptyText }) {
       key: item.risk_id || `${index}-${item.title_fa || item.title || "item"}`,
     }
   })
-  const colors = tone === "warning"
-    ? "text-amber-700 hover:text-amber-600 dark:text-amber-300 dark:hover:text-amber-200"
-    : "text-rose-700 hover:text-rose-600 dark:text-rose-300 dark:hover:text-rose-200"
   return values.length ? <div>{values.map(item => <details key={item.key} className="group border-b border-border last:border-b-0">
-    <summary className={`flex cursor-pointer list-none items-center justify-between gap-3 py-3 text-sm font-medium leading-6 transition [&::-webkit-details-marker]:hidden ${colors}`}>
+    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-3 text-sm font-medium leading-6 text-foreground transition hover:text-foreground/80 [&::-webkit-details-marker]:hidden">
       <span>{item.title}</span>
       <Triangle aria-hidden="true" className="h-3 w-3 shrink-0 rotate-90 fill-current opacity-75 transition-transform group-open:rotate-180" />
     </summary>
@@ -353,7 +354,7 @@ export default function MarketIntelligenceSections({ market }) {
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5"><Kpi label="شرایط کلی بازار" value={statusLabels[summary.market_condition] || "نامشخص"} color="violet" /><Kpi label="ریسک بازار" value={statusLabels[summary.risk_level] || "نامشخص"} color="amber" /><Kpi label="Sentiment" value={statusLabels[summary.sentiment] || "نامشخص"} color="slate" /><Kpi label="شدت تغییر" value={statusLabels[summary.change_intensity] || "نامشخص"} color="cyan" /><Kpi label="اعتماد به تحلیل" value={statusLabels[summary.confidence_level] || "نامشخص"} color={summary.confidence_level === "high" ? "green" : "violet"} /></div>
     </section>
 
-    <section className="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-4">
+    <section className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-1">
       <Card className="flex h-72 min-h-0 flex-col overflow-hidden">
         <CardHeader className="shrink-0 pb-3"><div className="flex items-center justify-between"><CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-primary" />اخبار پرتأثیر</CardTitle><Link href="/analytics/events" className="text-xs text-primary">مشاهده همه</Link></div></CardHeader>
         <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto">{news.length ? news.map(item => {
@@ -380,7 +381,7 @@ export default function MarketIntelligenceSections({ market }) {
       </Card>
     </section>
 
-    <section className="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-4">
+    <section className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-1">
       <Card className="flex h-80 min-h-0 flex-col overflow-hidden">
         <CardHeader className="shrink-0 pb-3"><div className="flex items-center gap-2"><CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-primary" />رویدادهای مهم پیش‌رو</CardTitle><InfoDialog title="رویدادهای مهم پیش‌رو" description="رویدادهای آینده با اهمیت بالا همراه با تاریخ، ساعت تهران و مقادیر پیش‌بینی و قبلی نمایش داده می‌شوند. مقدار واقعی تا زمان انتشار خالی می‌ماند." /></div></CardHeader>
         <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto">{upcomingEvents.length ? upcomingEvents.map(item => <CalendarDataCard key={item.event_id} item={item}><Badge variant="outline" className="shrink-0">اهمیت بالا</Badge></CalendarDataCard>) : <p className="rounded-lg border bg-muted/25 p-4 text-sm text-muted-foreground">دادهٔ مهم آینده‌ای از تقویم دریافت نشد.</p>}<Link href="/analytics/events" className="mt-3 inline-flex items-center gap-1 text-sm text-primary">مشاهدهٔ تقویم زنده <ChevronLeft className="h-4 w-4" /></Link></CardContent>
@@ -397,7 +398,7 @@ export default function MarketIntelligenceSections({ market }) {
       </Card>
     </section>
 
-    <section className="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-4">
+    <section className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-1">
       <Drivers title="محرک‌های حمایتی" items={positive} tone="positive" />
       <CardConnector label="ارتباط محرک‌های حمایتی با عوامل چالشی" />
       <Drivers title="عوامل چالشی" items={negative} tone="negative" />
@@ -405,12 +406,12 @@ export default function MarketIntelligenceSections({ market }) {
 
     <section className="grid gap-4 lg:grid-cols-2">
       <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-amber-500/30">
-        <CardHeader className="shrink-0 pb-3"><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-amber-400" />داده‌های متضاد بازار</CardTitle></CardHeader>
-        <CardContent className="min-h-0 flex-1 overflow-y-auto"><ExpandableAnalysisList items={conflictItems} tone="warning" emptyText="دادهٔ متضادی ثبت نشده است." /></CardContent>
+        <CardHeader className="shrink-0 pb-3"><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-foreground" />داده‌های متضاد بازار</CardTitle></CardHeader>
+        <CardContent className="min-h-0 flex-1 overflow-y-auto"><ExpandableAnalysisList items={conflictItems} emptyText="دادهٔ متضادی ثبت نشده است." /></CardContent>
       </Card>
       <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-destructive/30">
-        <CardHeader className="shrink-0 pb-3"><CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5 text-destructive" />ریسک مانیتور</CardTitle></CardHeader>
-        <CardContent className="min-h-0 flex-1 overflow-y-auto"><ExpandableAnalysisList items={riskItems} tone="negative" emptyText="ریسک فعالی ثبت نشده است." /></CardContent>
+        <CardHeader className="shrink-0 pb-3"><CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5 text-foreground" />ریسک مانیتور</CardTitle></CardHeader>
+        <CardContent className="min-h-0 flex-1 overflow-y-auto"><ExpandableAnalysisList items={riskItems} emptyText="ریسک فعالی ثبت نشده است." /></CardContent>
       </Card>
     </section>
 
