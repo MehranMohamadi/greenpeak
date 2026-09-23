@@ -172,12 +172,12 @@ export default function WatchlistManager() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span
-                        className={`text-sm ${symbol.trend === "up" ? "text-green-600" : symbol.trend === "down" ? "text-red-600" : "text-gray-600"}`}
+                        className={`text-sm ${symbol.trend === "up" ? "text-cyan-600" : symbol.trend === "down" ? "text-red-600" : "text-gray-600"}`}
                       >
                         {symbol.change} ({symbol.changePercent})
                       </span>
                       {symbol.trend === "up" ? (
-                        <TrendingUp className="h-4 w-4 text-green-500" />
+                        <TrendingUp className="h-4 w-4 text-cyan-500" />
                       ) : symbol.trend === "down" ? (
                         <TrendingDown className="h-4 w-4 text-red-500" />
                       ) : null}

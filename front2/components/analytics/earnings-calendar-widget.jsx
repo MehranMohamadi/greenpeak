@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useEffect, useId, useMemo, useState } from "react"
+import { memo, useEffect, useId, useMemo, useRef, useState } from "react"
 import { useTheme } from "next-themes"
 
 const FINLOGIX_SCRIPT_ID = "finlogix-widget-script"
@@ -34,6 +34,8 @@ function loadFinlogixWidget() {
 function EarningsCalendarWidget() {
   const { theme, resolvedTheme } = useTheme()
   const [error, setError] = useState("")
+  const widgetRef = useRef(null)
+  const widgetThemeRef = useRef("light")
   const reactId = useId()
   const containerId = useMemo(
     () => `finlogix-earnings-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`,
@@ -41,9 +43,13 @@ function EarningsCalendarWidget() {
   )
   const isDarkTheme =
     resolvedTheme === "dark" || theme === "trading-dark" || theme === "terminal"
+  const widgetTheme = isDarkTheme ? "dark" : "light"
+  const themeReady = Boolean(resolvedTheme)
+
+  widgetThemeRef.current = widgetTheme
 
   useEffect(() => {
-    if (!resolvedTheme) return undefined
+    if (!themeReady) return undefined
 
     let cancelled = false
     const container = document.getElementById(containerId)
@@ -53,7 +59,12 @@ function EarningsCalendarWidget() {
     loadFinlogixWidget()
       .then((Widget) => {
         if (cancelled || !document.getElementById(containerId)) return
-        Widget.init({
+
+        const WidgetClass = window.WidgetIframeClass
+        const widget = typeof WidgetClass === "function" ? new WidgetClass() : Widget
+        widgetRef.current = widget
+
+        widget.init({
           type: "EarningCalendar",
           language: "en",
           importanceOptions: ["low", "medium", "high"],
@@ -66,7 +77,7 @@ function EarningsCalendarWidget() {
             "thisMonth",
           ],
           isAdaptive: true,
-          theme: isDarkTheme ? "dark" : "light",
+          theme: widgetThemeRef.current,
           renderDocumentId: containerId,
         })
       })
@@ -76,12 +87,19 @@ function EarningsCalendarWidget() {
 
     return () => {
       cancelled = true
+      const widget = widgetRef.current
+      widget?.iframe?.remove?.()
       document.getElementById(containerId)?.replaceChildren()
+      if (widgetRef.current === widget) widgetRef.current = null
     }
-  }, [containerId, isDarkTheme, resolvedTheme])
+  }, [containerId, themeReady])
+
+  useEffect(() => {
+    widgetRef.current?.update?.({ theme: widgetTheme })
+  }, [widgetTheme])
 
   return (
-    <div className="relative h-[720px] min-h-[520px] w-full overflow-hidden rounded-lg bg-white dark:bg-slate-950">
+    <div className="relative h-[720px] min-h-[520px] w-full overflow-hidden rounded-lg bg-background">
       <div id={containerId} className="h-full w-full" />
       {error && (
         <div role="status" className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-muted-foreground">

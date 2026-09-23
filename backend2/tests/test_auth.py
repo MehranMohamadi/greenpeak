@@ -2,12 +2,12 @@ import os
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from pymongo.errors import DuplicateKeyError
+from pymongo.errors import DuplicateKeyError, ServerSelectionTimeoutError
 
 os.environ["DEBUG"] = "false"
 
 from src.api.v1.endpoints.auth import get_auth_service, router
-from src.services.auth import AuthService, verify_password
+from src.services.auth import AuthService, LocalUserCollection, verify_password
 
 
 class InsertResult:
@@ -77,3 +77,44 @@ def test_test_user_is_created_once_without_replacing_an_existing_user():
 
     assert len(collection.documents) == 1
     assert verify_password("greenpeak", first_hash)
+
+
+def test_local_sqlite_fallback_persists_signup_login_and_session(tmp_path):
+    database_path = tmp_path / "auth.db"
+    service = AuthService(LocalUserCollection(database_path), "test-secret", token_ttl_seconds=60)
+    user, _ = service.signup("local.user", "secret12")
+
+    restarted_service = AuthService(LocalUserCollection(database_path), "test-secret", token_ttl_seconds=60)
+    logged_in_user, token = restarted_service.login("LOCAL.USER", "secret12")
+
+    assert logged_in_user == user
+    assert restarted_service.user_from_token(token) == user
+
+
+def test_development_uses_local_store_when_mongodb_is_unavailable(tmp_path, monkeypatch):
+    class UnavailableMongoClient:
+        admin = None
+
+        def __init__(self, *_args, **_kwargs):
+            self.admin = self
+
+        def command(self, _command):
+            raise ServerSelectionTimeoutError("MongoDB unavailable")
+
+        def close(self):
+            return None
+
+    class LocalSettings:
+        environment = "development"
+        auth_local_fallback_enabled = True
+        auth_local_db_path = tmp_path / "auth.db"
+        auth_secret_key = "test-secret"
+        auth_token_ttl_seconds = 60
+        mongodb_url = "mongodb://127.0.0.1:27017"
+        mongodb_database = "test"
+
+    monkeypatch.setattr("src.services.auth.MongoClient", UnavailableMongoClient)
+    service = AuthService.from_settings(LocalSettings())
+
+    user, token = service.signup("fallback.user", "secret12")
+    assert service.user_from_token(token) == user

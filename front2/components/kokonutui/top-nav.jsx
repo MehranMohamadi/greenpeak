@@ -49,7 +49,7 @@ export default function TopNav() {
   const preview = hoveredItem?.side === (isFunRoute ? "right" : "left") ? hoveredItem : null;
 
   return (
-    <nav aria-label={isFunRoute ? "مسیر راهنما" : "Breadcrumb"} className={`flex h-full min-w-0 items-center gap-4 border-b border-gray-200 bg-white px-14 dark:border-[#1F1F23] dark:bg-[#0F0F12] lg:px-6 ${isFunRoute ? "justify-end" : "justify-start"}`}>
+    <nav aria-label={isFunRoute ? "مسیر راهنما" : "Breadcrumb"} className={`flex h-full min-w-0 items-center gap-4 border-b border-border bg-card px-14 lg:px-6 ${isFunRoute ? "justify-end" : "justify-start"}`}>
       <ol dir={isFunRoute ? "rtl" : "ltr"} className="flex min-w-0 items-center gap-1 text-sm font-medium">
         {breadcrumbs.map((item, index) => (
           <li key={`${item.label}-${index}`} className={`min-w-0 items-center ${index < breadcrumbs.length - 2 ? "hidden sm:flex" : "flex"}`}>
@@ -57,11 +57,11 @@ export default function TopNav() {
               ? <ChevronLeft aria-hidden="true" className="mx-1 h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
               : <ChevronRight aria-hidden="true" className="mx-1 h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />)}
             {item.href ? (
-              <Link href={item.href} title={item.label} className="truncate rounded-sm text-gray-700 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 motion-reduce:transition-none dark:text-gray-300 dark:hover:text-gray-100">
+              <Link href={item.href} title={item.label} className="truncate rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none">
                 {item.label}
               </Link>
             ) : (
-              <span aria-current="page" title={item.label} className="truncate text-gray-900 dark:text-gray-100">{item.label}</span>
+              <span aria-current="page" title={item.label} className="truncate text-foreground">{item.label}</span>
             )}
           </li>
         ))}

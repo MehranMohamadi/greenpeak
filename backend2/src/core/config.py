@@ -99,9 +99,16 @@ class Settings(BaseSettings):
     # Authentication. Override the secret in production with a long random value.
     auth_secret_key: str = "development-only-change-me"
     auth_token_ttl_seconds: int = 604800
+    auth_local_fallback_enabled: bool = True
+    auth_local_db_path: Path = Path(__file__).parent.parent.parent / "instance" / "auth.db"
     auth_local_test_user_enabled: bool = True
     auth_local_test_username: str = "greenpeak"
     auth_local_test_password: str = "greenpeak"
+
+    # Persist the last validated narrative snapshot for local development so
+    # read-only analysis pages remain usable while MongoDB is offline.
+    analysis_local_fallback_enabled: bool = True
+    analysis_local_db_path: Path = Path(__file__).parent.parent.parent / "instance" / "analysis_cache.db"
 
     # Environment-specific settings
     environment: str = "development"

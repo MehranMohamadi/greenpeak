@@ -4,39 +4,39 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Palette, Check, Moon, Sun, Monitor, Sparkles, Zap, TrendingUp } from "lucide-react"
+import { Palette, Check, Moon, Sun, Monitor } from "lucide-react"
 import { useTheme } from "next-themes"
 
 const themes = [
   {
-    id: "default",
-    name: "Default Light",
-    description: "Clean and professional light theme",
+    id: "light",
+    name: "Material Light",
+    description: "GreenPeak surfaces with a light neutral background",
     icon: Sun,
     category: "Light",
     colors: {
-      primary: "bg-blue-500",
-      secondary: "bg-gray-100",
-      accent: "bg-green-500",
+      primary: "bg-primary",
+      secondary: "bg-secondary",
+      accent: "bg-destructive",
       background: "bg-white",
-      text: "text-gray-900"
+      text: "text-foreground"
     },
-    preview: "bg-gradient-to-br from-blue-50 to-white border-blue-200"
+    preview: "bg-gradient-to-br from-primary/10 to-white border-primary/30"
   },
   {
     id: "dark",
-    name: "Dark Pro",
-    description: "Professional dark theme for extended use",
+    name: "Material Dark",
+    description: "Pink-tinted dark surfaces with GreenPeak accents",
     icon: Moon,
     category: "Dark",
     colors: {
-      primary: "bg-slate-700",
-      secondary: "bg-slate-800",
-      accent: "bg-blue-400",
-      background: "bg-gray-900",
-      text: "text-white"
+      primary: "bg-primary",
+      secondary: "bg-secondary",
+      accent: "bg-destructive",
+      background: "bg-background",
+      text: "text-foreground"
     },
-    preview: "bg-gradient-to-br from-slate-800 to-gray-900 border-slate-600"
+    preview: "bg-gradient-to-br from-[#251c24] to-[#171117] border-primary/30"
   },
   {
     id: "system",
@@ -45,58 +45,13 @@ const themes = [
     icon: Monitor,
     category: "Auto",
     colors: {
-      primary: "bg-indigo-500",
-      secondary: "bg-gray-100 dark:bg-gray-800",
-      accent: "bg-purple-500",
-      background: "bg-white dark:bg-gray-900",
-      text: "text-gray-900 dark:text-white"
+      primary: "bg-primary",
+      secondary: "bg-secondary",
+      accent: "bg-destructive",
+      background: "bg-background",
+      text: "text-foreground"
     },
-    preview: "bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900 dark:to-purple-900 border-indigo-200 dark:border-indigo-700"
-  },
-  {
-    id: "trading-dark",
-    name: "Trading Dark",
-    description: "High contrast dark theme for trading",
-    icon: TrendingUp,
-    category: "Trading",
-    colors: {
-      primary: "bg-black",
-      secondary: "bg-green-900",
-      accent: "bg-red-500",
-      background: "bg-gray-950",
-      text: "text-green-400"
-    },
-    preview: "bg-gradient-to-br from-black to-gray-900 border-green-500"
-  },
-  {
-    id: "minimal-light",
-    name: "Minimal Light",
-    description: "Clean and minimal light design",
-    icon: Sparkles,
-    category: "Light",
-    colors: {
-      primary: "bg-gray-900",
-      secondary: "bg-gray-50",
-      accent: "bg-indigo-500",
-      background: "bg-white",
-      text: "text-gray-900"
-    },
-    preview: "bg-gradient-to-br from-gray-50 to-indigo-50 border-gray-200"
-  },
-  {
-    id: "terminal",
-    name: "Terminal",
-    description: "Retro terminal-inspired theme",
-    icon: Zap,
-    category: "Dark",
-    colors: {
-      primary: "bg-green-500",
-      secondary: "bg-black",
-      accent: "bg-yellow-400",
-      background: "bg-black",
-      text: "text-green-400"
-    },
-    preview: "bg-gradient-to-br from-black to-green-950 border-green-400"
+    preview: "bg-gradient-to-br from-primary/10 to-secondary border-primary/30"
   }
 ]
 
@@ -104,12 +59,11 @@ const categories = [
   { id: "all", name: "All Themes" },
   { id: "Light", name: "Light" },
   { id: "Dark", name: "Dark" },
-  { id: "Trading", name: "Trading" },
   { id: "Auto", name: "Auto" }
 ]
 
 export default function DashboardThemes() {
-  const { theme, setTheme, themes: availableThemes } = useTheme()
+  const { theme, setTheme } = useTheme()
   const [selectedTheme, setSelectedTheme] = useState(theme || "system")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [mounted, setMounted] = useState(false)
@@ -153,7 +107,7 @@ export default function DashboardThemes() {
     <Card className="lg:col-span-1 animate-fade-in-up">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Palette className="h-5 w-5 text-purple-600" />
+          <Palette className="h-5 w-5 text-primary" />
           Dashboard Themes
         </CardTitle>
         <CardDescription>
@@ -177,15 +131,15 @@ export default function DashboardThemes() {
         </div>
 
         {/* Current Theme Display */}
-        <div className="p-4 rounded-lg border bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
+        <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+            <div className="h-3 w-3 animate-pulse rounded-full bg-primary"></div>
             <span className="text-sm font-medium">Current Theme</span>
           </div>
-          <div className="text-lg font-semibold">
+          <div className="text-lg font-medium">
             {themes.find(t => t.id === selectedTheme)?.name || "System"}
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-sm text-muted-foreground">
             {themes.find(t => t.id === selectedTheme)?.description || "Following system preference"}
           </div>
         </div>
@@ -201,8 +155,8 @@ export default function DashboardThemes() {
                 key={themeOption.id}
                 className={`group relative overflow-hidden rounded-lg border-2 transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:shadow-lg animate-fade-in-up ${
                   isSelected 
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' 
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:border-primary/40'
                 }`}
                 style={{ animationDelay: `${index * 100}ms` }}
                 onClick={() => handleThemeChange(themeOption.id)}
@@ -214,13 +168,13 @@ export default function DashboardThemes() {
                         <Icon className={`h-4 w-4 ${themeOption.colors.primary.replace('bg-', 'text-')}`} />
                       </div>
                       <div>
-                        <div className="font-semibold text-sm flex items-center gap-2">
+                        <div className="flex items-center gap-2 text-sm font-medium">
                           {themeOption.name}
                           <Badge variant="outline" className="text-xs">
                             {themeOption.category}
                           </Badge>
                         </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                        <div className="text-xs text-muted-foreground">
                           {themeOption.description}
                         </div>
                       </div>
@@ -228,8 +182,8 @@ export default function DashboardThemes() {
                     
                     {isSelected && (
                       <div className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-blue-600 animate-scale-in" />
-                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                        <Check className="h-4 w-4 text-primary animate-scale-in" />
+                        <div className="h-2 w-2 animate-pulse rounded-full bg-primary"></div>
                       </div>
                     )}
                   </div>
@@ -243,7 +197,7 @@ export default function DashboardThemes() {
                 </div>
                 
                 {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent to-primary/5 opacity-0 transition-opacity duration-200 group-hover:opacity-100"></div>
               </div>
             )
           })}

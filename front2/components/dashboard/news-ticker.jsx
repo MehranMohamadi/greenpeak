@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Card } from "@/components/ui/card"
 import { Calendar, TrendingUp, AlertCircle } from "lucide-react"
 import { endpoints } from "@/api/api"
+import { IMPORTANT_US_NEWS_FA } from "@/lib/important-us-news-fa"
 
 const VISIBLE_NEWS_COUNT = 4
 const NEWS_PRESENTATION = [
@@ -19,47 +20,57 @@ function formatRelativeTime(value) {
   if (Number.isNaN(publishedAt.getTime())) return ""
 
   const elapsedSeconds = Math.max(0, Math.floor((Date.now() - publishedAt.getTime()) / 1000))
-  if (elapsedSeconds < 60) return "just now"
+  if (elapsedSeconds < 60) return "همین حالا"
 
   const elapsedMinutes = Math.floor(elapsedSeconds / 60)
-  if (elapsedMinutes < 60) return `${elapsedMinutes} ${elapsedMinutes === 1 ? "minute" : "minutes"} ago`
+  if (elapsedMinutes < 60) return `${new Intl.NumberFormat("fa-IR").format(elapsedMinutes)} دقیقه پیش`
 
   const elapsedHours = Math.floor(elapsedMinutes / 60)
-  if (elapsedHours < 24) return `${elapsedHours} ${elapsedHours === 1 ? "hour" : "hours"} ago`
+  if (elapsedHours < 24) return `${new Intl.NumberFormat("fa-IR").format(elapsedHours)} ساعت پیش`
 
   const elapsedDays = Math.floor(elapsedHours / 24)
-  return `${elapsedDays} ${elapsedDays === 1 ? "day" : "days"} ago`
+  return `${new Intl.NumberFormat("fa-IR").format(elapsedDays)} روز پیش`
 }
 
+const fallbackNews = IMPORTANT_US_NEWS_FA.map((item, index) => ({
+  ...item,
+  ...NEWS_PRESENTATION[index],
+}))
+
 export default function NewsTicker() {
-  const [newsItems, setNewsItems] = useState([])
+  const [newsItems, setNewsItems] = useState(fallbackNews)
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [loadFailed, setLoadFailed] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
 
     async function loadNews() {
       try {
-        const response = await fetch(endpoints.news.source("cnbc_rss", 20), { signal: controller.signal })
-        if (!response.ok) throw new Error("CNBC news is unavailable")
+        const response = await fetch(endpoints.news.source("alpha_vantage", 20), { signal: controller.signal })
+        if (!response.ok) throw new Error("US market news is unavailable")
 
         const payload = await response.json()
-        const items = (payload.data?.items || []).slice(0, VISIBLE_NEWS_COUNT).map((article, index) => ({
-          ...NEWS_PRESENTATION[index],
-          id: article.item_id || article.url,
-          title: article.title,
-          time: formatRelativeTime(article.published_at),
-        }))
+        const items = (payload.data?.items || [])
+          .filter((article) => article.importance === "high" || article.importance === "medium")
+          .slice(0, VISIBLE_NEWS_COUNT)
+          .map((article, index) => {
+            const storedPersianTitle = article.title_fa?.trim()
+            return {
+              ...NEWS_PRESENTATION[index],
+              id: article.item_id || article.url,
+              title: storedPersianTitle || fallbackNews[index].title,
+              time: storedPersianTitle
+                ? formatRelativeTime(article.published_at) || fallbackNews[index].time
+                : fallbackNews[index].time,
+            }
+          })
 
         if (items.length > 0) {
           setNewsItems(items)
           setCurrentIndex(0)
-        } else {
-          setLoadFailed(true)
         }
       } catch (error) {
-        if (error.name !== "AbortError") setLoadFailed(true)
+        if (error.name === "AbortError") return
       }
     }
 
@@ -77,16 +88,11 @@ export default function NewsTicker() {
     return () => clearInterval(timer)
   }, [newsItems.length])
 
-  const currentNews = newsItems[currentIndex] || {
-    id: "cnbc-status",
-    title: loadFailed ? "CNBC news is temporarily unavailable" : "Loading CNBC news...",
-    time: "",
-    ...NEWS_PRESENTATION[0],
-  }
+  const currentNews = newsItems[currentIndex] || fallbackNews[0]
   const Icon = currentNews.icon
 
   return (
-    <Card className="bg-gradient-to-r from-blue-600/10 to-indigo-600/10 dark:from-blue-400/10 dark:to-indigo-400/10 border-blue-200 dark:border-blue-800 shadow-sm card-glow overflow-hidden">
+    <Card dir="rtl" className="bg-gradient-to-r from-cyan-600/10 to-cyan-500/10 dark:from-cyan-400/10 dark:to-cyan-500/10 border-cyan-200 dark:border-cyan-800 shadow-sm card-glow overflow-hidden">
       <div className="p-4">
         <div className="flex items-center gap-3">
           <motion.div 
@@ -126,7 +132,7 @@ export default function NewsTicker() {
                   <Icon className={`h-4 w-4 ${currentNews.colorClass} flex-shrink-0`} />
                 </motion.div>
                 <motion.span 
-                  className="text-sm font-medium text-gray-900 dark:text-white truncate"
+                  className="truncate text-right text-sm font-medium text-gray-900 dark:text-white"
                   initial={{ y: 10, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.2 }}
@@ -153,7 +159,7 @@ export default function NewsTicker() {
                 animate={{ scale: 1 }}
                 transition={{ delay: index * 0.1 }}
                 className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  index === currentIndex ? "bg-blue-500 scale-125" : "bg-gray-300 dark:bg-gray-600"
+                  index === currentIndex ? "bg-cyan-500 scale-125" : "bg-gray-300 dark:bg-gray-600"
                 }`}
               />
             ))}

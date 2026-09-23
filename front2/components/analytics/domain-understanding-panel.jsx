@@ -11,10 +11,10 @@ import { NarrativeList } from "./narrative-text"
 
 const wait = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 const outlookToneClasses = {
-  positive: "border-green-200 bg-green-100 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200",
+  positive: "border-primary/30 bg-primary/10 text-primary",
   warning: "border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200",
-  negative: "border-red-200 bg-red-100 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200",
-  info: "border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200",
+  negative: "border-destructive/30 bg-destructive/10 text-destructive",
+  info: "border-primary/30 bg-primary/10 text-primary",
   neutral: "border-slate-200 bg-slate-100 text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200",
 }
 
@@ -168,9 +168,9 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
     <div className="space-y-4" dir="ltr">
       <div className="grid gap-5 lg:grid-cols-[minmax(190px,0.75fr)_minmax(0,1fr)_minmax(0,1.15fr)]">
         <section className="space-y-2.5">
-          <div className="rounded-xl border border-violet-200 bg-violet-50/70 p-4 text-center dark:border-violet-900 dark:bg-violet-950/25">
+          <div className="rounded-xl border border-primary/30 bg-primary/10 p-4 text-center">
             <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Documented stance</div>
-            <Badge className="mt-3 max-w-full border border-violet-200 bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-800 shadow-none dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200" dir="rtl">
+            <Badge className="mt-3 max-w-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-foreground shadow-none" dir="rtl">
               <span className="truncate">{stance}</span>
             </Badge>
             <div className="mt-3 text-[11px] text-muted-foreground">
@@ -187,8 +187,8 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
           <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Key Insights</h4>
           <div className="space-y-1.5">
             {keyInsights.length ? keyInsights.map((item, index) => (
-              <div key={`${item}-${index}`} className="flex min-h-10 items-start gap-2 rounded-lg bg-muted/35 p-2 text-xs leading-5">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-500" />
+              <div key={`${item}-${index}`} className="flex min-h-10 items-start gap-2 rounded-lg bg-muted/30 p-2 text-xs leading-5">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 <span className="line-clamp-2 text-right" dir="rtl" title={item}>{item}</span>
               </div>
             )) : <p className="text-xs text-muted-foreground">Generate a new analysis to populate insights.</p>}
@@ -213,7 +213,7 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
 
       <RunButton running={running} onClick={runAnalysis} />
       {runMessage && <p className="text-right text-xs text-muted-foreground" dir="rtl" aria-live="polite">{runMessage}</p>}
-      <button type="button" onClick={() => setExpanded((value) => !value)} className="inline-flex items-center gap-1 text-xs font-medium text-violet-700 dark:text-violet-300">
+      <button type="button" onClick={() => setExpanded((value) => !value)} className="inline-flex items-center gap-1 text-xs font-medium text-primary">
         <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
         {expanded ? "Hide analytical details" : "Show analytical details"}
       </button>
@@ -244,7 +244,7 @@ function RunButton({ running, onClick, simple = false }) {
       type="button"
       disabled={running}
       onClick={onClick}
-      className="inline-flex w-full items-center justify-center gap-2 rounded-lg border bg-background px-3 py-2 text-xs font-medium shadow-sm transition hover:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60"
+      className="inline-flex w-full items-center justify-center gap-2 rounded-lg border bg-background px-3 py-2 text-xs font-medium shadow-sm transition hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
       {simple ? (running ? "در حال به‌روزرسانی تحلیل…" : "به‌روزرسانی تحلیل") : (running ? "Generating AI analysis…" : "Generate updated AI analysis")}

@@ -116,7 +116,7 @@ export default function List02({ transactions = TRANSACTIONS, className }) {
                     className={cn(
                       "text-xs font-medium",
                       transaction.type === "incoming"
-                        ? "text-emerald-600 dark:text-emerald-400"
+                        ? "text-cyan-600 dark:text-cyan-400"
                         : "text-red-600 dark:text-red-400",
                     )}
                   >
@@ -124,7 +124,7 @@ export default function List02({ transactions = TRANSACTIONS, className }) {
                     {transaction.amount}
                   </span>
                   {transaction.type === "incoming" ? (
-                    <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <ArrowDownLeft className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
                   ) : (
                     <ArrowUpRight className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
                   )}

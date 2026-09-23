@@ -56,7 +56,7 @@ export function PolicyAnalysisSkeleton() {
 
 export default function MonetaryPolicyLoadingSkeleton() {
   return (
-    <div className="space-y-6 bg-white p-4 dark:bg-[#0F0F12] md:p-6" role="status" aria-label="Loading monetary policy analysis">
+    <div className="space-y-5 bg-background p-3 md:p-4" role="status" aria-label="Loading monetary policy analysis">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-3">
           <div className="flex items-center gap-3">
@@ -68,7 +68,7 @@ export default function MonetaryPolicyLoadingSkeleton() {
         <Skeleton className="h-10 w-32 self-end rounded-lg md:self-auto" />
       </header>
 
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+      <section className="rounded-xl border bg-card shadow-sm">
         <div className="flex items-center gap-2 p-6 pb-3">
           <Skeleton className="h-4 w-4" />
           <Skeleton className="h-4 w-28" />
@@ -78,7 +78,7 @@ export default function MonetaryPolicyLoadingSkeleton() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+      <section className="rounded-xl border bg-card shadow-sm">
         <div className="space-y-3 p-6 pb-3 xl:flex xl:items-center xl:justify-between xl:space-y-0">
           <div className="flex items-center gap-3">
             <Skeleton className="h-5 w-5" />
@@ -101,7 +101,7 @@ export default function MonetaryPolicyLoadingSkeleton() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-gray-200 p-4 dark:border-[#2B2B30]">
+      <section className="rounded-xl border p-4">
         <div className="flex items-center justify-between gap-4">
           <Skeleton className="h-5 w-52" />
           <Skeleton className="h-7 w-24 rounded-full" />
@@ -115,7 +115,7 @@ export default function MonetaryPolicyLoadingSkeleton() {
         <Skeleton className="mb-4 h-6 w-56" />
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2, 3, 4].map((card) => (
-            <div key={card} className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+            <div key={card} className="space-y-4 rounded-xl border bg-card p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <Skeleton className="h-4 w-40" />
                 <Skeleton className="h-4 w-4" />

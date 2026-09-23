@@ -72,33 +72,33 @@ export default function DailyMarketReport() {
   if (!market && !unavailable) return <Card className="mb-8"><CardContent className="p-6 text-sm text-muted-foreground">Loading persisted daily market report…</CardContent></Card>
   if (!market) return <Card className="mb-8 border-dashed"><CardContent className="space-y-4 p-6 text-right" dir="rtl"><div><p className="font-medium">گزارش روزانه بازار هنوز تولید نشده است.</p><p className="mt-1 text-sm text-muted-foreground">این صفحه فقط نتایج ذخیره‌شده را می‌خواند و با بازشدن صفحه تحلیلی اجرا نمی‌شود.</p></div><button type="button" disabled={running} onClick={runAnalysis} className="inline-flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-xs font-medium shadow-sm disabled:opacity-60">{running ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}{running ? "در حال تحلیل…" : "تولید تحلیل جدید"}</button>{runMessage && <p className="text-xs text-muted-foreground">{runMessage}</p>}</CardContent></Card>
   return (
-    <Card className="relative mb-8 overflow-hidden border-violet-500/25 shadow-[0_22px_70px_-45px_rgba(124,58,237,0.65)]">
+    <Card className="relative mb-8 overflow-hidden border-cyan-500/25 shadow-[0_22px_70px_-45px_rgba(6,182,212,0.65)]">
       <CardHeader
-        className="relative overflow-hidden border-b border-violet-500/15 bg-gradient-to-bl from-violet-500/15 via-purple-500/10 to-blue-500/10 p-0 text-right"
+        className="relative overflow-hidden border-b border-cyan-500/15 bg-gradient-to-bl from-cyan-500/15 via-cyan-500/10 to-cyan-600/10 p-0 text-right"
         dir="rtl"
       >
-        <div className="pointer-events-none absolute -left-16 -top-20 h-52 w-52 rounded-full bg-blue-500/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 right-8 h-56 w-56 rounded-full bg-violet-500/20 blur-3xl" />
+        <div className="pointer-events-none absolute -left-16 -top-20 h-52 w-52 rounded-full bg-cyan-500/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 right-8 h-56 w-56 rounded-full bg-cyan-500/20 blur-3xl" />
 
         <div className="relative grid gap-6 p-6 md:p-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
           <div className="space-y-5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+              <span className="inline-flex items-center gap-2 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-700 dark:text-cyan-300">
                 <Activity className="h-3.5 w-3.5" />
                 داده‌های بازار S&amp;P 500
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-700 dark:text-violet-300">
+              <span className="inline-flex items-center gap-2 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-700 dark:text-cyan-300">
                 <Sparkles className="h-3.5 w-3.5" />
                 تحلیل ذخیره‌شده با LLM
               </span>
             </div>
 
             <div className="flex items-start gap-4">
-              <div className="rounded-2xl border border-violet-500/20 bg-background/70 p-3 shadow-sm backdrop-blur-sm">
-                <TrendingUp className="h-7 w-7 text-violet-600 dark:text-violet-400" />
+              <div className="rounded-2xl border border-cyan-500/20 bg-background/70 p-3 shadow-sm backdrop-blur-sm">
+                <TrendingUp className="h-7 w-7 text-cyan-600 dark:text-cyan-400" />
               </div>
               <div className="min-w-0">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-violet-600 dark:text-violet-400">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-600 dark:text-cyan-400">
                   {US_MARKET.label}
                 </p>
                 <CardTitle className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -112,11 +112,11 @@ export default function DailyMarketReport() {
 
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-2">
-                <Activity className="h-3.5 w-3.5 text-emerald-500" />
+                <Activity className="h-3.5 w-3.5 text-cyan-500" />
                 آخرین داده: {market.data_as_of || "—"}
               </span>
               <span className="inline-flex items-center gap-2">
-                <Clock3 className="h-3.5 w-3.5 text-violet-500" />
+                <Clock3 className="h-3.5 w-3.5 text-cyan-500" />
                 زمان تحلیل: {new Date(market.analysis_generated_at).toLocaleString("fa-IR")}
               </span>
               <span>پوشش داده: {Math.round(market.coverage.ratio * 100)}٪</span>
@@ -128,7 +128,7 @@ export default function DailyMarketReport() {
               type="button"
               disabled={running}
               onClick={runAnalysis}
-              className="inline-flex items-center gap-2 rounded-xl border border-violet-500/25 bg-background/80 px-4 py-2.5 text-xs font-medium shadow-sm backdrop-blur-sm transition hover:border-violet-500/50 hover:bg-background disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/25 bg-background/80 px-4 py-2.5 text-xs font-medium shadow-sm backdrop-blur-sm transition hover:border-cyan-500/50 hover:bg-background disabled:cursor-not-allowed disabled:opacity-60"
             >
               {running ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -147,18 +147,18 @@ export default function DailyMarketReport() {
         </div>
 
         {runMessage && (
-          <p className="relative border-t border-violet-500/10 bg-background/30 px-6 py-3 text-xs text-muted-foreground md:px-8">
+          <p className="relative border-t border-cyan-500/10 bg-background/30 px-6 py-3 text-xs text-muted-foreground md:px-8">
             {runMessage}
           </p>
         )}
       </CardHeader>
 
       <CardContent className="space-y-7 p-6 text-right md:p-8" dir="rtl">
-        <section className="rounded-2xl border border-violet-500/10 bg-violet-500/[0.035] p-5 md:p-6">
+        <section className="rounded-2xl border border-cyan-500/10 bg-cyan-500/[0.035] p-5 md:p-6">
           <p className="whitespace-pre-line text-base font-medium leading-9 md:text-lg">
             {market.market_story_fa}
           </p>
-          <p className="mt-4 whitespace-pre-line border-t border-violet-500/10 pt-4 leading-8 text-muted-foreground">
+          <p className="mt-4 whitespace-pre-line border-t border-cyan-500/10 pt-4 leading-8 text-muted-foreground">
             {market.narrative_fa}
           </p>
         </section>
@@ -181,7 +181,7 @@ export default function DailyMarketReport() {
                 <Link
                   key={id}
                   href={href}
-                  className="rounded-lg border p-4 transition hover:border-violet-500/40"
+                  className="rounded-lg border p-4 transition hover:border-cyan-500/40"
                 >
                   <h4 className="font-medium">{label}</h4>
                   {analysis ? (

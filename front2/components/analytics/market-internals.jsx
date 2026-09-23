@@ -34,7 +34,7 @@ import { AnalysisPageHeader, AnalysisPageShell, AnalysisState, TimeframeSelector
 const MultiLineChart = dynamic(() => import("../charts/multi-line-chart"), { ssr: false })
 const PERIODS = ["1Y", "3Y", "5Y", "10Y", "MAX"]
 const HEATMAP_PERIODS = ["1W", "1M", "3M", "YTD", "1Y"]
-const COLORS = ["#2563eb", "#0d9488", "#7c3aed", "#ea580c", "#0891b2", "#65a30d", "#db2777", "#9333ea", "#0284c7", "#16a34a", "#d97706"]
+const COLORS = ["#06B6D4", "#E05252", "#D7A33D"]
 
 const REASON_LABELS = {
   point_in_time_constituent_weights_and_membership_history_unavailable:
@@ -73,9 +73,9 @@ function metadataUnit(value) {
 }
 
 function statusClasses(status) {
-  if (status === "available") return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+  if (status === "available") return "border-primary/30 bg-primary/10 text-primary"
   if (status === "stale") return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
-  if (status === "partial") return "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-300"
+  if (status === "partial") return "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
   return "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
 }
 
@@ -99,10 +99,10 @@ function BlockHeader({ number, title, description, icon: Icon, status, proxy = f
     <CardHeader className="space-y-2 pb-3">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="mb-1 text-xs font-medium uppercase tracking-[0.16em] text-blue-600 dark:text-blue-400">Block {number}</p>
+          <p className="mb-1 text-xs font-medium uppercase tracking-[0.16em] text-primary">Block {number}</p>
           <CardTitle className="text-lg text-slate-900 dark:text-white">{title}</CardTitle>
         </div>
-        <span className="rounded-xl bg-blue-50 p-2.5 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300">
+        <span className="rounded-xl bg-primary/10 p-2.5 text-primary">
           <Icon className="h-5 w-5" />
         </span>
       </div>
@@ -201,7 +201,7 @@ function ComparisonChart({ title, description, series, textColor, height = 290 }
   const validSeries = series.filter((item) => Array.isArray(item.data) && item.data.length > 1)
   return (
     <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
-      <h3 className="font-semibold text-slate-900 dark:text-white">{title}</h3>
+      <h3 className="font-medium text-foreground">{title}</h3>
       {description && <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>}
       {validSeries.length ? (
         <div className="mt-4">
@@ -220,7 +220,7 @@ function heatCellStyle(value, dark) {
   const numericValue = Number(value)
   const strength = Math.min(0.82, 0.16 + Math.abs(numericValue) / 14)
   return {
-    backgroundColor: numericValue >= 0 ? `rgba(5, 150, 105, ${strength})` : `rgba(225, 29, 72, ${strength})`,
+    backgroundColor: numericValue >= 0 ? `rgba(6, 182, 212, ${strength})` : `rgba(225, 29, 72, ${strength})`,
     color: strength > 0.44 ? "#fff" : dark ? "#f4f4f5" : "#0f172a",
   }
 }
@@ -243,7 +243,7 @@ function SectorHeatmap({ rows, selectedSector, onSelect, dark }) {
                   type="button"
                   aria-pressed={selectedSector === row.sector_id}
                   onClick={() => onSelect(row.sector_id)}
-                  className={`w-full rounded-lg px-2 py-2 text-left transition ${selectedSector === row.sector_id ? "bg-blue-50 text-blue-700 ring-1 ring-blue-300 dark:bg-blue-950/40 dark:text-blue-300" : "hover:bg-slate-50 dark:hover:bg-slate-900"}`}
+                  className={`w-full rounded-lg px-2 py-2 text-left transition ${selectedSector === row.sector_id ? "bg-primary/10 text-primary ring-1 ring-primary/30" : "hover:bg-muted"}`}
                 >
                   <span className="font-medium">{row.sector}</span>
                   <span className="ml-2 text-xs text-slate-500">{row.symbol}</span>
@@ -310,21 +310,21 @@ export default function MarketInternals() {
       </Card>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-[#1F1F23]">
+        <div className="rounded-xl border bg-card p-4">
           <p className="text-xs text-slate-500">Verified chart coverage</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums">{data ? `${data.metadata?.available_chart_count || 0}/${data.metadata?.required_chart_count || 8}` : "—"}</p>
+          <p className="mt-1 text-2xl font-medium tabular-nums">{data ? `${data.metadata?.available_chart_count || 0}/${data.metadata?.required_chart_count || 8}` : "—"}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-[#1F1F23]">
+        <div className="rounded-xl border bg-card p-4">
           <p className="text-xs text-slate-500">Shared period</p>
-          <p className="mt-1 text-2xl font-semibold">{data?.selected_period || period}</p>
+          <p className="mt-1 text-2xl font-medium">{data?.selected_period || period}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-[#1F1F23]">
+        <div className="rounded-xl border bg-card p-4">
           <p className="text-xs text-slate-500">Price field</p>
-          <p className="mt-1 text-base font-semibold">Adjusted close</p>
+          <p className="mt-1 text-base font-medium">Adjusted close</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-[#1F1F23]">
+        <div className="rounded-xl border bg-card p-4">
           <p className="text-xs text-slate-500">Missing values</p>
-          <p className="mt-1 text-base font-semibold">Null, never zero</p>
+          <p className="mt-1 text-base font-medium">Null, never zero</p>
         </div>
       </div>
 
@@ -334,19 +334,19 @@ export default function MarketInternals() {
 
       {data && (
         <>
-          <Card id="group6-company-concentration" className="border-slate-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+          <Card id="group6-company-concentration">
             <BlockHeader number="01" title="Company Concentration" description="Largest current SPY constituent weights from the official daily fund holdings file." icon={Building2} status={concentration?.status} proxy />
             <CardContent className="space-y-5">
               {concentration?.holdings?.length ? (
                 <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_250px]">
                   <CompanyConcentrationChart holdings={concentration.holdings} dark={dark} />
-                  <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-6 text-white shadow-sm">
+                  <div className="flex flex-col justify-between rounded-2xl bg-primary p-6 text-primary-foreground shadow-sm">
                     <div>
-                      <p className="text-sm text-blue-100">Top 10 combined SPY weight</p>
+                      <p className="text-sm text-primary-foreground/75">Top 10 combined SPY weight</p>
                       <p className="mt-3 text-5xl font-bold tabular-nums">{formatPercent(concentration.top_10_weight_pct)}</p>
-                      <p className="mt-3 text-sm leading-6 text-blue-100">Sum of the ten reported fund weights shown in the chart; no index-level estimate is inserted.</p>
+                      <p className="mt-3 text-sm leading-6 text-primary-foreground/75">Sum of the ten reported fund weights shown in the chart; no index-level estimate is inserted.</p>
                     </div>
-                    <div className="mt-6 border-t border-white/20 pt-4 text-xs text-blue-100">As of {concentration.metadata?.observation_date || "N/A"}</div>
+                    <div className="mt-6 border-t border-primary-foreground/20 pt-4 text-xs text-primary-foreground/75">As of {concentration.metadata?.observation_date || "N/A"}</div>
                   </div>
                 </div>
               ) : <UnavailablePanel block={concentration} />}
@@ -354,7 +354,7 @@ export default function MarketInternals() {
             </CardContent>
           </Card>
 
-          <Card id="group6-company-contribution" className="border-slate-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+          <Card id="group6-company-contribution">
             <BlockHeader number="02" title="Company Contribution to S&P 500 Return" description="A valid contribution calculation requires membership and weights measured at the start of the same return period." icon={Layers3} status={contribution?.status} />
             <CardContent className="space-y-5">
               <UnavailablePanel block={contribution}>
@@ -364,7 +364,7 @@ export default function MarketInternals() {
             </CardContent>
           </Card>
 
-          <Card id="group6-cap-vs-equal-weight" className="border-slate-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+          <Card id="group6-cap-vs-equal-weight">
             <BlockHeader number="03" title="S&P 500 vs Equal Weight" description={`SPY and RSP adjusted-close series rebased to 100 at the start of the selected ${period} window.`} icon={Scale} status={capVsEqual?.status} proxy />
             <CardContent className="space-y-5">
               {capVsEqual?.series?.length ? (
@@ -374,7 +374,7 @@ export default function MarketInternals() {
             </CardContent>
           </Card>
 
-          <Card id="group6-sector-weights" className="border-slate-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+          <Card id="group6-sector-weights">
             <BlockHeader number="04" title="S&P 500 Sector Weights" description="Current 11-sector GICS allocation reported for SPY by State Street." icon={Grid3X3} status={sectorWeights?.status} proxy />
             <CardContent className="space-y-5">
               {sectorWeights?.sectors?.length ? <SectorWeightTreemap sectors={sectorWeights.sectors} /> : <UnavailablePanel block={sectorWeights} />}
@@ -382,7 +382,7 @@ export default function MarketInternals() {
             </CardContent>
           </Card>
 
-          <Card id="group6-sector-relative-returns" className="border-slate-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+          <Card id="group6-sector-relative-returns">
             <BlockHeader number="05" title="Sector Relative Return Heatmap" description="Adjusted total-return proxy for each Select Sector ETF minus SPY over five standard horizons." icon={BarChart3} status={relative?.status} proxy />
             <CardContent className="space-y-5">
               {relative?.heatmap?.length ? (
@@ -401,7 +401,7 @@ export default function MarketInternals() {
             </CardContent>
           </Card>
 
-          <Card id="group6-style-comparisons" className="border-slate-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+          <Card id="group6-style-comparisons">
             <BlockHeader number="06" title="Style & Participation Comparisons" description={`Three compact adjusted-return views, each rebased to 100 at the selected ${period} start.`} icon={TrendingUp} status={styles?.status} proxy />
             <CardContent className="space-y-5">
               <div className="grid gap-5 xl:grid-cols-3">
@@ -421,7 +421,7 @@ export default function MarketInternals() {
       )}
 
       <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
-        <Database className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+        <Database className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
         <span>Current weights and historical adjusted-price comparisons are kept as separate datasets. ETF series are explicitly labeled as proxies, all charts share the selected period, and missing observations remain null instead of being converted to zero.</span>
       </div>
     </AnalysisPageShell>

@@ -16,13 +16,13 @@ const statusConfig = {
   },
   "in-progress": {
     icon: AlertCircle,
-    class: "text-blue-600 dark:text-blue-400",
-    bg: "bg-blue-100 dark:bg-blue-900/30",
+    class: "text-cyan-600 dark:text-cyan-400",
+    bg: "bg-cyan-100 dark:bg-cyan-900/30",
   },
   completed: {
     icon: CheckCircle2,
-    class: "text-emerald-600 dark:text-emerald-400",
-    bg: "bg-emerald-100 dark:bg-emerald-900/30",
+    class: "text-cyan-600 dark:text-cyan-400",
+    bg: "bg-cyan-100 dark:bg-cyan-900/30",
   },
 }
 

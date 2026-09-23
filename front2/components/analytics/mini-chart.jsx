@@ -5,7 +5,15 @@ import { createChart } from "lightweight-charts"
 
 import { normalizeChartData } from "@/lib/chart-data"
 
-export default function MiniChart({ data, trend, isTransitioning = false, selectedPeriod = 'MAX' }) {
+export default function MiniChart({
+  data,
+  trend,
+  isTransitioning = false,
+  selectedPeriod = "MAX",
+  upColor = "#06B6D4",
+  downColor = "#E05252",
+  neutralColor = "#7A817C",
+}) {
   const chartRef = useRef()
   const chartInstanceRef = useRef()
   const [error, setError] = useState(null)
@@ -57,7 +65,7 @@ export default function MiniChart({ data, trend, isTransitioning = false, select
       chartInstanceRef.current = chart
 
       const series = chart.addLineSeries({
-        color: trend === "up" ? "#10b981" : trend === "down" ? "#ef4444" : "#6b7280",
+        color: trend === "up" ? upColor : trend === "down" ? downColor : neutralColor,
         lineWidth: 2,
       })
 
@@ -90,7 +98,7 @@ export default function MiniChart({ data, trend, isTransitioning = false, select
       chartInstanceRef.current = null
       setError("Chart unavailable")
     }
-  }, [processedData, trend, isTransitioning, selectedPeriod])
+  }, [processedData, trend, isTransitioning, selectedPeriod, upColor, downColor, neutralColor])
 
   return (
     <div className="relative w-full h-full">

@@ -45,7 +45,7 @@ export default function Content() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#0F0F12] w-full">
+    <div className="min-h-screen w-full bg-background">
       <motion.div
         variants={containerVariants}
         initial="hidden"
@@ -69,7 +69,7 @@ export default function Content() {
               <motion.div
                 animate={{ scale: [1, 1.2, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0 live-indicator"
+                className="w-2 h-2 bg-cyan-400 rounded-full flex-shrink-0 live-indicator"
               />
             </motion.h1>
           </div>

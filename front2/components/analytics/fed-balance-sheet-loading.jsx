@@ -38,7 +38,7 @@ export default function FedBalanceSheetLoadingSkeleton() {
         {/* Key Metrics Loading */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           {[...Array(4)].map((_, i) => (
-            <Card key={i} className="bg-white dark:bg-[#1F1F23] border-gray-200 dark:border-[#2B2B30]">
+            <Card key={i}>
               <CardContent className="p-4">
                 <div className="space-y-2">
                   <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-20 animate-pulse"></div>
@@ -58,7 +58,7 @@ export default function FedBalanceSheetLoadingSkeleton() {
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="zoom-in-animation"
       >
-        <Card className="bg-white dark:bg-[#1F1F23] border-gray-200 dark:border-[#2B2B30]">
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -78,10 +78,10 @@ export default function FedBalanceSheetLoadingSkeleton() {
                 <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-32 mx-auto animate-pulse"></div>
                 <div className="grid grid-cols-12 gap-2 h-48">
                   {[...Array(12)].map((_, i) => (
-                    <div 
-                      key={i} 
+                    <div
+                      key={i}
                       className="bg-gray-200 dark:bg-gray-600 rounded animate-pulse"
-                      style={{ height: `${Math.random() * 80 + 20}%` }}
+                      style={{ height: `${20 + ((i * 29 + 17) % 81)}%` }}
                     ></div>
                   ))}
                 </div>
@@ -94,7 +94,7 @@ export default function FedBalanceSheetLoadingSkeleton() {
       {/* Additional Information Loading */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {[...Array(2)].map((_, i) => (
-          <Card key={i} className="bg-white dark:bg-[#1F1F23] border-gray-200 dark:border-[#2B2B30]">
+          <Card key={i}>
             <CardHeader>
               <div className="flex items-center gap-2">
                 <div className="h-5 w-5 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
@@ -125,7 +125,7 @@ export default function FedBalanceSheetLoadingSkeleton() {
           <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-32 animate-pulse"></div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => (
-              <Card key={i} className="bg-white dark:bg-[#1F1F23] border-gray-200 dark:border-[#2B2B30]">
+              <Card key={i}>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-24 animate-pulse"></div>

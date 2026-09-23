@@ -76,22 +76,28 @@ class FakeClient:
 
 
 class FakeRepository:
-    def __init__(self, values): self.values = values; self.runs = {}
+    def __init__(self, values, analyses=None): self.values = values; self.analyses = analyses or []; self.runs = {}
     def ensure_indexes(self): pass
     def source_raw(self, source, since, limit=500): return [x for x in self.values if x["source"] == source][:limit]
+    def article_analyses(self, item_ids, analysis_version):
+        return [item for item in self.analyses if item["item_id"] in item_ids and item["analysis_version"] == analysis_version]
     def claim_run(self, key, kind):
         if key in self.runs: return False
         self.runs[key] = kind; return True
 
 
 def test_source_api_and_bootstrap_contract(monkeypatch):
-    repository = FakeRepository([document(index) for index in range(20)])
+    repository = FakeRepository(
+        [document(index) for index in range(20)],
+        [{"item_id": "item-0", "analysis_version": news_endpoint.NEWS_ANALYSIS_VERSION, "title_fa": "سهام آمریکا پس از گزارش تورم رشد کردند"}],
+    )
     monkeypatch.setattr(news_endpoint, "_repository", lambda: (FakeClient(), repository))
     monkeypatch.setattr(news_endpoint, "_run_bootstrap", lambda run_key: None)
     settings = news_endpoint.get_settings(); monkeypatch.setattr(settings, "alpha_vantage_key", "configured")
     client = TestClient(app)
     response = client.get("/api/v1/news/sources/alpha_vantage?limit=20")
     assert response.status_code == 200 and response.json()["data"]["count"] == 20
+    assert response.json()["data"]["items"][0]["title_fa"] == "سهام آمریکا پس از گزارش تورم رشد کردند"
     assert client.get("/api/v1/news/sources/not-real").status_code == 404
     assert client.get("/api/v1/news/sources/alpha_vantage?limit=19").status_code == 422
     bootstrap = client.post("/api/v1/news/bootstrap")

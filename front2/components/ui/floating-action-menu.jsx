@@ -8,9 +8,9 @@ export default function FloatingActionMenu() {
   const [isOpen, setIsOpen] = useState(false)
 
   const menuItems = [
-    { icon: TrendingUp, label: "Quick Trade", color: "bg-green-500" },
-    { icon: BarChart3, label: "Analytics", color: "bg-blue-500" },
-    { icon: RefreshCw, label: "Refresh Data", color: "bg-purple-500" },
+    { icon: TrendingUp, label: "Quick Trade", color: "bg-cyan-500" },
+    { icon: BarChart3, label: "Analytics", color: "bg-cyan-500" },
+    { icon: RefreshCw, label: "Refresh Data", color: "bg-cyan-600" },
     { icon: Settings, label: "Settings", color: "bg-gray-500" },
   ]
 
@@ -79,7 +79,7 @@ export default function FloatingActionMenu() {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
-        className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all relative overflow-hidden"
+        className="bg-cyan-600 hover:bg-cyan-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all relative overflow-hidden"
       >
         <motion.div
           animate={{ rotate: isOpen ? 45 : 0 }}

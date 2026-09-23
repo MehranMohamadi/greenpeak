@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,19 @@ import { TrendingUp, Lock, User, Eye, EyeOff, Shield, ChevronRight } from "lucid
 import { motion } from "framer-motion"
 import Link from "next/link"
 
+const LOGIN_STARS = Array.from({ length: 15 }, (_, index) => ({
+  left: `${(index * 37 + 11) % 100}%`,
+  top: `${(index * 53 + 7) % 100}%`,
+  duration: 3 + (index % 5) * 0.4,
+  delay: (index % 8) * 0.5,
+}))
+
+const SHOOTING_STARS = Array.from({ length: 3 }, (_, index) => ({
+  top: `${20 + ((index * 23 + 9) % 60)}%`,
+  delay: index * 8 + index * 1.5,
+  repeatDelay: 15 + index * 4,
+}))
+
 export default function LoginForm() {
   const { login } = useAuth()
   const router = useRouter()
@@ -18,11 +31,6 @@ export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [showPassword, setShowPassword] = useState(false)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -57,23 +65,23 @@ export default function LoginForm() {
       <div className="absolute inset-0 overflow-hidden">
         {/* Gentle blinking stars */}
         <div className="absolute inset-0">
-          {[...Array(15)].map((_, i) => (
+          {LOGIN_STARS.map((star, i) => (
             <motion.div
               key={`star-${i}`}
-              className="absolute w-1 h-1 bg-green-400/60 rounded-full"
+              className="absolute w-1 h-1 bg-cyan-400/60 rounded-full"
               style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
+                left: star.left,
+                top: star.top,
               }}
               animate={{
                 opacity: [0.2, 0.8, 0.2],
                 scale: [0.8, 1.2, 0.8],
               }}
               transition={{
-                duration: 3 + Math.random() * 2,
+                duration: star.duration,
                 repeat: Infinity,
                 ease: "easeInOut",
-                delay: Math.random() * 4,
+                delay: star.delay,
               }}
             />
           ))}
@@ -81,12 +89,12 @@ export default function LoginForm() {
 
         {/* Subtle shooting stars */}
         <div className="absolute inset-0">
-          {[...Array(3)].map((_, i) => (
+          {SHOOTING_STARS.map((star, i) => (
             <motion.div
               key={`shooting-star-${i}`}
-              className="absolute w-20 h-px bg-gradient-to-r from-transparent via-green-400/40 to-transparent"
+              className="absolute w-20 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent"
               style={{
-                top: `${20 + Math.random() * 60}%`,
+                top: star.top,
                 left: "-100px",
                 rotate: "15deg",
               }}
@@ -98,8 +106,8 @@ export default function LoginForm() {
                 duration: 2,
                 repeat: Infinity,
                 ease: "easeOut",
-                delay: i * 8 + Math.random() * 5,
-                repeatDelay: 15 + Math.random() * 10,
+                delay: star.delay,
+                repeatDelay: star.repeatDelay,
               }}
             />
           ))}
@@ -108,7 +116,7 @@ export default function LoginForm() {
         {/* Soft ambient glow */}
         <div className="absolute inset-0">
           <motion.div
-            className="absolute top-1/4 left-1/4 w-32 h-32 bg-green-500/5 rounded-full blur-3xl"
+            className="absolute top-1/4 left-1/4 w-32 h-32 bg-cyan-500/5 rounded-full blur-3xl"
             animate={{
               opacity: [0.3, 0.6, 0.3],
               scale: [1, 1.1, 1],
@@ -120,7 +128,7 @@ export default function LoginForm() {
             }}
           />
           <motion.div
-            className="absolute bottom-1/3 right-1/3 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl"
+            className="absolute bottom-1/3 right-1/3 w-40 h-40 bg-cyan-500/5 rounded-full blur-3xl"
             animate={{
               opacity: [0.2, 0.5, 0.2],
               scale: [1, 1.2, 1],
@@ -137,7 +145,7 @@ export default function LoginForm() {
         {/* Minimal corner indicators */}
         <div className="absolute top-6 right-6">
           <motion.div
-            className="w-1.5 h-1.5 bg-green-400/50 rounded-full"
+            className="w-1.5 h-1.5 bg-cyan-400/50 rounded-full"
             animate={{
               opacity: [0.3, 0.7, 0.3],
             }}
@@ -150,7 +158,7 @@ export default function LoginForm() {
         </div>
         <div className="absolute bottom-6 left-6">
           <motion.div
-            className="w-1.5 h-1.5 bg-emerald-400/50 rounded-full"
+            className="w-1.5 h-1.5 bg-cyan-400/50 rounded-full"
             animate={{
               opacity: [0.3, 0.7, 0.3],
             }}
@@ -177,7 +185,7 @@ export default function LoginForm() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="mx-auto w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-600 rounded-xl flex items-center justify-center"
+              className="mx-auto w-16 h-16 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-xl flex items-center justify-center"
             >
               <TrendingUp className="w-8 h-8 text-white" />
             </motion.div>
@@ -213,7 +221,7 @@ export default function LoginForm() {
                   value={credentials.username}
                   onChange={(e) => setCredentials((prev) => ({ ...prev, username: e.target.value }))}
                   required
-                  className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-green-400 focus:ring-green-400/20"
+                  className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-cyan-400 focus:ring-cyan-400/20"
                 />
               </div>
               
@@ -230,7 +238,7 @@ export default function LoginForm() {
                     value={credentials.password}
                     onChange={(e) => setCredentials((prev) => ({ ...prev, password: e.target.value }))}
                     required
-                    className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-green-400 focus:ring-green-400/20 pr-10"
+                    className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-cyan-400 focus:ring-cyan-400/20 pr-10"
                   />
                   <button
                     type="button"
@@ -244,7 +252,7 @@ export default function LoginForm() {
               
               <Button 
                 type="submit" 
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-200" 
+                className="w-full bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white border-0 h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -264,12 +272,12 @@ export default function LoginForm() {
             
             {process.env.NODE_ENV !== "production" && (
               <div className="rounded-lg border border-slate-700/50 bg-slate-800/30 p-3 text-center text-sm text-slate-300">
-                Local test account: <span className="font-mono text-green-400">greenpeak</span> / <span className="font-mono text-green-400">greenpeak</span>
+                Local test account: <span className="font-mono text-cyan-400">greenpeak</span> / <span className="font-mono text-cyan-400">greenpeak</span>
               </div>
             )}
             <p className="text-center text-sm text-slate-400">
               Don&apos;t have an account?{" "}
-              <Link href="/signup" className="font-semibold text-green-400 hover:text-green-300">Create one</Link>
+              <Link href="/signup" className="font-semibold text-cyan-400 hover:text-cyan-300">Create one</Link>
             </p>
 
           </CardContent>

@@ -8,12 +8,14 @@ import hmac
 import json
 import re
 import secrets
+import sqlite3
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from pymongo import ASCENDING, MongoClient
-from pymongo.errors import DuplicateKeyError
+from pymongo.errors import DuplicateKeyError, PyMongoError
 
 
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
@@ -22,6 +24,109 @@ PBKDF2_ITERATIONS = 600_000
 
 class AuthError(Exception):
     """Expected authentication error safe to return to a client."""
+
+
+class AuthStorageError(Exception):
+    """Authentication storage failed in a way that is safe to map to HTTP 503."""
+
+
+class _LocalInsertResult:
+    def __init__(self, inserted_id: int) -> None:
+        self.inserted_id = inserted_id
+
+
+class LocalUserCollection:
+    """Small SQLite-backed user store used only as a development fallback."""
+
+    def __init__(self, database_path: str | Path) -> None:
+        self.database_path = Path(database_path)
+        try:
+            self.database_path.parent.mkdir(parents=True, exist_ok=True)
+            self._initialize()
+        except (OSError, sqlite3.Error) as exc:
+            raise AuthStorageError("Local authentication database is unavailable.") from exc
+
+    def _connect(self) -> sqlite3.Connection:
+        connection = sqlite3.connect(self.database_path, timeout=5)
+        connection.row_factory = sqlite3.Row
+        return connection
+
+    def _initialize(self) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS gp_users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL,
+                    username_normalized TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    role TEXT NOT NULL DEFAULT 'user',
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    is_local_test_user INTEGER NOT NULL DEFAULT 0
+                )
+                """
+            )
+
+    def create_index(self, *_args: Any, **_kwargs: Any) -> str:
+        # The SQLite schema already enforces the same unique normalized username.
+        return "username_normalized_1"
+
+    def insert_one(self, document: dict[str, Any]) -> _LocalInsertResult:
+        try:
+            with self._connect() as connection:
+                cursor = connection.execute(
+                    """
+                    INSERT INTO gp_users (
+                        username, username_normalized, password_hash, role,
+                        is_active, created_at, updated_at, is_local_test_user
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        document["username"],
+                        document["username_normalized"],
+                        document["password_hash"],
+                        document.get("role", "user"),
+                        int(document.get("is_active", True)),
+                        self._serialize_datetime(document.get("created_at")),
+                        self._serialize_datetime(document.get("updated_at")),
+                        int(document.get("is_local_test_user", False)),
+                    ),
+                )
+                return _LocalInsertResult(int(cursor.lastrowid))
+        except sqlite3.IntegrityError as exc:
+            raise DuplicateKeyError("duplicate username") from exc
+        except (KeyError, TypeError, ValueError, sqlite3.Error) as exc:
+            raise AuthStorageError("Local authentication database is unavailable.") from exc
+
+    def find_one(self, query: dict[str, Any]) -> dict[str, Any] | None:
+        normalized = query.get("username_normalized")
+        if not isinstance(normalized, str):
+            raise AuthStorageError("Unsupported local authentication query.")
+        try:
+            with self._connect() as connection:
+                row = connection.execute(
+                    "SELECT * FROM gp_users WHERE username_normalized = ? LIMIT 1",
+                    (normalized,),
+                ).fetchone()
+        except sqlite3.Error as exc:
+            raise AuthStorageError("Local authentication database is unavailable.") from exc
+        if row is None:
+            return None
+        document = dict(row)
+        document["_id"] = document.pop("id")
+        document["is_active"] = bool(document["is_active"])
+        document["is_local_test_user"] = bool(document["is_local_test_user"])
+        return document
+
+    @staticmethod
+    def _serialize_datetime(value: Any) -> str:
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if value is None:
+            return datetime.now(timezone.utc).isoformat()
+        return str(value)
 
 
 def _b64encode(value: bytes) -> str:
@@ -57,7 +162,18 @@ class AuthService:
 
     @classmethod
     def from_settings(cls, settings: Any) -> "AuthService":
-        client = MongoClient(settings.mongodb_url, serverSelectionTimeoutMS=3000)
+        if settings.environment == "development" and settings.auth_local_fallback_enabled:
+            client = None
+            try:
+                client = MongoClient(settings.mongodb_url, serverSelectionTimeoutMS=3000)
+                client.admin.command("ping")
+            except PyMongoError:
+                if client is not None:
+                    client.close()
+                collection = LocalUserCollection(settings.auth_local_db_path)
+                return cls(collection, settings.auth_secret_key, settings.auth_token_ttl_seconds)
+        else:
+            client = MongoClient(settings.mongodb_url, serverSelectionTimeoutMS=3000)
         return cls(client[settings.mongodb_database].gp_users, settings.auth_secret_key, settings.auth_token_ttl_seconds)
 
     def ensure_indexes(self) -> None:

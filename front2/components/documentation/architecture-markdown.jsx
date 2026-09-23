@@ -101,7 +101,7 @@ const markdownComponents = {
   a: ({ href, children }) => (
     <a
       href={href}
-      className="font-medium text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800 dark:text-emerald-400 dark:decoration-emerald-700"
+      className="font-medium text-cyan-700 underline decoration-cyan-300 underline-offset-4 hover:text-cyan-800 dark:text-cyan-400 dark:decoration-cyan-700"
       target={href?.startsWith("http") ? "_blank" : undefined}
       rel={href?.startsWith("http") ? "noreferrer" : undefined}
     >
@@ -109,18 +109,18 @@ const markdownComponents = {
     </a>
   ),
   ul: ({ children }) => (
-    <ul className="my-4 list-disc space-y-2 pr-6 text-gray-700 marker:text-emerald-600 dark:text-gray-300">
+    <ul className="my-4 list-disc space-y-2 pr-6 text-gray-700 marker:text-cyan-600 dark:text-gray-300">
       {children}
     </ul>
   ),
   ol: ({ children }) => (
-    <ol className="my-4 list-decimal space-y-2 pr-6 text-gray-700 marker:font-semibold marker:text-emerald-700 dark:text-gray-300 dark:marker:text-emerald-400">
+    <ol className="my-4 list-decimal space-y-2 pr-6 text-gray-700 marker:font-semibold marker:text-cyan-700 dark:text-gray-300 dark:marker:text-cyan-400">
       {children}
     </ol>
   ),
   li: ({ children }) => <li className="pr-1 leading-7">{children}</li>,
   blockquote: ({ children }) => (
-    <blockquote className="my-6 border-r-4 border-emerald-500 bg-emerald-50/70 px-5 py-2 text-gray-800 dark:bg-emerald-950/20 dark:text-gray-200">
+    <blockquote className="my-6 border-r-4 border-cyan-500 bg-cyan-50/70 px-5 py-2 text-gray-800 dark:bg-cyan-950/20 dark:text-gray-200">
       {children}
     </blockquote>
   ),
@@ -179,7 +179,7 @@ const markdownComponents = {
 
     return (
       <code
-        className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[0.9em] text-emerald-800 dark:bg-white/10 dark:text-emerald-300"
+        className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[0.9em] text-cyan-800 dark:bg-white/10 dark:text-cyan-300"
         dir="ltr"
       >
         {children}

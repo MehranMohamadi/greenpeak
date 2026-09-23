@@ -73,11 +73,11 @@ export default function NotificationSystem() {
   const getColorClasses = (color) => {
     switch (color) {
       case "green":
-        return "border-green-500 bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200"
+        return "border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20 text-cyan-800 dark:text-cyan-200"
       case "yellow":
         return "border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200"
       case "blue":
-        return "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200"
+        return "border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20 text-cyan-800 dark:text-cyan-200"
       case "red":
         return "border-red-500 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200"
       default:

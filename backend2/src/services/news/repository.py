@@ -36,6 +36,14 @@ class MongoNewsRepository:
             {"item_id": item_id, "analysis_version": analysis_version}, {"_id": False}
         )
 
+    def article_analyses(self, item_ids: list[str], analysis_version: str) -> list[dict]:
+        if not item_ids:
+            return []
+        return list(self.db.gp_news_article_analyses.find(
+            {"item_id": {"$in": item_ids}, "analysis_version": analysis_version},
+            {"_id": False},
+        ))
+
     def save_article_analysis(self, document: dict) -> None:
         self.db.gp_news_article_analyses.replace_one(
             {"item_id": document["item_id"]}, document, upsert=True

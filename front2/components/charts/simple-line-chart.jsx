@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { createChart } from "lightweight-charts"
 
-export default function SimpleLineChart({ data, color = "#8b5cf6", height = 128 }) {
+export default function SimpleLineChart({ data, color = "#06B6D4", height = 128 }) {
   const chartRef = useRef()
   const chartInstanceRef = useRef()
   const [isClient, setIsClient] = useState(false)

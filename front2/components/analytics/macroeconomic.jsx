@@ -71,11 +71,11 @@ export default function Macroeconomic() {
     <AnalysisPageShell>
       <AnalysisPageHeader page="macroeconomic" title="Growth, Inflation & Labor" showDescription={false} />
       <Card dir="rtl">
-        <CardContent className="p-6"><DomainUnderstandingPanel domainId="growth_inflation_labor" simple onUpdated={() => setRevision((value) => value + 1)} /></CardContent>
+        <CardContent className="p-4"><DomainUnderstandingPanel domainId="growth_inflation_labor" simple onUpdated={() => setRevision((value) => value + 1)} /></CardContent>
       </Card>
       {error && <AnalysisState tone="neutral" title="Macroeconomic service unavailable" description={error} />}
       <div dir="ltr" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
-        <Card ref={chartRef} className="min-w-0 border-slate-200 bg-white lg:col-start-1 lg:row-start-1 dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+        <Card ref={chartRef} className="min-w-0 lg:col-start-1 lg:row-start-1">
           <CardHeader className="space-y-3">
             <CardTitle className="flex items-start justify-between gap-3 text-base"><span className="min-w-0 break-words">{selected.title}</span><Button variant="outline" size="icon" title="Expand chart" aria-label="Expand chart" disabled={!chartData.length} onClick={() => setIsFullScreen(true)}><Maximize2 className="h-4 w-4" /></Button></CardTitle>
             <CardDescription className="text-xs">{sourceLine}</CardDescription>
@@ -106,7 +106,7 @@ export default function Macroeconomic() {
             const Icon = factor.icon
             return <button key={factor.id} type="button" className="h-full min-w-0 text-left" aria-pressed={selectedId === factor.id} onClick={() => { setSelectedId(factor.id); chartRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" }) }}>
               <AnalysisFactorCard selected={selectedId === factor.id}>
-                <CardHeader className="p-4 pb-3"><p className="text-xs text-slate-500">{factor.group}</p><CardTitle className="flex items-center justify-between gap-3 text-base"><span className="min-w-0 break-words">{factor.title}</span><Icon className="h-4 w-4 shrink-0 text-blue-600" /></CardTitle></CardHeader>
+                <CardHeader className="p-4 pb-3"><p className="text-xs text-slate-500">{factor.group}</p><CardTitle className="flex items-center justify-between gap-3 text-base"><span className="min-w-0 break-words">{factor.title}</span><Icon className="h-4 w-4 shrink-0 text-primary" /></CardTitle></CardHeader>
                 <CardContent className="p-4 pt-0">
                   <div className="text-2xl font-semibold tabular-nums">{loading ? "Loading…" : unavailable ? "N/A" : formatValue(latest, factor.format)}</div>
                   <div className="pointer-events-none mt-3 h-20 rounded-lg bg-transparent p-2 mini-chart-container" aria-hidden="true">{loading ? <div className="h-full animate-pulse rounded bg-slate-100 dark:bg-slate-800" /> : <MiniChart data={series} trend={trend} />}</div>

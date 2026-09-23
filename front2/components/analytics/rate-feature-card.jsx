@@ -103,10 +103,10 @@ export default function RateFeatureCard({ factorId }) {
   if (!snapshot) return <Card><CardContent className="p-5 text-sm text-muted-foreground">Loading stored Python features…</CardContent></Card>
   const features = snapshot.features
   return (
-    <Card className="border-blue-500/20">
+    <Card className="border-primary/20">
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-lg"><Database className="h-5 w-5 text-blue-500" /> تحلیل استاندارد نرخ</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary" /> تحلیل استاندارد نرخ</CardTitle>
           <div className="flex gap-2"><Badge variant="outline">{sourceMode}</Badge><Badge variant="outline">{snapshot.quality.status}</Badge><Badge variant="outline"><Beaker className="mr-1 h-3 w-3" /> آزمایشی</Badge></div>
         </div>
         <CardDescription>دادهٔ {snapshot.source.latest_observation_date} · {snapshot.source.series_id} · محاسبه‌شده در Python</CardDescription>
@@ -127,14 +127,14 @@ export default function RateFeatureCard({ factorId }) {
           <p className="mt-2 text-muted-foreground">{snapshot.semantics.why_it_matters_fa}</p>
           <p className="mt-2 text-muted-foreground">{snapshot.llm_context.summary_template_fa}</p>
         </div>
-        <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-4 text-right" dir="rtl">
+        <div className="rounded-lg border border-primary/30 bg-primary/10 p-4 text-right" dir="rtl">
           <div className="flex items-center justify-between gap-3">
             <span className="font-semibold">تفسیر هوش مصنوعی</span>
             {narrative && <Badge variant="outline">پوشش {narrative.coverage?.status || "نامشخص"}</Badge>}
           </div>
           {narrative ? <>
             <p className="mt-2 leading-7">{narrative.current_state_fa} {narrative.what_changed_fa}</p>
-            <button className="mt-2 inline-flex items-center gap-1 text-xs text-violet-700" onClick={() => setExpanded(!expanded)}><ChevronDown className={`h-4 w-4 transition ${expanded ? "rotate-180" : ""}`} />{expanded ? "کمتر" : "بیشتر"}</button>
+            <button className="mt-2 inline-flex items-center gap-1 text-xs text-primary" onClick={() => setExpanded(!expanded)}><ChevronDown className={`h-4 w-4 transition ${expanded ? "rotate-180" : ""}`} />{expanded ? "کمتر" : "بیشتر"}</button>
             {expanded && <div className="mt-4 space-y-4 border-t pt-4 leading-7">
               <div className="rounded-xl border bg-background/70 p-4"><h3 className="mb-2 font-semibold">جمع‌بندی تفسیر</h3><p className="text-sm">{narrative.interpretation_fa}</p><p className="mt-2 text-sm text-muted-foreground">{narrative.narrative_fa}</p></div>
               <div className="grid gap-3 md:grid-cols-2">
@@ -147,7 +147,7 @@ export default function RateFeatureCard({ factorId }) {
             </div>}
           </> : <p className="mt-2 text-sm text-muted-foreground">تحلیل هنوز تولید نشده است.</p>}
         </div>
-        {process.env.NODE_ENV !== "production" && <button className="text-xs text-blue-600" onClick={() => setDebug(!debug)}>{debug ? "بستن JSON توسعه‌دهنده" : "نمایش JSON توسعه‌دهنده"}</button>}
+        {process.env.NODE_ENV !== "production" && <button className="text-xs text-primary" onClick={() => setDebug(!debug)}>{debug ? "بستن JSON توسعه‌دهنده" : "نمایش JSON توسعه‌دهنده"}</button>}
         {debug && <pre dir="ltr" className="max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(snapshot, null, 2)}</pre>}
       </CardContent>
     </Card>

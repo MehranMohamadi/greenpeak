@@ -37,7 +37,7 @@ export default function SignupForm() {
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-gray-900 to-slate-900 px-4">
       <Card className="w-full max-w-md border-slate-700/50 bg-slate-900/80 shadow-2xl">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-green-400 to-emerald-600"><TrendingUp className="h-8 w-8 text-white" /></div>
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600"><TrendingUp className="h-8 w-8 text-white" /></div>
           <CardTitle className="text-3xl text-white">Create account</CardTitle>
           <CardDescription className="text-slate-300">Choose a username and password for GreenPeak.</CardDescription>
         </CardHeader>
@@ -66,9 +66,9 @@ export default function SignupForm() {
                 </button>
               </div>
             </div>
-            <Button type="submit" disabled={isLoading} className="h-12 w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white">{isLoading ? "Creating account..." : "Create account"}</Button>
+            <Button type="submit" disabled={isLoading} className="h-12 w-full bg-gradient-to-r from-cyan-500 to-cyan-600 text-white hover:from-cyan-600 hover:to-cyan-700">{isLoading ? "Creating account..." : "Create account"}</Button>
           </form>
-          <p className="mt-6 text-center text-sm text-slate-400">Already registered? <Link href="/login" className="font-semibold text-green-400 hover:text-green-300">Sign in</Link></p>
+          <p className="mt-6 text-center text-sm text-slate-400">Already registered? <Link href="/login" className="font-semibold text-cyan-400 hover:text-cyan-300">Sign in</Link></p>
         </CardContent>
       </Card>
     </main>

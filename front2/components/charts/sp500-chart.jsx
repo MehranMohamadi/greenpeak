@@ -100,11 +100,11 @@ export default function SP500Chart({ data = [], className = "h-[420px] w-full sm
       })
 
       const candleSeries = chart.addCandlestickSeries({
-        upColor: "#10b981",
+        upColor: "#06B6D4",
         downColor: "#ef4444",
-        borderUpColor: "#10b981",
+        borderUpColor: "#06B6D4",
         borderDownColor: "#ef4444",
-        wickUpColor: "#10b981",
+        wickUpColor: "#06B6D4",
         wickDownColor: "#ef4444",
       })
       candleSeries.setData(candles)
@@ -116,7 +116,7 @@ export default function SP500Chart({ data = [], className = "h-[420px] w-full sm
           value: item.volume,
           color:
             item.close >= item.open
-              ? "rgba(16, 185, 129, 0.35)"
+              ? "rgba(6, 182, 212, 0.35)"
               : "rgba(239, 68, 68, 0.35)",
         }))
 

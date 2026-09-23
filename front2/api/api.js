@@ -1,12 +1,9 @@
-const isProduction = process.env.NODE_ENV === "production" ||
-                     typeof window !== "undefined" && !["localhost", "127.0.0.1"].includes(window.location.hostname);
-
 const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
-// Production deployments should set NEXT_PUBLIC_API_BASE_URL explicitly.
-const API_BASE = configuredApiBase || (isProduction
-    ? "https://greenpeak.ir/api/v1"
-    : "http://localhost:8000/api/v1");
+// Keep browser requests same-origin. Next.js rewrites this path to the local
+// FastAPI service during development, while nginx owns /api in production.
+// An explicit public base URL can still override this for special deployments.
+const API_BASE = configuredApiBase || "/api/v1";
 
 export { API_BASE };
 

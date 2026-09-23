@@ -19,7 +19,7 @@ export default function FullScreenChart({
   const getTrendIcon = (trend) => {
     switch (trend) {
       case "up":
-        return <TrendingUp className="h-4 w-4 text-green-500" />
+        return <TrendingUp className="h-4 w-4 text-cyan-500" />
       case "down":
         return <TrendingDown className="h-4 w-4 text-red-500" />
       default:
@@ -30,7 +30,7 @@ export default function FullScreenChart({
   const getTrendColor = (trend) => {
     switch (trend) {
       case "up":
-        return "text-green-600 dark:text-green-400"
+        return "text-cyan-600 dark:text-cyan-400"
       case "down":
         return "text-red-600 dark:text-red-400"
       default:
@@ -42,13 +42,13 @@ export default function FullScreenChart({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[75vw] max-h-[85vh] w-full h-full p-0 bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#2B2B30] shadow-2xl rounded-xl overflow-hidden [&>button]:hidden">
-        <DialogHeader className="px-6 py-4 border-b border-gray-200 dark:border-[#2B2B30] bg-gradient-to-r from-gray-50 to-gray-100 dark:from-[#1A1A1E] dark:to-[#1F1F23]">
+      <DialogContent className="max-h-[85vh] h-full w-full max-w-[75vw] overflow-hidden rounded-xl border bg-card p-0 shadow-2xl [&>button]:hidden">
+        <DialogHeader className="border-b bg-muted/30 px-5 py-4">
           <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-3 text-lg font-semibold text-gray-900 dark:text-white">
+            <DialogTitle className="flex items-center gap-3 text-[1.2rem] font-medium text-foreground">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                  <Maximize2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <div className="rounded-lg bg-primary/10 p-1.5">
+                  <Maximize2 className="h-4 w-4 text-primary" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -77,7 +77,7 @@ export default function FullScreenChart({
           
           {/* Time Period Selector - Independent from main chart */}
           <div className="mt-4 pt-3 border-t border-gray-200 dark:border-[#2B2B30]">
-            <div className="flex flex-wrap gap-1 bg-white dark:bg-[#0F0F12] rounded-lg p-1 border border-gray-200 dark:border-[#2B2B30] shadow-sm">
+            <div className="flex flex-wrap gap-1 rounded-lg border bg-card p-1 shadow-sm">
               {['1M', '6M', '1Y', '5Y', '10Y', '25Y', 'MAX'].map((period) => (
                 <Button
                   key={period}
@@ -86,8 +86,8 @@ export default function FullScreenChart({
                   onClick={() => setFullscreenPeriod(period)}
                   className={`h-7  text-xs px-3 text-xs font-medium transition-all duration-200 ${
                     fullscreenPeriod === period 
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm scale-105' 
-                      : 'hover:bg-gray-100 dark:hover:bg-[#1F1F23] text-gray-600 dark:text-gray-400 hover:scale-105'
+                      ? 'bg-primary text-primary-foreground shadow-sm scale-105'
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground hover:scale-105'
                   }`}
                 >
                   {period}
@@ -113,16 +113,16 @@ export default function FullScreenChart({
               <span className="text-xs text-gray-600 dark:text-gray-400">{selectedFactor.source}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium">
+              <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
                 {fullscreenPeriod}
               </span>
             </div>
           </div>
         </DialogHeader>
-        <div className="flex-1 flex flex-col bg-white dark:bg-[#0F0F12]">
+        <div className="flex flex-1 flex-col bg-card">
           {/* Main Chart Container */}
           <div className="flex-1 p-4">
-            <div className="h-full w-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1A1A1E] dark:to-[#0F0F12] rounded-xl border border-gray-200 dark:border-[#2B2B30] p-3 shadow-inner">
+            <div className="h-full w-full rounded-xl border bg-muted/25 p-3 shadow-inner">
               <MultiLineChart 
                 dataSets={[getDataForPeriod(selectedFactor.chartData || selectedFactor.data || [], fullscreenPeriod)]}
               />
@@ -130,26 +130,26 @@ export default function FullScreenChart({
           </div>
           
           {/* Bottom Content Section */}
-          <div className="px-6 py-4 border-t border-gray-200 dark:border-[#2B2B30] bg-gray-50 dark:bg-[#1A1A1E]">
+          <div className="border-t bg-muted/30 px-5 py-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Key Statistics */}
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <h4 className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <div className="h-2 w-2 rounded-full bg-primary"></div>
                   Key Statistics
                 </h4>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between items-center p-2 bg-white dark:bg-[#0F0F12] rounded-lg border border-gray-200 dark:border-[#2B2B30]">
+                  <div className="flex items-center justify-between rounded-lg border bg-card p-2">
                     <span className="text-gray-600 dark:text-gray-400">Current Value:</span>
                     <span className="font-medium text-gray-900 dark:text-white">{selectedFactor.currentValue}</span>
                   </div>
-                  <div className="flex justify-between items-center p-2 bg-white dark:bg-[#0F0F12] rounded-lg border border-gray-200 dark:border-[#2B2B30]">
+                  <div className="flex items-center justify-between rounded-lg border bg-card p-2">
                     <span className="text-gray-600 dark:text-gray-400">Period Change:</span>
                     <span className={`font-medium ${getTrendColor(selectedFactor.trend)}`}>
                       {selectedFactor.change}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center p-2 bg-white dark:bg-[#0F0F12] rounded-lg border border-gray-200 dark:border-[#2B2B30]">
+                  <div className="flex items-center justify-between rounded-lg border bg-card p-2">
                     <span className="text-gray-600 dark:text-gray-400">Time Period:</span>
                     <span className="font-medium text-gray-900 dark:text-white">{fullscreenPeriod}</span>
                   </div>
@@ -158,12 +158,12 @@ export default function FullScreenChart({
 
               {/* Analysis Insights */}
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <h4 className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <div className="h-2 w-2 rounded-full bg-primary"></div>
                   Analysis Insights
                 </h4>
                 <div className="space-y-2 text-sm">
-                  <div className="p-3 bg-white dark:bg-[#0F0F12] rounded-lg border border-gray-200 dark:border-[#2B2B30]">
+                  <div className="rounded-lg border bg-card p-3">
                     <div className="flex items-center gap-2 mb-2">
                       {getTrendIcon(selectedFactor.trend)}
                       <span className="font-medium text-gray-900 dark:text-white">
@@ -179,12 +179,12 @@ export default function FullScreenChart({
 
               {/* Data Source */}
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <h4 className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <div className="h-2 w-2 rounded-full bg-primary"></div>
                   Data Source
                 </h4>
                 <div className="space-y-2 text-sm">
-                  <div className="p-3 bg-white dark:bg-[#0F0F12] rounded-lg border border-gray-200 dark:border-[#2B2B30]">
+                  <div className="rounded-lg border bg-card p-3">
                     <div className="space-y-2">
                       <div>
                         <span className="text-gray-600 dark:text-gray-400 text-xs">Provider:</span>
@@ -200,7 +200,7 @@ export default function FullScreenChart({
                           <div className={`px-2 py-1 rounded-full text-xs font-medium ${
                             selectedFactor.impact === 'High' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
                             selectedFactor.impact === 'Medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                            'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                            'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200'
                           }`}>
                             {selectedFactor.impact || 'High'}
                           </div>

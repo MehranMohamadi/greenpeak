@@ -117,7 +117,7 @@ export default function useUpdateInfo() {
   const getStatusColor = (status) => {
     switch (status) {
       case 'current':
-        return 'text-green-600 dark:text-green-400';
+        return 'text-cyan-600 dark:text-cyan-400';
       case 'stale':
         return 'text-yellow-600 dark:text-yellow-400';
       case 'error':

@@ -79,12 +79,12 @@ export default function FunSidebar() {
   return (
     <>
       <button ref={mobileToggleRef} type="button" aria-label="باز کردن منوی سرگرمی" aria-expanded={isMobileMenuOpen} aria-controls={navId} className={`fixed right-4 top-2 z-40 rounded-lg bg-white p-1 shadow-md dark:bg-[#0F0F12] lg:hidden ${itemFocus}`} onClick={() => setIsMobileMenuOpen((open) => !open)}>
-        <Menu className="h-5 w-5 text-fuchsia-600" />
+        <Menu className="h-5 w-5 text-primary" />
       </button>
       <nav id={navId} dir="rtl" aria-label="ناوبری سرگرمی" onKeyDown={(event) => { if (event.key === "Escape" && isMobileMenuOpen) closeMobileMenu(); }} className={`fixed inset-y-0 right-0 z-40 max-w-[calc(100vw-3rem)] flex-shrink-0 transform border-l border-gray-200 bg-white shadow-xl shadow-black/5 transition-[width,transform,visibility] duration-200 ease-out motion-reduce:transition-none dark:border-[#1F1F23] dark:bg-[#0F0F12] dark:shadow-black/20 lg:visible lg:translate-x-0 ${isMobileMenuOpen ? "visible translate-x-0" : "invisible translate-x-full"} ${showLabels ? "w-64" : "w-16"}`}>
         <div className="flex h-full min-h-0 flex-col">
           <div className={`flex h-11 shrink-0 items-center border-b border-gray-200 px-2 dark:border-[#1F1F23] ${showLabels ? "justify-between gap-1" : "justify-center"}`}>
-            <Link aria-label="حال خوب" title="حال خوب" href="/fun" onClick={() => { setSelectedRightItem(null); setIsMobileMenuOpen(false); }} className={`flex min-w-0 items-center gap-3 rounded-md whitespace-nowrap font-semibold text-gray-900 dark:text-white ${itemFocus}`}><Dices aria-hidden="true" className="h-7 w-7 shrink-0 text-fuchsia-500" />{showLabels && <span>حال خوب</span>}</Link>
+            <Link aria-label="حال خوب" title="حال خوب" href="/fun" onClick={() => { setSelectedRightItem(null); setIsMobileMenuOpen(false); }} className={`flex min-w-0 items-center gap-3 rounded-md whitespace-nowrap font-semibold text-gray-900 dark:text-white ${itemFocus}`}><Dices aria-hidden="true" className="h-7 w-7 shrink-0 text-primary" />{showLabels && <span>حال خوب</span>}</Link>
             <button ref={mobileCloseRef} type="button" aria-label="بستن منوی سرگرمی" onClick={closeMobileMenu} className={`rounded-md p-1.5 lg:hidden ${itemFocus}`}><X aria-hidden="true" className="h-5 w-5" /></button>
           </div>
 
@@ -122,15 +122,15 @@ export default function FunSidebar() {
 
                 const trail = makeTrail(item.label);
                 const selected = activeHref === item.href;
-                return <Link key={item.id} href={item.href} aria-label={item.label} aria-current={selected ? "page" : undefined} title={item.label} onClick={() => { setSelectedRightItem(null); setIsMobileMenuOpen(false); clearPreview(); }} onFocus={() => preview(item.label, trail, item.href)} onBlur={clearPreview} className={`relative flex h-9 min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors ${itemFocus} ${selected ? "bg-fuchsia-500/10 font-medium text-fuchsia-600 dark:text-fuchsia-400" : neutralItem}`}>
-                  {selected && <span aria-hidden="true" className="absolute inset-y-2 right-0 w-[3px] rounded-full bg-fuchsia-500" />}<span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><Icon className="h-5 w-5" /></span>{showLabels && <span className="truncate">{item.label}</span>}
+                return <Link key={item.id} href={item.href} aria-label={item.label} aria-current={selected ? "page" : undefined} title={item.label} onClick={() => { setSelectedRightItem(null); setIsMobileMenuOpen(false); clearPreview(); }} onFocus={() => preview(item.label, trail, item.href)} onBlur={clearPreview} className={`relative flex h-9 min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors ${itemFocus} ${selected ? "bg-primary/10 font-medium text-primary" : neutralItem}`}>
+                  {selected && <span aria-hidden="true" className="absolute inset-y-2 right-0 w-[3px] rounded-full bg-primary" />}<span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><Icon className="h-5 w-5" /></span>{showLabels && <span className="truncate">{item.label}</span>}
                 </Link>;
               })}
             </div>
           </div>
           <div className="shrink-0 border-t border-gray-200 bg-white px-2 py-2 dark:border-[#1F1F23] dark:bg-[#0F0F12]">
-            <Link href="/help" aria-label="راهنما" aria-current={isHelpActive ? "page" : undefined} title="راهنما" onClick={() => setIsMobileMenuOpen(false)} className={`relative flex h-9 min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors ${itemFocus} ${isHelpActive ? "bg-fuchsia-500/10 font-medium text-fuchsia-600 dark:text-fuchsia-400" : neutralItem}`}>
-              {isHelpActive && <span aria-hidden="true" className="absolute inset-y-2 right-0 w-[3px] rounded-full bg-fuchsia-500" />}
+            <Link href="/help" aria-label="راهنما" aria-current={isHelpActive ? "page" : undefined} title="راهنما" onClick={() => setIsMobileMenuOpen(false)} className={`relative flex h-9 min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors ${itemFocus} ${isHelpActive ? "bg-primary/10 font-medium text-primary" : neutralItem}`}>
+              {isHelpActive && <span aria-hidden="true" className="absolute inset-y-2 right-0 w-[3px] rounded-full bg-primary" />}
               <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><HelpCircle className="h-5 w-5" /></span>
               {showLabels && <span className="truncate">راهنما</span>}
             </Link>

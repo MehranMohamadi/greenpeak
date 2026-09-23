@@ -42,7 +42,18 @@ def source_news(source: str, limit: int = Query(default=50, ge=20, le=100)):
     try:
         documents = repository.source_raw(source, datetime.now(UTC) - timedelta(days=7))
         if not documents: raise HTTPException(404, detail={"code": "NEWS_SOURCE_EMPTY", "message": "This source has not been fetched yet."})
-        return {"ok": True, "data": build_source_feed(source, documents, limit)}
+        feed = build_source_feed(source, documents, limit)
+        if source == "alpha_vantage":
+            item_ids = [item["item_id"] for item in feed["items"] if item.get("item_id")]
+            analyses = repository.article_analyses(item_ids, NEWS_ANALYSIS_VERSION)
+            titles_fa = {
+                item["item_id"]: item["title_fa"]
+                for item in analyses
+                if item.get("item_id") and item.get("title_fa")
+            }
+            for item in feed["items"]:
+                item["title_fa"] = titles_fa.get(item.get("item_id"))
+        return {"ok": True, "data": feed}
     except HTTPException: raise
     except PyMongoError: raise HTTPException(503, detail={"code": "NEWS_STORE_UNAVAILABLE", "message": "News storage is temporarily unavailable."})
     finally: client.close()

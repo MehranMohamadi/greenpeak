@@ -16,7 +16,7 @@ export default function InteractiveSidebar({ factors, category, onFactorSelect }
   const getTrendIcon = (trend) => {
     switch (trend) {
       case "up":
-        return <TrendingUp className="h-4 w-4 text-green-500" />
+        return <TrendingUp className="h-4 w-4 text-cyan-500" />
       case "down":
         return <TrendingDown className="h-4 w-4 text-red-500" />
       default:
@@ -27,7 +27,7 @@ export default function InteractiveSidebar({ factors, category, onFactorSelect }
   const getTrendColor = (trend) => {
     switch (trend) {
       case "up":
-        return "text-green-600 dark:text-green-400"
+        return "text-cyan-600 dark:text-cyan-400"
       case "down":
         return "text-red-600 dark:text-red-400"
       default:

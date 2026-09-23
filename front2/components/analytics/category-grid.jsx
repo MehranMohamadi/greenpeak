@@ -19,7 +19,7 @@ export default function CategoryGrid({
 
   return (
     <div className="mb-6 animate-in slide-in-from-top-2 duration-200">
-      <Card className="border border-gray-200 dark:border-[#2B2B30] bg-white dark:bg-[#1F1F23]">
+      <Card>
         <CardContent className="p-4">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
 
@@ -30,7 +30,7 @@ export default function CategoryGrid({
                 size="sm"
                 className={`h-auto p-2 justify-start gap-2 ${
                   index === currentCategoryIndex
-                    ? "bg-blue-50 dark:bg-blue-950/20"
+                    ? "bg-primary/10 text-foreground"
                     : ""
                 }`}
                 onClick={() => {
@@ -38,8 +38,8 @@ export default function CategoryGrid({
                   onClose()
                 }}
               >
-                <div className={`p-1 bg-gradient-to-r ${category.color} rounded`}>
-                  <category.icon className="h-3 w-3 text-white" />
+                <div className="rounded-md bg-primary/10 p-1 text-primary">
+                  <category.icon className="h-3 w-3" />
                 </div>
 
                 <span className="text-xs font-medium truncate">

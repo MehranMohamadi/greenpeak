@@ -65,7 +65,7 @@ export default function AlphaVantageNews() {
 
   return <Card dir="rtl">
     <CardHeader>
-      <CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-pink-600" />اخبار بازار</CardTitle>
+      <CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-primary" />اخبار بازار</CardTitle>
       <CardDescription>‏هر منبع به‌صورت مستقل نمایش داده می‌شود؛ بدون مقایسه یا ادغام خبرها. تب پیش‌فرض ‎Alpha Vantage‎ است.</CardDescription>
     </CardHeader>
     <CardContent>
@@ -95,7 +95,7 @@ export default function AlphaVantageNews() {
                       {article.minimum_backfill && <Badge variant="outline">Top available</Badge>}
                     </>}
                   </div>
-                  <h3 className="font-semibold leading-snug">
+                  <h3 className="font-medium leading-snug">
                     <a className="transition-colors hover:text-primary hover:underline" href={article.url} target="_blank" rel="noopener noreferrer">
                       {article.title}
                     </a>

@@ -46,7 +46,7 @@ export default function MarketHours() {
   const getStatusColor = (status) => {
     switch (status) {
       case "open":
-        return "bg-green-500"
+        return "bg-cyan-500"
       case "closed":
         return "bg-red-500"
       default:

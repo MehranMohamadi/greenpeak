@@ -4,18 +4,18 @@ import AlphaVantageNews from "./alpha-vantage-news"
 import MacroCalendar from "./macro-calendar"
 
 export default function NewsEvents() {
-  return <main className="space-y-6 py-4 md:py-6">
+  return <main className="space-y-5 bg-background py-3 md:py-4">
     <header className="space-y-2 px-4 md:px-6">
       <div className="flex items-center gap-3">
-        <span className="rounded-xl border bg-muted/50 p-2"><Newspaper className="h-6 w-6" /></span>
+        <span className="rounded-xl bg-primary/10 p-2 text-primary"><Newspaper className="h-6 w-6" /></span>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">News &amp; Events</h1>
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">News &amp; Events</h1>
           <p className="mt-1 text-sm text-muted-foreground">Economic releases first, followed by independent market-news feeds.</p>
         </div>
       </div>
     </header>
     <section aria-labelledby="calendar-summary-title" className="space-y-2">
-      <h2 id="calendar-summary-title" className="flex items-center gap-2 px-4 text-lg font-semibold md:px-6"><CalendarDays className="h-5 w-5 text-blue-600" />Calendar summary</h2>
+      <h2 id="calendar-summary-title" className="flex items-center gap-2 px-4 text-[1.2rem] font-medium md:px-6"><CalendarDays className="h-5 w-5 text-primary" />Calendar summary</h2>
       <MacroCalendar showPageHeader={false} />
     </section>
     <section aria-label="Market news" className="px-4 md:px-6"><AlphaVantageNews /></section>

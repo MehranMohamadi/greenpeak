@@ -76,7 +76,7 @@ export default function AlertNotifications({ alerts = [] }) {
       case "medium":
         return "border-yellow-500 bg-yellow-500/10 backdrop-blur-sm"
       case "info":
-        return "border-blue-500 bg-blue-500/10 backdrop-blur-sm"
+        return "border-cyan-500 bg-cyan-500/10 backdrop-blur-sm"
       default:
         return "border-slate-500 bg-slate-500/10 backdrop-blur-sm"
     }
@@ -90,7 +90,7 @@ export default function AlertNotifications({ alerts = [] }) {
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Bell className="h-5 w-5 text-blue-400" />
+              <Bell className="h-5 w-5 text-cyan-400" />
               <span className="font-semibold text-white">Alerts ({activeAlerts.length})</span>
             </div>
             <div className="flex items-center gap-2">

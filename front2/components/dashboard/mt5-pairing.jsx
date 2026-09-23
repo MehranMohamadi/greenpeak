@@ -67,15 +67,19 @@ export default function MT5Pairing({ accessToken }) {
     window.setTimeout(() => setCopied(false), 1500)
   }
 
-  return <Card className="border-emerald-500/20">
+  return <Card className="border-primary/20">
     <CardHeader>
-      <CardTitle className="flex items-center gap-2"><Link2 className="h-5 w-5 text-emerald-500" />Connect MetaTrader 5</CardTitle>
+      <CardTitle className="flex items-center gap-2"><Link2 className="h-5 w-5 text-primary" />Connect MetaTrader 5</CardTitle>
       <CardDescription>Create a one-time pairing token, then paste it into the GreenPeakApiToken input of the GreenPeak EA.</CardDescription>
     </CardHeader>
     <CardContent className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input value={label} maxLength={80} onChange={(event) => setLabel(event.target.value)} placeholder="Account label" />
-        <Button onClick={createConnection} disabled={loading || !label.trim()} className="shrink-0">
+        <Button
+          onClick={createConnection}
+          disabled={loading || !label.trim()}
+          className="shrink-0 border border-zinc-950 bg-zinc-950 text-white hover:bg-zinc-800 hover:text-white focus-visible:ring-zinc-950 dark:border-white dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 dark:hover:text-zinc-950 dark:focus-visible:ring-white"
+        >
           {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Link2 className="mr-2 h-4 w-4" />}Generate pairing token
         </Button>
       </div>
@@ -83,7 +87,7 @@ export default function MT5Pairing({ accessToken }) {
       {pairingToken && <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
         <p className="font-medium">Save this token now. It will not be shown again.</p>
         <div className="flex gap-2">
-          <code className="min-w-0 flex-1 overflow-x-auto rounded bg-slate-950 p-3 text-xs text-emerald-300" dir="ltr">{pairingToken}</code>
+          <code className="min-w-0 flex-1 overflow-x-auto rounded bg-slate-950 p-3 text-xs text-cyan-300" dir="ltr">{pairingToken}</code>
           <Button variant="outline" size="icon" onClick={copyToken} aria-label="Copy pairing token">{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}</Button>
         </div>
         <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">

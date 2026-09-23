@@ -9,9 +9,9 @@ export default function AnalyticsGrid() {
     <section className="space-y-5 px-4 pb-10 md:px-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Research map</p>
-          <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-white">Eight market-analysis groups</h2>
-          <p className="mt-2 max-w-3xl text-sm text-slate-600 dark:text-slate-400">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Research map</p>
+          <h2 className="mt-1 text-2xl font-semibold text-foreground">Eight market-analysis groups</h2>
+          <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
             Each indicator has one owner. Missing or unverified inputs are shown as unavailable instead of being replaced with placeholder values or scores.
           </p>
         </div>
@@ -22,25 +22,25 @@ export default function AnalyticsGrid() {
           const Icon = category.icon
           return (
             <Link key={category.page} href={`/analytics/${category.page}`} className="group h-full">
-              <Card className="h-full border-slate-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md dark:border-[#2B2B30] dark:bg-[#1F1F23] dark:hover:border-slate-600">
+              <Card className="h-full transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-3">
-                    <span className={`rounded-xl bg-gradient-to-br p-2.5 shadow-sm ${category.color}`}>
-                      <Icon className="h-5 w-5 text-white" />
+                    <span className="rounded-xl bg-primary/10 p-2.5 text-primary">
+                      <Icon className="h-5 w-5" />
                     </span>
-                    <span className="text-xs font-semibold tabular-nums text-slate-400">{String(index + 1).padStart(2, "0")}</span>
+                    <span className="text-xs font-medium tabular-nums text-muted-foreground">{String(index + 1).padStart(2, "0")}</span>
                   </div>
-                  <CardTitle className="pt-3 text-base leading-snug text-slate-900 dark:text-white">{category.name}</CardTitle>
+                  <CardTitle className="pt-2 leading-snug">{category.name}</CardTitle>
                 </CardHeader>
                 <CardContent className="flex h-[calc(100%-7rem)] flex-col justify-between gap-4">
-                  <p className="text-sm leading-6 text-slate-600 dark:text-slate-400">{category.description}</p>
+                  <p className="text-sm leading-6 text-muted-foreground">{category.description}</p>
                   <div>
                     <div className="flex flex-wrap gap-1.5">
                       {category.subgroups.map((subgroup) => (
-                        <span key={subgroup} className="rounded-full bg-slate-100 px-2 py-1 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">{subgroup}</span>
+                        <span key={subgroup} className="rounded-full bg-secondary px-2 py-1 text-[11px] text-secondary-foreground">{subgroup}</span>
                       ))}
                     </div>
-                    <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-blue-700 dark:text-blue-300">
+                    <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary">
                       Open analysis
                       <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </span>
@@ -54,9 +54,9 @@ export default function AnalyticsGrid() {
 
       <div>
         <Link href="/analytics/events" className="group">
-          <Card className="h-full border-slate-200 bg-white transition-colors hover:border-blue-400 dark:border-[#2B2B30] dark:bg-[#1F1F23] dark:hover:border-blue-500">
-            <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base"><Newspaper className="h-5 w-5 text-blue-600" />News &amp; Events</CardTitle></CardHeader>
-            <CardContent className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400"><CalendarDays className="h-4 w-4 shrink-0" />Economic calendar summary followed by independent market-news feeds.</CardContent>
+          <Card className="h-full transition-colors hover:border-primary/50">
+            <CardHeader><CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-primary" />News &amp; Events</CardTitle></CardHeader>
+            <CardContent className="flex items-center gap-2 text-sm text-muted-foreground"><CalendarDays className="h-4 w-4 shrink-0" />Economic calendar summary followed by independent market-news feeds.</CardContent>
           </Card>
         </Link>
       </div>

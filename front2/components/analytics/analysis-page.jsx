@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import CategoryGrid from "./category-grid"
 
 export function AnalysisPageShell({ children, className }) {
-  return <div className={cn("space-y-6 bg-white p-4 dark:bg-[#0F0F12] md:p-6", className)}>{children}</div>
+  return <div className={cn("space-y-5 bg-background p-3 md:p-4", className)}>{children}</div>
 }
 
 export function AnalysisPageHeader({ page, title, description, icon: IconOverride, actions, showDescription = true }) {
@@ -28,31 +28,31 @@ export function AnalysisPageHeader({ page, title, description, icon: IconOverrid
 
   return (
     <>
-      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">
+          <h1 className="flex items-center gap-3 text-2xl font-semibold text-foreground md:text-3xl">
             {Icon && (
-              <span className={cn("rounded-xl bg-gradient-to-br p-2 shadow-sm", category?.color || "from-slate-600 to-slate-700")}>
-                <Icon className="h-6 w-6 text-white" />
+              <span className="rounded-xl bg-primary/10 p-2 text-primary">
+                <Icon className="h-6 w-6" />
               </span>
             )}
             {title || category?.name}
           </h1>
-          {showDescription && <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 md:text-base">
+          {showDescription && <p className="mt-2 text-sm text-muted-foreground md:text-base">
             {description || category?.description}
           </p>}
         </div>
 
         <div className="flex items-center gap-2 self-end md:self-auto">
           {actions}
-          <div className="flex items-center rounded-lg border border-gray-200 bg-white p-1 dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+          <div className="flex items-center rounded-xl border bg-card p-1 shadow-sm">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)} title="Previous category">
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className={cn("h-8 w-8", showCategories && "bg-gray-100 dark:bg-gray-800")}
+              className={cn("h-8 w-8", showCategories && "bg-accent text-accent-foreground")}
               onClick={() => setShowCategories((value) => !value)}
               title="All market analysis categories"
               aria-expanded={showCategories}
@@ -77,10 +77,10 @@ export function AnalysisOverviewGrid({ children, className }) {
 
 export function AnalysisScoreCard({ title, icon: Icon, children, className }) {
   return (
-    <Card className={cn("border-gray-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23] lg:col-span-2", className)}>
+    <Card className={cn("lg:col-span-2", className)}>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          {Icon && <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" />}
+          {Icon && <Icon className="h-4 w-4 text-primary" />}
           {title}
         </CardTitle>
       </CardHeader>
@@ -91,7 +91,7 @@ export function AnalysisScoreCard({ title, icon: Icon, children, className }) {
 
 export function AnalysisChartCard({ title, description, actions, children, footer, className }) {
   return (
-    <Card className={cn("border-gray-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23] lg:col-span-5", className)}>
+    <Card className={cn("lg:col-span-5", className)}>
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
@@ -106,7 +106,7 @@ export function AnalysisChartCard({ title, description, actions, children, foote
   )
 }
 
-export function TimeframeSelector({ periods, value, onChange, accentClass = "bg-blue-600 text-white" }) {
+export function TimeframeSelector({ periods, value, onChange, accentClass = "bg-primary text-primary-foreground" }) {
   return <div className="flex max-w-full gap-1 overflow-x-auto pb-1">{periods.map((period) => (
     <Button key={period} variant={value === period ? "default" : "outline"} size="sm" onClick={() => onChange(period)}
       className={cn("h-8 min-w-10 px-2 text-xs", value === period && accentClass)}>{period}</Button>
@@ -114,21 +114,21 @@ export function TimeframeSelector({ periods, value, onChange, accentClass = "bg-
 }
 
 export function AnalysisFactorGrid({ title, children, className }) {
-  return <section><h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-white">{title}</h2>
+  return <section><h2 className="mb-3 text-[1.2rem] font-medium text-foreground">{title}</h2>
     <div className={cn("grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3", className)}>{children}</div></section>
 }
 
 export function AnalysisFactorCard({ selected, onClick, children, className }) {
   return <Card onClick={onClick} className={cn(
-    "h-full cursor-pointer border-gray-200 bg-white shadow-sm transition-colors dark:border-[#2B2B30] dark:bg-[#1F1F23]",
-    selected && "ring-2 ring-blue-500 bg-blue-50/60 dark:bg-blue-950/30", className
+    "h-full cursor-pointer transition-[border-color,background-color,box-shadow] hover:border-primary/50 hover:shadow-md [&_svg]:!text-primary",
+    selected && "border-primary/60 bg-primary/10 ring-2 ring-primary/30", className
   )}>{children}</Card>
 }
 
 export function AnalysisState({ title, description, tone = "error" }) {
   const isError = tone === "error"
-  return <div className={cn("rounded-lg border p-6 text-center", isError ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20" : "border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/20")}>
-    <div className={cn("text-lg font-semibold", isError ? "text-red-600 dark:text-red-400" : "text-gray-700 dark:text-gray-300")}>{title}</div>
-    {description && <p className={cn("mt-2", isError ? "text-red-600 dark:text-red-400" : "text-gray-600 dark:text-gray-400")}>{description}</p>}
+  return <div className={cn("rounded-xl border p-5 text-center", isError ? "border-destructive/30 bg-destructive/10" : "border-border bg-muted/30")}>
+    <div className={cn("text-[1.2rem] font-medium", isError ? "text-destructive" : "text-foreground")}>{title}</div>
+    {description && <p className={cn("mt-2 text-sm", isError ? "text-destructive" : "text-muted-foreground")}>{description}</p>}
   </div>
 }

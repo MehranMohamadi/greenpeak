@@ -8,7 +8,7 @@ export default function Portfolio({ snapshots = [] }) {
   return <Card className={tradingCardClass}>
     <CardHeader className={tradingCardHeaderClass}>
       <CardTitle className="flex items-center gap-2 text-base text-gray-900 dark:text-white">
-        <PieChart className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+        <PieChart className="h-5 w-5 text-primary" />
         حساب و پرتفو
       </CardTitle>
     </CardHeader>

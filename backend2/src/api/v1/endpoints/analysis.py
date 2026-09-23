@@ -9,6 +9,7 @@ from pymongo.errors import PyMongoError
 from ....core.config import get_settings
 from ....services.greenpeak_config import load_registry
 from ....services.daily_analysis import next_scheduled_analysis_at
+from ....services.llm_engine.local_cache import LocalNarrativeCache, NarrativeCacheError
 from ....services.llm_engine.repository import MongoNarrativeRepository
 from ....services.llm_engine.schemas import DomainNarrative, IndicatorNarrative, MarketNarrative
 from ....services.llm_engine.provider import OpenAICompatibleProvider
@@ -18,19 +19,60 @@ from ....utils.telegram import build_telegram_market_report, send_telegram_marke
 router = APIRouter(tags=["Persisted GreenPeak Analysis"])
 
 
+def _validated_response(document: dict, model, storage: str):
+    allowed_fields = model.model_fields
+    compatible_document = {key: value for key, value in document.items() if key in allowed_fields}
+    data = model.model_validate(compatible_document).model_dump(mode="json")
+    return {"ok": True, "data": data, "metadata": {"storage": storage}}
+
+
+def _local_cache(settings) -> LocalNarrativeCache | None:
+    if settings.environment != "development" or not settings.analysis_local_fallback_enabled:
+        return None
+    return LocalNarrativeCache(settings.analysis_local_db_path)
+
+
+def _cached_or_not_generated(cache: LocalNarrativeCache | None, level: str, subject_id: str, model):
+    if cache is not None:
+        cached = cache.latest(level, subject_id)
+        if cached:
+            return _validated_response(cached, model, "local_cache")
+    raise HTTPException(
+        status_code=404,
+        detail={
+            "code": "ANALYSIS_NOT_GENERATED",
+            "message": "No validated analysis snapshot is available yet.",
+        },
+    )
+
+
 def _latest(level: str, subject_id: str, model):
     settings = get_settings()
+    try:
+        cache = _local_cache(settings)
+    except NarrativeCacheError:
+        cache = None
     client = MongoClient(settings.mongodb_url, serverSelectionTimeoutMS=3000)
     try:
         document = MongoNarrativeRepository(client, settings.mongodb_database).latest(level, subject_id)
         if not document:
-            raise HTTPException(status_code=404, detail={"code": "ANALYSIS_NOT_GENERATED", "message": "Analysis has not been generated yet."})
-        allowed_fields = model.model_fields
-        compatible_document = {key: value for key, value in document.items() if key in allowed_fields}
-        return {"ok": True, "data": model.model_validate(compatible_document).model_dump(mode="json")}
+            return _cached_or_not_generated(cache, level, subject_id, model)
+        response = _validated_response(document, model, "mongodb")
+        if cache is not None:
+            try:
+                cache.save(level, subject_id, response["data"])
+            except NarrativeCacheError:
+                # A cache write must never hide a valid MongoDB response.
+                pass
+        return response
     except HTTPException:
         raise
     except PyMongoError:
+        if cache is not None:
+            try:
+                return _cached_or_not_generated(cache, level, subject_id, model)
+            except NarrativeCacheError:
+                pass
         raise HTTPException(status_code=503, detail={"code": "ANALYSIS_STORE_UNAVAILABLE", "message": "Analysis storage is temporarily unavailable."})
     finally:
         client.close()
@@ -54,9 +96,7 @@ def latest_domain_analysis(domain_id: str):
 def latest_market_analysis():
     response = _latest("market", "sp500", MarketNarrative)
     next_analysis_at = next_scheduled_analysis_at()
-    response["metadata"] = {
-        "next_analysis_at": next_analysis_at.isoformat() if next_analysis_at else None,
-    }
+    response.setdefault("metadata", {})["next_analysis_at"] = next_analysis_at.isoformat() if next_analysis_at else None
     return response
 
 

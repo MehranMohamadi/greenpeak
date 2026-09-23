@@ -74,12 +74,12 @@ export default function MarketOverview() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-slate-400 text-sm">{item.title}</span>
-                <Icon className={`h-4 w-4 ${item.trend === "up" ? "text-green-400" : "text-red-400"}`} />
+                <Icon className={`h-4 w-4 ${item.trend === "up" ? "text-cyan-400" : "text-red-400"}`} />
               </div>
               <div className="space-y-1">
                 <div className="text-xl font-bold text-white">{item.value}</div>
                 <div
-                  className={`text-sm flex items-center gap-1 ${item.trend === "up" ? "text-green-400" : "text-red-400"}`}
+                  className={`text-sm flex items-center gap-1 ${item.trend === "up" ? "text-cyan-400" : "text-red-400"}`}
                 >
                   <span>{item.change}</span>
                   <span>({item.changePercent})</span>

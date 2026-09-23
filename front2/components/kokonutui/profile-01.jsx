@@ -87,14 +87,14 @@ export default function ProfileDropdown({
                             aria-label={triggerLabel}
                             title={triggerLabel}
                             className={cn(
-                                "flex items-center focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all duration-200",
+                                "flex items-center focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200",
                                 showLabel
                                     ? "w-full rounded-lg p-2 text-sm hover:bg-gray-100 dark:hover:bg-[#1F1F23]"
                                     : "rounded-full",
                                 triggerClassName
                             )}
                         >
-                            <div className="w-7 h-7 shrink-0 rounded-full bg-gradient-to-br from-green-500 via-emerald-500 to-green-600 p-0.5 hover:scale-105 transition-transform duration-200">
+                            <div className="w-7 h-7 shrink-0 rounded-full bg-gradient-to-br from-cyan-400 via-cyan-500 to-cyan-600 p-0.5 hover:scale-105 transition-transform duration-200">
                                 <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-zinc-900">
                                     <Image
                                         src={profileData.avatar}
@@ -130,7 +130,7 @@ export default function ProfileDropdown({
                             className={cn(
                                 "transition-all duration-200",
                                 isOpen
-                                    ? "text-green-500 dark:text-green-400"
+                                    ? "text-cyan-500 dark:text-cyan-400"
                                     : "text-zinc-400 dark:text-zinc-500"
                             )}
                             aria-hidden="true"
@@ -154,7 +154,7 @@ export default function ProfileDropdown({
                         {/* User Info Header */}
                         <div className="px-3 py-2 border-b border-zinc-200/60 dark:border-zinc-800/60 mb-2">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 via-emerald-500 to-green-600 p-0.5">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 via-cyan-500 to-cyan-600 p-0.5">
                                     <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-zinc-900">
                                         <Image
                                             src={profileData.avatar}
@@ -184,7 +184,7 @@ export default function ProfileDropdown({
                                         className="flex items-center p-3 hover:bg-zinc-100/80 dark:hover:bg-zinc-800/60 rounded-xl transition-all duration-200 cursor-pointer group hover:shadow-sm border border-transparent hover:border-zinc-200/50 dark:hover:border-zinc-700/50"
                                     >
                                         <div className="flex items-center gap-3 flex-1">
-                                            <div className="text-zinc-600 dark:text-zinc-400 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                                            <div className="text-zinc-600 dark:text-zinc-400 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
                                                 {item.icon}
                                             </div>
                                             <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100 tracking-tight leading-tight whitespace-nowrap group-hover:text-zinc-950 dark:group-hover:text-zinc-50 transition-colors">
@@ -196,7 +196,7 @@ export default function ProfileDropdown({
                                                 <span
                                                     className={cn(
                                                         "text-xs font-medium rounded-md py-1 px-2 tracking-tight",
-                                                        "text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-500/10 border border-green-500/10"
+                                                        "text-cyan-600 bg-cyan-50 dark:text-cyan-400 dark:bg-cyan-500/10 border border-cyan-500/10"
                                                     )}
                                                 >
                                                     {item.value}

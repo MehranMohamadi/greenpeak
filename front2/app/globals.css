@@ -4,58 +4,61 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 190 20% 98%;
+    --foreground: 195 20% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 195 20% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --radius: 0.5rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --popover-foreground: 195 20% 12%;
+    /* GreenPeak cyan: accessible UI tone with #06B6D4 for chart lines. */
+    --primary: 190 82% 31%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 188 55% 92%;
+    --secondary-foreground: 190 55% 18%;
+    --muted: 190 12% 94%;
+    --muted-foreground: 192 9% 42%;
+    --accent: 188 55% 91%;
+    --accent-foreground: 190 55% 17%;
+    --destructive: 2 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 190 12% 86%;
+    --input: 190 12% 82%;
+    --ring: 190 82% 31%;
+    --radius: 0.75rem;
+    --chart-1: 189 94% 43%;
+    --chart-2: 2 70% 55%;
+    --chart-3: 39 66% 54%;
+    --chart-4: 190 70% 35%;
+    --chart-5: 2 55% 42%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --background: 330 16% 8%;
+    --foreground: 190 14% 94%;
+    --card: 330 12% 12%;
+    --card-foreground: 190 14% 94%;
+    --popover: 330 12% 12%;
+    --popover-foreground: 190 14% 94%;
+    --primary: 188 86% 53%;
+    --primary-foreground: 190 55% 10%;
+    --secondary: 190 35% 17%;
+    --secondary-foreground: 187 65% 90%;
+    --muted: 330 9% 17%;
+    --muted-foreground: 335 7% 67%;
+    --accent: 190 35% 19%;
+    --accent-foreground: 187 70% 91%;
+    --destructive: 2 64% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 330 10% 24%;
+    --input: 330 10% 28%;
+    --ring: 188 86% 53%;
+    --chart-1: 188 86% 53%;
+    --chart-2: 2 70% 60%;
+    --chart-3: 39 66% 58%;
+    --chart-4: 190 70% 42%;
+    --chart-5: 2 56% 48%;
   }
+
 }
 
 @layer base {
@@ -63,7 +66,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
 }
 
@@ -255,11 +258,11 @@
 }
 
 .glow-blue {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.5);
 }
 
 .glow-green {
-  box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.5);
 }
 
 /* Enhanced Animations */
@@ -392,10 +395,10 @@
 
 @keyframes glow {
   0%, 100% { 
-    box-shadow: 0 0 5px rgba(59, 130, 246, 0.3); 
+    box-shadow: 0 0 5px rgba(6, 182, 212, 0.3);
   }
   50% { 
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.6), 0 0 30px rgba(59, 130, 246, 0.4); 
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.6), 0 0 30px rgba(6, 182, 212, 0.4);
   }
 }
 
@@ -453,7 +456,7 @@
   transition: box-shadow 0.3s ease;
 }
 .hover-glow:hover {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
 }
 
 /* Loading States */
@@ -511,19 +514,19 @@
 
 /* Enhanced Gradients */
 .gradient-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
 }
 
 .gradient-success {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%);
 }
 
 .gradient-warning {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: linear-gradient(135deg, #fbbf24 0%, #d7a33d 100%);
 }
 
 .gradient-danger {
-  background: linear-gradient(135deg, #ff9a8b 0%, #a8edea 100%);
+  background: linear-gradient(135deg, #ef4444 0%, #e05252 100%);
 }
 
 /* Chart Animations */

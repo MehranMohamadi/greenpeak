@@ -1,12 +1,11 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Globe } from "lucide-react"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import MarketWatchLoadingSkeleton from "../dashboard/market-watch-loading"
 
 export default function DashboardLoadingSkeleton() {
   return (
-    <div className="min-h-screen bg-white dark:bg-[#0F0F12] w-full">
+    <div className="min-h-screen w-full bg-background">
       <div className="p-4 pt-2 md:p-6 space-y-4 md:space-y-6 max-w-full overflow-hidden">
         {/* Header Loading - Responsive */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
@@ -23,7 +22,7 @@ export default function DashboardLoadingSkeleton() {
         </div>
 
         {/* News Ticker Loading */}
-        <Card className="w-full bg-white dark:bg-[#1F1F23] border-gray-200 dark:border-[#2B2B30]">
+        <Card className="w-full">
           <CardContent className="p-4">
             <div className="flex items-center gap-4">
               <div className="h-6 bg-red-200 dark:bg-red-800 rounded w-16 animate-pulse"></div>
@@ -42,7 +41,7 @@ export default function DashboardLoadingSkeleton() {
           {/* Left Column */}
           <div className="space-y-4 md:space-y-6 min-w-0">
             {/* Portfolio Loading */}
-            <Card className="bg-white dark:bg-[#1F1F23] border-gray-200 dark:border-[#2B2B30]">
+            <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-24 animate-pulse"></div>
@@ -65,13 +64,13 @@ export default function DashboardLoadingSkeleton() {
             </Card>
 
             {/* Broker Accounts Loading */}
-            <Card className="bg-white dark:bg-[#1F1F23] border-gray-200 dark:border-[#2B2B30]">
+            <Card>
               <CardHeader>
                 <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-32 animate-pulse"></div>
               </CardHeader>
               <CardContent className="space-y-3">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#0F0F12] rounded">
+                  <div key={i} className="flex items-center justify-between rounded-lg bg-muted/30 p-3">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
                       <div className="space-y-1">
@@ -92,7 +91,7 @@ export default function DashboardLoadingSkeleton() {
           {/* Right Column */}
           <div className="space-y-4 md:space-y-6 min-w-0">
             {/* Last Trades Loading */}
-            <Card className="bg-white dark:bg-[#1F1F23] border-gray-200 dark:border-[#2B2B30]">
+            <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-24 animate-pulse"></div>
@@ -101,7 +100,7 @@ export default function DashboardLoadingSkeleton() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#0F0F12] rounded">
+                  <div key={i} className="flex items-center justify-between rounded-lg bg-muted/30 p-3">
                     <div className="space-y-1">
                       <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-16 animate-pulse"></div>
                       <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded w-12 animate-pulse"></div>
@@ -116,13 +115,13 @@ export default function DashboardLoadingSkeleton() {
             </Card>
 
             {/* Trading Positions Loading */}
-            <Card className="bg-white dark:bg-[#1F1F23] border-gray-200 dark:border-[#2B2B30]">
+            <Card>
               <CardHeader>
                 <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-32 animate-pulse"></div>
               </CardHeader>
               <CardContent className="space-y-3">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="p-3 bg-gray-50 dark:bg-[#0F0F12] rounded space-y-2">
+                  <div key={i} className="space-y-2 rounded-lg bg-muted/30 p-3">
                     <div className="flex items-center justify-between">
                       <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-16 animate-pulse"></div>
                       <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-12 animate-pulse"></div>

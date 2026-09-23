@@ -59,11 +59,11 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
 
   if (compact) {
     return (
-      <Card className="flex h-64 min-h-0 flex-col overflow-hidden border-slate-700/60 bg-[#111c33]/90 text-slate-100" dir="ltr">
-        <CardHeader className="shrink-0 space-y-2 border-b border-slate-700/60 p-3 pb-2">
+      <Card className="flex h-64 min-h-0 flex-col overflow-hidden" dir="ltr">
+        <CardHeader className="shrink-0 space-y-2 border-b border-border p-3 pb-2">
           <div className="flex items-center justify-between gap-2">
             <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
-              <Activity className="h-4 w-4 shrink-0 text-cyan-400" />
+              <Activity className="h-4 w-4 shrink-0 text-primary" />
               <span className="truncate">S&amp;P 500</span>
             </CardTitle>
             <Button
@@ -72,7 +72,7 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
               size="icon"
               onClick={refresh}
               disabled={loading || refreshing}
-              className="h-7 w-7 shrink-0 text-slate-400 hover:bg-slate-800 hover:text-cyan-300"
+              className="h-7 w-7 shrink-0 text-muted-foreground hover:bg-accent hover:text-primary"
               aria-label="Refresh S&P 500 chart"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
@@ -87,8 +87,8 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
                 aria-pressed={selectedTimeframe === timeframe}
                 className={`rounded px-1 py-1 text-[10px] font-medium transition-colors ${
                   selectedTimeframe === timeframe
-                    ? "bg-cyan-500/15 text-cyan-300"
-                    : "text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
                 }`}
               >
                 {timeframe}
@@ -98,12 +98,12 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
         </CardHeader>
         <CardContent className="min-h-0 flex-1 p-0">
           {loading && data.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-xs text-slate-400">
-              <LoaderCircle className="mr-2 h-4 w-4 animate-spin text-cyan-400" />
+            <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+              <LoaderCircle className="mr-2 h-4 w-4 animate-spin text-primary" />
               Loading…
             </div>
           ) : error && data.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center text-xs text-slate-400">
+            <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center text-xs text-muted-foreground">
               <AlertCircle className="h-5 w-5 text-amber-400" />
               S&amp;P 500 data is unavailable.
             </div>
@@ -116,7 +116,7 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
   }
 
   return (
-    <div className="min-h-screen w-full bg-white dark:bg-[#0F0F12]">
+    <div className="min-h-screen w-full bg-background">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -124,17 +124,17 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
         className="max-w-full space-y-6 overflow-hidden p-4 md:p-6"
       >
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-5">
-          <TabsList className="grid w-full grid-cols-2 rounded-xl bg-gray-100 p-1 dark:bg-gray-800 sm:w-[320px]">
+          <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted p-1 sm:w-[320px]">
             <TabsTrigger
               value="overview"
-              className="flex items-center gap-2 rounded-lg transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
+              className="flex items-center gap-2 rounded-lg transition-all duration-300 data-[state=active]:bg-background data-[state=active]:text-foreground"
             >
               <BarChart3 className="h-4 w-4" />
               Overview
             </TabsTrigger>
             <TabsTrigger
               value="analytics"
-              className="flex items-center gap-2 rounded-lg transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
+              className="flex items-center gap-2 rounded-lg transition-all duration-300 data-[state=active]:bg-background data-[state=active]:text-foreground"
             >
               <Zap className="h-4 w-4" />
               Analytics
@@ -149,12 +149,12 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.35 }}
               >
-                <Card className="overflow-hidden border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900/50">
+                <Card className="overflow-hidden border-border bg-card shadow-sm">
                   <CardHeader className="border-b border-border/60 pb-4">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0">
                         <CardTitle className="flex items-center gap-2 text-xl">
-                          <Activity className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
+                          <Activity className="h-5 w-5 shrink-0 text-primary" />
                           US 500
                           <span
                             className={`h-2 w-2 shrink-0 rounded-full ${
@@ -162,7 +162,7 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
                                 ? "bg-amber-500 shadow-[0_0_0_4px_rgba(245,158,11,0.12)]"
                                 : loading
                                   ? "bg-slate-400"
-                                  : "bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
+                                  : "bg-primary shadow-[0_0_0_4px_rgba(6,182,212,0.12)]"
                             }`}
                           />
                         </CardTitle>
@@ -222,12 +222,12 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
                   </CardHeader>
                   <CardContent className="p-0">
                     {loading && data.length === 0 ? (
-                      <div className="flex h-[420px] items-center justify-center bg-slate-50 text-sm text-muted-foreground sm:h-[520px] lg:h-[600px] dark:bg-slate-950/50">
-                        <LoaderCircle className="mr-2 h-5 w-5 animate-spin text-blue-600 dark:text-blue-400" />
+                      <div className="flex h-[420px] items-center justify-center bg-muted/30 text-sm text-muted-foreground sm:h-[520px] lg:h-[600px]">
+                        <LoaderCircle className="mr-2 h-5 w-5 animate-spin text-primary" />
                         Loading S&amp;P 500 data…
                       </div>
                     ) : error && data.length === 0 ? (
-                      <div className="flex h-[420px] flex-col items-center justify-center gap-3 bg-slate-50 p-6 text-center sm:h-[520px] lg:h-[600px] dark:bg-slate-950/50">
+                      <div className="flex h-[420px] flex-col items-center justify-center gap-3 bg-muted/30 p-6 text-center sm:h-[520px] lg:h-[600px]">
                         <AlertCircle className="h-7 w-7 text-amber-500" />
                         <div>
                           <p className="font-medium text-foreground">
@@ -264,10 +264,10 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.35 }}
               >
-                <Card className="border-blue-200 dark:border-blue-800">
+                <Card className="border-primary/30">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      <Zap className="h-5 w-5 text-primary" />
                       Market Analysis
                     </CardTitle>
                     <CardDescription>
@@ -286,7 +286,7 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
                         >
                           <Button
                             variant="outline"
-                            className="h-auto w-full justify-start gap-3 bg-white px-4 py-3 text-left transition-colors hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700"
+                            className="h-auto w-full justify-start gap-3 bg-background px-4 py-3 text-left transition-colors hover:bg-accent"
                           >
                             <item.icon className="h-4 w-4 shrink-0" />
                             <span className="truncate">{item.text}</span>

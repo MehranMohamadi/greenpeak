@@ -94,7 +94,7 @@ export default function FeaturePipelineDebug() {
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-sm text-blue-600"><Database className="h-4 w-4" />Developer View</div>
+            <div className="mb-2 flex items-center gap-2 text-sm text-primary"><Database className="h-4 w-4" />Developer View</div>
             <h1 className="text-3xl font-bold">Rate Feature Pipeline JSON</h1>
             <p className="mt-2 text-muted-foreground">Verified project observations are processed in Python; this page only displays each stage.</p>
           </div>

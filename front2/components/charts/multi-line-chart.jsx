@@ -80,7 +80,7 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false,
         // Define colors for the lines
         const colors = Array.isArray(seriesColors) && seriesColors.length
           ? seriesColors
-          : ["#26a69a", "#ef5350", "#42a5f5", "#ab47bc", "#ffa726"]
+          : ["#06B6D4", "#E05252", "#D7A33D"]
 
         setError(null)
         dataSets.forEach((seriesData, index) => {

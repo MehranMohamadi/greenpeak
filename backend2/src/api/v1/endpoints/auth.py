@@ -1,5 +1,6 @@
 """Public signup/login endpoints and authenticated session lookup."""
 
+from functools import lru_cache
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,7 +9,7 @@ from pydantic import BaseModel, Field
 from pymongo.errors import PyMongoError
 
 from ....core.config import get_settings
-from ....services.auth import AuthError, AuthService
+from ....services.auth import AuthError, AuthService, AuthStorageError
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -32,8 +33,12 @@ class AuthResponse(BaseModel):
     user: UserResponse
 
 
+@lru_cache(maxsize=1)
 def get_auth_service() -> AuthService:
-    return AuthService.from_settings(get_settings())
+    try:
+        return AuthService.from_settings(get_settings())
+    except (AuthStorageError, PyMongoError) as exc:
+        raise auth_failure(exc) from exc
 
 
 def auth_failure(exc: Exception) -> HTTPException:
@@ -47,7 +52,7 @@ def signup(credentials: Credentials, service: Annotated[AuthService, Depends(get
     try:
         user, token = service.signup(credentials.username, credentials.password)
         return AuthResponse(access_token=token, user=UserResponse(**user))
-    except (AuthError, PyMongoError) as exc:
+    except (AuthError, AuthStorageError, PyMongoError) as exc:
         error = auth_failure(exc)
         if isinstance(exc, AuthError) and "already registered" in str(exc):
             error.status_code = status.HTTP_409_CONFLICT
@@ -62,7 +67,7 @@ def login(credentials: Credentials, service: Annotated[AuthService, Depends(get_
             service.ensure_test_user(settings.auth_local_test_username, settings.auth_local_test_password)
         user, token = service.login(credentials.username, credentials.password)
         return AuthResponse(access_token=token, user=UserResponse(**user))
-    except (AuthError, PyMongoError) as exc:
+    except (AuthError, AuthStorageError, PyMongoError) as exc:
         raise auth_failure(exc) from exc
 
 
@@ -75,7 +80,7 @@ def me(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
     try:
         return UserResponse(**service.user_from_token(credentials.credentials))
-    except (AuthError, PyMongoError) as exc:
+    except (AuthError, AuthStorageError, PyMongoError) as exc:
         raise auth_failure(exc) from exc
 
 
@@ -88,5 +93,5 @@ def require_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
     try:
         return service.user_from_token(credentials.credentials)
-    except (AuthError, PyMongoError) as exc:
+    except (AuthError, AuthStorageError, PyMongoError) as exc:
         raise auth_failure(exc) from exc

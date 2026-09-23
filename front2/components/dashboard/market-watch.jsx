@@ -155,13 +155,13 @@ function unavailableMarketItem(series) {
 }
 
 function trendColor(trend) {
-  if (trend === "up") return "text-green-600 dark:text-green-400"
+  if (trend === "up") return "text-cyan-600 dark:text-cyan-400"
   if (trend === "down") return "text-red-600 dark:text-red-400"
   return "text-gray-500 dark:text-gray-400"
 }
 
 function trendStroke(trend) {
-  if (trend === "up") return "#10b981"
+  if (trend === "up") return "#06B6D4"
   if (trend === "down") return "#ef4444"
   return "#9ca3af"
 }
@@ -218,7 +218,7 @@ function MiniChart({ data, trend }) {
 }
 
 function TrendIcon({ trend }) {
-  if (trend === "up") return <TrendingUp className="h-3 w-3 text-green-500" />
+  if (trend === "up") return <TrendingUp className="h-3 w-3 text-cyan-500" />
   if (trend === "down") return <TrendingDown className="h-3 w-3 text-red-500" />
   return <Minus className="h-3 w-3 text-gray-400" />
 }
@@ -274,12 +274,12 @@ export default function MarketWatch() {
           dir="rtl"
           className="flex w-full items-center justify-start gap-2 text-right text-sm text-gray-900 dark:text-white md:text-base"
         >
-          <Globe className="h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+          <Globe className="h-4 w-4 flex-shrink-0 text-cyan-600 dark:text-cyan-400" />
           <span>دیده بان بازار</span>
           <motion.div
             animate={{ scale: [1, 1.2, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
-            className="live-indicator h-2 w-2 flex-shrink-0 rounded-full bg-green-400"
+            className="live-indicator h-2 w-2 flex-shrink-0 rounded-full bg-cyan-400"
           />
         </CardTitle>
       </CardHeader>
@@ -335,7 +335,7 @@ export default function MarketWatch() {
                       animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
                       transition={{ duration: 1.5, repeat: Infinity }}
                       className={`h-1.5 w-1.5 rounded-full ${
-                        item.trend === "up" ? "bg-green-400" : item.trend === "down" ? "bg-red-400" : "bg-gray-400"
+                        item.trend === "up" ? "bg-cyan-400" : item.trend === "down" ? "bg-red-400" : "bg-gray-400"
                       }`}
                     />
                   </div>

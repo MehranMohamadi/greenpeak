@@ -49,7 +49,7 @@ export default function DataUpdateButton({ updateType = "all", size = "sm", vari
       return <AlertCircle className="h-4 w-4 text-red-500" />;
     }
     if (lastUpdate) {
-      return <CheckCircle className="h-4 w-4 text-green-500" />;
+      return <CheckCircle className="h-4 w-4 text-cyan-500" />;
     }
     return <RefreshCw className="h-4 w-4" />;
   };
@@ -82,7 +82,7 @@ export default function DataUpdateButton({ updateType = "all", size = "sm", vari
       )}
       
       {lastUpdate && !error && (
-        <span className="text-xs text-green-600">
+        <span className="text-xs text-cyan-600">
           Updated at {lastUpdate.toLocaleTimeString()}
         </span>
       )}
