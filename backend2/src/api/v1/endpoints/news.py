@@ -100,13 +100,15 @@ def news_item_analysis(item_id: str = Path(pattern=r"^[a-zA-Z0-9_-]{1,80}$")):
 def upcoming_calendar_events(limit: int = Query(default=6, ge=1, le=10)):
     try:
         items = fetch_upcoming_us_events(limit=limit)
+        source = items[0].get("source") if items else "Tradays / MQL5"
+        source_url = items[0].get("source_url") if items else TRADAYS_BASE_URL
         return {
             "ok": True,
             "data": {
                 "items": items,
                 "count": len(items),
-                "source": "Tradays / MQL5",
-                "source_url": TRADAYS_BASE_URL,
+                "source": source,
+                "source_url": source_url,
             },
         }
     except (httpx.HTTPError, ValueError):
@@ -123,13 +125,15 @@ def upcoming_calendar_events(limit: int = Query(default=6, ge=1, le=10)):
 def released_calendar_events(limit: int = Query(default=6, ge=1, le=10)):
     try:
         items = fetch_recent_us_events(limit=limit)
+        source = items[0].get("source") if items else "Tradays / MQL5"
+        source_url = items[0].get("source_url") if items else TRADAYS_BASE_URL
         return {
             "ok": True,
             "data": {
                 "items": items,
                 "count": len(items),
-                "source": "Tradays / MQL5",
-                "source_url": TRADAYS_BASE_URL,
+                "source": source,
+                "source_url": source_url,
             },
         }
     except (httpx.HTTPError, ValueError):

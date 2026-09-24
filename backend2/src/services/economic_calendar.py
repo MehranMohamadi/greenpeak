@@ -7,6 +7,8 @@ import httpx
 
 TRADAYS_CONTENT_URL = "https://www.tradays.com/en/economic-calendar/widget/content"
 TRADAYS_BASE_URL = "https://www.tradays.com"
+TRADINGVIEW_CALENDAR_URL = "https://economic-calendar.tradingview.com/events"
+TRADINGVIEW_BASE_URL = "https://www.tradingview.com/economic-calendar/"
 
 EVENT_TITLES_FA = {
     "adp-nonfarm-employment-change": "تغییر اشتغال بخش خصوصی ADP",
@@ -43,6 +45,40 @@ EVENT_TITLES_FA = {
     "producer-price-index-yy": "تورم تولیدکننده سالانه",
     "retail-sales-mm": "خرده‌فروشی ماهانه آمریکا",
     "unemployment-rate": "نرخ بیکاری آمریکا",
+}
+
+TRADINGVIEW_TITLES_FA = {
+    "ADP Employment Change": "تغییر اشتغال بخش خصوصی ADP",
+    "Average Hourly Earnings MoM": "تغییر ماهانه متوسط دستمزد ساعتی",
+    "Average Hourly Earnings YoY": "تغییر سالانه متوسط دستمزد ساعتی",
+    "CB Consumer Confidence": "شاخص اعتماد مصرف‌کننده کنفرانس بورد",
+    "Core Inflation Rate MoM": "تورم هسته مصرف‌کننده ماهانه",
+    "Core Inflation Rate YoY": "تورم هسته مصرف‌کننده سالانه",
+    "Core PCE Price Index MoM": "تورم هسته PCE ماهانه",
+    "Core PCE Price Index YoY": "تورم هسته PCE سالانه",
+    "Durable Goods Orders MoM": "سفارش کالاهای بادوام ماهانه",
+    "Fed Interest Rate Decision": "تصمیم نرخ بهره فدرال رزرو",
+    "Fed Press Conference": "نشست خبری فدرال رزرو",
+    "FOMC Economic Projections": "پیش‌بینی‌های اقتصادی کمیته بازار باز فدرال رزرو",
+    "GDP Growth Rate QoQ": "رشد فصلی تولید ناخالص داخلی آمریکا",
+    "Housing Starts": "شروع ساخت‌وساز مسکن آمریکا",
+    "Inflation Rate MoM": "تورم مصرف‌کننده ماهانه",
+    "Inflation Rate YoY": "تورم مصرف‌کننده سالانه",
+    "Initial Jobless Claims": "درخواست‌های اولیه بیمه بیکاری",
+    "ISM Manufacturing PMI": "شاخص مدیران خرید تولیدی ISM",
+    "ISM Services PMI": "شاخص مدیران خرید خدمات ISM",
+    "JOLTs Job Openings": "فرصت‌های شغلی JOLTS",
+    "Michigan Consumer Sentiment Prel": "شاخص مقدماتی اعتماد مصرف‌کننده دانشگاه میشیگان",
+    "Michigan Consumer Sentiment Final": "شاخص نهایی اعتماد مصرف‌کننده دانشگاه میشیگان",
+    "New Home Sales": "فروش خانه‌های نوساز آمریکا",
+    "Non Farm Payrolls": "اشتغال غیرکشاورزی آمریکا",
+    "Nonfarm Payrolls": "اشتغال غیرکشاورزی آمریکا",
+    "PCE Price Index MoM": "تورم PCE ماهانه",
+    "PCE Price Index YoY": "تورم PCE سالانه",
+    "PPI MoM": "تورم تولیدکننده ماهانه",
+    "PPI YoY": "تورم تولیدکننده سالانه",
+    "Retail Sales MoM": "خرده‌فروشی ماهانه آمریکا",
+    "Unemployment Rate": "نرخ بیکاری آمریکا",
 }
 
 
@@ -90,6 +126,98 @@ def _fetch_calendar_rows(start: datetime, end: datetime, timeout: float) -> list
     return payload
 
 
+def _fetch_tradingview_rows(start: datetime, end: datetime, timeout: float) -> list[dict[str, Any]]:
+    response = httpx.get(
+        TRADINGVIEW_CALENDAR_URL,
+        params={
+            "from": start.astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            "to": end.astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            "countries": "US",
+        },
+        headers={
+            "User-Agent": "GreenPeak-Calendar/1.0",
+            "Origin": "https://www.tradingview.com",
+            "Referer": TRADINGVIEW_BASE_URL,
+        },
+        timeout=timeout,
+        follow_redirects=True,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict) or payload.get("status") != "ok" or not isinstance(payload.get("result"), list):
+        raise ValueError("Unexpected TradingView calendar response")
+    return payload["result"]
+
+
+def _tradingview_release_at(row: dict[str, Any]) -> datetime | None:
+    try:
+        release_at = datetime.fromisoformat(str(row["date"]).replace("Z", "+00:00"))
+        if release_at.tzinfo is None:
+            release_at = release_at.replace(tzinfo=UTC)
+        return release_at.astimezone(UTC)
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _tradingview_value(row: dict[str, Any], key: str) -> str | None:
+    value = row.get(key)
+    if value in {None, ""}:
+        return None
+    if isinstance(value, float) and value.is_integer():
+        text = str(int(value))
+    else:
+        text = str(value)
+    unit = str(row.get("unit") or "").strip()
+    return f"{text}{unit}" if unit else text
+
+
+def _tradingview_title_fa(row: dict[str, Any]) -> str:
+    title = str(row.get("title") or row.get("indicator") or "").strip()
+    return TRADINGVIEW_TITLES_FA.get(title, f"رویداد مهم اقتصادی آمریکا — {title}" if title else "رویداد مهم اقتصادی آمریکا")
+
+
+def _tradingview_event(row: dict[str, Any], release_at: datetime) -> dict[str, Any]:
+    return {
+        "event_id": f"tradingview-{row.get('id') or int(release_at.timestamp())}",
+        "title_fa": _tradingview_title_fa(row),
+        "release_at": release_at.isoformat(),
+        "importance": "high",
+        "actual": _tradingview_value(row, "actual"),
+        "forecast": _tradingview_value(row, "forecast"),
+        "previous": _tradingview_value(row, "previous"),
+        "source": "TradingView Economic Calendar",
+        "source_url": TRADINGVIEW_BASE_URL,
+    }
+
+
+def _is_high_importance_us_tradingview_event(row: dict[str, Any]) -> bool:
+    return row.get("importance") == 1 and row.get("country") == "US" and row.get("currency") == "USD"
+
+
+def _tradingview_events(
+    *,
+    start: datetime,
+    end: datetime,
+    anchor: datetime,
+    limit: int,
+    timeout: float,
+    released: bool,
+) -> list[dict[str, Any]]:
+    events = []
+    for row in _fetch_tradingview_rows(start, end, timeout):
+        if not isinstance(row, dict) or not _is_high_importance_us_tradingview_event(row):
+            continue
+        release_at = _tradingview_release_at(row)
+        if release_at is None or (released and release_at > anchor) or (not released and release_at < anchor):
+            continue
+        if released and _tradingview_value(row, "actual") is None:
+            continue
+        events.append(_tradingview_event(row, release_at))
+
+    events.sort(key=lambda item: item["release_at"], reverse=released)
+    return events[:limit]
+
+
 def _calendar_event(row: dict[str, Any], release_at: datetime) -> dict[str, Any]:
     source_path = str(row.get("Url") or "")
     return {
@@ -124,7 +252,17 @@ def fetch_upcoming_us_events(
     anchor = (now or datetime.now(UTC)).astimezone(UTC)
     start = anchor.replace(hour=0, minute=0, second=0, microsecond=0)
     end = anchor + timedelta(days=days)
-    payload = _fetch_calendar_rows(start, end, timeout)
+    try:
+        payload = _fetch_calendar_rows(start, end, timeout)
+    except (httpx.HTTPError, ValueError):
+        return _tradingview_events(
+            start=start,
+            end=end,
+            anchor=anchor,
+            limit=limit,
+            timeout=timeout,
+            released=False,
+        )
 
     events = []
     for row in payload:
@@ -140,7 +278,16 @@ def fetch_upcoming_us_events(
         events.append(_calendar_event(row, release_at))
 
     events.sort(key=lambda item: item["release_at"])
-    return events[:limit]
+    if events:
+        return events[:limit]
+    return _tradingview_events(
+        start=start,
+        end=end,
+        anchor=anchor,
+        limit=limit,
+        timeout=timeout,
+        released=False,
+    )
 
 
 def fetch_recent_us_events(
@@ -153,7 +300,17 @@ def fetch_recent_us_events(
     """Return recently released high-importance U.S. events with actual values."""
     anchor = (now or datetime.now(UTC)).astimezone(UTC)
     start = anchor - timedelta(days=days)
-    payload = _fetch_calendar_rows(start, anchor, timeout)
+    try:
+        payload = _fetch_calendar_rows(start, anchor, timeout)
+    except (httpx.HTTPError, ValueError):
+        return _tradingview_events(
+            start=start,
+            end=anchor,
+            anchor=anchor,
+            limit=limit,
+            timeout=timeout,
+            released=True,
+        )
 
     events = []
     for row in payload:
@@ -170,4 +327,13 @@ def fetch_recent_us_events(
         events.append(_calendar_event(row, release_at))
 
     events.sort(key=lambda item: item["release_at"], reverse=True)
-    return events[:limit]
+    if events:
+        return events[:limit]
+    return _tradingview_events(
+        start=start,
+        end=anchor,
+        anchor=anchor,
+        limit=limit,
+        timeout=timeout,
+        released=True,
+    )

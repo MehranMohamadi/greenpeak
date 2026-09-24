@@ -147,3 +147,26 @@ def test_released_calendar_api_contract(monkeypatch):
     response = TestClient(app).get("/api/v1/news/calendar/released?limit=4")
     assert response.status_code == 200
     assert response.json()["data"]["items"][0]["actual"] == "2.5%"
+
+
+def test_calendar_api_reports_fallback_source(monkeypatch):
+    monkeypatch.setattr(
+        news_endpoint,
+        "fetch_upcoming_us_events",
+        lambda limit: [
+            {
+                "event_id": "tradingview-1",
+                "title_fa": "داده مهم اقتصادی آمریکا",
+                "release_at": "2026-09-25T12:30:00+00:00",
+                "importance": "high",
+                "source": "TradingView Economic Calendar",
+                "source_url": "https://www.tradingview.com/economic-calendar/",
+            }
+        ][:limit],
+    )
+
+    response = TestClient(app).get("/api/v1/news/calendar/upcoming?limit=4")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["source"] == "TradingView Economic Calendar"
+    assert response.json()["data"]["source_url"] == "https://www.tradingview.com/economic-calendar/"
