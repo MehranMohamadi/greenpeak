@@ -10,7 +10,7 @@ function EconomicCalendarWidget() {
   const calendarUrl = `https://www.tradays.com/en/economic-calendar/widget?mode=2&theme=${isDarkTheme ? 1 : 0}&fw=react&importance=12&currencies=1&utm_source=greenpeak`
 
   return (
-    <div className="h-[720px] min-h-[520px] w-full overflow-hidden rounded-lg bg-white dark:bg-slate-950">
+    <div className="h-[576px] min-h-[416px] w-full overflow-hidden rounded-lg bg-white dark:bg-slate-950">
       {resolvedTheme && <iframe
         key={calendarUrl}
         title="United States economic calendar with medium and high importance events"

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, CalendarDays, ChevronLeft, CircleHelp, Clock3, LoaderCircle, Newspaper, ShieldAlert, TrendingDown, TrendingUp, Triangle } from "lucide-react"
+import { AlertTriangle, CalendarDays, ChevronLeft, CircleHelp, Clock3, LoaderCircle, Newspaper, RefreshCw, ShieldAlert, TrendingDown, TrendingUp, Triangle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -156,7 +156,7 @@ function ReleasedEventRow({ item }) {
 }
 
 function CalendarDataCard({ item, children }) {
-  return <div className="rounded-xl border bg-muted/25 p-3 transition hover:border-primary/40">
+  return <div className="rounded-xl border border-border bg-muted/25 p-3">
     <div className="flex items-start justify-between gap-3">
       <a href={item.source_url} target="_blank" rel="noreferrer" className="min-w-0 text-sm font-medium leading-6 hover:text-primary">{item.title_fa}</a>
       {children}
@@ -187,17 +187,26 @@ function InfoDialog({ title, description }) {
 
 function Drivers({ title, items, tone }) {
   const positive = tone === "positive"
-  return <Card className={positive ? "border-primary/30" : "border-destructive/30"}><CardHeader><CardTitle className={`flex items-center gap-2 ${positive ? "text-primary" : "text-destructive"}`}>{positive ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}{title}</CardTitle></CardHeader><CardContent className="space-y-2">{items.length ? items.slice(0, 5).map((item) => <HelpDialog key={item.metric} title={item.title_fa} item={item}><button type="button" className={`flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-right text-sm transition ${positive ? "border-primary/20 bg-primary/10 hover:border-primary/50" : "border-destructive/20 bg-destructive/10 hover:border-destructive/50"}`}><span>{item.title_fa}</span><DisclosureTriangle className="opacity-70" /></button></HelpDialog>) : <p className="text-sm text-muted-foreground">موردی ثبت نشده است.</p>}</CardContent></Card>
+  return <Card className="border-border"><CardHeader><CardTitle className={`flex items-center gap-2 ${positive ? "text-primary" : "text-destructive"}`}>{positive ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}{title}</CardTitle></CardHeader><CardContent className="space-y-2">{items.length ? items.slice(0, 5).map((item) => <HelpDialog key={item.metric} title={item.title_fa} item={item}><button type="button" className={`flex w-full items-center justify-between gap-3 rounded-lg border border-border p-3 text-right text-sm transition ${positive ? "bg-primary/10" : "bg-destructive/10"}`}><span>{item.title_fa}</span><DisclosureTriangle className="opacity-70" /></button></HelpDialog>) : <p className="text-sm text-muted-foreground">موردی ثبت نشده است.</p>}</CardContent></Card>
 }
 
-function CardConnector({ active = false, label }) {
+function CardConnector({ label }) {
   return <div className="relative z-20 -my-1 flex h-6 items-center justify-center lg:pointer-events-none lg:absolute lg:inset-y-0 lg:left-1/2 lg:my-0 lg:h-auto lg:-translate-x-1/2" role="img" aria-label={label}>
     <span
       aria-hidden="true"
-      className={`flex h-6 w-9 select-none items-center justify-center rounded-full border text-[25px] font-medium leading-none ring-[3px] ring-background shadow-[0_3px_10px_hsl(var(--foreground)/0.10)] ${active ? "border-primary/60 bg-primary/10 text-primary" : "border-border bg-card text-foreground/75"}`}
+      className="flex h-[1.2rem] w-[1.8rem] select-none items-center justify-center rounded-full border border-border bg-card text-[25px] font-medium leading-none text-foreground/75 ring-[3px] ring-background shadow-[0_3px_10px_hsl(var(--foreground)/0.10)]"
       style={{ fontFamily: '"Segoe UI Symbol", "Noto Sans Symbols 2", sans-serif' }}
-    >↔</span>
+    ><span className="-translate-y-px">↔</span></span>
   </div>
+}
+
+function CalendarContentState({ isLoading, error, emptyText, onRetry }) {
+  if (isLoading) return <div className="flex items-center justify-center gap-2 rounded-lg border border-border bg-muted/25 p-4 text-sm text-muted-foreground"><LoaderCircle className="h-4 w-4 animate-spin" />در حال دریافت داده‌های تقویم…</div>
+  if (error) return <div className="rounded-lg border border-border bg-muted/25 p-4 text-sm text-muted-foreground">
+    <p>{error}</p>
+    <button type="button" onClick={onRetry} className="mt-3 inline-flex items-center gap-1.5 text-primary transition hover:text-primary/80"><RefreshCw className="h-3.5 w-3.5" />تلاش دوباره</button>
+  </div>
+  return <p className="rounded-lg border border-border bg-muted/25 p-4 text-sm text-muted-foreground">{emptyText}</p>
 }
 
 function ExpandableAnalysisList({ items, emptyText }) {
@@ -230,6 +239,11 @@ export default function MarketIntelligenceSections({ market }) {
   const [newsAnalysisErrors, setNewsAnalysisErrors] = useState({})
   const [upcomingEvents, setUpcomingEvents] = useState([])
   const [releasedEvents, setReleasedEvents] = useState([])
+  const [calendarReloadKey, setCalendarReloadKey] = useState(0)
+  const [calendarState, setCalendarState] = useState({
+    upcoming: { loading: true, error: "" },
+    released: { loading: true, error: "" },
+  })
   useEffect(() => {
     const controller = new AbortController()
     const loadData = async (path) => {
@@ -242,14 +256,41 @@ export default function MarketIntelligenceSections({ market }) {
         setNews(items)
         setSelectedNews(items[0] || null)
       }).catch(() => {})
-    loadData("/analytics-data/news/calendar/upcoming?limit=6")
-      .then(calendar => setUpcomingEvents(calendar?.items || []))
-      .catch(() => {})
-    loadData("/analytics-data/news/calendar/released?limit=6")
-      .then(calendar => setReleasedEvents(calendar?.items || []))
-      .catch(() => {})
     return () => controller.abort()
   }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const requestItems = async (path) => {
+      let lastError = null
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          const response = await fetch(path, { cache: "no-store", signal: controller.signal })
+          const payload = await response.json().catch(() => null)
+          if (!response.ok || !Array.isArray(payload?.data?.items)) throw new Error("Invalid calendar response")
+          return payload.data.items
+        } catch (error) {
+          if (controller.signal.aborted) throw error
+          lastError = error
+        }
+      }
+      throw lastError || new Error("Calendar request failed")
+    }
+    const loadCalendar = async (kind, path, setItems, errorMessage) => {
+      setCalendarState(current => ({ ...current, [kind]: { loading: true, error: "" } }))
+      try {
+        const items = await requestItems(path)
+        if (!controller.signal.aborted) setItems(items)
+      } catch (error) {
+        if (!controller.signal.aborted) setCalendarState(current => ({ ...current, [kind]: { loading: false, error: errorMessage } }))
+      } finally {
+        if (!controller.signal.aborted) setCalendarState(current => ({ ...current, [kind]: { ...current[kind], loading: false } }))
+      }
+    }
+    void loadCalendar("upcoming", "/analytics-data/news/calendar/upcoming?limit=6", setUpcomingEvents, "دریافت داده های مهم پیش رو ناموفق بود.")
+    void loadCalendar("released", "/analytics-data/news/calendar/released?limit=6", setReleasedEvents, "دریافت داده‌های مهم منتشرشده ناموفق بود.")
+    return () => controller.abort()
+  }, [calendarReloadKey])
 
   useEffect(() => {
     const itemId = selectedNews?.item_id
@@ -309,7 +350,7 @@ export default function MarketIntelligenceSections({ market }) {
   return <div className="space-y-5 bg-background p-3 text-foreground md:p-4" dir="rtl">
     <section className="space-y-3">
       <div className="grid items-stretch gap-4 lg:h-64 lg:grid-cols-[1.35fr_0.65fr]">
-      <Card className="flex h-64 min-h-0 flex-col overflow-hidden border-primary/30 bg-card lg:h-full">
+      <Card className="flex h-64 min-h-0 flex-col overflow-hidden border-border bg-card lg:h-full">
         <CardHeader className="shrink-0 space-y-0 pb-3">
           <div className="flex items-center justify-between gap-3">
             <CardTitle>داستان بازار</CardTitle>
@@ -354,19 +395,19 @@ export default function MarketIntelligenceSections({ market }) {
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5"><Kpi label="شرایط کلی بازار" value={statusLabels[summary.market_condition] || "نامشخص"} color="violet" /><Kpi label="ریسک بازار" value={statusLabels[summary.risk_level] || "نامشخص"} color="amber" /><Kpi label="Sentiment" value={statusLabels[summary.sentiment] || "نامشخص"} color="slate" /><Kpi label="شدت تغییر" value={statusLabels[summary.change_intensity] || "نامشخص"} color="cyan" /><Kpi label="اعتماد به تحلیل" value={statusLabels[summary.confidence_level] || "نامشخص"} color={summary.confidence_level === "high" ? "green" : "violet"} /></div>
     </section>
 
-    <section className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-1">
-      <Card className="flex h-72 min-h-0 flex-col overflow-hidden">
+    <section className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-4">
+      <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-border">
         <CardHeader className="shrink-0 pb-3"><div className="flex items-center justify-between"><CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-primary" />اخبار پرتأثیر</CardTitle><Link href="/analytics/events" className="text-xs text-primary">مشاهده همه</Link></div></CardHeader>
         <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto">{news.length ? news.map(item => {
           const itemTitle = item.title_fa || item.title || item.analysis_title_fa
           const isSelected = selectedNews?.item_id === item.item_id
-          return <button key={item.item_id} type="button" aria-pressed={isSelected} onClick={() => setSelectedNews(item)} className={`w-full rounded-lg border p-3 text-right transition ${isSelected ? "border-primary/70 bg-primary/15 ring-1 ring-primary/25" : "border-border bg-muted/25 hover:border-primary/30"}`}><div className="flex items-center justify-between gap-2"><Badge variant="outline">{item.importance === "high" ? "اثر بالا" : "بااهمیت"}</Badge><time className="text-[11px] text-muted-foreground">{formatTime(item.published_at)}</time></div><p className="mt-2 line-clamp-2 text-right text-sm font-medium leading-6" dir={item.title_fa ? "rtl" : "ltr"}>{itemTitle}</p></button>
+          return <button key={item.item_id} type="button" aria-pressed={isSelected} onClick={() => setSelectedNews(item)} className={`w-full rounded-lg border border-border p-3 text-right transition ${isSelected ? "bg-primary/15" : "bg-muted/25 hover:bg-muted/40"}`}><div className="flex items-center justify-between gap-2"><Badge variant="outline">{item.importance === "high" ? "اثر بالا" : "بااهمیت"}</Badge><time className="text-[11px] text-muted-foreground">{formatTime(item.published_at)}</time></div><p className="mt-2 line-clamp-2 text-right text-sm font-medium leading-6" dir={item.title_fa ? "rtl" : "ltr"}>{itemTitle}</p></button>
         }) : <p className="text-sm text-muted-foreground">خبر رتبه‌بندی‌شده‌ای در دسترس نیست.</p>}</CardContent>
       </Card>
 
-      <CardConnector active={Boolean(selectedNews)} label="ارتباط خبر انتخاب‌شده با تحلیل همان خبر" />
+      <CardConnector label="ارتباط خبر انتخاب‌شده با تحلیل همان خبر" />
 
-      <Card className={`flex h-72 min-h-0 flex-col overflow-hidden ${selectedNews ? "border-primary/60 ring-1 ring-primary/20" : "border-primary/30"}`}>
+      <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-border">
         <CardHeader className="shrink-0 pb-3"><div className="flex items-center gap-2"><CardTitle>تحلیل خبر منتخب</CardTitle><InfoDialog title="تحلیل خبر منتخب" description="صفحهٔ منبع خبر در سمت سرور خوانده می‌شود؛ سپس LLM تیتر انگلیسی را به فارسی ترجمه و متن خبر را برای بازار S&P 500 تفسیر می‌کند. اگر متن کامل منبع قابل دریافت نباشد، خلاصهٔ ثبت‌شدهٔ همان منبع مبنا قرار می‌گیرد." /></div></CardHeader>
         <CardContent className="min-h-0 flex-1 overflow-y-auto" aria-live="polite">{selectedNews ? <div className="space-y-3">
           <div className="flex items-center gap-2 text-xs font-medium text-primary">
@@ -381,35 +422,35 @@ export default function MarketIntelligenceSections({ market }) {
       </Card>
     </section>
 
-    <section className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-1">
-      <Card className="flex h-80 min-h-0 flex-col overflow-hidden">
-        <CardHeader className="shrink-0 pb-3"><div className="flex items-center gap-2"><CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-primary" />رویدادهای مهم پیش‌رو</CardTitle><InfoDialog title="رویدادهای مهم پیش‌رو" description="رویدادهای آینده با اهمیت بالا همراه با تاریخ، ساعت تهران و مقادیر پیش‌بینی و قبلی نمایش داده می‌شوند. مقدار واقعی تا زمان انتشار خالی می‌ماند." /></div></CardHeader>
-        <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto">{upcomingEvents.length ? upcomingEvents.map(item => <CalendarDataCard key={item.event_id} item={item}><Badge variant="outline" className="shrink-0">اهمیت بالا</Badge></CalendarDataCard>) : <p className="rounded-lg border bg-muted/25 p-4 text-sm text-muted-foreground">دادهٔ مهم آینده‌ای از تقویم دریافت نشد.</p>}<Link href="/analytics/events" className="mt-3 inline-flex items-center gap-1 text-sm text-primary">مشاهدهٔ تقویم زنده <ChevronLeft className="h-4 w-4" /></Link></CardContent>
-      </Card>
-
-      <CardConnector label="ارتباط رویدادهای مهم پیش‌رو با داده‌های مهم منتشرشده" />
-
-      <Card className="flex h-80 min-h-0 flex-col overflow-hidden">
+    <section className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-4">
+      <Card className="flex h-80 min-h-0 flex-col overflow-hidden border-border">
         <CardHeader className="shrink-0 pb-3"><div className="flex items-center gap-2"><CardTitle>داده‌های مهم منتشرشده</CardTitle><InfoDialog title="داده‌های مهم منتشرشده" description="رویدادهای مهم منتشرشده همراه با تاریخ، ساعت تهران و مقادیر واقعی، پیش‌بینی و قبلی نمایش داده می‌شوند." /></div></CardHeader>
         <CardContent className="min-h-0 flex-1 overflow-y-auto">{publishedEventGroups.length ? <div className="space-y-4">{publishedEventGroups.map(group => <section key={group.key}>
-          <h3 className="sticky top-0 z-10 flex items-center gap-2 border-b border-primary/20 bg-card pb-2 text-xs font-medium text-primary"><CalendarDays className="h-3.5 w-3.5" />{group.label}</h3>
+          <h3 className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-card pb-2 text-xs font-medium text-primary"><CalendarDays className="h-3.5 w-3.5" />{group.label}</h3>
           <div>{group.items.map(item => <ReleasedEventRow key={item.event_id || item.metric} item={item} />)}</div>
-        </section>)}</div> : <p className="rounded-lg border border-border bg-muted/25 p-4 text-sm text-muted-foreground">دادهٔ منتشرشدهٔ مهمی از تقویم دریافت نشد.</p>}</CardContent>
+        </section>)}</div> : <CalendarContentState isLoading={calendarState.released.loading} error={calendarState.released.error} emptyText="دادهٔ منتشرشدهٔ مهمی از تقویم دریافت نشد." onRetry={() => setCalendarReloadKey(current => current + 1)} />}</CardContent>
+      </Card>
+
+      <CardConnector label="ارتباط داده‌های مهم منتشرشده با داده های مهم پیش رو" />
+
+      <Card className="flex h-80 min-h-0 flex-col overflow-hidden border-border">
+        <CardHeader className="shrink-0 pb-3"><div className="flex items-center gap-2"><CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-primary" />داده های مهم پیش رو</CardTitle><InfoDialog title="داده های مهم پیش رو" description="داده‌های آینده با اهمیت بالا همراه با تاریخ، ساعت تهران و مقادیر پیش‌بینی و قبلی نمایش داده می‌شوند. مقدار واقعی تا زمان انتشار خالی می‌ماند." /></div></CardHeader>
+        <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto">{upcomingEvents.length ? upcomingEvents.map(item => <CalendarDataCard key={item.event_id} item={item}><Badge variant="outline" className="shrink-0">اهمیت بالا</Badge></CalendarDataCard>) : <CalendarContentState isLoading={calendarState.upcoming.loading} error={calendarState.upcoming.error} emptyText="دادهٔ مهم آینده‌ای از تقویم دریافت نشد." onRetry={() => setCalendarReloadKey(current => current + 1)} />}<Link href="/analytics/events" className="mt-3 inline-flex items-center gap-1 text-sm text-primary">مشاهدهٔ تقویم زنده <ChevronLeft className="h-4 w-4" /></Link></CardContent>
       </Card>
     </section>
 
-    <section className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-1">
+    <section className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-4">
       <Drivers title="محرک‌های حمایتی" items={positive} tone="positive" />
       <CardConnector label="ارتباط محرک‌های حمایتی با عوامل چالشی" />
       <Drivers title="عوامل چالشی" items={negative} tone="negative" />
     </section>
 
     <section className="grid gap-4 lg:grid-cols-2">
-      <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-amber-500/30">
+      <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-border">
         <CardHeader className="shrink-0 pb-3"><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-foreground" />داده‌های متضاد بازار</CardTitle></CardHeader>
         <CardContent className="min-h-0 flex-1 overflow-y-auto"><ExpandableAnalysisList items={conflictItems} emptyText="دادهٔ متضادی ثبت نشده است." /></CardContent>
       </Card>
-      <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-destructive/30">
+      <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-border">
         <CardHeader className="shrink-0 pb-3"><CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5 text-foreground" />ریسک مانیتور</CardTitle></CardHeader>
         <CardContent className="min-h-0 flex-1 overflow-y-auto"><ExpandableAnalysisList items={riskItems} emptyText="ریسک فعالی ثبت نشده است." /></CardContent>
       </Card>

@@ -70,6 +70,45 @@
   }
 }
 
+@layer components {
+  .monetary-policy-page {
+    direction: rtl;
+    text-align: right;
+    font-family: var(--font-monetary-inter), var(--font-monetary-vazirmatn), Vazirmatn, Tahoma, Arial, sans-serif;
+    font-kerning: normal;
+    text-rendering: optimizeLegibility;
+  }
+
+  .monetary-policy-page.monetary-latin,
+  .monetary-policy-page .monetary-latin {
+    direction: ltr;
+    text-align: left;
+    unicode-bidi: isolate;
+    font-family: var(--font-monetary-inter), Inter, ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .monetary-policy-page .financial-data,
+  .monetary-policy-page [data-financial="true"],
+  .monetary-policy-page .tabular-nums {
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-family: var(--font-monetary-inter), Inter, ui-sans-serif, system-ui, sans-serif;
+    font-variant-numeric: lining-nums tabular-nums;
+    font-feature-settings: "lnum" 1, "tnum" 1;
+  }
+
+  .monetary-policy-page [dir="rtl"] {
+    text-align: right;
+    font-family: var(--font-monetary-inter), var(--font-monetary-vazirmatn), Vazirmatn, Tahoma, Arial, sans-serif;
+  }
+
+  .monetary-policy-page [dir="ltr"] {
+    text-align: left;
+    unicode-bidi: isolate;
+    font-family: var(--font-monetary-inter), Inter, ui-sans-serif, system-ui, sans-serif;
+  }
+}
+
 /* Custom scrollbar styles for better visibility */
 .overflow-y-auto {
   scrollbar-width: thin;

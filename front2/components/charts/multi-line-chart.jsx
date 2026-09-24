@@ -44,12 +44,14 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false,
       }
 
       try {
+        const inheritedFontFamily = window.getComputedStyle(chartRef.current).fontFamily
         const chart = createChart(chartRef.current, {
           width: chartRef.current.clientWidth || 600,
           height,
           layout: {
             background: { type: 'solid', color: 'transparent' },
             textColor,
+            fontFamily: inheritedFontFamily,
           },
           grid: {
             vertLines: { color: 'rgba(0, 0, 0, 0)' },
@@ -166,6 +168,7 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false,
               layout: {
                 background: { type: 'solid', color: 'transparent' },
                 textColor,
+                fontFamily: window.getComputedStyle(chartRef.current).fontFamily,
               },
               timeScale: {
                 rightOffset: 12,

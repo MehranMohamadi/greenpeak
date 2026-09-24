@@ -59,7 +59,7 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
 
   if (compact) {
     return (
-      <Card className="flex h-64 min-h-0 flex-col overflow-hidden" dir="ltr">
+      <Card className="flex h-64 min-h-0 flex-col overflow-hidden border-border" dir="ltr">
         <CardHeader className="shrink-0 space-y-2 border-b border-border p-3 pb-2">
           <div className="flex items-center justify-between gap-2">
             <CardTitle className="flex min-w-0 items-center gap-2 text-sm">

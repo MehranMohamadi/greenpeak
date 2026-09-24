@@ -34,7 +34,7 @@ const PERIODS = ["1M", "6M", "1Y", "5Y", "10Y", "25Y", "MAX"]
 const MONETARY_CHART_COLOR = "#06B6D4"
 
 function PeriodControls({ period, onChange }) {
-  return <div className="flex flex-wrap gap-1">{PERIODS.map((item) => {
+  return <div lang="en" dir="ltr" className="monetary-latin flex flex-wrap gap-1">{PERIODS.map((item) => {
     const selected = period === item
     return <Button
       key={item}
@@ -66,7 +66,7 @@ function formatValue(value, format) {
   return value.toFixed(2)
 }
 
-export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }) {
+export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury", fontClassName = "" }) {
   const { resolvedTheme } = useTheme()
   const chartTextColor = resolvedTheme === "light" ? "#475569" : "#e0e0e0"
   const [analysisRevision, setAnalysisRevision] = useState(0)
@@ -96,10 +96,11 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
   const selectedDate = selected.metadata?.observation_date || selected.metadata?.latest_date || selectedData.at(-1)?.time || "N/A"
 
   return (
-    <AnalysisPageShell>
+    <div lang="fa" dir="rtl" className={`monetary-policy-page ${fontClassName}`}>
+      <AnalysisPageShell>
       <AnalysisPageHeader
         page="monetary-policy"
-        title="Monetary Policy & System Liquidity"
+        title={<span lang="en" dir="ltr" className="monetary-latin">Monetary Policy &amp; System Liquidity</span>}
         showDescription={false}
       />
 
@@ -107,7 +108,7 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
         <CardContent className="px-4 pb-4 !pt-2.5"><DomainUnderstandingPanel domainId="monetary_liquidity" simple onUpdated={() => setAnalysisRevision((value) => value + 1)} /></CardContent>
       </Card>
 
-      <div dir="ltr" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
+      <div lang="en" dir="ltr" className="monetary-latin grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
         <Card ref={chartSectionRef} className="min-w-0 lg:col-start-1 lg:row-start-1">
           <CardHeader className="!pt-2.5"><div className="flex flex-col gap-4"><div><CardTitle className="flex items-start justify-between gap-3 text-base"><span className="min-w-0 break-words">{selected.title}</span><Button variant="outline" size="icon" title="Expand chart" aria-label="Expand chart" onClick={() => setIsFullScreen(true)} disabled={!selectedData.length}><Maximize2 className="h-4 w-4" /></Button></CardTitle><CardDescription className="mt-2 text-xs">{selected.metadata?.source || "Source unavailable"} &middot; {selectedDate} &middot; {selected.format === "rate" ? "%" : selected.format === "trillions" ? "USD trillions" : "USD billions"}{selected.metadata?.quality_status === "stale" && <span className="ml-2 text-amber-700 dark:text-amber-400">Data is outdated</span>}</CardDescription></div><PeriodControls period={period} onChange={setPeriod} /></div></CardHeader>
           <CardContent>
@@ -121,7 +122,7 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
         </div>
       </div>
 
-        <section className="space-y-3">
+        <section lang="en" dir="ltr" className="monetary-latin space-y-3">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Monetary Policy Factors</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {factors.map((factor) => {
@@ -142,9 +143,9 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
                   >
                     <CardHeader className="px-4 pb-3 !pt-2.5"><p className="text-xs text-slate-500">{factor.group}</p><CardTitle className="flex items-center justify-between gap-3 text-base"><span className="min-w-0 break-words">{factor.title}</span><Icon className="h-4 w-4 shrink-0 text-primary" /></CardTitle></CardHeader>
                     <CardContent className="p-4 pt-0">
-                      <div className="text-2xl font-semibold tabular-nums">{factor.loading ? "Loading…" : unavailable ? "N/A" : formatValue(latest, factor.format)}</div>
+                      <div className="financial-data text-2xl font-semibold tabular-nums" data-financial="true">{factor.loading ? "Loading…" : unavailable ? "N/A" : formatValue(latest, factor.format)}</div>
                       <div className="pointer-events-none mt-3 h-20 p-2 bg-transparent rounded-lg mini-chart-container" aria-hidden="true">{factor.loading ? <div className="h-full animate-pulse rounded bg-slate-100 dark:bg-slate-800" /> : <MiniChart data={view} trend={trend} upColor={MONETARY_CHART_COLOR} />}</div>
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400"><Badge variant="outline">{unavailable ? (quality || "unavailable") : quality === "stale" ? "stale" : (factor.metadata?.frequency || "frequency N/A")}</Badge><span>{factor.metadata?.observation_date || factor.metadata?.latest_date || view.at(-1)?.time || "No observation date"}</span></div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400"><Badge variant="outline">{unavailable ? (quality || "unavailable") : quality === "stale" ? "stale" : (factor.metadata?.frequency || "frequency N/A")}</Badge><time className="financial-data tabular-nums" dir="ltr">{factor.metadata?.observation_date || factor.metadata?.latest_date || view.at(-1)?.time || "No observation date"}</time></div>
                     </CardContent>
                   </AnalysisFactorCard>
                 </button>
@@ -154,7 +155,7 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
         </section>
 
       <Dialog open={isFullScreen} onOpenChange={setIsFullScreen}>
-        <DialogContent className="w-[95vw] max-w-6xl">
+        <DialogContent lang="en" dir="ltr" className={`monetary-policy-page monetary-latin w-[95vw] max-w-6xl ${fontClassName}`}>
           <DialogHeader>
             <DialogTitle>{selected.title}</DialogTitle>
             <DialogDescription>Observation {selectedDate} · {selected.metadata?.source || "Source unavailable"}</DialogDescription>
@@ -163,6 +164,7 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
           {isFullScreen && <MultiLineChart textColor={chartTextColor} dataSets={[selectedData]} height={440} seriesColors={[MONETARY_CHART_COLOR]} />}
         </DialogContent>
       </Dialog>
-    </AnalysisPageShell>
+      </AnalysisPageShell>
+    </div>
   )
 }
