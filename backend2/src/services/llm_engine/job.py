@@ -13,7 +13,7 @@ from ..rate_features.job import code_version
 from .prompts import load_prompt
 from .schemas import DomainNarrative, IndicatorNarrative, MarketNarrative
 
-ANALYSIS_VERSION = "0.4.0"
+ANALYSIS_VERSION = "0.5.0"
 MODELS = {"indicator": IndicatorNarrative, "domain": DomainNarrative, "market": MarketNarrative}
 
 
@@ -81,7 +81,14 @@ def _analyze(repository, provider, level: str, subject_id: str, as_of: date, evi
     return value, "generated"
 
 
-def run_llm_pipeline(feature_repository, narrative_repository, provider, as_of: date, force: bool = False) -> dict:
+def run_llm_pipeline(
+    feature_repository,
+    narrative_repository,
+    provider,
+    as_of: date,
+    force: bool = False,
+    horizontal_evidence: dict[str, Any] | None = None,
+) -> dict:
     """Run indicator -> domain -> market analysis from persisted upstream snapshots only."""
     domains, _, indicators = load_registry()
     narrative_repository.ensure_indexes()
@@ -128,7 +135,16 @@ def run_llm_pipeline(feature_repository, narrative_repository, provider, as_of: 
     if domain_outputs:
         ratio = len(domain_outputs) / len(domains.domains)
         coverage = {"status": "full" if ratio == 1 else "provisional", "ratio": ratio, "configured_count": len(domains.domains), "available_count": len(domain_outputs), "missing_inputs": sorted({item.id for item in domains.domains} - set(domain_outputs))}
-        evidence = {"domain_narratives": [item.model_dump(mode="json") for item in domain_outputs.values()], "horizontal_evidence": {"news_narratives": [], "events_calendar": []}, "versions": {"domain_config_version": domains.config_version}}
+        evidence = {
+            "domain_narratives": [item.model_dump(mode="json") for item in domain_outputs.values()],
+            "horizontal_evidence": horizontal_evidence or {
+                "sp500_session_move": None,
+                "recent_market_news": [],
+                "upcoming_us_events": [],
+                "warnings": ["horizontal_evidence_unavailable"],
+            },
+            "versions": {"domain_config_version": domains.config_version},
+        }
         try:
             value, status = _analyze(narrative_repository, provider, "market", "sp500", as_of, evidence, coverage, max((item.data_as_of for item in domain_outputs.values() if item.data_as_of), default=None), force)
             results["market"] = {"subject_id": "sp500", "status": status}

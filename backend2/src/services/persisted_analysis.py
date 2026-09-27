@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime
 
 from .llm_engine.job import run_llm_pipeline
 from .llm_engine.repository import MongoNarrativeRepository
+from .market_analysis_context import build_market_analysis_context
 from .rate_features.config import DEFINITIONS
 from .rate_features.job import run_feature_job
 from .rate_features.repository import MongoFeatureRepository
@@ -52,6 +53,7 @@ def run_persisted_analysis(client, database: str, provider, as_of: date, force_l
         provider,
         as_of,
         force=force_llm,
+        horizontal_evidence=build_market_analysis_context(client, database, as_of),
     )
     return {
         "as_of_date": as_of.isoformat(),

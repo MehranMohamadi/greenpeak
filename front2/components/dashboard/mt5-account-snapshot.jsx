@@ -10,7 +10,6 @@ import LastTrades from "@/components/kokonutui/last-trades"
 import PendingOrders from "@/components/kokonutui/pending-orders"
 import Portfolio from "@/components/kokonutui/portfolio"
 import RiskAndSymbols from "@/components/kokonutui/risk-and-symbols"
-import MT5Pairing from "@/components/dashboard/mt5-pairing"
 import { useAuth } from "@/components/auth/auth-context"
 
 export default function MT5AccountSnapshot() {
@@ -41,17 +40,15 @@ export default function MT5AccountSnapshot() {
   useEffect(() => { load() }, [load])
 
   if (loading && snapshots.length === 0) {
-    return <div className="space-y-3"><MT5Pairing accessToken={accessToken} /><Card className="border-gray-200 bg-white dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+    return <Card className="border-gray-200 bg-white dark:border-[#2B2B30] dark:bg-[#1F1F23]">
       <CardContent className="flex items-center gap-3 p-4 text-sm text-muted-foreground" dir="rtl">
         <RefreshCw className="h-4 w-4 animate-spin" />در حال دریافت حساب‌های معاملاتی…
       </CardContent>
-    </Card></div>
+    </Card>
   }
 
   if (snapshots.length === 0) {
-    return <div className="space-y-3">
-      <MT5Pairing accessToken={accessToken} />
-      <Card className="border-gray-200 bg-white dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+    return <Card className="border-gray-200 bg-white dark:border-[#2B2B30] dark:bg-[#1F1F23]">
       <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4" dir="rtl">
         <div className="flex items-center gap-3">
           <AlertTriangle className="h-5 w-5 text-amber-500" />
@@ -59,12 +56,10 @@ export default function MT5AccountSnapshot() {
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تلاش دوباره</Button>
       </CardContent>
-      </Card>
-    </div>
+    </Card>
   }
 
   return <section className="space-y-3" aria-labelledby="trading-accounts-title" dir="rtl">
-    <div dir="ltr"><MT5Pairing accessToken={accessToken} /></div>
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-2">
         <Server className="h-5 w-5 text-primary" />

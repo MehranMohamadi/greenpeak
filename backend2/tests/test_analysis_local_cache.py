@@ -81,6 +81,22 @@ def test_local_cache_round_trips_validated_snapshot(tmp_path):
     assert cache.latest("market", "sp500") == snapshot
 
 
+def test_current_market_analysis_version_requires_all_four_horizons_and_five_summary_lines():
+    current = {
+        **_market_snapshot(),
+        "analysis_version": "0.5.0",
+        "current_market_move_fa": "حرکت جلسه اخیر",
+        "current_analysis_fa": "تحلیل اکنون",
+        "short_term_outlook_fa": "چشم‌انداز کوتاه‌مدت",
+        "medium_term_outlook_fa": "چشم‌انداز میان‌مدت",
+        "summary_points_fa": ["یک", "دو", "سه", "چهار", "پنج"],
+    }
+
+    assert len(MarketNarrative.model_validate(current).summary_points_fa) == 5
+    with pytest.raises(ValueError):
+        MarketNarrative.model_validate({**current, "summary_points_fa": current["summary_points_fa"][:4]})
+
+
 def test_latest_uses_local_cache_when_mongodb_is_offline(monkeypatch, tmp_path):
     settings = _configure_local_cache(monkeypatch, tmp_path)
     cache = LocalNarrativeCache(settings.analysis_local_db_path)

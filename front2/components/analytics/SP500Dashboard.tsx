@@ -7,6 +7,7 @@ import {
   AlertCircle,
   ArrowUpRight,
   BarChart3,
+  Info,
   LoaderCircle,
   RefreshCw,
   Zap,
@@ -22,6 +23,14 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const analysisLinks = [
@@ -123,6 +132,35 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         className="max-w-full space-y-6 overflow-hidden p-4 md:p-6"
       >
+        <div className="flex items-center gap-2" dir="rtl">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            بازار امریکا <span dir="ltr">US500</span>
+          </h1>
+          <Dialog>
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                aria-label="راهنمای صفحه بازار امریکا US500"
+                title="راهنمای صفحه"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <Info className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </DialogTrigger>
+            <DialogContent dir="rtl">
+              <DialogHeader className="text-right">
+                <DialogTitle>درباره بازار امریکا US500</DialogTitle>
+                <DialogDescription className="leading-7">
+                  در این صفحه می‌توانید نمودار تعاملی شاخص S&amp;P 500 را در
+                  بازه‌های زمانی مختلف مشاهده کنید. داده‌های نمودار به‌صورت
+                  خودکار هر پنج دقیقه به‌روزرسانی می‌شوند و بخش تحلیل‌ها مسیر
+                  دسترسی به بررسی‌های تکمیلی بازار را فراهم می‌کند.
+                </DialogDescription>
+              </DialogHeader>
+            </DialogContent>
+          </Dialog>
+        </div>
+
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-5">
           <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted p-1 sm:w-[320px]">
             <TabsTrigger

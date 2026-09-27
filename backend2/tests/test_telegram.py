@@ -15,7 +15,7 @@ class FakeResponse:
         return {"ok": True}
 
 
-def test_send_telegram_market_report_formats_market_fields(monkeypatch):
+def test_send_telegram_market_report_sends_current_tab_then_summary(monkeypatch):
     captured = {}
 
     def fake_post(url, data, timeout):
@@ -30,14 +30,20 @@ def test_send_telegram_market_report_formats_market_fields(monkeypatch):
 
     assert send_telegram_market_report(
         {
-            "data_as_of": "2026-09-07",
-            "llm_shadow_score": 7.5,
-            "market_story_fa": "روایت <محرمانه>",
-            "positive_drivers": [{"label_fa": "رشد", "value_fa": "بهبود"}],
+            "current_market_move_fa": "حرکت <فعلی> بازار",
+            "current_analysis_fa": "تحلیل اکنون",
+            "summary_points_fa": ["نکته اول", "نکته دوم"],
+            "market_story_fa": "متن قدیمی",
         }
     ) is True
     assert captured["url"] == "https://api.telegram.org/bottest-token/sendMessage"
     assert captured["data"]["parse_mode"] == "HTML"
     assert captured["data"]["message_thread_id"] == "42"
-    assert "&lt;محرمانه&gt;" in captured["data"]["text"]
-    assert "رشد: بهبود" in captured["data"]["text"]
+    assert captured["data"]["text"] == (
+        "<b>اکنون</b>\n"
+        "حرکت &lt;فعلی&gt; بازار\n\n"
+        "تحلیل اکنون\n\n"
+        "<b>جمع‌بندی</b>\n"
+        "1. نکته اول\n"
+        "2. نکته دوم"
+    )

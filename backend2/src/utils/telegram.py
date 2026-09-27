@@ -1,24 +1,12 @@
 import html
 import logging
-from typing import Any
 
 import httpx
 
 from ..core.config import get_settings
-from ..services.greenpeak_config import load_registry
 from ..services.llm_engine.repository import MongoNarrativeRepository
 
 logger = logging.getLogger(__name__)
-
-
-def _format_driver(driver: Any) -> str:
-    if isinstance(driver, dict):
-        label = driver.get("label_fa") or driver.get("label") or driver.get("name")
-        value = driver.get("value_fa") or driver.get("value") or driver.get("description_fa")
-        if label and value:
-            return f"{label}: {value}"
-        return ", ".join(f"{key}: {value}" for key, value in driver.items())
-    return str(driver)
 
 
 def build_telegram_market_report(client, database: str) -> dict | None:
@@ -26,43 +14,28 @@ def build_telegram_market_report(client, database: str) -> dict | None:
     market = repository.latest("market", "sp500")
     if not market:
         return None
-    domains = []
-    for domain in load_registry()[0].domains:
-        analysis = repository.latest("domain", domain.id)
-        if analysis:
-            domains.append({"name_fa": domain.name_fa, "analysis": analysis})
-    return {"market": market, "domains": domains}
-
-
-def _format_items(items: list[Any]) -> str:
-    return "\n".join(f"• {html.escape(_format_driver(item))}" for item in items) or "• موردی ثبت نشده است"
+    return {"market": market}
 
 
 def _report_sections(report: dict) -> list[str]:
     market = report.get("market", report)
-    sections = [
-        "<b>گزارش کامل تحلیل بازار GreenPeak</b>",
-        f"<b>تاریخ داده:</b> {html.escape(str(market.get('data_as_of') or 'نامشخص'))}",
-        f"<b>امتیاز سایه مدل:</b> {html.escape(str(market.get('llm_shadow_score') if market.get('llm_shadow_score') is not None else 'نامشخص'))}/10",
-        f"<b>داستان بازار</b>\n{html.escape(str(market.get('market_story_fa') or ''))}",
-        f"<b>روایت</b>\n{html.escape(str(market.get('narrative_fa') or ''))}",
-        f"<b>محرک‌های مثبت</b>\n{_format_items(market.get('positive_drivers') or [])}",
-        f"<b>محرک‌های منفی</b>\n{_format_items(market.get('negative_drivers') or [])}",
-        f"<b>تعارض‌های بین‌دامنه‌ای</b>\n{_format_items(market.get('cross_domain_conflicts') or [])}",
-        f"<b>ریسک‌ها و عدم قطعیت</b>\n{_format_items(market.get('key_risks') or [])}",
-        f"<b>چه چیزی تغییر کرد</b>\n{html.escape(str(market.get('what_changed_fa') or ''))}",
-        f"<b>موارد قابل پیگیری</b>\n{_format_items(market.get('watch_next_fa') or [])}",
+    current_move = market.get("current_market_move_fa") or market.get("what_changed_fa") or market.get("market_story_fa") or ""
+    current_analysis = market.get("current_analysis_fa") or market.get("systemic_synthesis_fa") or market.get("narrative_fa") or ""
+    current_content = "\n\n".join(
+        html.escape(str(value)) for value in (current_move, current_analysis) if value
+    )
+
+    summary_points = market.get("summary_points_fa") or [market.get("market_story_fa")]
+    summary_content = "\n".join(
+        f"{index}. {html.escape(str(item))}"
+        for index, item in enumerate(summary_points[:5], start=1)
+        if item
+    )
+
+    return [
+        f"<b>اکنون</b>\n{current_content}",
+        f"<b>جمع‌بندی</b>\n{summary_content}",
     ]
-    for item in report.get("domains", []):
-        analysis = item["analysis"]
-        sections.append(
-            f"<b>دامنه: {html.escape(item['name_fa'])}</b>\n"
-            f"{html.escape(str(analysis.get('dominant_story_fa') or analysis.get('narrative_fa') or ''))}\n"
-            f"امتیاز LLM: {html.escape(str(analysis.get('llm_shadow_score', 'نامشخص')))}\n"
-            f"<b>بینش‌ها</b>\n{_format_items(analysis.get('key_insights_fa') or [])}\n"
-            f"<b>موارد قابل پیگیری</b>\n{_format_items(analysis.get('watch_next_fa') or [])}"
-        )
-    return sections
 
 
 def _message_chunks(sections: list[str], limit: int = 3900) -> list[str]:

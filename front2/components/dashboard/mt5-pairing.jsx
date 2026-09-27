@@ -7,8 +7,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { useAuth } from "@/components/auth/auth-context"
 
-export default function MT5Pairing({ accessToken }) {
+export default function MT5Pairing() {
+  const { accessToken } = useAuth()
   const [connections, setConnections] = useState([])
   const [label, setLabel] = useState("My MT5 account")
   const [pairingToken, setPairingToken] = useState("")

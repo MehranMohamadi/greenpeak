@@ -79,6 +79,11 @@ def test_domain_contract_and_prompt_include_compact_dashboard_analysis():
 def test_market_contract_and_prompt_include_structured_dashboard_sections():
     schema = MarketNarrative.model_json_schema()["properties"]
     assert {
+        "current_market_move_fa",
+        "current_analysis_fa",
+        "short_term_outlook_fa",
+        "medium_term_outlook_fa",
+        "summary_points_fa",
         "status_summary",
         "market_drivers",
         "market_conflicts",
@@ -88,8 +93,10 @@ def test_market_contract_and_prompt_include_structured_dashboard_sections():
         "glance_summary",
     } <= set(schema)
     prompt = load_prompt("market")
-    assert prompt.version == "0.3.0+0.4.0"
+    assert prompt.version == "0.3.0+0.5.0"
     assert "market_drivers" in prompt.content
+    assert "exactly five concise Persian strings" in prompt.content
+    assert "six-to-twelve-month" in prompt.content
     assert "Never create calendar events" in prompt.content
 
 

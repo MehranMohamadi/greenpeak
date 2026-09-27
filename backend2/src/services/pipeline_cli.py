@@ -10,6 +10,7 @@ from ..core.config import get_settings
 from .llm_engine.job import run_llm_pipeline
 from .llm_engine.provider import DisabledProvider, OpenAICompatibleProvider
 from .llm_engine.repository import MongoNarrativeRepository
+from .market_analysis_context import build_market_analysis_context
 from .rate_features.config import DEFINITIONS
 from .rate_features.job import run_feature_job
 from .rate_features.repository import MongoFeatureRepository
@@ -61,7 +62,14 @@ def main() -> int:
             if provider.provider_id == "disabled":
                 output["stages"]["llm"] = {"status": "not_configured"}
             else:
-                output["stages"]["llm"] = run_llm_pipeline(feature_repository, MongoNarrativeRepository(client, settings.mongodb_database), provider, as_of, args.force_llm)
+                output["stages"]["llm"] = run_llm_pipeline(
+                    feature_repository,
+                    MongoNarrativeRepository(client, settings.mongodb_database),
+                    provider,
+                    as_of,
+                    args.force_llm,
+                    horizontal_evidence=build_market_analysis_context(client, settings.mongodb_database, as_of),
+                )
         print(json.dumps(output, ensure_ascii=False, indent=2, default=str))
         return 1 if feature_run.status == "failed" else 2 if feature_run.status == "partial" or output["errors"] else 0
     except Exception as exc:

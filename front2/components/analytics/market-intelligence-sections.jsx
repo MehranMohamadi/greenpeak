@@ -2,10 +2,11 @@
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, CalendarDays, ChevronLeft, CircleHelp, Clock3, LoaderCircle, Newspaper, RefreshCw, ShieldAlert, TrendingDown, TrendingUp, Triangle } from "lucide-react"
+import { AlertTriangle, CalendarDays, CircleHelp, Clock3, Link2, LoaderCircle, Newspaper, RefreshCw, ShieldAlert, TrendingDown, TrendingUp, Triangle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import SP500Dashboard from "@/components/analytics/SP500Dashboard"
 
 const statusLabels = {
@@ -17,6 +18,7 @@ const statusLabels = {
 const normalizeLegacy = (item, index, direction) => {
   if (typeof item === "string") return { metric: `${direction}_${index + 1}`, title_fa: item }
   return {
+    ...item,
     metric: item?.metric || `${direction}_${index + 1}`,
     title_fa: item?.title_fa || item?.title || item?.driver || "محرک بازار",
     why_it_matters_fa: item?.detail_fa || item?.detail || item?.description || "",
@@ -95,12 +97,16 @@ const fallbackNextAnalysisLabel = () => {
 
 function HelpDialog({ title, item, children }) {
   const rows = [
-    ["داده فعلی", item.actual ?? item.current], ["مقدار قبلی", item.previous], ["پیش‌بینی", item.forecast],
+    ["تاریخ", item.release_at ? formatTehranDate(item.release_at) : null],
+    ["ساعت تهران", item.release_at ? formatTehranClock(item.release_at) : null],
+    ["اهمیت", item.importance === "high" ? "بالا" : item.importance],
+    ["داده واقعی", item.actual ?? item.current], ["مقدار قبلی", item.previous], ["پیش‌بینی", item.forecast],
     ["تغییر", item.change_fa], ["چرا مهم است؟", item.why_it_matters_fa || item.detail_fa],
     ["اثر بر بازار", statusLabels[item.impact] || item.impact], ["اثر بر Sentiment", statusLabels[item.sentiment] || item.sentiment],
     ["ماندگاری اثر", statusLabels[item.duration] || item.duration], ["عامل تغییردهنده اثر", item.reversal_conditions_fa],
+    ["منبع", item.source],
   ].filter(([, value]) => hasValue(value))
-  return <Dialog><DialogTrigger asChild>{children}</DialogTrigger><DialogContent className="max-h-[85vh] overflow-y-auto" dir="rtl"><DialogHeader className="text-right"><DialogTitle className="pl-7 leading-8">{title}</DialogTitle><DialogDescription>جزئیات ثبت‌شده در آخرین تحلیل معتبر بازار</DialogDescription></DialogHeader><div className="space-y-2">{rows.length ? rows.map(([label, value]) => <div key={label} className="rounded-lg border bg-muted/30 p-3"><p className="text-xs text-primary">{label}</p><p className="mt-1 text-sm leading-7">{value}</p></div>) : <p className="text-sm text-muted-foreground">جزئیات تکمیلی هنوز در خروجی تحلیل ثبت نشده است.</p>}</div>{item.evidence_refs?.length > 0 && <p className="text-xs text-muted-foreground" dir="ltr">{item.evidence_refs.join(" · ")}</p>}</DialogContent></Dialog>
+  return <Dialog><DialogTrigger asChild>{children}</DialogTrigger><DialogContent className="max-h-[85vh] overflow-y-auto" dir="rtl"><DialogHeader className="text-right"><DialogTitle className="pl-7 leading-8">{title}</DialogTitle><DialogDescription>جزئیات کامل ثبت‌شده در آخرین داده و تحلیل معتبر بازار</DialogDescription></DialogHeader><div className="space-y-2">{rows.length ? rows.map(([label, value]) => <div key={label} className="rounded-lg border bg-muted/30 p-3"><p className="text-xs text-primary">{label}</p><p className="mt-1 text-sm leading-7">{value}</p></div>) : <p className="text-sm text-muted-foreground">جزئیات تکمیلی هنوز در خروجی تحلیل ثبت نشده است.</p>}</div>{item.source_url && <a href={item.source_url} target="_blank" rel="noreferrer" className="inline-flex text-sm text-primary hover:underline">مشاهده منبع داده</a>}{item.evidence_refs?.length > 0 && <p className="text-xs text-muted-foreground" dir="ltr">{item.evidence_refs.join(" · ")}</p>}</DialogContent></Dialog>
 }
 
 function Kpi({ label, value, color }) {
@@ -108,25 +114,11 @@ function Kpi({ label, value, color }) {
   return <div className="flex min-h-14 items-center justify-between gap-3 rounded-xl border bg-card p-2.5"><span className="text-xs text-muted-foreground">{label}</span><span className={`rounded-full border px-3 py-0.5 text-xs font-medium ${colors[color]}`}>{value}</span></div>
 }
 
-function EventValues({ item }) {
-  const values = [
-    ["واقعی", item.actual ?? item.current, "text-primary"],
-    ["پیش‌بینی", item.forecast, "text-foreground"],
-    ["قبلی", item.previous, "text-foreground"],
-  ]
-  return <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3">
-    {values.map(([label, value, tone]) => <div key={label} className="min-w-0 text-center">
-      <span className="block text-[10px] text-muted-foreground">{label}</span>
-      <span className={`mt-1 block truncate text-xs font-semibold tabular-nums ${tone}`} dir="ltr">{displayValue(value)}</span>
-    </div>)}
-  </div>
-}
-
 function DisclosureTriangle({ className = "" }) {
-  return <Triangle aria-hidden="true" className={`h-3 w-3 shrink-0 rotate-180 fill-current ${className}`} />
+  return <Triangle aria-hidden="true" className={`h-3 w-3 shrink-0 -rotate-90 fill-current ${className}`} />
 }
 
-function ReleasedEventRow({ item }) {
+function MarketEventRow({ item }) {
   const values = [
     ["واقعی", item.actual ?? item.current, "text-primary"],
     ["پیش‌بینی", item.forecast, "text-foreground"],
@@ -146,27 +138,13 @@ function ReleasedEventRow({ item }) {
           <span className={`mt-0.5 block truncate text-xs font-semibold tabular-nums ${tone}`} dir="ltr">{displayValue(value)}</span>
         </div>)}
         <HelpDialog title={item.title_fa} item={item}>
-          <button type="button" aria-label={`نمایش تحلیل ${item.title_fa}`} title="نمایش تحلیل" className="mt-2.5 flex h-7 w-7 items-center justify-center text-primary transition hover:text-primary/80">
+          <button type="button" aria-label={`نمایش جزئیات ${item.title_fa}`} title="نمایش جزئیات" className="mt-2.5 flex h-7 w-7 items-center justify-center text-primary transition hover:text-primary/80">
             <DisclosureTriangle />
           </button>
         </HelpDialog>
       </div>
     </div>
   </article>
-}
-
-function CalendarDataCard({ item, children }) {
-  return <div className="rounded-xl border border-border bg-muted/25 p-3">
-    <div className="flex items-start justify-between gap-3">
-      <a href={item.source_url} target="_blank" rel="noreferrer" className="min-w-0 text-sm font-medium leading-6 hover:text-primary">{item.title_fa}</a>
-      {children}
-    </div>
-    <time dateTime={item.release_at} className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-      <span className="inline-flex items-center gap-1"><CalendarDays className="h-3 w-3 text-primary" />{formatTehranDate(item.release_at)}</span>
-      <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3 text-primary" />{formatTehranClock(item.release_at)}</span>
-    </time>
-    <EventValues item={item} />
-  </div>
 }
 
 function InfoDialog({ title, description }) {
@@ -187,16 +165,15 @@ function InfoDialog({ title, description }) {
 
 function Drivers({ title, items, tone }) {
   const positive = tone === "positive"
-  return <Card className="border-border"><CardHeader><CardTitle className={`flex items-center gap-2 ${positive ? "text-primary" : "text-destructive"}`}>{positive ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}{title}</CardTitle></CardHeader><CardContent className="space-y-2">{items.length ? items.slice(0, 5).map((item) => <HelpDialog key={item.metric} title={item.title_fa} item={item}><button type="button" className={`flex w-full items-center justify-between gap-3 rounded-lg border border-border p-3 text-right text-sm transition ${positive ? "bg-primary/10" : "bg-destructive/10"}`}><span>{item.title_fa}</span><DisclosureTriangle className="opacity-70" /></button></HelpDialog>) : <p className="text-sm text-muted-foreground">موردی ثبت نشده است.</p>}</CardContent></Card>
+  return <Card className="border-border"><CardHeader><CardTitle className={`flex items-center gap-2 ${positive ? "text-primary" : "text-destructive"}`}>{positive ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}{title}</CardTitle></CardHeader><CardContent className="space-y-2">{items.length ? items.slice(0, 5).map((item) => <HelpDialog key={item.metric} title={item.title_fa} item={item}><button type="button" aria-label={`نمایش جزئیات ${item.title_fa}`} className={`flex w-full items-center justify-between gap-3 rounded-lg border border-border p-3 text-right text-sm transition ${positive ? "bg-primary/10" : "bg-destructive/10"}`}><span>{item.title_fa}</span><DisclosureTriangle className="opacity-70" /></button></HelpDialog>) : <p className="text-sm text-muted-foreground">موردی ثبت نشده است.</p>}</CardContent></Card>
 }
 
 function CardConnector({ label }) {
   return <div className="relative z-20 -my-1 flex h-6 items-center justify-center lg:pointer-events-none lg:absolute lg:inset-y-0 lg:left-1/2 lg:my-0 lg:h-auto lg:-translate-x-1/2" role="img" aria-label={label}>
     <span
       aria-hidden="true"
-      className="flex h-[1.2rem] w-[1.8rem] select-none items-center justify-center rounded-full border border-border bg-card text-[25px] font-medium leading-none text-foreground/75 ring-[3px] ring-background shadow-[0_3px_10px_hsl(var(--foreground)/0.10)]"
-      style={{ fontFamily: '"Segoe UI Symbol", "Noto Sans Symbols 2", sans-serif' }}
-    ><span className="-translate-y-px">↔</span></span>
+      className="flex h-6 w-9 select-none items-center justify-center rounded-full border border-border bg-card text-foreground/75 ring-[3px] ring-background shadow-[0_3px_10px_hsl(var(--foreground)/0.10)]"
+    ><Link2 className="h-4 w-4" strokeWidth={2.4} /></span>
   </div>
 }
 
@@ -209,26 +186,26 @@ function CalendarContentState({ isLoading, error, emptyText, onRetry }) {
   return <p className="rounded-lg border border-border bg-muted/25 p-4 text-sm text-muted-foreground">{emptyText}</p>
 }
 
-function ExpandableAnalysisList({ items, emptyText }) {
+function DialogAnalysisList({ items, emptyText }) {
   const values = (items || []).filter(Boolean).map((item, index) => {
-    if (typeof item === "string") return { title: item, detail: "", refs: [], key: `${index}-${item}` }
+    if (typeof item === "string") return { title: item, dialogItem: { detail_fa: "" }, key: `${index}-${item}` }
+    const title = item.title_fa || item.fact || item.title || item.risk || item.conflict || "نکته تحلیلی"
     return {
-      title: item.title_fa || item.fact || item.title || item.risk || item.conflict || "نکته تحلیلی",
-      detail: item.detail_fa || item.detail || item.description || item.explanation || "",
-      refs: item.evidence_refs || (item.evidence_ref ? [item.evidence_ref] : []),
+      title,
+      dialogItem: {
+        ...item,
+        detail_fa: item.detail_fa || item.detail || item.description || item.explanation || "",
+        evidence_refs: item.evidence_refs || (item.evidence_ref ? [item.evidence_ref] : []),
+      },
       key: item.risk_id || `${index}-${item.title_fa || item.title || "item"}`,
     }
   })
-  return values.length ? <div>{values.map(item => <details key={item.key} className="group border-b border-border last:border-b-0">
-    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-3 text-sm font-medium leading-6 text-foreground transition hover:text-foreground/80 [&::-webkit-details-marker]:hidden">
+  return values.length ? <div>{values.map(item => <HelpDialog key={item.key} title={item.title} item={item.dialogItem}>
+    <button type="button" aria-label={`نمایش جزئیات ${item.title}`} className="flex w-full items-center justify-between gap-3 border-b border-border py-3 text-right text-sm font-medium leading-6 text-foreground transition last:border-b-0 hover:text-foreground/80">
       <span>{item.title}</span>
-      <Triangle aria-hidden="true" className="h-3 w-3 shrink-0 rotate-90 fill-current opacity-75 transition-transform group-open:rotate-180" />
-    </summary>
-    <div className="pb-3 pl-5 text-xs leading-7 text-muted-foreground">
-      {item.detail && <p className="whitespace-pre-line">{item.detail}</p>}
-      {!!item.refs.length && <p className="mt-2 truncate text-[10px] text-muted-foreground" dir="ltr">{item.refs.join(" · ")}</p>}
-    </div>
-  </details>)}</div> : <p className="text-sm text-muted-foreground">{emptyText}</p>
+      <DisclosureTriangle className="opacity-75" />
+    </button>
+  </HelpDialog>)}</div> : <p className="text-sm text-muted-foreground">{emptyText}</p>
 }
 
 export default function MarketIntelligenceSections({ market }) {
@@ -329,6 +306,8 @@ export default function MarketIntelligenceSections({ market }) {
     }))
   const publishedEvents = releasedEvents.length ? releasedEvents.map(item => enrichCalendarEvent(item, structuredDrivers)) : fallbackReleasedData
   const publishedEventGroups = groupEventsByDate(publishedEvents)
+  const upcomingMarketEvents = upcomingEvents.map(item => enrichCalendarEvent(item, structuredDrivers))
+  const upcomingEventGroups = groupEventsByDate(upcomingMarketEvents)
   const conflictItems = market.market_conflicts?.length ? market.market_conflicts.map(item => ({
     ...item,
     detail_fa: `${item.supportive_signal_fa} در برابر ${item.pressuring_signal_fa} — ${item.current_balance_fa} شرط چرخش: ${item.reversal_condition_fa}`,
@@ -346,29 +325,32 @@ export default function MarketIntelligenceSections({ market }) {
     : market.next_analysis_at
       ? formatTehranTime(market.next_analysis_at)
       : "زمان‌بندی فعال نیست"
+  const summaryPoints = market.summary_points_fa?.length
+    ? market.summary_points_fa.slice(0, 5)
+    : [market.market_story_fa].filter(Boolean)
 
   return <div className="space-y-5 bg-background p-3 text-foreground md:p-4" dir="rtl">
     <section className="space-y-3">
       <div className="grid items-stretch gap-4 lg:h-64 lg:grid-cols-[1.35fr_0.65fr]">
-      <Card className="flex h-64 min-h-0 flex-col overflow-hidden border-border bg-card lg:h-full">
-        <CardHeader className="shrink-0 space-y-0 pb-3">
-          <div className="flex items-center justify-between gap-3">
-            <CardTitle>داستان بازار</CardTitle>
+      <Card className="h-64 min-h-0 overflow-hidden border-border bg-card lg:h-full">
+        <Tabs defaultValue="current" dir="rtl" className="flex h-full min-h-0 flex-col">
+        <CardHeader className="shrink-0 space-y-2 pb-3">
+          <div className="flex items-center justify-end gap-2">
             <div className="flex min-w-0 items-center gap-2">
               <time dateTime={market.analysis_generated_at} dir="ltr" className="truncate text-left text-xs tabular-nums text-muted-foreground">
                 {formatTime(market.analysis_generated_at)}
               </time>
               <Dialog>
                 <DialogTrigger asChild>
-                  <button type="button" aria-label="راهنمای داستان بازار" className="shrink-0 rounded-full text-primary hover:text-primary/80">
+                  <button type="button" aria-label="راهنمای تحلیل بازار" className="shrink-0 rounded-full text-primary hover:text-primary/80">
                     <CircleHelp className="h-4 w-4" />
                   </button>
                 </DialogTrigger>
                 <DialogContent dir="rtl">
                   <DialogHeader className="text-right">
-                    <DialogTitle>راهنمای داستان بازار</DialogTitle>
+                    <DialogTitle>راهنمای تحلیل بازار</DialogTitle>
                     <DialogDescription className="space-y-3 leading-7 text-muted-foreground">
-                      <span className="block">این باکس خلاصهٔ چهارخطی و تحلیل جامع آخرین خروجی ذخیره‌شدهٔ هوش مصنوعی بازار را نمایش می‌دهد.</span>
+                      <span className="block">این تب‌ها آخرین تحلیل ذخیره‌شدهٔ هوش مصنوعی را در افق اکنون، کوتاه‌مدت، میان‌مدت و جمع‌بندی پنج‌خطی نمایش می‌دهند.</span>
                       <span className="block text-primary">تحلیل بعدی: {nextAnalysisLabel} به وقت تهران</span>
                     </DialogDescription>
                   </DialogHeader>
@@ -376,19 +358,31 @@ export default function MarketIntelligenceSections({ market }) {
               </Dialog>
             </div>
           </div>
+          <TabsList className="grid h-9 w-full grid-cols-4 p-1">
+            <TabsTrigger value="current" className="px-1.5 text-xs sm:px-3 sm:text-sm">اکنون</TabsTrigger>
+            <TabsTrigger value="short-term" className="px-1.5 text-xs sm:px-3 sm:text-sm">کوتاه‌مدت</TabsTrigger>
+            <TabsTrigger value="medium-term" className="px-1.5 text-xs sm:px-3 sm:text-sm">میان‌مدت</TabsTrigger>
+            <TabsTrigger value="summary" className="px-1.5 text-xs sm:px-3 sm:text-sm">جمع‌بندی</TabsTrigger>
+          </TabsList>
         </CardHeader>
         <CardContent className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
-          <div className="space-y-5">
-            <section className="space-y-2">
-              <h3 className="text-base font-medium text-primary">خلاصه</h3>
-              <p className="line-clamp-4 text-sm leading-7 text-foreground md:text-base">{market.market_story_fa}</p>
-            </section>
-            <section className="space-y-2">
-              <h3 className="text-base font-medium text-primary">تحلیل</h3>
-              <p className="whitespace-pre-line text-sm leading-8 text-muted-foreground">{market.systemic_synthesis_fa || market.narrative_fa}</p>
-            </section>
-          </div>
+          <TabsContent value="current" className="mt-0 space-y-3">
+            <p className="whitespace-pre-line text-sm font-medium leading-7 text-foreground md:text-base">{market.current_market_move_fa || market.what_changed_fa || market.market_story_fa}</p>
+            <p className="whitespace-pre-line text-sm leading-8 text-muted-foreground">{market.current_analysis_fa || market.systemic_synthesis_fa || market.narrative_fa}</p>
+          </TabsContent>
+          <TabsContent value="short-term" className="mt-0">
+            <p className="whitespace-pre-line text-sm leading-8 text-muted-foreground">{market.short_term_outlook_fa || market.narrative_fa}</p>
+          </TabsContent>
+          <TabsContent value="medium-term" className="mt-0">
+            <p className="whitespace-pre-line text-sm leading-8 text-muted-foreground">{market.medium_term_outlook_fa || market.systemic_synthesis_fa || market.narrative_fa}</p>
+          </TabsContent>
+          <TabsContent value="summary" className="mt-0">
+            <ol className="space-y-2 text-sm leading-7 text-muted-foreground">
+              {summaryPoints.map((item, index) => <li key={`${index}-${item}`} className="flex gap-2"><span className="text-primary">{index + 1}.</span><span>{item}</span></li>)}
+            </ol>
+          </TabsContent>
         </CardContent>
+        </Tabs>
       </Card>
       <SP500Dashboard compact />
       </div>
@@ -427,15 +421,18 @@ export default function MarketIntelligenceSections({ market }) {
         <CardHeader className="shrink-0 pb-3"><div className="flex items-center gap-2"><CardTitle>داده‌های مهم منتشرشده</CardTitle><InfoDialog title="داده‌های مهم منتشرشده" description="رویدادهای مهم منتشرشده همراه با تاریخ، ساعت تهران و مقادیر واقعی، پیش‌بینی و قبلی نمایش داده می‌شوند." /></div></CardHeader>
         <CardContent className="min-h-0 flex-1 overflow-y-auto">{publishedEventGroups.length ? <div className="space-y-4">{publishedEventGroups.map(group => <section key={group.key}>
           <h3 className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-card pb-2 text-xs font-medium text-primary"><CalendarDays className="h-3.5 w-3.5" />{group.label}</h3>
-          <div>{group.items.map(item => <ReleasedEventRow key={item.event_id || item.metric} item={item} />)}</div>
+          <div>{group.items.map(item => <MarketEventRow key={item.event_id || item.metric} item={item} />)}</div>
         </section>)}</div> : <CalendarContentState isLoading={calendarState.released.loading} error={calendarState.released.error} emptyText="دادهٔ منتشرشدهٔ مهمی از تقویم دریافت نشد." onRetry={() => setCalendarReloadKey(current => current + 1)} />}</CardContent>
       </Card>
 
       <CardConnector label="ارتباط داده‌های مهم منتشرشده با داده های مهم پیش رو" />
 
       <Card className="flex h-80 min-h-0 flex-col overflow-hidden border-border">
-        <CardHeader className="shrink-0 pb-3"><div className="flex items-center gap-2"><CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-primary" />داده های مهم پیش رو</CardTitle><InfoDialog title="داده های مهم پیش رو" description="داده‌های آینده با اهمیت بالا همراه با تاریخ، ساعت تهران و مقادیر پیش‌بینی و قبلی نمایش داده می‌شوند. مقدار واقعی تا زمان انتشار خالی می‌ماند." /></div></CardHeader>
-        <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto">{upcomingEvents.length ? upcomingEvents.map(item => <CalendarDataCard key={item.event_id} item={item}><Badge variant="outline" className="shrink-0">اهمیت بالا</Badge></CalendarDataCard>) : <CalendarContentState isLoading={calendarState.upcoming.loading} error={calendarState.upcoming.error} emptyText="دادهٔ مهم آینده‌ای از تقویم دریافت نشد." onRetry={() => setCalendarReloadKey(current => current + 1)} />}<Link href="/analytics/events" className="mt-3 inline-flex items-center gap-1 text-sm text-primary">مشاهدهٔ تقویم زنده <ChevronLeft className="h-4 w-4" /></Link></CardContent>
+        <CardHeader className="shrink-0 pb-3"><div className="flex items-center gap-2"><CardTitle>داده‌های مهم پیش‌رو</CardTitle><InfoDialog title="داده‌های مهم پیش‌رو" description="داده‌های آینده با اهمیت بالا همراه با تاریخ، ساعت تهران و مقادیر پیش‌بینی و قبلی نمایش داده می‌شوند. مقدار واقعی تا زمان انتشار خالی می‌ماند." /></div></CardHeader>
+        <CardContent className="min-h-0 flex-1 overflow-y-auto">{upcomingEventGroups.length ? <div className="space-y-4">{upcomingEventGroups.map(group => <section key={group.key}>
+          <h3 className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-card pb-2 text-xs font-medium text-primary"><CalendarDays className="h-3.5 w-3.5" />{group.label}</h3>
+          <div>{group.items.map(item => <MarketEventRow key={item.event_id || item.metric} item={item} />)}</div>
+        </section>)}</div> : <CalendarContentState isLoading={calendarState.upcoming.loading} error={calendarState.upcoming.error} emptyText="دادهٔ مهم آینده‌ای از تقویم دریافت نشد." onRetry={() => setCalendarReloadKey(current => current + 1)} />}</CardContent>
       </Card>
     </section>
 
@@ -448,11 +445,11 @@ export default function MarketIntelligenceSections({ market }) {
     <section className="grid gap-4 lg:grid-cols-2">
       <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-border">
         <CardHeader className="shrink-0 pb-3"><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-foreground" />داده‌های متضاد بازار</CardTitle></CardHeader>
-        <CardContent className="min-h-0 flex-1 overflow-y-auto"><ExpandableAnalysisList items={conflictItems} emptyText="دادهٔ متضادی ثبت نشده است." /></CardContent>
+        <CardContent className="min-h-0 flex-1 overflow-y-auto"><DialogAnalysisList items={conflictItems} emptyText="دادهٔ متضادی ثبت نشده است." /></CardContent>
       </Card>
       <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-border">
         <CardHeader className="shrink-0 pb-3"><CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5 text-foreground" />ریسک مانیتور</CardTitle></CardHeader>
-        <CardContent className="min-h-0 flex-1 overflow-y-auto"><ExpandableAnalysisList items={riskItems} emptyText="ریسک فعالی ثبت نشده است." /></CardContent>
+        <CardContent className="min-h-0 flex-1 overflow-y-auto"><DialogAnalysisList items={riskItems} emptyText="ریسک فعالی ثبت نشده است." /></CardContent>
       </Card>
     </section>
 

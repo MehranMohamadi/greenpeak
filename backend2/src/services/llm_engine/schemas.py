@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class StrictModel(BaseModel):
@@ -134,6 +134,11 @@ class MarketGlanceSummary(StrictModel):
 class MarketNarrative(NarrativeBase):
     level: Literal["market"] = "market"
     market_story_fa: str
+    current_market_move_fa: str = ""
+    current_analysis_fa: str = ""
+    short_term_outlook_fa: str = ""
+    medium_term_outlook_fa: str = ""
+    summary_points_fa: list[str] = Field(default_factory=list, max_length=5)
     positive_drivers: list[dict[str, Any] | str] = Field(default_factory=list)
     negative_drivers: list[dict[str, Any] | str] = Field(default_factory=list)
     cross_domain_conflicts: list[dict[str, Any] | str] = Field(default_factory=list)
@@ -147,3 +152,20 @@ class MarketNarrative(NarrativeBase):
     important_changes: list[MarketChangeItem] = Field(default_factory=list)
     systemic_synthesis_fa: str = ""
     glance_summary: MarketGlanceSummary = Field(default_factory=MarketGlanceSummary)
+
+    @model_validator(mode="after")
+    def require_horizon_analysis_for_current_version(self):
+        if self.analysis_version != "0.5.0":
+            return self
+        required_text = {
+            "current_market_move_fa": self.current_market_move_fa,
+            "current_analysis_fa": self.current_analysis_fa,
+            "short_term_outlook_fa": self.short_term_outlook_fa,
+            "medium_term_outlook_fa": self.medium_term_outlook_fa,
+        }
+        missing = [name for name, value in required_text.items() if not value.strip()]
+        if missing:
+            raise ValueError(f"missing horizon analysis fields: {', '.join(missing)}")
+        if len(self.summary_points_fa) != 5 or any(not item.strip() for item in self.summary_points_fa):
+            raise ValueError("summary_points_fa must contain exactly five non-empty items")
+        return self
