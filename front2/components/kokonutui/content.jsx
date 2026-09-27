@@ -5,6 +5,7 @@ import MarketWatch from "../dashboard/market-watch"
 import MarketHours from "../dashboard/market-hours"
 import NewsTicker from "../dashboard/news-ticker"
 import MT5AccountSnapshot from "../dashboard/mt5-account-snapshot"
+import RiskManagementCenter from "../dashboard/risk-management-center"
 // import NotificationSystem from "../ui/notification-system" // Hidden but keeping animations
 
 export default function Content() {
@@ -101,6 +102,10 @@ export default function Content() {
 
         <motion.div variants={itemVariants} className="w-full">
           <MT5AccountSnapshot />
+        </motion.div>
+
+        <motion.div variants={itemVariants} className="w-full">
+          <RiskManagementCenter />
         </motion.div>
       </motion.div>
 

@@ -311,7 +311,7 @@ export default function HelpPage() {
 
         <section className="space-y-5">
           <SectionHeading id="dashboard" icon={LayoutDashboard} eyebrow="صفحه اصلی" title="داشبورد معاملاتی" description="صفحه نخست برای مشاهده سریع وضعیت جاری بازار و حساب‌های معاملاتی متصل طراحی شده است." />
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Clock3 className="h-5 w-5 text-primary" />بازار و خبر</CardTitle></CardHeader>
               <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
@@ -327,6 +327,15 @@ export default function HelpPage() {
                 <p>برای هر حساب متصل، Balance، Equity، سود و زیان شناور، لورج کل، Margin Level، Drawdown و سواپ لانگ/شرت S&amp;P 500 و طلا نمایش داده می‌شود.</p>
                 <p>با بازکردن ردیف حساب، Free Margin، Used Margin، Exposure خالص و ناخالص، لورج خالص، هزینه سالانه سواپ و جزئیات هر نماد قابل مشاهده است.</p>
                 <p>باکس‌های «چرخه معاملات» و «سفارش‌های در انتظار» اجرای معاملات، هزینه‌ها، مدت نگهداری، SL/TP و وضعیت سفارش‌ها را نمایش می‌دهند.</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2 text-base"><ShieldCheck className="h-5 w-5 text-primary" />مرکز مدیریت ریسک</CardTitle></CardHeader>
+              <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
+                <p>ریسک پوزیشن‌های باز تا حد ضرر، پوشش Stop، بودجه زیان روز، لورج مؤثر، Margin Level و تمرکز Exposure را از آخرین Snapshot حساب خلاصه می‌کند.</p>
+                <p>در «برنامه امروز» می‌توانید سقف‌های شخصی را برای ریسک معامله، ریسک باز، زیان روزانه، لورج، تعداد ورود و حداقل مارجین تعیین کنید. این قواعد فقط در مرورگر شما ذخیره می‌شوند.</p>
+                <p>پنل «بررسی معامله جدید» ریسک، نسبت سود به زیان و انطباق با قواعد را پیش از اجرا می‌سنجد. دکمه ثبت برنامه فقط یادداشت را ذخیره می‌کند و سفارش واقعی نمی‌فرستد.</p>
+                <p>اگر Stop، مشخصات Tick یا سابقه کافی وجود نداشته باشد، وضعیت «داده کافی نیست» یا «محاسبه ناقص» نمایش داده می‌شود؛ مقدار گمشده صفر فرض نمی‌شود.</p>
               </CardContent>
             </Card>
           </div>

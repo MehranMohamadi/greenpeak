@@ -1,5 +1,5 @@
 #property copyright "GreenPeak"
-#property version   "1.01"
+#property version   "1.02"
 #property strict
 #property description "Read-only portfolio risk monitor and GreenPeak snapshot sender"
 
@@ -24,7 +24,7 @@ input int YOffset=15;
 input int LineSpacing=22;
 
 #define EA_NAME "GreenPeak MT5 Risk Monitor"
-#define EA_VERSION "1.01"
+#define EA_VERSION "1.02"
 #define SCHEMA_VERSION "1.0"
 #define PREFIX "GP_RISK_"
 
@@ -202,6 +202,14 @@ string BrokerJson(){
   AppendUniqueBrokerSymbol(_Symbol,out,first,added,count);
   AppendUniqueBrokerSymbol(ResolveDashboardSymbol(Sp500BrokerSymbol,false),out,first,added,count);
   AppendUniqueBrokerSymbol(ResolveDashboardSymbol(GoldBrokerSymbol,true),out,first,added,count);
+  for(int i=0;i<PositionsTotal();i++){
+    ulong ticket=PositionGetTicket(i);
+    if(ticket>0)AppendUniqueBrokerSymbol(PositionGetString(POSITION_SYMBOL),out,first,added,count);
+  }
+  for(int i=0;i<OrdersTotal();i++){
+    ulong ticket=OrderGetTicket(i);
+    if(ticket>0)AppendUniqueBrokerSymbol(OrderGetString(ORDER_SYMBOL),out,first,added,count);
+  }
   return out+"]";
 }
 
