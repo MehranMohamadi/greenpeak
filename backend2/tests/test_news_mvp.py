@@ -9,9 +9,15 @@ from fastapi.testclient import TestClient
 from src.api.v1.endpoints import news as news_endpoint
 from src.main import app
 from src.services.news.feed import alpha_source_score, build_source_feed
+from src.services.news.scheduler import _ten_minute_bucket
 from src.services.news.sources import fetch_rss
 
 NOW = datetime(2026, 8, 30, 12, tzinfo=UTC)
+
+
+def test_news_ingestion_uses_ten_minute_idempotency_buckets():
+    assert _ten_minute_bucket(datetime(2026, 8, 30, 12, 9, 59, tzinfo=UTC)) == "2026-08-30T12:00"
+    assert _ten_minute_bucket(datetime(2026, 8, 30, 12, 10, tzinfo=UTC)) == "2026-08-30T12:10"
 
 
 def document(index: int, source="alpha_vantage", relevance=.8, published=None):
@@ -93,7 +99,7 @@ def test_source_api_and_bootstrap_contract(monkeypatch):
     )
     monkeypatch.setattr(news_endpoint, "_repository", lambda: (FakeClient(), repository))
     monkeypatch.setattr(news_endpoint, "_run_bootstrap", lambda run_key: None)
-    settings = news_endpoint.get_settings(); monkeypatch.setattr(settings, "alpha_vantage_key", "configured")
+    settings = news_endpoint.get_settings(); monkeypatch.setattr(settings, "alpha_vantage_key", "")
     client = TestClient(app)
     response = client.get("/api/v1/news/sources/alpha_vantage?limit=20")
     assert response.status_code == 200 and response.json()["data"]["count"] == 20

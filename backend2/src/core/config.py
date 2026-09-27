@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     greenpeak_daily_analysis_hour: int = 16
     greenpeak_daily_analysis_minute: int = 0
     greenpeak_daily_analysis_timezone: str = "Asia/Tehran"
-    greenpeak_news_enabled: bool = False
+    greenpeak_news_enabled: bool = True
     greenpeak_official_sentiment_enabled: bool = True
     sec_user_agent: str = "GreenPeak/1.0 (+https://greenpeak.tech)"
     greenpeak_cnbc_rss_url: str = "https://www.cnbc.com/id/10000664/device/rss/rss.html"

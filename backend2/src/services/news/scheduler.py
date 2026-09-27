@@ -18,13 +18,18 @@ ALPHA_TOPIC_ROTATION = (
 )
 
 
+def _ten_minute_bucket(value: datetime) -> str:
+    bucket_minute = (value.minute // 10) * 10
+    return value.replace(minute=bucket_minute, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M")
+
+
 def ingest_news(alpha_topics: tuple[str, ...] | None = None, run_prefix: str = "ingest") -> None:
-    settings = get_settings(); now = datetime.now(UTC); hour_key = now.strftime("%Y-%m-%dT%H")
+    settings = get_settings(); now = datetime.now(UTC); interval_key = _ten_minute_bucket(now)
     client = MongoClient(settings.mongodb_url, serverSelectionTimeoutMS=5000); repository = MongoNewsRepository(client, settings.mongodb_database)
     metrics = {"sources": {}, "errors": {}}
     try:
         repository.ensure_indexes()
-        run_key = f"{run_prefix}:{hour_key}"
+        run_key = f"{run_prefix}:{interval_key}"
         if not repository.claim_run(run_key, "ingest"): return
         topics = alpha_topics or (ALPHA_TOPIC_ROTATION[(now.timetuple().tm_yday * 24 + now.hour) % len(ALPHA_TOPIC_ROTATION)],)
         def fetch_alpha_topics():
@@ -61,7 +66,7 @@ def ingest_news(alpha_topics: tuple[str, ...] | None = None, run_prefix: str = "
         repository.finish_run(run_key, status, metrics)
     except Exception as exc:
         logger.exception("News ingestion failed")
-        repository.finish_run(f"{run_prefix}:{hour_key}", "failed", metrics, type(exc).__name__)
+        repository.finish_run(f"{run_prefix}:{interval_key}", "failed", metrics, type(exc).__name__)
     finally: client.close()
 
 

@@ -15,7 +15,7 @@ from ....services.news.repository import MongoNewsRepository
 from ....services.news.scheduler import ingest_news
 
 router = APIRouter(prefix="/news", tags=["S&P 500 News"])
-BOOTSTRAP_VERSION = "v4"
+BOOTSTRAP_VERSION = "v5"
 
 
 def _repository():
@@ -149,9 +149,6 @@ def released_calendar_events(limit: int = Query(default=6, ge=1, le=10)):
 @router.post("/bootstrap", status_code=202)
 def bootstrap_news(background_tasks: BackgroundTasks):
     """Fetch all independent source tabs once when production storage is empty."""
-    settings = get_settings()
-    if not settings.alpha_vantage_key:
-        raise HTTPException(503, detail={"code": "ALPHA_VANTAGE_NOT_CONFIGURED", "message": "Alpha Vantage is not configured."})
     client, repository = _repository()
     try:
         repository.ensure_indexes()

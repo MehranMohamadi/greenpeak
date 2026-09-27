@@ -8,6 +8,9 @@ import { endpoints } from "@/api/api"
 import { IMPORTANT_US_NEWS_FA } from "@/lib/important-us-news-fa"
 
 const VISIBLE_NEWS_COUNT = 4
+const NEWS_ROTATION_INTERVAL_MS = 10_000
+const NEWS_REFRESH_INTERVAL_MS = 5 * 60 * 1000
+const DASHBOARD_NEWS_SOURCES = ["alpha_vantage", "cnbc_rss"]
 const NEWS_PRESENTATION = [
   { icon: TrendingUp, colorClass: "text-red-600 dark:text-red-400" },
   { icon: Calendar, colorClass: "text-yellow-600 dark:text-yellow-400" },
@@ -46,22 +49,31 @@ export default function NewsTicker() {
 
     async function loadNews() {
       try {
-        const response = await fetch(endpoints.news.source("alpha_vantage", 20), { signal: controller.signal })
-        if (!response.ok) throw new Error("US market news is unavailable")
+        let articles = []
+        for (const sourceId of DASHBOARD_NEWS_SOURCES) {
+          const response = await fetch(endpoints.news.source(sourceId, 20), {
+            cache: "no-store",
+            signal: controller.signal,
+          })
+          if (!response.ok) continue
+          const payload = await response.json()
+          const sourceItems = payload.data?.items || []
+          articles = sourceId === "alpha_vantage"
+            ? sourceItems.filter((article) => article.importance === "high" || article.importance === "medium")
+            : sourceItems
+          if (articles.length > 0) break
+        }
+        if (articles.length === 0) throw new Error("US market news is unavailable")
 
-        const payload = await response.json()
-        const items = (payload.data?.items || [])
-          .filter((article) => article.importance === "high" || article.importance === "medium")
+        const items = articles
           .slice(0, VISIBLE_NEWS_COUNT)
           .map((article, index) => {
             const storedPersianTitle = article.title_fa?.trim()
             return {
               ...NEWS_PRESENTATION[index],
               id: article.item_id || article.url,
-              title: storedPersianTitle || fallbackNews[index].title,
-              time: storedPersianTitle
-                ? formatRelativeTime(article.published_at) || fallbackNews[index].time
-                : fallbackNews[index].time,
+              title: storedPersianTitle || article.title?.trim() || fallbackNews[index].title,
+              time: formatRelativeTime(article.published_at) || fallbackNews[index].time,
             }
           })
 
@@ -75,7 +87,11 @@ export default function NewsTicker() {
     }
 
     loadNews()
-    return () => controller.abort()
+    const refreshTimer = window.setInterval(loadNews, NEWS_REFRESH_INTERVAL_MS)
+    return () => {
+      window.clearInterval(refreshTimer)
+      controller.abort()
+    }
   }, [])
 
   useEffect(() => {
@@ -83,7 +99,7 @@ export default function NewsTicker() {
 
     const timer = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % newsItems.length)
-    }, 5000)
+    }, NEWS_ROTATION_INTERVAL_MS)
 
     return () => clearInterval(timer)
   }, [newsItems.length])

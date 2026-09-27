@@ -8,8 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const SOURCES = [
-  { id: "alpha_vantage", label: "Alpha Vantage" },
   { id: "cnbc_rss", label: "CNBC" },
+  { id: "alpha_vantage", label: "Alpha Vantage" },
   { id: "investing_rss", label: "Investing.com" },
 ]
 
@@ -21,7 +21,7 @@ function formatTime(value) {
 const formatScore = (value) => typeof value === "number" ? value.toFixed(3) : "—"
 
 export default function AlphaVantageNews() {
-  const [activeSource, setActiveSource] = useState("alpha_vantage")
+  const [activeSource, setActiveSource] = useState("cnbc_rss")
   const [feeds, setFeeds] = useState({})
   const [loadingSource, setLoadingSource] = useState(null)
   const [errors, setErrors] = useState({})
@@ -66,7 +66,7 @@ export default function AlphaVantageNews() {
   return <Card dir="rtl">
     <CardHeader>
       <CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-primary" />اخبار بازار</CardTitle>
-      <CardDescription>‏هر منبع به‌صورت مستقل نمایش داده می‌شود؛ بدون مقایسه یا ادغام خبرها. تب پیش‌فرض ‎Alpha Vantage‎ است.</CardDescription>
+      <CardDescription>هر منبع به‌صورت مستقل نمایش داده می‌شود؛ بدون مقایسه یا ادغام خبرها. تب پیش‌فرض CNBC است.</CardDescription>
     </CardHeader>
     <CardContent>
       <Tabs value={activeSource} onValueChange={setActiveSource} dir="ltr">
