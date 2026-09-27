@@ -13,7 +13,7 @@ import {
 export default function USMarketPageHeader({ className = "" }) {
   return (
     <div className={`flex items-center gap-2 ${className}`} dir="rtl">
-      <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+      <h1 className="mb-1 flex items-center justify-start gap-2 text-xl font-bold text-gray-900 dark:text-white md:text-2xl">
         بازار آمریکا <span dir="ltr">US500</span>
       </h1>
       <Dialog>
