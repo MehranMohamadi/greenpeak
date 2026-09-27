@@ -8,7 +8,7 @@ const factors = [
   { id: "forward-pe", key: "forwardPE", indicatorId: "forward_pe_ratio", title: "Forward P/E", group: "Multiples", icon: BookOpenCheck, unit: "x" },
   { id: "price-to-book", key: "priceToBook", indicatorId: "price_to_book_ratio", title: "Price-to-Book", group: "Multiples", icon: Scale, unit: "x" },
   { id: "price-to-sales", key: "priceToSales", indicatorId: "price_to_sales_ratio", title: "Price-to-Sales", group: "Multiples", icon: CircleDollarSign, unit: "x" },
-  { id: "peg-ratio", key: "pegRatio", indicatorId: "peg_ratio", title: "PEG Ratio", group: "Multiples", icon: Database, unit: "x" },
+  { id: "peg-ratio", key: "pegRatio", indicatorId: "peg_ratio", title: "PEG Proxy (5Y)", group: "Multiples", icon: Database, unit: "x", description: "Trailing S&P 500 P/E divided by five-year annualized nominal EPS growth. Periods with non-positive growth are omitted." },
   { id: "dividend-yield", key: "dividendYield", indicatorId: "valuation_dividend_yield", title: "Dividend Yield", group: "Yields", icon: Percent, unit: "%" },
 ]
 const periods = ["1Y", "5Y", "10Y", "MAX"]

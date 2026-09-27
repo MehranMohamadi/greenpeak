@@ -22,6 +22,12 @@ from .mongodb_service import MongoDBService
 from .fred_public import FredPublicSeriesClient, FredPublicSourceError
 from .umich_consumer import UmichConsumerClient, UmichConsumerSourceError
 from .valuation_sources import PublishedValuationSeries, ValuationSourceClient
+from .corporate_fundamentals import (
+    CORPORATE_METHODOLOGY_VERSION,
+    S_AND_P_EPS_URL,
+    CorporateFundamentalsSourceError,
+    load_sp500_operating_eps,
+)
 import logging
 import pandas as pd
 
@@ -244,6 +250,16 @@ class DataService:
         quality_status: Optional[str] = None,
         quality_reason: Optional[str] = None,
         stale_after_days: Optional[int] = None,
+        methodology_version: Optional[str] = None,
+        formula_version: Optional[str] = None,
+        companies_expected: Optional[int] = None,
+        companies_received: Optional[int] = None,
+        coverage_pct: Optional[float] = None,
+        missing_symbols_count: Optional[int] = None,
+        missing_symbols: Optional[List[str]] = None,
+        holdings_as_of: Optional[str] = None,
+        latest_filing_date: Optional[str] = None,
+        proxy: Optional[bool] = None,
     ) -> DataMetadata:
         """Build traceable metadata without inventing unavailable semantics."""
         contract = SERIES_CONTRACTS.get(source_series_id or "", {})
@@ -304,6 +320,16 @@ class DataService:
             quality_status=resolved_status,
             quality_reason=resolved_reason,
             data_version="2.0",
+            methodology_version=methodology_version,
+            formula_version=formula_version,
+            companies_expected=companies_expected,
+            companies_received=companies_received,
+            coverage_pct=coverage_pct,
+            missing_symbols_count=missing_symbols_count,
+            missing_symbols=missing_symbols,
+            holdings_as_of=holdings_as_of,
+            latest_filing_date=latest_filing_date,
+            proxy=proxy,
         )
 
     @staticmethod
@@ -2744,32 +2770,38 @@ class DataService:
         source: str = "",
         symbol: str = ""
     ) -> DataResponse:
-        """Get corporate earnings data from MongoDB."""
+        """Read the latest verified SEC-backed aggregate snapshots from MongoDB."""
+        unavailable_source = "SEC Company Facts + State Street SPY holdings"
         if not self.mongodb:
-            raise Exception("MongoDB not available for corporate earnings data")
-        
+            return self._unavailable_response(
+                indicator_id=indicator_name,
+                owner_group="corporate_fundamentals",
+                description=description,
+                unit=unit,
+                frequency=frequency,
+                source=unavailable_source,
+                source_series_id="SEC_COMPANYFACTS_SPY_CURRENT_CONSTITUENTS",
+                quality_status="unavailable",
+                quality_reason="verified_sec_snapshot_not_available",
+                transformation="verified_aggregate_not_available",
+                population="Current SPY holdings cohort",
+            )
         try:
-            # Resolve the collection through MongoDBService so its lazy
-            # connection is established before the first query.
             collection = self.mongodb.get_collection("corporate_earnings")
-
-            # Query corporate_earnings collection
-            query = {"indicator": indicator_name}
-            
-            # Add date filtering if provided
-            if start_date or end_date:
-                date_filter = {}
-                if start_date:
-                    date_filter["$gte"] = start_date
-                if end_date:
-                    date_filter["$lte"] = end_date
-                query["date"] = date_filter
-            
-            cursor = collection.find(query).sort("date", 1)
-            if limit:
-                cursor = cursor.limit(limit)
-            documents = list(cursor)
-            
+            documents = list(collection.find({"indicator": indicator_name}).sort("date", 1))
+            documents = [
+                document
+                for document in documents
+                if (
+                    document.get("methodology_version") == CORPORATE_METHODOLOGY_VERSION
+                    or document.get("metadata", {}).get("methodology_version")
+                    == CORPORATE_METHODOLOGY_VERSION
+                )
+                and (not start_date or str(document.get("date", "")) >= start_date)
+                and (not end_date or str(document.get("date", "")) <= end_date)
+            ]
+            if limit and limit > 0:
+                documents = documents[-limit:]
             if not documents:
                 logger.warning(f"No corporate earnings data found for indicator: {indicator_name}")
                 return DataResponse(
@@ -2783,18 +2815,26 @@ class DataService:
                         description=description,
                         unit=unit,
                         frequency=frequency,
-                        source="Corporate Earnings Database",
-                        source_series_id=symbol,
-                        population="S&P 500 companies available to the ingestion job",
+                        source=unavailable_source,
+                        source_series_id="SEC_COMPANYFACTS_SPY_CURRENT_CONSTITUENTS",
+                        population="Current SPY holdings cohort",
                         seasonal_adjustment="not_applicable",
-                        transformation="cross_sectional_aggregate_from_reported_company_metrics",
+                        transformation="verified_aggregate_not_available",
+                        quality_status="unavailable",
+                        quality_reason="verified_sec_snapshot_not_available",
+                        methodology_version=CORPORATE_METHODOLOGY_VERSION,
+                        proxy=True,
                     )
                 )
             
             # Convert to EconomicDataPoint objects
             data_points = []
             for doc in documents:
-                timestamp = int(datetime.fromisoformat(doc["date"]).timestamp())
+                timestamp = int(
+                    datetime.fromisoformat(doc["date"])
+                    .replace(tzinfo=timezone.utc)
+                    .timestamp()
+                )
                 data_points.append(EconomicDataPoint(
                     time=timestamp,
                     date=doc["date"],
@@ -2802,12 +2842,9 @@ class DataService:
                     rate=float(doc["value"])  # For compatibility
                 ))
             
-            # Extract metadata from latest document
             latest_doc = documents[-1]
             doc_metadata = latest_doc.get("metadata", {})
-            
-            # Create response metadata using simpler DataMetadata
-            source_series_id = doc_metadata.get("symbol", symbol)
+            coverage_pct = doc_metadata.get("coverage_pct")
             metadata = self._build_metadata(
                 indicator_id=indicator_name,
                 owner_group="corporate_fundamentals",
@@ -2817,18 +2854,48 @@ class DataService:
                 description=description,
                 unit=doc_metadata.get("unit", unit),
                 frequency=doc_metadata.get("frequency", frequency),
-                source=f"Corporate Earnings Database - {source}",
-                source_series_id=source_series_id,
-                population="S&P 500 companies available to the ingestion job",
+                source=doc_metadata.get("source", unavailable_source),
+                source_series_id=doc_metadata.get(
+                    "source_series_id", "SEC_COMPANYFACTS_SPY_CURRENT_CONSTITUENTS"
+                ),
+                population=doc_metadata.get("population", "Current SPY holdings cohort"),
                 seasonal_adjustment="not_applicable",
-                transformation="cross_sectional_aggregate_from_reported_company_metrics",
+                transformation=doc_metadata.get("transformation"),
+                quality_reason=(
+                    "company_coverage_below_80_percent"
+                    if coverage_pct is not None and float(coverage_pct) < 80
+                    else None
+                ),
+                methodology_version=doc_metadata.get("methodology_version"),
+                formula_version=doc_metadata.get("formula_version"),
+                companies_expected=doc_metadata.get("companies_expected"),
+                companies_received=doc_metadata.get("companies_received"),
+                coverage_pct=coverage_pct,
+                missing_symbols_count=doc_metadata.get("missing_symbols_count"),
+                missing_symbols=doc_metadata.get("missing_symbols"),
+                holdings_as_of=doc_metadata.get("holdings_as_of"),
+                latest_filing_date=doc_metadata.get("latest_filing_date"),
+                proxy=doc_metadata.get("proxy", True),
+                stale_after_days=185,
             )
-            
+            metadata.source_provider = doc_metadata.get("source_provider")
+            metadata.source_url = doc_metadata.get("source_url")
             return DataResponse(data=data_points, metadata=metadata)
-            
         except Exception as e:
             logger.error(f"Error fetching corporate earnings data for {indicator_name}: {e}")
-            raise
+            return self._unavailable_response(
+                indicator_id=indicator_name,
+                owner_group="corporate_fundamentals",
+                description=description,
+                unit=unit,
+                frequency=frequency,
+                source=unavailable_source,
+                source_series_id="SEC_COMPANYFACTS_SPY_CURRENT_CONSTITUENTS",
+                quality_status="unavailable",
+                quality_reason="verified_sec_snapshot_not_available",
+                transformation="verified_aggregate_not_available",
+                population="Current SPY holdings cohort",
+            )
 
     def get_sp500_eps_data(
         self,
@@ -2836,23 +2903,68 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Return an explicit invalid state until a verified EPS series is connected.
-
-        SPASTT01USQ661N is a stock-price index and is not an EPS series.
-        """
-        return self._unavailable_response(
-            indicator_id="sp500_eps",
-            owner_group="corporate_fundamentals",
-            description="S&P 500 Earnings Per Share",
-            unit="USD",
-            frequency="quarterly",
-            source="Not connected",
-            source_series_id=None,
-            quality_status="invalid",
-            quality_reason="previous_source_was_stock_price_index_not_eps",
-            transformation="level",
-            population="S&P 500 constituent companies",
-        )
+        """Return reported quarterly S&P 500 operating EPS from S&P Dow Jones."""
+        try:
+            series = load_sp500_operating_eps()
+            points = [
+                point
+                for point in series.points
+                if (not start_date or point.date >= start_date)
+                and (not end_date or point.date <= end_date)
+            ]
+            if limit and limit > 0:
+                points = points[-limit:]
+            data_points = [
+                EconomicDataPoint(
+                    time=int(
+                        datetime.fromisoformat(point.date)
+                        .replace(tzinfo=timezone.utc)
+                        .timestamp()
+                    ),
+                    date=point.date,
+                    value=point.value,
+                    rate=point.value,
+                )
+                for point in points
+            ]
+            metadata = self._build_metadata(
+                indicator_id="sp500_eps",
+                owner_group="corporate_fundamentals",
+                latest_value=data_points[-1].value if data_points else None,
+                latest_date=data_points[-1].date if data_points else None,
+                total_records=len(data_points),
+                description="S&P 500 reported quarterly operating earnings per share",
+                unit="USD per share",
+                frequency="quarterly",
+                source="S&P Dow Jones Indices Earnings and Estimate Report",
+                source_series_id="SP500_OPERATING_EPS_QUARTERLY",
+                population="S&P 500 index",
+                seasonal_adjustment="not_applicable",
+                transformation="published reported operating earnings per share; estimates excluded",
+                stale_after_days=185,
+                methodology_version="sp_global_workbook_v1",
+                formula_version="published_value_no_greenpeak_formula",
+                proxy=False,
+            )
+            metadata.source_provider = "S&P Dow Jones Indices"
+            metadata.source_url = S_AND_P_EPS_URL
+            metadata.latest_observation_is_estimate = False if data_points else None
+            metadata.latest_observation_status = "reported" if data_points else None
+            return DataResponse(data=data_points, metadata=metadata)
+        except CorporateFundamentalsSourceError:
+            return self._unavailable_response(
+                indicator_id="sp500_eps",
+                owner_group="corporate_fundamentals",
+                description="S&P 500 reported quarterly operating earnings per share",
+                unit="USD per share",
+                frequency="quarterly",
+                source="S&P Dow Jones Indices Earnings and Estimate Report",
+                source_series_id="SP500_OPERATING_EPS_QUARTERLY",
+                quality_status="unavailable",
+                quality_reason="sp_global_eps_workbook_unavailable_or_invalid",
+                transformation="published reported operating earnings per share; estimates excluded",
+                population="S&P 500 index",
+            )
 
     def get_revenue_growth_data(
         self,
@@ -2860,17 +2972,17 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Get Revenue Growth data from major S&P 500 companies."""
+        """Get aggregate SEC-filed revenue growth for the current SPY cohort."""
         return self.get_corporate_earnings_data(
             indicator_name="revenue_growth",
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="Average revenue growth from major S&P 500 companies",
+            description="Aggregate year-over-year revenue growth for a common current-SPY cohort",
             unit="Percent",
             frequency="quarterly",
-            source="Yahoo Finance (Aggregated)",
-            symbol="Multiple"
+            source="SEC Company Facts + State Street SPY holdings",
+            symbol="SEC_COMPANYFACTS_SPY_CURRENT_CONSTITUENTS"
         )
 
     def get_profit_margins_data(
@@ -2879,17 +2991,17 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Get Profit Margins data from major S&P 500 companies."""
+        """Get aggregate SEC-filed profit margin for the current SPY cohort."""
         return self.get_corporate_earnings_data(
             indicator_name="profit_margins",
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="Average profit margins from major S&P 500 companies",
+            description="Aggregate quarterly net income divided by aggregate quarterly revenue",
             unit="Percent",
             frequency="quarterly",
-            source="Yahoo Finance (Aggregated)",
-            symbol="Multiple"
+            source="SEC Company Facts + State Street SPY holdings",
+            symbol="SEC_COMPANYFACTS_SPY_CURRENT_CONSTITUENTS"
         )
 
     def get_pe_ratio_data(
@@ -2898,17 +3010,11 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Get P/E Ratio data for S&P 500."""
-        return self.get_corporate_earnings_data(
-            indicator_name="pe_ratio",
+        """Legacy URL backed by the same published series as the Valuation group."""
+        return self.get_valuation_pe_ratio_data(
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="S&P 500 Price-to-Earnings ratio (calculated from price and EPS data)",
-            unit="Ratio",
-            frequency="monthly",
-            source="Yahoo Finance (Calculated)",
-            symbol="^GSPC"
         )
 
     def get_dividend_yield_data(
@@ -2917,17 +3023,11 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Get Dividend Yield data for S&P 500."""
-        return self.get_corporate_earnings_data(
-            indicator_name="dividend_yield",
+        """Legacy URL backed by the same published series as the Valuation group."""
+        return self.get_valuation_dividend_yield_data(
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="S&P 500 dividend yield via SPY ETF",
-            unit="Percent",
-            frequency="monthly",
-            source="Yahoo Finance",
-            symbol="SPY"
         )
 
     def get_return_on_assets_data(
@@ -2936,17 +3036,17 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Get Return on Assets data from major S&P 500 companies."""
+        """Get aggregate TTM ROA for the current SPY cohort from SEC filings."""
         return self.get_corporate_earnings_data(
             indicator_name="return_on_assets",
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="Average return on assets from major S&P 500 companies",
+            description="Aggregate trailing-four-quarter net income divided by aggregate average assets",
             unit="Percent",
             frequency="quarterly",
-            source="Yahoo Finance (Aggregated)",
-            symbol="Multiple"
+            source="SEC Company Facts + State Street SPY holdings",
+            symbol="SEC_COMPANYFACTS_SPY_CURRENT_CONSTITUENTS"
         )
 
     # Valuation Data Methods
@@ -2957,7 +3057,7 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
     ) -> DataResponse:
-        """Read one unmodified published valuation series from its source adapter."""
+        """Read a published or explicitly derived valuation series from its adapter."""
         source_client = getattr(self, "valuation_sources", None)
         if source_client is None:
             source_client = ValuationSourceClient()
@@ -3001,6 +3101,13 @@ class DataService:
             population=series.population,
             seasonal_adjustment="not_applicable",
             transformation=series.transformation,
+            methodology_version="published_sp500_valuation_v1",
+            formula_version=(
+                "trailing_peg_5y_eps_cagr_v1"
+                if series.indicator_id == "peg_ratio"
+                else None
+            ),
+            proxy=series.indicator_id == "peg_ratio",
             quality_reason=(
                 "latest_source_observation_is_estimate"
                 if latest_source_point and latest_source_point.is_estimate
@@ -3167,17 +3274,12 @@ class DataService:
         start_date: Optional[str] = None, 
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Get PEG Ratio data."""
-        return self.get_valuation_data(
+        """Get the disclosed S&P 500 trailing PEG proxy from published inputs."""
+        return self._get_published_valuation_data(
             indicator_name="peg_ratio",
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="Price/Earnings to Growth ratio from major S&P 500 companies",
-            unit="ratio",
-            frequency="daily",
-            source="Yahoo Finance",
-            symbol="Multiple"
         )
 
     def get_valuation_dividend_yield_data(

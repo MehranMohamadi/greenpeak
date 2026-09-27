@@ -259,6 +259,16 @@ class DataMetadata(BaseModel):
         None, description="Upstream release status such as preliminary or final"
     )
     data_version: Optional[str] = Field(None, description="Version of data/transformation contract")
+    methodology_version: Optional[str] = Field(None, description="Version of the source cohort and aggregation method")
+    formula_version: Optional[str] = Field(None, description="Version of the financial formula contract")
+    companies_expected: Optional[int] = Field(None, description="Companies expected in the source cohort")
+    companies_received: Optional[int] = Field(None, description="Companies included in the latest aggregate")
+    coverage_pct: Optional[float] = Field(None, description="Latest aggregate company coverage percentage")
+    missing_symbols_count: Optional[int] = Field(None, description="Count of cohort symbols missing from the latest aggregate")
+    missing_symbols: Optional[List[str]] = Field(None, description="Sample of cohort symbols missing from the latest aggregate")
+    holdings_as_of: Optional[str] = Field(None, description="Observation date of the constituent cohort")
+    latest_filing_date: Optional[str] = Field(None, description="Latest SEC filing date used in the aggregate")
+    proxy: Optional[bool] = Field(None, description="Whether the population is a disclosed proxy for the named index")
 
 
 class DataResponse(BaseModel):

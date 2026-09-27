@@ -14,6 +14,10 @@ from src.services.umich_consumer import (
     UmichSentimentObservation,
     UmichSentimentRelease,
 )
+from src.services.valuation_sources import (
+    PublishedValuationPoint,
+    PublishedValuationSeries,
+)
 from src.models.schemas import DataMetadata, DataResponse, EconomicDataPoint
 
 
@@ -63,7 +67,7 @@ def make_service(collections):
     return service
 
 
-def test_unverified_sp500_eps_is_explicitly_unavailable():
+def test_sp500_eps_uses_official_workbook_without_mongodb():
     service = make_service({
         "corporate_earnings": FakeCollection([
             {"indicator": "sp500_eps", "date": "2025-03-31", "value": 61.25}
@@ -73,9 +77,11 @@ def test_unverified_sp500_eps_is_explicitly_unavailable():
     response = service.get_sp500_eps_data()
 
     assert service.mongodb.requested == []
-    assert response.data == []
-    assert response.metadata.quality_status == "invalid"
-    assert response.metadata.source_series_id is None
+    assert response.data
+    assert response.data[-1].date == "2025-03-31"
+    assert response.data[-1].value == pytest.approx(57.51)
+    assert response.metadata.source_series_id == "SP500_OPERATING_EPS_QUARTERLY"
+    assert response.metadata.latest_observation_is_estimate is False
 
 
 def test_credit_spread_percent_is_converted_to_basis_points():
@@ -316,7 +322,39 @@ def test_empty_corporate_data_returns_valid_metadata():
 
     assert response.data == []
     assert response.metadata.total_records == 0
-    assert response.metadata.description.startswith("Average revenue growth")
+    assert response.metadata.description.startswith("Aggregate year-over-year revenue growth")
+
+
+def test_verified_corporate_limit_returns_latest_records_in_ascending_order():
+    documents = [
+        {
+            "indicator": "revenue_growth",
+            "date": f"202{year}-03-31",
+            "value": float(year),
+            "methodology_version": "sec_companyfacts_spy_current_cohort_v1",
+            "metadata": {
+                "methodology_version": "sec_companyfacts_spy_current_cohort_v1",
+                "formula_version": "1.0",
+                "coverage_pct": 90,
+                "companies_expected": 500,
+                "companies_received": 450,
+                "source": "SEC Company Facts + State Street SPY holdings",
+                "source_provider": "SEC; State Street",
+                "source_url": "https://data.sec.gov/api/xbrl/companyfacts/",
+                "transformation": "test formula",
+                "population": "Current SPY holdings cohort",
+                "proxy": True,
+            },
+        }
+        for year in range(2, 6)
+    ]
+    service = make_service({"corporate_earnings": FakeCollection(documents)})
+
+    response = service.get_revenue_growth_data(limit=2)
+
+    assert [point.date for point in response.data] == ["2024-03-31", "2025-03-31"]
+    assert response.metadata.companies_received == 450
+    assert response.metadata.coverage_pct == 90
 
 
 def test_sector_latest_uses_lazy_collection_accessor():
@@ -342,7 +380,7 @@ def test_sector_latest_uses_lazy_collection_accessor():
     }
 
 
-def test_unconnected_peg_data_still_uses_lazy_collection_accessor():
+def test_peg_data_uses_published_source_instead_of_legacy_mongodb_rows():
     service = make_service({
         "valuation": FakeCollection([
             {
@@ -353,12 +391,32 @@ def test_unconnected_peg_data_still_uses_lazy_collection_accessor():
             }
         ])
     })
+    service.valuation_sources = type(
+        "FakeValuationSource",
+        (),
+        {
+            "get_series": lambda self, indicator_id: PublishedValuationSeries(
+                indicator_id=indicator_id,
+                points=(PublishedValuationPoint("2025-08-01", 1.75),),
+                description="S&P 500 trailing PEG proxy",
+                unit="ratio",
+                frequency="quarterly",
+                source="Published test source",
+                source_provider="Test",
+                source_url="https://example.test/peg",
+                source_series_id="P/E + EPS",
+                population="S&P 500 index",
+                transformation="trailing P/E / five-year EPS CAGR",
+            )
+        },
+    )()
 
     response = service.get_peg_ratio_data()
 
-    assert service.mongodb.requested == ["valuation"]
+    assert service.mongodb.requested == []
     assert response.data[0].value == 1.75
     assert response.metadata.total_records == 1
+    assert response.metadata.proxy is True
 
 
 def test_ten_year_data_uses_lazy_monetary_policy_collection():

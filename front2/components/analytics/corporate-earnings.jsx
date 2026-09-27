@@ -4,10 +4,10 @@ import useCorporateEarningsData from "@/hooks/useCorporateEarningsData"
 import GroupAnalysisLayout from "./group-analysis-layout"
 
 const factors = [
-  { id: "sp500-eps", key: "sp500eps", indicatorId: "sp500_eps", title: "S&P 500 EPS", group: "Earnings", icon: BadgeDollarSign, unit: "USD", description: "Aggregate index earnings per share." },
-  { id: "revenue-growth", key: "revenue", indicatorId: "revenue_growth", title: "Revenue Growth", group: "Revenue", icon: Building2, unit: "%", description: "Stored aggregate revenue-growth observations." },
-  { id: "profit-margins", key: "margins", indicatorId: "profit_margins", title: "Profit Margins", group: "Margins", icon: Percent, unit: "%", description: "Stored aggregate profit-margin observations." },
-  { id: "return-on-assets", key: "returnOnAssets", indicatorId: "return_on_assets", title: "Return on Assets", group: "Margins", icon: Scale, unit: "%", description: "Stored aggregate net-income-to-assets observations." },
+  { id: "sp500-eps", key: "sp500eps", indicatorId: "sp500_eps", title: "S&P 500 EPS", group: "Earnings", icon: BadgeDollarSign, unit: "USD", description: "Reported quarterly operating EPS published by S&P Dow Jones Indices." },
+  { id: "revenue-growth", key: "revenue", indicatorId: "revenue_growth", title: "Revenue Growth", group: "Revenue", icon: Building2, unit: "%", description: "Aggregate SEC-filed revenue growth for a comparable current-SPY cohort." },
+  { id: "profit-margins", key: "margins", indicatorId: "profit_margins", title: "Profit Margins", group: "Margins", icon: Percent, unit: "%", description: "Aggregate SEC-filed net income divided by aggregate revenue." },
+  { id: "return-on-assets", key: "returnOnAssets", indicatorId: "return_on_assets", title: "Return on Assets", group: "Margins", icon: Scale, unit: "%", description: "Trailing-four-quarter net income divided by average assets from SEC filings." },
 ]
 const periods = ["1Y", "5Y", "10Y", "MAX"]
 const slicePeriod = (data, period) => { if (period === "MAX" || !data.length) return data; const end = new Date(`${data.at(-1).date}T00:00:00Z`); const start = new Date(end); start.setUTCFullYear(start.getUTCFullYear() - Number.parseInt(period, 10)); return data.filter((point) => new Date(`${point.date}T00:00:00Z`) >= start) }

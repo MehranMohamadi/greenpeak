@@ -30,7 +30,7 @@ async def get_revenue_growth_data(
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
 ):
-    """Get Revenue Growth data from major S&P 500 companies."""
+    """Get SEC-backed aggregate revenue growth for the current SPY cohort."""
     try:
         return data_service.get_revenue_growth_data(
             limit=limit, start_date=start_date, end_date=end_date
@@ -45,7 +45,7 @@ async def get_profit_margins_data(
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
 ):
-    """Get Profit Margins data from major S&P 500 companies."""
+    """Get SEC-backed aggregate profit margins for the current SPY cohort."""
     try:
         return data_service.get_profit_margins_data(
             limit=limit, start_date=start_date, end_date=end_date
@@ -90,7 +90,7 @@ async def get_return_on_assets_data(
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
 ):
-    """Get Return on Assets data from major S&P 500 companies."""
+    """Get SEC-backed aggregate TTM return on assets for the current SPY cohort."""
     try:
         return data_service.get_return_on_assets_data(
             limit=limit, start_date=start_date, end_date=end_date

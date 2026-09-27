@@ -21,7 +21,7 @@ const routeLabels = {
   "/analytics/feature-pipeline-debug": "Feature Pipeline JSON",
   "/analytics/mt5-snapshots": "MetaTrader Snapshot JSON",
   "/settings": "Settings",
-  "/help": "Help",
+  "/help": "راهنما",
   "/test-charts": "Test Charts",
   "/fun": "حیاط",
 };

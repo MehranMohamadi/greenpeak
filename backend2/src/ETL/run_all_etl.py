@@ -86,20 +86,20 @@ class ETLRunner:
             {
                 'name': 'Valuation Fetcher',
                 'script': 'valuation_fetcher.py',
-                'description': 'Fetches market valuation metrics (P/E ratios, P/B ratios, dividend yields)',
+                'description': 'Fetches published S&P 500 valuation series without synthetic observations',
                 'priority': 4,
-                'estimated_time': '90-180 seconds',
-                'dependencies': ['Yahoo Finance'],
-                'data_sources': ['Yahoo Finance', 'S&P 500 companies']
+                'estimated_time': '20-60 seconds',
+                'dependencies': ['Federal Reserve', 'Multpl'],
+                'data_sources': ['Federal Reserve Board', 'Multpl published S&P 500 series']
             },
             {
                 'name': 'Corporate Earnings Fetcher',
-                'script': 'corporate_earnings_fetcher_v3.py',
-                'description': 'Fetches corporate earnings data (EPS, revenue, margins, ROA)',
+                'script': 'corporate_fundamentals_fetcher.py',
+                'description': 'Builds corporate fundamentals from SEC filings and current SPY holdings',
                 'priority': 5,
                 'estimated_time': '120-240 seconds',
-                'dependencies': ['Yahoo Finance'],
-                'data_sources': ['Yahoo Finance', 'Major S&P 500 companies']
+                'dependencies': ['SEC EDGAR', 'State Street'],
+                'data_sources': ['SEC Company Facts', 'State Street SPY holdings']
             },
             {
                 'name': 'Sector Performance Fetcher',

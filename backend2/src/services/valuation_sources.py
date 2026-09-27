@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from html import unescape
+import math
 import re
 from threading import Lock
 from time import monotonic
@@ -93,6 +94,13 @@ MULTPL_SERIES: Dict[str, _MultplDefinition] = {
         description="S&P 500 dividend yield",
         frequency="monthly",
         source_series_id="S&P 500 Dividend Yield",
+    ),
+    "earnings": _MultplDefinition(
+        indicator_id="earnings",
+        url="https://www.multpl.com/s-p-500-earnings/table/by-quarter",
+        description="S&P 500 trailing 12-month nominal earnings per share",
+        frequency="quarterly",
+        source_series_id="S&P 500 Earnings",
     ),
 }
 
@@ -208,6 +216,72 @@ def parse_fed_forward_pe_table(document: str) -> Tuple[PublishedValuationPoint, 
     return points
 
 
+def build_trailing_peg_series(
+    pe_points: Tuple[PublishedValuationPoint, ...],
+    earnings_points: Tuple[PublishedValuationPoint, ...],
+) -> Tuple[PublishedValuationPoint, ...]:
+    """Build a disclosed trailing PEG proxy from published S&P 500 inputs.
+
+    The growth input is the five-year annualized change in trailing 12-month
+    nominal EPS.  A point is emitted only when both EPS endpoints and the
+    resulting growth rate are positive.  The P/E input is the latest published
+    observation on or before the earnings date; raw observations are never
+    interpolated or forward-filled beyond that date.
+    """
+    if not pe_points or not earnings_points:
+        raise ValuationSourceError("PEG inputs did not contain valid observations")
+
+    ordered_pe = sorted(pe_points, key=lambda point: point.date)
+    earnings_by_date = {point.date: point for point in earnings_points}
+    peg_points = []
+    pe_index = 0
+    latest_pe: Optional[PublishedValuationPoint] = None
+
+    for earnings_point in sorted(earnings_points, key=lambda point: point.date):
+        while pe_index < len(ordered_pe) and ordered_pe[pe_index].date <= earnings_point.date:
+            latest_pe = ordered_pe[pe_index]
+            pe_index += 1
+
+        observation_date = datetime.strptime(earnings_point.date, "%Y-%m-%d").date()
+        try:
+            comparison_date = observation_date.replace(year=observation_date.year - 5)
+        except ValueError:
+            continue
+        prior_earnings = earnings_by_date.get(comparison_date.isoformat())
+        if (
+            latest_pe is None
+            or prior_earnings is None
+            or earnings_point.value <= 0
+            or prior_earnings.value <= 0
+        ):
+            continue
+
+        growth_pct = (
+            (earnings_point.value / prior_earnings.value) ** (1.0 / 5.0) - 1.0
+        ) * 100.0
+        if not math.isfinite(growth_pct) or growth_pct <= 0:
+            continue
+
+        peg_value = latest_pe.value / growth_pct
+        if not math.isfinite(peg_value) or peg_value <= 0:
+            continue
+        peg_points.append(
+            PublishedValuationPoint(
+                date=earnings_point.date,
+                value=peg_value,
+                is_estimate=(
+                    latest_pe.is_estimate
+                    or earnings_point.is_estimate
+                    or prior_earnings.is_estimate
+                ),
+            )
+        )
+
+    if len(peg_points) < 2:
+        raise ValuationSourceError("Published inputs were insufficient to calculate PEG")
+    return tuple(peg_points)
+
+
 class ValuationSourceClient:
     """Fetch and briefly cache the published valuation series used by the API."""
 
@@ -229,6 +303,8 @@ class ValuationSourceClient:
 
         if indicator_id == "forward_pe":
             series = self._fetch_forward_pe()
+        elif indicator_id == "peg_ratio":
+            series = self._fetch_trailing_peg()
         elif indicator_id in MULTPL_SERIES:
             series = self._fetch_multpl(MULTPL_SERIES[indicator_id])
         else:
@@ -256,7 +332,13 @@ class ValuationSourceClient:
             indicator_id=definition.indicator_id,
             points=points,
             description=definition.description,
-            unit="ratio" if definition.indicator_id != "dividend_yield" else "percent",
+            unit=(
+                "percent"
+                if definition.indicator_id == "dividend_yield"
+                else "index points"
+                if definition.indicator_id == "earnings"
+                else "ratio"
+            ),
             frequency=definition.frequency,
             source="Multpl",
             source_provider="Multpl",
@@ -296,5 +378,30 @@ class ValuationSourceClient:
             transformation=(
                 "published aggregate 12-month forward consensus P/E; "
                 "GreenPeak generates no observations"
+            ),
+        )
+
+    def _fetch_trailing_peg(self) -> PublishedValuationSeries:
+        pe_series = self.get_series("pe_ratio")
+        earnings_series = self.get_series("earnings")
+        points = build_trailing_peg_series(pe_series.points, earnings_series.points)
+        return PublishedValuationSeries(
+            indicator_id="peg_ratio",
+            points=points,
+            description=(
+                "S&P 500 trailing PEG proxy: trailing P/E divided by the "
+                "five-year annualized nominal EPS growth rate"
+            ),
+            unit="ratio",
+            frequency="quarterly",
+            source="Multpl published S&P 500 series (GreenPeak calculation)",
+            source_provider="Multpl",
+            source_url=MULTPL_SERIES["earnings"].url,
+            source_series_id="S&P 500 P/E + S&P 500 Earnings",
+            population="S&P 500 index",
+            transformation=(
+                "trailing P/E / five-year annualized nominal EPS growth in percent; "
+                "only positive EPS endpoints and positive growth produce a point; "
+                f"P/E input: {MULTPL_SERIES['pe_ratio'].url}"
             ),
         )

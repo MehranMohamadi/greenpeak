@@ -36,7 +36,8 @@ export default function GroupAnalysisLayout({ page, title, description, domainId
   const date = metadata?.observation_date || metadata?.latest_date || data.at(-1)?.date || "N/A"
   const latest = data.at(-1)?.value
   const unit = metadata?.unit || selected.unit || ""
-  const sourceLine = <>{metadata?.source || "Source unavailable"} · {date} {unit && <>· {unit}</>}{metadata?.quality_status === "stale" && <span className="ml-2 text-amber-700 dark:text-amber-400">Data is outdated</span>}</>
+  const coverage = Number(metadata?.coverage_pct)
+  const sourceLine = <>{metadata?.source || "Source unavailable"} · {date} {unit && <>· {unit}</>}{Number.isFinite(coverage) && <> · coverage {coverage.toFixed(1)}%</>}{metadata?.quality_status === "stale" && <span className="ml-2 text-amber-700 dark:text-amber-400">Data is outdated</span>}</>
 
   return <AnalysisPageShell>
     <AnalysisPageHeader page={page} title={title} showDescription={false} />

@@ -84,11 +84,13 @@ async def get_peg_ratio_data(
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
 ):
-    """Get PEG Ratio data."""
+    """Get the disclosed trailing S&P 500 PEG proxy from published inputs."""
     try:
         return data_service.get_peg_ratio_data(
             limit=limit, start_date=start_date, end_date=end_date
         )
+    except ValuationSourceError as e:
+        raise HTTPException(status_code=502, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 

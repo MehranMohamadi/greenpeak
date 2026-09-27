@@ -1,6 +1,9 @@
 """
-Corporate Earnings Data Fetcher v3
-Fetches corporate earnings data primarily from Yahoo Finance.
+Deprecated compatibility module for the corporate fundamentals ETL.
+
+Direct execution delegates to ``corporate_fundamentals_fetcher.py``.  The
+former Yahoo implementation remains below only for older imports and is no
+longer used by the ETL runner or this module's command entry point.
 
 This script fetches:
 1. S&P 500 EPS - from Yahoo Finance ^GSPC
@@ -931,6 +934,10 @@ class CorporateEarningsFetcher:
 
 def main():
     """Main entry point."""
+    from corporate_fundamentals_fetcher import main as official_main
+
+    return official_main()
+
     try:
         fetcher = CorporateEarningsFetcher()
         success = fetcher.fetch_all_indicators()
@@ -946,4 +953,4 @@ def main():
         logger.error("Fatal error: %s", e)
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
