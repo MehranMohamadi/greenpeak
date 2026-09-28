@@ -13,6 +13,8 @@ import {
   tradingCardClass,
   tradingCardContentClass,
   tradingCardHeaderClass,
+  tradingTabClass,
+  tradingTabListClass,
 } from "./mt5-data-view"
 
 const hasNumber = (value) => value !== null && value !== "" && Number.isFinite(Number(value))
@@ -400,8 +402,8 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
         حساب بروکرها
         <Badge variant="secondary">{tab === "accounts" ? snapshots.length : (comparison?.eligible_broker_count ?? "—")}</Badge>
       </CardTitle>
-      <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/30 p-1" aria-label="بخش حساب‌ها و مقایسه بروکرها">
-        {tabs.map((item) => <button key={item.id} type="button" aria-pressed={tab === item.id} onClick={() => setTab(item.id)} className={`flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition ${tab === item.id ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+      <div className={tradingTabListClass} aria-label="بخش حساب‌ها و مقایسه بروکرها">
+        {tabs.map((item) => <button key={item.id} type="button" aria-pressed={tab === item.id} onClick={() => setTab(item.id)} className={tradingTabClass(tab === item.id)}>
           {item.label}{item.count !== undefined && <span className="tabular-nums opacity-70">{item.count}</span>}
         </button>)}
       </div>

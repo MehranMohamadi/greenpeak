@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import SP500Dashboard from "@/components/analytics/SP500Dashboard"
 
+const analysisTabClass = "border border-transparent px-1.5 text-xs text-slate-500 transition sm:px-3 sm:text-sm dark:text-slate-400 data-[state=active]:border-cyan-500/50 data-[state=active]:bg-cyan-50 data-[state=active]:font-semibold data-[state=active]:text-cyan-900 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-cyan-500/15 dark:data-[state=active]:border-cyan-400/50 dark:data-[state=active]:bg-cyan-400/15 dark:data-[state=active]:text-cyan-100 dark:data-[state=active]:ring-cyan-400/15"
+
 const statusLabels = {
   favorable: "مساعد", mixed: "ترکیبی", challenging: "پرچالش", unknown: "نامشخص",
   low: "کم", medium: "متوسط", high: "زیاد",
@@ -358,11 +360,11 @@ export default function MarketIntelligenceSections({ market }) {
               </Dialog>
             </div>
           </div>
-          <TabsList className="grid h-9 w-full grid-cols-4 p-1">
-            <TabsTrigger value="current" className="px-1.5 text-xs sm:px-3 sm:text-sm">اکنون</TabsTrigger>
-            <TabsTrigger value="short-term" className="px-1.5 text-xs sm:px-3 sm:text-sm">کوتاه‌مدت</TabsTrigger>
-            <TabsTrigger value="medium-term" className="px-1.5 text-xs sm:px-3 sm:text-sm">میان‌مدت</TabsTrigger>
-            <TabsTrigger value="summary" className="px-1.5 text-xs sm:px-3 sm:text-sm">جمع‌بندی</TabsTrigger>
+          <TabsList className="grid h-9 w-full grid-cols-4 border border-slate-300/80 bg-slate-100/90 p-1 dark:border-white/10 dark:bg-black/20">
+            <TabsTrigger value="current" className={analysisTabClass}>اکنون</TabsTrigger>
+            <TabsTrigger value="short-term" className={analysisTabClass}>کوتاه‌مدت</TabsTrigger>
+            <TabsTrigger value="medium-term" className={analysisTabClass}>میان‌مدت</TabsTrigger>
+            <TabsTrigger value="summary" className={analysisTabClass}>جمع‌بندی</TabsTrigger>
           </TabsList>
         </CardHeader>
         <CardContent className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">

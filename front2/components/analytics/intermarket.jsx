@@ -1,10 +1,9 @@
 "use client"
-import { BarChart3, Coins, DollarSign, Droplets, Globe2 } from "lucide-react"
+import { Coins, DollarSign, Droplets, Globe2 } from "lucide-react"
 import useIntermarketSymbol from "@/hooks/useIntermarketSymbol"
 import GroupAnalysisLayout from "./group-analysis-layout"
 
 const factors = [
-  { id: "sp500", series: "SP500", indicatorId: "sp500_index", title: "S&P 500", group: "Equities", icon: BarChart3 },
   { id: "broad-dollar", series: "DTWEXBGS", indicatorId: "broad_trade_weighted_dollar", title: "Broad Trade-Weighted U.S. Dollar", group: "Currencies", icon: DollarSign },
   { id: "gold", series: "GOLDAMGBD228NLBM", indicatorId: "gold_price", title: "Gold", group: "Commodities", icon: Coins },
   { id: "wti", series: "DCOILWTICO", indicatorId: "wti_crude_oil", title: "WTI Crude Oil", group: "Commodities", icon: Droplets },
@@ -17,11 +16,10 @@ const getMetadata = (result) => result?.metadata
 const getError = (result) => result?.error
 
 export default function Intermarket() {
-  const sp500 = useIntermarketSymbol("SP500")
   const dollar = useIntermarketSymbol("DTWEXBGS")
   const gold = useIntermarketSymbol("GOLDAMGBD228NLBM")
   const wti = useIntermarketSymbol("DCOILWTICO")
   const copper = useIntermarketSymbol("PCOPPUSDM")
-  const results = { sp500, "broad-dollar": dollar, gold, wti, copper }
+  const results = { "broad-dollar": dollar, gold, wti, copper }
   return <GroupAnalysisLayout page="intermarket" title="Capital Flows & Intermarket" domainId="capital_flows_intermarket" factors={factors} periods={periods} results={results} getData={getData} getMetadata={getMetadata} getError={getError} slicePeriod={slicePeriod} formatValue={(value) => Number.isFinite(value) ? new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value) : "N/A"} />
 }

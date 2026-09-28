@@ -3,6 +3,13 @@ import { Badge } from "@/components/ui/badge"
 export const tradingCardClass = "flex h-[17.6rem] flex-col overflow-hidden border-gray-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]"
 export const tradingCardHeaderClass = "shrink-0 p-4 pb-2"
 export const tradingCardContentClass = "min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-0"
+export const tradingTabListClass = "flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-slate-300/80 bg-slate-100/90 p-1 dark:border-white/10 dark:bg-black/20"
+
+export function tradingTabClass(active) {
+  return `flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition ${active
+    ? "border-cyan-500/50 bg-cyan-50 font-semibold text-cyan-900 shadow-sm ring-1 ring-cyan-500/15 dark:border-cyan-400/50 dark:bg-cyan-400/15 dark:text-cyan-100 dark:ring-cyan-400/15"
+    : "border-transparent text-slate-500 hover:bg-white/80 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-slate-100"}`
+}
 
 const labels = {
   account_identifier: "شماره حساب",

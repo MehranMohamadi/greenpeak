@@ -17,6 +17,8 @@ import {
   tradingCardClass,
   tradingCardContentClass,
   tradingCardHeaderClass,
+  tradingTabClass,
+  tradingTabListClass,
 } from "./mt5-data-view"
 
 const filters = [
@@ -292,8 +294,8 @@ export default function LastTrades({ snapshots = [] }) {
         معاملات و سفارش‌ها
         <Badge variant="secondary">{visible.length}</Badge>
       </CardTitle>
-      <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/30 p-1" aria-label="فیلتر معاملات و سفارش‌ها">
-        {filters.map((item) => <button key={item.id} type="button" aria-pressed={filter === item.id} onClick={() => setFilter(item.id)} className={`flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition ${filter === item.id ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+      <div className={tradingTabListClass} aria-label="فیلتر معاملات و سفارش‌ها">
+        {filters.map((item) => <button key={item.id} type="button" aria-pressed={filter === item.id} onClick={() => setFilter(item.id)} className={tradingTabClass(filter === item.id)}>
           {item.label}<span className="tabular-nums opacity-70">{groups[item.id].length}</span>
         </button>)}
       </div>
