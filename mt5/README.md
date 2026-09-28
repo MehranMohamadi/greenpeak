@@ -16,11 +16,15 @@ one versioned JSON snapshot to GreenPeak. It contains no trading functions.
    EA's `GreenPeakApiToken` input.
 4. Keep `AutoSendEnabled=false` for manual use. Click **Send to GreenPeak**.
 
-The EA includes the active chart symbol plus the broker's S&P 500 and gold
-contract specifications in each snapshot for the customer dashboard. It
-recognizes common aliases such as `US500`, `SP500`, `SPX500`, `XAUUSD`, and
-`GOLD`. If auto-detection does not select the intended contracts, set the exact
-broker names in `Sp500BrokerSymbol` and `GoldBrokerSymbol`.
+The EA includes the active chart symbol, every open-position and pending-order
+symbol, plus benchmark specifications for S&P 500, gold, EUR/USD, and Bitcoin
+in each snapshot. It recognizes common aliases such as `US500`, `SP500`,
+`SPX500`, `XAUUSD`, `GOLD`, `EURUSD`, `BTCUSD`, and `XBTUSD`. If auto-detection
+does not select the intended contracts, set their exact broker names in
+`Sp500BrokerSymbol`, `GoldBrokerSymbol`, `ForexBrokerSymbol`, and
+`CryptoBrokerSymbol`. Where the exposed MT5 contract details support it, each
+sample also contains comparable annualized long/short swap rates; otherwise an
+explicit unavailable status is sent instead of an estimate.
 
 The token is displayed once and stored by GreenPeak only as a SHA-256 hash. The
 first accepted snapshot binds it to that signed-in user and exact

@@ -7,7 +7,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, 
 from pydantic import BaseModel, Field
 from pymongo.errors import PyMongoError
 
-from ....models.mt5_schemas import MT5Snapshot, MT5SnapshotReceipt
+from ....models.mt5_schemas import BrokerComparisonResponse, MT5Snapshot, MT5SnapshotReceipt
+from ....services.broker_comparison_service import BrokerComparisonService
 from ....services.mt5_connection_service import MT5ConnectionService
 from ....services.mt5_snapshot_service import MT5SnapshotService
 from .auth import require_user
@@ -40,6 +41,10 @@ def snapshot_service() -> MT5SnapshotService:
 
 def connection_service() -> MT5ConnectionService:
     return MT5ConnectionService()
+
+
+def broker_comparison_service() -> BrokerComparisonService:
+    return BrokerComparisonService()
 
 
 def _bearer_token(authorization: str | None) -> str:
@@ -143,3 +148,16 @@ def latest_snapshots_by_account(
     except PyMongoError as exc:
         raise HTTPException(status_code=503, detail="Snapshot storage unavailable") from exc
     return [MT5Snapshot.model_validate(item) for item in items]
+
+
+@router.get("/broker-comparison", response_model=BrokerComparisonResponse)
+def broker_comparison(
+    _user: Annotated[dict, Depends(require_user)],
+    service: Annotated[BrokerComparisonService, Depends(broker_comparison_service)],
+) -> BrokerComparisonResponse:
+    """Compare anonymized aggregate broker costs across distinct site users."""
+    try:
+        result = service.comparison()
+    except PyMongoError as exc:
+        raise HTTPException(status_code=503, detail="Broker comparison is unavailable") from exc
+    return BrokerComparisonResponse.model_validate(result)

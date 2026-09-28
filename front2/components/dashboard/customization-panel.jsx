@@ -155,7 +155,7 @@ export default function CustomizationPanel({ onLayoutChange, onAlertsChange }) {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="news-ticker">News Ticker</Label>
+                  <Label htmlFor="news-ticker">خلاصه شخصی داشبورد</Label>
                   <Switch
                     id="news-ticker"
                     checked={layoutSettings.showNewsTicker}

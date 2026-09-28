@@ -3,9 +3,6 @@
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
-  Activity,
-  AlertTriangle,
-  BarChart3,
   BrainCircuit,
   CheckCircle2,
   ChevronDown,
@@ -84,17 +81,31 @@ function toneClass(tone) {
 }
 
 function MetricCard({ icon: Icon, label, value, detail, note, tone = "neutral" }) {
-  return <Card className={`${surfaceClass} min-h-[10.5rem]`}>
-    <CardContent className="flex h-full flex-col p-4">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        <span className={`rounded-lg border p-2 ${toneClass(tone)}`}><Icon className="h-4 w-4" /></span>
-      </div>
-      <p className="mt-4 text-lg font-semibold tabular-nums text-gray-900 dark:text-white" dir="ltr">{value}</p>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">{detail}</p>
-      {note && <p className="mt-auto pt-2 text-[10px] leading-4 text-muted-foreground">{note}</p>}
-    </CardContent>
-  </Card>
+  return <div className="flex min-h-[9rem] flex-col p-4 lg:p-5">
+    <div className="flex items-start justify-between gap-3">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <span className={`rounded-lg border p-2 ${toneClass(tone)}`}><Icon className="h-4 w-4" /></span>
+    </div>
+    <p className="mt-3 text-lg font-semibold tabular-nums text-gray-900 dark:text-white" dir="ltr">{value}</p>
+    <p className="mt-1 text-xs leading-5 text-muted-foreground">{detail}</p>
+    {note && <p className="mt-auto pt-2 text-[10px] leading-4 text-muted-foreground">{note}</p>}
+  </div>
+}
+
+function TabStrip({ value, onChange, items, label }) {
+  return <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/30 p-1" role="tablist" aria-label={label}>
+    {items.map((item) => <button
+      key={item.id}
+      type="button"
+      role="tab"
+      aria-selected={value === item.id}
+      onClick={() => onChange(item.id)}
+      className={`flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition ${value === item.id ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+    >
+      {item.label}
+      {item.count !== undefined && <span className="tabular-nums opacity-70">{item.count}</span>}
+    </button>)}
+  </div>
 }
 
 function RuleField({ label, value, suffix, onChange }) {
@@ -260,6 +271,21 @@ export default function RiskManagementCenter() {
   const [rulesSaved, setRulesSaved] = useState(false)
   const [scenarioSymbol, setScenarioSymbol] = useState("")
   const [shockPct, setShockPct] = useState(-5)
+  const [overviewTab, setOverviewTab] = useState("open-risk")
+  const [controlTab, setControlTab] = useState("warnings")
+  const [analysisTab, setAnalysisTab] = useState("behavior")
+
+  useEffect(() => {
+    const focusSection = (event) => {
+      if (event.detail === "positions") setControlTab("positions")
+      else if (event.detail === "rules") setControlTab("rules")
+      else if (event.detail === "warnings") setControlTab("warnings")
+      else if (event.detail === "overview-structure") setOverviewTab("structure")
+      else if (event.detail === "analysis-behavior") setAnalysisTab("behavior")
+    }
+    window.addEventListener("greenpeak:risk-focus", focusSection)
+    return () => window.removeEventListener("greenpeak:risk-focus", focusSection)
+  }, [])
 
   const load = useCallback(async () => {
     if (authLoading) return
@@ -348,6 +374,7 @@ export default function RiskManagementCenter() {
   const saveRules = () => {
     if (!storageKey) return
     window.localStorage.setItem(`greenpeak:risk-rules:${storageKey}`, JSON.stringify(rules))
+    window.dispatchEvent(new CustomEvent("greenpeak:risk-rules-updated"))
     setRulesSaved(true)
     window.setTimeout(() => setRulesSaved(false), 2500)
   }
@@ -373,7 +400,8 @@ export default function RiskManagementCenter() {
     setSavedPlan(false)
   }
 
-  return <section className="space-y-4" aria-labelledby="risk-management-title" dir="rtl">
+  return <section className="relative space-y-4 overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-cyan-500/[0.035] via-background to-background p-3 shadow-sm ring-1 ring-black/[0.02] dark:border-cyan-400/15 dark:from-cyan-400/[0.04] dark:ring-white/[0.025] md:p-5" aria-labelledby="risk-management-title" dir="rtl">
+    <div aria-hidden="true" className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-cyan-500/70 to-transparent" />
     <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
       <div>
         <div className="flex items-center gap-2">
@@ -400,7 +428,22 @@ export default function RiskManagementCenter() {
     {!snapshot ? <EmptyState loading={loading} error={error} onRefresh={load} /> : <>
       {error && <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200">تازه‌سازی انجام نشد؛ آخرین Snapshot سالم نمایش داده می‌شود. {error}</div>}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <Card className={`${surfaceClass} overflow-hidden`}>
+        <CardHeader className="gap-3 border-b sm:flex-row sm:items-center sm:justify-between">
+          <div><CardTitle className="flex items-center gap-2 text-base"><ShieldAlert className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />نمای کلی ریسک</CardTitle><p className="mt-1 text-xs text-muted-foreground">شش شاخص اصلی در سه نمای مرتبط، بدون حذف جزئیات</p></div>
+          <TabStrip
+            value={overviewTab}
+            onChange={setOverviewTab}
+            label="نماهای خلاصه مرکز مدیریت ریسک"
+            items={[
+              { id: "open-risk", label: "ریسک باز" },
+              { id: "limits", label: "حدود حساب" },
+              { id: "structure", label: "مارجین و تمرکز" },
+            ]}
+          />
+        </CardHeader>
+        <CardContent className="p-0">
+          {overviewTab === "open-risk" && <div className="grid divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0 dark:divide-[#2B2B30]">
         <MetricCard
           icon={ShieldAlert}
           label="ریسک پوزیشن‌های باز"
@@ -417,6 +460,8 @@ export default function RiskManagementCenter() {
           note={openRisk.pendingOrders.length ? `${openRisk.pendingMissingStopCount} سفارش در انتظار بدون Stop` : "سفارش در انتظاری گزارش نشده"}
           tone={openRisk.missingStopCount ? "danger" : "success"}
         />
+          </div>}
+          {overviewTab === "limits" && <div className="grid divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0 dark:divide-[#2B2B30]">
         <MetricCard
           icon={ListChecks}
           label="بودجه زیان روزانه"
@@ -433,6 +478,8 @@ export default function RiskManagementCenter() {
           note="Gross exposure ÷ Equity؛ مقدار گزارش‌شده توسط Snapshot"
           tone={maxLeverage != null && grossLeverage > maxLeverage ? "danger" : "neutral"}
         />
+          </div>}
+          {overviewTab === "structure" && <div className="grid divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0 dark:divide-[#2B2B30]">
         <MetricCard
           icon={Landmark}
           label="وضعیت مارجین"
@@ -449,20 +496,33 @@ export default function RiskManagementCenter() {
           note="بزرگ‌ترین Exposure خالص میان نمادهای گزارش‌شده"
           tone={concentration.sharePct != null && concentration.sharePct > 50 ? "warning" : "neutral"}
         />
-      </div>
+          </div>}
+        </CardContent>
+      </Card>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_1.4fr]">
-        <Card className={surfaceClass}>
-          <CardHeader><CardTitle className="flex items-center gap-2 text-base"><AlertTriangle className="h-5 w-5 text-amber-500" />نیازمند توجه<Badge variant="secondary">{warnings.length}</Badge></CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            {warnings.slice(0, 3).map((warning, index) => <div key={`${warning.title}-${index}`} className={`rounded-lg border p-3 ${toneClass(warning.tone)}`}><p className="text-sm font-medium">{warning.title}</p><p className="mt-1 text-xs leading-5 opacity-85">{warning.detail}</p></div>)}
-            {warnings.length > 3 && <details><summary className="cursor-pointer text-xs text-primary">مشاهده {warnings.length - 3} هشدار دیگر</summary><div className="mt-2 space-y-2">{warnings.slice(3).map((warning, index) => <div key={`${warning.title}-${index}`} className={`rounded-lg border p-3 ${toneClass(warning.tone)}`}><p className="text-sm font-medium">{warning.title}</p><p className="mt-1 text-xs">{warning.detail}</p></div>)}</div></details>}
-          </CardContent>
-        </Card>
+      <Card className={`${surfaceClass} overflow-hidden`}>
+        <CardHeader className="gap-3 border-b sm:flex-row sm:items-center sm:justify-between">
+          <div><CardTitle className="flex items-center gap-2 text-base"><ClipboardCheck className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />کنترل و اقدام</CardTitle><p className="mt-1 text-xs text-muted-foreground">هشدارها، قواعد روز و ریسک تک‌تک پوزیشن‌ها در یک پنل</p></div>
+          <TabStrip
+            value={controlTab}
+            onChange={setControlTab}
+            label="بخش‌های کنترل و اقدام"
+            items={[
+              { id: "warnings", label: "نیازمند توجه", count: warnings.length },
+              { id: "rules", label: "برنامه امروز" },
+              { id: "positions", label: "پوزیشن‌های باز", count: openRisk.positions.length },
+            ]}
+          />
+        </CardHeader>
 
-        <Card className={surfaceClass}>
-          <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle className="flex items-center gap-2 text-base"><Target className="h-5 w-5 text-primary" />برنامه امروز</CardTitle><p className="mt-1 text-xs text-muted-foreground">قواعد روی این مرورگر و برای همین حساب ذخیره می‌شوند.</p></div><Button size="sm" variant="outline" onClick={saveRules}><Save className="ml-2 h-4 w-4" />{rulesSaved ? "ذخیره شد" : "ذخیره قواعد"}</Button></CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        {controlTab === "warnings" && <CardContent className="space-y-2 pt-5">
+          {warnings.slice(0, 3).map((warning, index) => <div key={`${warning.title}-${index}`} className={`rounded-lg border p-3 ${toneClass(warning.tone)}`}><p className="text-sm font-medium">{warning.title}</p><p className="mt-1 text-xs leading-5 opacity-85">{warning.detail}</p></div>)}
+          {warnings.length > 3 && <details><summary className="cursor-pointer text-xs text-primary">مشاهده {warnings.length - 3} هشدار دیگر</summary><div className="mt-2 space-y-2">{warnings.slice(3).map((warning, index) => <div key={`${warning.title}-${index}`} className={`rounded-lg border p-3 ${toneClass(warning.tone)}`}><p className="text-sm font-medium">{warning.title}</p><p className="mt-1 text-xs">{warning.detail}</p></div>)}</div></details>}
+        </CardContent>}
+
+        {controlTab === "rules" && <>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b px-6 py-3"><p className="text-xs text-muted-foreground">قواعد روی این مرورگر و برای همین حساب ذخیره می‌شوند.</p><Button size="sm" variant="outline" onClick={saveRules}><Save className="ml-2 h-4 w-4" />{rulesSaved ? "ذخیره شد" : "ذخیره قواعد"}</Button></div>
+          <CardContent className="grid grid-cols-2 gap-3 pt-5 md:grid-cols-3">
             <RuleField label="حداکثر ریسک هر معامله" suffix="٪" value={rules.maxTradeRiskPct} onChange={(value) => setRules((current) => ({ ...current, maxTradeRiskPct: value }))} />
             <RuleField label="حداکثر ریسک باز" suffix="٪" value={rules.maxOpenRiskPct} onChange={(value) => setRules((current) => ({ ...current, maxOpenRiskPct: value }))} />
             <RuleField label="سقف زیان روزانه" suffix="٪" value={rules.dailyLossLimitPct} onChange={(value) => setRules((current) => ({ ...current, dailyLossLimitPct: value }))} />
@@ -470,54 +530,62 @@ export default function RiskManagementCenter() {
             <RuleField label="حداکثر ورود روزانه" suffix="عدد" value={rules.maxTradesPerDay} onChange={(value) => setRules((current) => ({ ...current, maxTradesPerDay: value }))} />
             <RuleField label="حداقل Margin Level" suffix="٪" value={rules.minMarginLevelPct} onChange={(value) => setRules((current) => ({ ...current, minMarginLevelPct: value }))} />
           </CardContent>
-        </Card>
-      </div>
+        </>}
 
-      <Card className={surfaceClass}>
-        <CardHeader className="gap-2 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle className="flex items-center gap-2 text-base"><Activity className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />ریسک پوزیشن‌های باز</CardTitle><p className="mt-1 text-xs text-muted-foreground">ستون‌ها و جزئیات با الگوی باکس «چرخه معاملات» نمایش داده می‌شوند.</p></div><div className="flex flex-wrap gap-2"><Badge variant="secondary">{openRisk.positions.length} پوزیشن</Badge><Badge variant="outline">Pending risk: {openRisk.pendingTotal == null ? "ناقص" : money(openRisk.pendingTotal, currency)}</Badge></div></CardHeader>
-        <CardContent><PositionRiskTable analysis={openRisk} snapshot={snapshot} maxTradeRiskPct={maxTradeRiskPct} /></CardContent>
+        {controlTab === "positions" && <>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b px-6 py-3"><p className="text-xs text-muted-foreground">ستون‌ها و جزئیات با الگوی باکس «چرخه معاملات» نمایش داده می‌شوند.</p><div className="flex flex-wrap gap-2"><Badge variant="secondary">{openRisk.positions.length} پوزیشن</Badge><Badge variant="outline">Pending risk: {openRisk.pendingTotal == null ? "ناقص" : money(openRisk.pendingTotal, currency)}</Badge></div></div>
+          <CardContent className="pt-5"><PositionRiskTable analysis={openRisk} snapshot={snapshot} maxTradeRiskPct={maxTradeRiskPct} /></CardContent>
+        </>}
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card className={surfaceClass}>
-          <CardHeader><CardTitle className="flex items-center gap-2 text-base"><BarChart3 className="h-5 w-5 text-primary" />الگوهای رفتاری</CardTitle></CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-2">
-              <div className={`${insetClass} p-3`}><p className="text-[10px] text-muted-foreground">ورودهای امروز</p><p className="mt-1 text-lg font-semibold tabular-nums">{history.todayEntryCount}</p></div>
-              <div className={`${insetClass} p-3`}><p className="text-[10px] text-muted-foreground">خروج‌های نمونه</p><p className="mt-1 text-lg font-semibold tabular-nums">{history.closedSampleCount}</p></div>
-              <div className={`${insetClass} p-3`}><p className="text-[10px] text-muted-foreground">خروج زیان‌ده</p><p className="mt-1 text-lg font-semibold tabular-nums">{history.losingSampleCount}</p></div>
-            </div>
-            <div className={`mt-3 rounded-lg border p-3 ${history.behaviorSampleSufficient ? toneClass(history.raisedVolumeAfterLoss ? "warning" : "success") : toneClass("warning")}`}>
-              <p className="text-sm font-medium">{history.behaviorSampleSufficient ? history.raisedVolumeAfterLoss ? "نشانه احتمالی افزایش حجم پس از زیان" : "الگوی پرریسک مشخصی در نمونه دیده نشد" : "داده کافی برای نتیجه‌گیری رفتاری نیست"}</p>
-              <p className="mt-1 text-xs leading-5 opacity-85">{history.behaviorSampleSufficient ? `${history.raisedVolumeAfterLoss} بار ورود با حجم بیشتر تا ۳۰ دقیقه پس از خروج زیان‌ده دیده شد. این یک نشانه آماری است، نه تشخیص قطعی.` : `حداقل ۱۰ خروج لازم است؛ نمونه فعلی ${history.closedSampleCount} خروج در بازه ${history.historyWindowDays || 7} روزه دارد.`}</p>
-            </div>
-          </CardContent>
-        </Card>
+      <Card className={`${surfaceClass} overflow-hidden`}>
+        <CardHeader className="gap-3 border-b sm:flex-row sm:items-center sm:justify-between">
+          <div><CardTitle className="flex items-center gap-2 text-base"><BrainCircuit className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />تحلیل ریسک</CardTitle><p className="mt-1 text-xs text-muted-foreground">رفتار معاملاتی، تنش‌سنجی سناریو و جمع‌بندی قاعده‌محور</p></div>
+          <TabStrip
+            value={analysisTab}
+            onChange={setAnalysisTab}
+            label="بخش‌های تحلیل ریسک"
+            items={[
+              { id: "behavior", label: "الگوهای رفتاری" },
+              { id: "scenario", label: "سناریو" },
+              { id: "council", label: "شورای ریسک" },
+            ]}
+          />
+        </CardHeader>
 
-        <Card className={surfaceClass}>
-          <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Gauge className="h-5 w-5 text-primary" />اگر این اتفاق بیفتد…</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-[1fr_110px] gap-3">
-              <Select value={selectedScenarioSymbol || undefined} onValueChange={setScenarioSymbol}><SelectTrigger><SelectValue placeholder="نماد سناریو" /></SelectTrigger><SelectContent>{scenarioSymbols.map((symbol) => <SelectItem key={symbol} value={symbol}>{symbol}</SelectItem>)}</SelectContent></Select>
-              <Input dir="ltr" type="number" min="-20" max="20" step="1" value={shockPct} onChange={(event) => setShockPct(Number(event.target.value))} />
-            </div>
-            <Slider dir="ltr" min={-20} max={20} step={1} value={[shockPct]} onValueChange={([value]) => setShockPct(value)} />
-            <div className="grid grid-cols-2 gap-2">
-              <div className={`${insetClass} p-3`}><p className="text-[10px] text-muted-foreground">اثر تقریبی بر Equity</p><p className={`mt-1 font-semibold tabular-nums ${scenario.pnl < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`} dir="ltr">{scenario.available ? money(scenario.pnl, "USD") : "—"}</p></div>
-              <div className={`${insetClass} p-3`}><p className="text-[10px] text-muted-foreground">Equity برآوردی</p><p className="mt-1 font-semibold tabular-nums" dir="ltr">{scenario.available ? money(scenario.equityAfter, "USD") : "—"}</p></div>
-            </div>
-            <p className="text-[10px] leading-5 text-muted-foreground">{scenario.available ? "فرض ساده: تغییر خطی P/L با Exposure خالص گزارش‌شده و ثابت‌ماندن سایر نمادها. Margin Level و هم‌بستگی‌ها با داده فعلی قابل بازسازی معتبر نیستند." : scenario.reason}</p>
-          </CardContent>
-        </Card>
-      </div>
+        {analysisTab === "behavior" && <CardContent className="pt-5">
+          <div className="grid grid-cols-3 gap-2">
+            <div className={`${insetClass} p-3`}><p className="text-[10px] text-muted-foreground">ورودهای امروز</p><p className="mt-1 text-lg font-semibold tabular-nums">{history.todayEntryCount}</p></div>
+            <div className={`${insetClass} p-3`}><p className="text-[10px] text-muted-foreground">خروج‌های نمونه</p><p className="mt-1 text-lg font-semibold tabular-nums">{history.closedSampleCount}</p></div>
+            <div className={`${insetClass} p-3`}><p className="text-[10px] text-muted-foreground">خروج زیان‌ده</p><p className="mt-1 text-lg font-semibold tabular-nums">{history.losingSampleCount}</p></div>
+          </div>
+          <div className={`mt-3 rounded-lg border p-3 ${history.behaviorSampleSufficient ? toneClass(history.raisedVolumeAfterLoss ? "warning" : "success") : toneClass("warning")}`}>
+            <p className="text-sm font-medium">{history.behaviorSampleSufficient ? history.raisedVolumeAfterLoss ? "نشانه احتمالی افزایش حجم پس از زیان" : "الگوی پرریسک مشخصی در نمونه دیده نشد" : "داده کافی برای نتیجه‌گیری رفتاری نیست"}</p>
+            <p className="mt-1 text-xs leading-5 opacity-85">{history.behaviorSampleSufficient ? `${history.raisedVolumeAfterLoss} بار ورود با حجم بیشتر تا ۳۰ دقیقه پس از خروج زیان‌ده دیده شد. این یک نشانه آماری است، نه تشخیص قطعی.` : `حداقل ۱۰ خروج لازم است؛ نمونه فعلی ${history.closedSampleCount} خروج در بازه ${history.historyWindowDays || 7} روزه دارد.`}</p>
+          </div>
+        </CardContent>}
 
-      <Card className={surfaceClass}>
-        <CardHeader className="gap-2 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle className="flex items-center gap-2 text-base"><BrainCircuit className="h-5 w-5 text-primary" />شورای تحلیل ریسک</CardTitle><p className="mt-1 text-xs text-muted-foreground">نسخه فعلی قاعده‌محور است؛ سرویس هوش مصنوعی حساب متصل نیست و عددی تولید نمی‌کند.</p></div><Badge variant="outline">مشاهده · شاهد · اقدام</Badge></CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3">
-          <div className={`${insetClass} p-4`}><p className="font-medium">مدیر ریسک</p><p className="mt-2 text-xs leading-5"><b>مشاهده:</b> {warnings[0]?.title}</p><p className="mt-1 text-xs leading-5 text-muted-foreground"><b>شاهد:</b> Snapshot {snapshot.snapshot_id || "فعلی"}</p><p className="mt-1 text-xs leading-5 text-primary"><b>اقدام:</b> پیش از معامله جدید، هشدارهای قرمز و قواعد روز را بررسی کنید.</p></div>
-          <div className={`${insetClass} p-4`}><p className="font-medium">منتقد سناریو</p><p className="mt-2 text-xs leading-5"><b>مشاهده:</b> {scenario.available ? `شوک ${shockPct}٪ روی ${selectedScenarioSymbol} حدود ${money(scenario.pnl, "USD")} اثر خطی دارد.` : "سناریوی معتبر هنوز قابل محاسبه نیست."}</p><p className="mt-1 text-xs leading-5 text-muted-foreground"><b>شاهد:</b> Exposure خالص گزارش‌شده در Snapshot</p><p className="mt-1 text-xs leading-5 text-primary"><b>اقدام:</b> نتیجه را با گپ، لغزش و اثر متقابل سایر پوزیشن‌ها تنش‌سنجی کنید.</p></div>
-          <div className={`${insetClass} p-4`}><p className="font-medium">مربی رفتار</p><p className="mt-2 text-xs leading-5"><b>مشاهده:</b> {history.behaviorSampleSufficient ? history.raisedVolumeAfterLoss ? `${history.raisedVolumeAfterLoss} نشانه افزایش حجم پس از زیان دیده شد.` : "در نمونه فعلی افزایش حجم پس از زیان دیده نشد." : "نمونه برای نتیجه‌گیری کافی نیست."}</p><p className="mt-1 text-xs leading-5 text-muted-foreground"><b>شاهد:</b> {history.closedSampleCount} خروج ثبت‌شده</p><p className="mt-1 text-xs leading-5 text-primary"><b>اقدام:</b> منطق ورود و شرط ابطال را پیش از اجرا ثبت کنید.</p></div>
-        </CardContent>
+        {analysisTab === "scenario" && <CardContent className="space-y-4 pt-5">
+          <div className="grid grid-cols-[1fr_110px] gap-3">
+            <Select value={selectedScenarioSymbol || undefined} onValueChange={setScenarioSymbol}><SelectTrigger><SelectValue placeholder="نماد سناریو" /></SelectTrigger><SelectContent>{scenarioSymbols.map((symbol) => <SelectItem key={symbol} value={symbol}>{symbol}</SelectItem>)}</SelectContent></Select>
+            <Input dir="ltr" type="number" min="-20" max="20" step="1" value={shockPct} onChange={(event) => setShockPct(Number(event.target.value))} />
+          </div>
+          <Slider dir="ltr" min={-20} max={20} step={1} value={[shockPct]} onValueChange={([value]) => setShockPct(value)} />
+          <div className="grid grid-cols-2 gap-2">
+            <div className={`${insetClass} p-3`}><p className="text-[10px] text-muted-foreground">اثر تقریبی بر Equity</p><p className={`mt-1 font-semibold tabular-nums ${scenario.pnl < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`} dir="ltr">{scenario.available ? money(scenario.pnl, "USD") : "—"}</p></div>
+            <div className={`${insetClass} p-3`}><p className="text-[10px] text-muted-foreground">Equity برآوردی</p><p className="mt-1 font-semibold tabular-nums" dir="ltr">{scenario.available ? money(scenario.equityAfter, "USD") : "—"}</p></div>
+          </div>
+          <p className="text-[10px] leading-5 text-muted-foreground">{scenario.available ? "فرض ساده: تغییر خطی P/L با Exposure خالص گزارش‌شده و ثابت‌ماندن سایر نمادها. Margin Level و هم‌بستگی‌ها با داده فعلی قابل بازسازی معتبر نیستند." : scenario.reason}</p>
+        </CardContent>}
+
+        {analysisTab === "council" && <>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b px-6 py-3"><p className="text-xs text-muted-foreground">نسخه فعلی قاعده‌محور است؛ سرویس هوش مصنوعی حساب متصل نیست و عددی تولید نمی‌کند.</p><Badge variant="outline">مشاهده · شاهد · اقدام</Badge></div>
+          <CardContent className="grid gap-3 pt-5 md:grid-cols-3">
+            <div className={`${insetClass} p-4`}><p className="font-medium">مدیر ریسک</p><p className="mt-2 text-xs leading-5"><b>مشاهده:</b> {warnings[0]?.title}</p><p className="mt-1 text-xs leading-5 text-muted-foreground"><b>شاهد:</b> Snapshot {snapshot.snapshot_id || "فعلی"}</p><p className="mt-1 text-xs leading-5 text-primary"><b>اقدام:</b> پیش از معامله جدید، هشدارهای قرمز و قواعد روز را بررسی کنید.</p></div>
+            <div className={`${insetClass} p-4`}><p className="font-medium">منتقد سناریو</p><p className="mt-2 text-xs leading-5"><b>مشاهده:</b> {scenario.available ? `شوک ${shockPct}٪ روی ${selectedScenarioSymbol} حدود ${money(scenario.pnl, "USD")} اثر خطی دارد.` : "سناریوی معتبر هنوز قابل محاسبه نیست."}</p><p className="mt-1 text-xs leading-5 text-muted-foreground"><b>شاهد:</b> Exposure خالص گزارش‌شده در Snapshot</p><p className="mt-1 text-xs leading-5 text-primary"><b>اقدام:</b> نتیجه را با گپ، لغزش و اثر متقابل سایر پوزیشن‌ها تنش‌سنجی کنید.</p></div>
+            <div className={`${insetClass} p-4`}><p className="font-medium">مربی رفتار</p><p className="mt-2 text-xs leading-5"><b>مشاهده:</b> {history.behaviorSampleSufficient ? history.raisedVolumeAfterLoss ? `${history.raisedVolumeAfterLoss} نشانه افزایش حجم پس از زیان دیده شد.` : "در نمونه فعلی افزایش حجم پس از زیان دیده نشد." : "نمونه برای نتیجه‌گیری کافی نیست."}</p><p className="mt-1 text-xs leading-5 text-muted-foreground"><b>شاهد:</b> {history.closedSampleCount} خروج ثبت‌شده</p><p className="mt-1 text-xs leading-5 text-primary"><b>اقدام:</b> منطق ورود و شرط ابطال را پیش از اجرا ثبت کنید.</p></div>
+          </CardContent>
+        </>}
       </Card>
 
       <TradeReviewPanel open={reviewOpen} onOpenChange={setReviewOpen} snapshot={snapshot} rules={rules} openRisk={openRisk} draft={draft} setDraft={updateDraft} onSavePlan={savePlan} saved={savedPlan} />

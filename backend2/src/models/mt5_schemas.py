@@ -73,3 +73,44 @@ class MT5SnapshotReceipt(BaseModel):
     status: Literal["accepted", "already_exists"]
     snapshot_id: str
     received_at_utc: datetime
+
+
+class BrokerComparisonPrivacy(BaseModel):
+    minimum_distinct_users: int = Field(ge=2)
+    identifiers_included: Literal[False]
+
+
+class BrokerComparisonSymbol(BaseModel):
+    asset_key: str
+    asset_label: str
+    sample_accounts: int = Field(ge=1)
+    spread_points_median: float | None = None
+    spread_bps_median: float | None = None
+    swap_long_raw_median: float | None = None
+    swap_short_raw_median: float | None = None
+    swap_long_annualized_pct_median: float | None = None
+    swap_short_annualized_pct_median: float | None = None
+    swap_mode: int | None = None
+    swap_mode_mixed: bool = False
+
+
+class BrokerComparisonBroker(BaseModel):
+    broker_key: str
+    broker_name: str
+    sample_users: int = Field(ge=2)
+    sample_accounts: int = Field(ge=1)
+    latest_observation_utc: datetime | None = None
+    account_currency: str | None = None
+    commission_per_lot_median: float | None = None
+    commission_sample_deals: int = Field(ge=0)
+    dividend_per_lot_median: float | None = None
+    dividend_sample_records: int = Field(ge=0)
+    symbols: list[BrokerComparisonSymbol] = Field(default_factory=list)
+
+
+class BrokerComparisonResponse(BaseModel):
+    generated_at_utc: datetime
+    privacy: BrokerComparisonPrivacy
+    eligible_broker_count: int = Field(ge=0)
+    excluded_broker_count: int = Field(ge=0)
+    brokers: list[BrokerComparisonBroker] = Field(default_factory=list)

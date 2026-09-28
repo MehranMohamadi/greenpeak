@@ -77,7 +77,7 @@ export default function MT5AccountSnapshot() {
     </div>}
     {error && snapshots.length > 0 && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">به‌روزرسانی انجام نشد؛ آخرین Snapshot سالم نمایش داده می‌شود. {error}</p>}
     <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-      <BrokerAccountOverview snapshots={snapshots} />
+      <BrokerAccountOverview snapshots={snapshots} accessToken={accessToken} />
       <LastTrades snapshots={snapshots} />
     </div>
   </section>

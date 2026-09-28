@@ -24,6 +24,16 @@ def _prepare_for_response(document: dict[str, Any]) -> dict[str, Any]:
     return document
 
 
+def _prepare_for_aggregation(document: dict[str, Any]) -> dict[str, Any]:
+    """Keep the owner only for internal distinct-user counting."""
+    document.pop("_id", None)
+    document.pop("connection_id", None)
+    timestamp = document.get("timestamp_utc")
+    if isinstance(timestamp, datetime) and timestamp.tzinfo is None:
+        document["timestamp_utc"] = timestamp.replace(tzinfo=timezone.utc)
+    return document
+
+
 class MT5SnapshotService:
     def __init__(self, mongodb: MongoDBService | None = None):
         self.mongodb = mongodb or MongoDBService()
@@ -33,6 +43,15 @@ class MT5SnapshotService:
         collection.create_index("snapshot_id", unique=True)
         collection.create_index(
             [("source.account_identifier", 1), ("timestamp_utc", -1)]
+        )
+        collection.create_index(
+            [
+                ("owner_user_id", 1),
+                ("source.broker_company", 1),
+                ("source.trade_server", 1),
+                ("source.account_identifier", 1),
+                ("timestamp_utc", -1),
+            ]
         )
         document = snapshot.model_dump(mode="python")
         document["owner_user_id"] = owner_user_id
@@ -88,3 +107,36 @@ class MT5SnapshotService:
             {"owner_user_id": owner_user_id}, sort=[("timestamp_utc", -1)]
         )
         return [_prepare_for_response(document) for document in documents]
+
+    def latest_accounts_for_aggregation(self) -> list[dict[str, Any]]:
+        """Return one current snapshot per account across users for private aggregation.
+
+        The result is an internal service contract and intentionally retains
+        ``owner_user_id`` so the comparison layer can enforce a distinct-user
+        privacy threshold. It must never be returned directly by an endpoint.
+        """
+        pipeline = [
+            {
+                "$sort": {
+                    "owner_user_id": 1,
+                    "source.broker_company": 1,
+                    "source.trade_server": 1,
+                    "source.account_identifier": 1,
+                    "timestamp_utc": -1,
+                }
+            },
+            {
+                "$group": {
+                    "_id": {
+                        "owner_user_id": "$owner_user_id",
+                        "broker_company": "$source.broker_company",
+                        "trade_server": "$source.trade_server",
+                        "account_identifier": "$source.account_identifier",
+                    },
+                    "snapshot": {"$first": "$$ROOT"},
+                }
+            },
+            {"$replaceRoot": {"newRoot": "$snapshot"}},
+        ]
+        documents = self.mongodb.get_collection(COLLECTION).aggregate(pipeline)
+        return [_prepare_for_aggregation(document) for document in documents]

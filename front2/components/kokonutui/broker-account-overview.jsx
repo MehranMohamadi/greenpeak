@@ -1,8 +1,9 @@
 "use client"
 
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Building2, ChevronDown } from "lucide-react"
+import { Building2, ChevronDown, RefreshCw, Scale } from "lucide-react"
 import {
   EmptyCollection,
   accountKey,
@@ -216,23 +217,204 @@ function AccountRow({ snapshot }) {
   </details>
 }
 
-export default function BrokerAccountOverview({ snapshots = [] }) {
+const comparisonAssetPriority = { sp500: 0, gold: 1, eurusd: 2, bitcoin: 3, ethereum: 4 }
+
+const comparisonAssetLabel = (asset) => ({
+  sp500: "S&P 500",
+  gold: "طلا",
+  eurusd: "EUR/USD",
+  bitcoin: "بیت‌کوین",
+  ethereum: "اتریوم",
+}[asset.asset_key] || asset.asset_label || asset.asset_key)
+
+const swapModeLabel = (mode) => ({
+  0: "بدون سواپ",
+  1: "پوینت",
+  2: "ارز پایه",
+  3: "ارز مارجین",
+  4: "ارز حساب",
+  5: "درصد قیمت جاری",
+  6: "درصد قیمت بازشدن",
+  7: "بازگشایی با قیمت جاری",
+  8: "بازگشایی با Bid",
+}[mode] || (mode === null || mode === undefined ? "واحد نامشخص" : `روش ${mode}`))
+
+function ComparisonValue({ children, detail }) {
+  return <div className="min-w-[9.5rem] px-3 py-2 text-center text-[11px]">
+    <div className="font-medium tabular-nums text-foreground" dir="ltr">{children}</div>
+    {detail && <div className="mt-0.5 text-[9px] text-muted-foreground" dir="rtl">{detail}</div>}
+  </div>
+}
+
+function MissingComparisonValue({ label = "داده کافی نیست" }) {
+  return <ComparisonValue><span className="text-muted-foreground" dir="rtl">{label}</span></ComparisonValue>
+}
+
+function ComparisonTable({ comparison, loading, error, onRetry }) {
+  const brokers = comparison?.brokers || []
+  const assets = useMemo(() => {
+    const rows = new Map()
+    brokers.forEach((broker) => (broker.symbols || []).forEach((asset) => {
+      if (!rows.has(asset.asset_key)) rows.set(asset.asset_key, asset)
+    }))
+    return [...rows.values()].sort((left, right) => {
+      const priority = (comparisonAssetPriority[left.asset_key] ?? 100) - (comparisonAssetPriority[right.asset_key] ?? 100)
+      return priority || comparisonAssetLabel(left).localeCompare(comparisonAssetLabel(right), "fa")
+    })
+  }, [brokers])
+
+  const symbolFor = (broker, key) => (broker.symbols || []).find((symbol) => symbol.asset_key === key)
+
+  const renderSwap = (symbol, side) => {
+    if (!symbol) return <MissingComparisonValue />
+    const annualized = symbol[`swap_${side}_annualized_pct_median`]
+    if (hasNumber(annualized)) {
+      return <ComparisonValue detail={`سالانه · میانه ${symbol.sample_accounts} حساب`}>{number(annualized, 3)}%</ComparisonValue>
+    }
+    if (symbol.swap_mode_mixed) return <MissingComparisonValue label="روش‌های سواپ متفاوت" />
+    const raw = symbol[`swap_${side}_raw_median`]
+    if (!hasNumber(raw)) return <MissingComparisonValue />
+    return <ComparisonValue detail={`${swapModeLabel(symbol.swap_mode)} · میانه ${symbol.sample_accounts} حساب`}>{number(raw, 4)}</ComparisonValue>
+  }
+
+  if (loading) return <div className="flex h-full items-center justify-center gap-2 p-6 text-sm text-muted-foreground"><RefreshCw className="h-4 w-4 animate-spin" />در حال ساخت مقایسه تجمیعی…</div>
+  if (error) return <div className="flex h-full flex-col items-center justify-center gap-2 p-5 text-center text-xs text-muted-foreground"><p>{error}</p><button type="button" className="text-cyan-700 underline-offset-4 hover:underline dark:text-cyan-300" onClick={onRetry}>تلاش دوباره</button></div>
+  if (!brokers.length) return <div className="flex h-full flex-col items-center justify-center gap-2 p-5 text-center">
+    <Scale className="h-7 w-7 text-muted-foreground" />
+    <p className="text-sm font-medium text-foreground">هنوز نمونه کافی برای مقایسه امن وجود ندارد</p>
+    <p className="max-w-md text-xs leading-5 text-muted-foreground">هر بروکر فقط بعد از دریافت داده از حداقل {comparison?.privacy?.minimum_distinct_users || 2} کاربر مستقل نمایش داده می‌شود. نام کاربر، شماره حساب و سرور در این خروجی وجود ندارد.</p>
+  </div>
+
+  return <div className="min-w-max">
+    <p className="sticky right-0 mb-2 w-fit rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2.5 py-1 text-[10px] text-muted-foreground">میانه داده‌های بی‌نام · بدون شماره حساب و هویت کاربر</p>
+    <table className="border-separate border-spacing-0 text-xs" aria-label="مقایسه ستونی هزینه‌های بروکرها">
+      <thead>
+        <tr>
+          <th className="sticky right-0 top-0 z-30 min-w-[11rem] border-b bg-white px-3 py-2 text-right font-medium text-muted-foreground dark:bg-[#1F1F23]">شاخص مقایسه</th>
+          {brokers.map((broker) => <th key={broker.broker_key} className="sticky top-0 z-20 min-w-[10rem] border-b bg-white px-3 py-2 text-center dark:bg-[#1F1F23]">
+            <span className="block max-w-[10rem] truncate font-semibold text-foreground" title={broker.broker_name}>{broker.broker_name}</span>
+            <span className="mt-0.5 block text-[9px] font-normal text-muted-foreground">{broker.sample_accounts} حساب · {broker.sample_users} کاربر</span>
+          </th>)}
+        </tr>
+      </thead>
+      <tbody>
+        <tr className="bg-muted/20">
+          <th className="sticky right-0 z-10 border-b bg-gray-50 px-3 py-2 text-right font-medium dark:bg-[#18181c]">کمیسیون هر لات</th>
+          {brokers.map((broker) => hasNumber(broker.commission_per_lot_median)
+            ? <td key={broker.broker_key} className="border-b"><ComparisonValue detail={`میانه ${broker.commission_sample_deals} اجرای معامله`}>{number(broker.commission_per_lot_median, 3)} {broker.account_currency || ""}</ComparisonValue></td>
+            : <td key={broker.broker_key} className="border-b"><MissingComparisonValue label="کمیسیون ثبت نشده" /></td>)}
+        </tr>
+        <tr>
+          <th className="sticky right-0 z-10 border-b bg-white px-3 py-2 text-right font-medium dark:bg-[#1F1F23]">دیویدند هر لات</th>
+          {brokers.map((broker) => hasNumber(broker.dividend_per_lot_median)
+            ? <td key={broker.broker_key} className="border-b"><ComparisonValue detail={`میانه ${broker.dividend_sample_records} رکورد`}>{number(broker.dividend_per_lot_median, 3)} {broker.account_currency || ""}</ComparisonValue></td>
+            : <td key={broker.broker_key} className="border-b"><MissingComparisonValue label="دیویدند گزارش نشده" /></td>)}
+        </tr>
+        {assets.map((asset) => <AssetComparisonRows key={asset.asset_key} asset={asset} brokers={brokers} symbolFor={symbolFor} renderSwap={renderSwap} />)}
+      </tbody>
+    </table>
+  </div>
+}
+
+function AssetComparisonRows({ asset, brokers, symbolFor, renderSwap }) {
+  const label = comparisonAssetLabel(asset)
+  return <>
+    <tr>
+      <th colSpan={brokers.length + 1} className="border-b bg-cyan-500/[0.06] px-3 py-1.5 text-right text-[11px] font-semibold text-cyan-800 dark:text-cyan-200">{label}</th>
+    </tr>
+    <tr>
+      <th className="sticky right-0 z-10 border-b bg-white px-3 py-2 text-right font-medium dark:bg-[#1F1F23]">اسپرد</th>
+      {brokers.map((broker) => {
+        const symbol = symbolFor(broker, asset.asset_key)
+        return hasNumber(symbol?.spread_bps_median)
+          ? <td key={broker.broker_key} className="border-b"><ComparisonValue detail={`${hasNumber(symbol.spread_points_median) ? `${number(symbol.spread_points_median, 2)} پوینت · ` : ""}میانه ${symbol.sample_accounts} حساب`}>{number(symbol.spread_bps_median, 3)} bp</ComparisonValue></td>
+          : <td key={broker.broker_key} className="border-b"><MissingComparisonValue /></td>
+      })}
+    </tr>
+    <tr className="bg-muted/20">
+      <th className="sticky right-0 z-10 border-b bg-gray-50 px-3 py-2 text-right font-medium dark:bg-[#18181c]">سواپ خرید</th>
+      {brokers.map((broker) => <td key={broker.broker_key} className="border-b">{renderSwap(symbolFor(broker, asset.asset_key), "long")}</td>)}
+    </tr>
+    <tr>
+      <th className="sticky right-0 z-10 border-b bg-white px-3 py-2 text-right font-medium dark:bg-[#1F1F23]">سواپ فروش</th>
+      {brokers.map((broker) => <td key={broker.broker_key} className="border-b">{renderSwap(symbolFor(broker, asset.asset_key), "short")}</td>)}
+    </tr>
+  </>
+}
+
+export default function BrokerAccountOverview({ snapshots = [], accessToken = "" }) {
+  const [tab, setTab] = useState("accounts")
+  const [comparison, setComparison] = useState(null)
+  const [comparisonLoading, setComparisonLoading] = useState(false)
+  const [comparisonError, setComparisonError] = useState("")
+
+  const loadComparison = useCallback(async () => {
+    if (!accessToken) {
+      setComparisonError("برای مشاهده مقایسه بروکرها وارد حساب کاربری شوید.")
+      return
+    }
+    setComparisonLoading(true)
+    setComparisonError("")
+    try {
+      const response = await fetch("/dashboard-data/mt5/broker-comparison", {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      const body = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(typeof body?.detail === "string" ? body.detail : `دریافت مقایسه ممکن نشد (${response.status})`)
+      if (!body || !Array.isArray(body.brokers)) throw new Error("پاسخ مقایسه بروکرها معتبر نیست")
+      setComparison(body)
+    } catch (reason) {
+      setComparisonError(reason instanceof Error ? reason.message : "دریافت مقایسه بروکرها ممکن نشد")
+    } finally {
+      setComparisonLoading(false)
+    }
+  }, [accessToken])
+
+  useEffect(() => {
+    setComparison(null)
+    setComparisonError("")
+  }, [accessToken])
+
+  useEffect(() => {
+    const focusComparison = (event) => {
+      if (event.detail === "broker-comparison") setTab("comparison")
+    }
+    window.addEventListener("greenpeak:broker-focus", focusComparison)
+    return () => window.removeEventListener("greenpeak:broker-focus", focusComparison)
+  }, [])
+
+  useEffect(() => {
+    if (tab === "comparison" && !comparison && !comparisonLoading && !comparisonError) loadComparison()
+  }, [tab, comparison, comparisonLoading, comparisonError, loadComparison])
+
+  const tabs = [
+    { id: "accounts", label: "حساب‌های من", count: snapshots.length },
+    { id: "comparison", label: "مقایسه بروکرها", count: comparison?.eligible_broker_count },
+  ]
+
   return <Card className={`${tradingCardClass} !h-[16rem] xl:col-span-2`}>
-    <CardHeader className={tradingCardHeaderClass}>
+    <CardHeader className={`${tradingCardHeaderClass} flex-row flex-wrap items-center justify-between gap-3 space-y-0`}>
       <CardTitle className="flex items-center gap-2 text-base text-gray-900 dark:text-white">
         <Building2 className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
         حساب بروکرها
-        <Badge variant="secondary">{snapshots.length}</Badge>
+        <Badge variant="secondary">{tab === "accounts" ? snapshots.length : (comparison?.eligible_broker_count ?? "—")}</Badge>
       </CardTitle>
+      <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/30 p-1" aria-label="بخش حساب‌ها و مقایسه بروکرها">
+        {tabs.map((item) => <button key={item.id} type="button" aria-pressed={tab === item.id} onClick={() => setTab(item.id)} className={`flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition ${tab === item.id ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          {item.label}{item.count !== undefined && <span className="tabular-nums opacity-70">{item.count}</span>}
+        </button>)}
+      </div>
     </CardHeader>
-    <CardContent className={`${tradingCardContentClass} !overflow-x-hidden !overflow-y-auto`}>
+    <CardContent className={`${tradingCardContentClass} ${tab === "accounts" ? "!overflow-x-hidden !overflow-y-auto" : "!overflow-auto"}`}>
+      {tab === "comparison" ? <ComparisonTable comparison={comparison} loading={comparisonLoading} error={comparisonError} onRetry={loadComparison} /> :
       <div className="min-w-0 space-y-2">
         <div className="sticky top-0 z-10 hidden gap-2 border-b bg-white py-2 pl-9 pr-3 text-center text-[10px] font-medium text-muted-foreground dark:bg-[#1F1F23] lg:grid lg:grid-cols-7">
           <span className="text-right">بروکر / حساب</span><span>موجودی</span><span>خالص دارایی</span><span>سود/زیان شناور</span><span>اهرم کل</span><span>سطح مارجین</span><span>افت سرمایه</span>
         </div>
         {!snapshots.length && <EmptyCollection>حساب بروکری برای نمایش وجود ندارد.</EmptyCollection>}
         {snapshots.map((snapshot) => <AccountRow key={accountKey(snapshot)} snapshot={snapshot} />)}
-      </div>
+      </div>}
     </CardContent>
   </Card>
 }

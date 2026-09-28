@@ -1,13 +1,19 @@
 """Offline contract and endpoint tests for MT5 snapshots."""
 
+import json
 from copy import deepcopy
 from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 
 from src.api.v1.endpoints.auth import require_user
-from src.api.v1.endpoints.mt5 import connection_service, snapshot_service
+from src.api.v1.endpoints.mt5 import (
+    broker_comparison_service,
+    connection_service,
+    snapshot_service,
+)
 from src.main import app
+from src.services.broker_comparison_service import aggregate_broker_comparison
 from src.services.mt5_snapshot_service import MT5SnapshotService
 
 
@@ -205,3 +211,154 @@ def test_all_snapshots_are_sorted_newest_first():
     assert collection.query == {"owner_user_id": "user-1"}
     assert collection.sort == [("timestamp_utc", -1)]
     assert result[0]["timestamp_utc"].tzinfo is timezone.utc
+
+
+def _comparison_snapshot(owner, account, spread, commission, dividend=None):
+    item = deepcopy(SNAPSHOT)
+    item["owner_user_id"] = owner
+    item["source"]["account_identifier"] = account
+    item["timestamp_utc"] = datetime(2026, 8, 27, 10, 0, tzinfo=timezone.utc)
+    item["broker_symbol_data"] = [
+        {
+            "symbol": "US500.cash",
+            "bid": 5000,
+            "ask": 5000 + spread,
+            "spread_points": spread * 10,
+            "swap_long_raw": -4,
+            "swap_short_raw": 1,
+            "swap_mode": 1,
+            "annualized_long_swap_rate_pct": -3.2,
+            "annualized_short_swap_rate_pct": 0.8,
+        },
+        {
+            "symbol": "XAUUSD",
+            "bid": 2500,
+            "ask": 2500.5,
+            "spread_points": 50,
+            "swap_long_raw": -20,
+            "swap_short_raw": 8,
+            "swap_mode": 1,
+        },
+        {
+            "symbol": "EURUSD.m",
+            "bid": 1.1,
+            "ask": 1.1001,
+            "spread_points": 10,
+            "swap_long_raw": -5,
+            "swap_short_raw": 2,
+            "swap_mode": 1,
+        },
+        {
+            "symbol": "BTCUSD.pro",
+            "bid": 65000,
+            "ask": 65020,
+            "spread_points": 20,
+            "swap_long_raw": -1.2,
+            "swap_short_raw": -1.2,
+            "swap_mode": 5,
+        },
+    ]
+    deal = {"volume": 1, "commission": commission}
+    if dividend is not None:
+        deal["dividend_adjustment"] = dividend
+    item["trade_history_delta"] = [deal]
+    return item
+
+
+def test_broker_comparison_is_aggregated_anonymous_and_column_ready():
+    second = _comparison_snapshot("owner-beta", "account-two", 2, -5.0, 1.5)
+    second["broker_symbol_data"][3]["swap_mode"] = 6
+    snapshots = [
+        _comparison_snapshot("owner-alpha", "account-one", 1, -3.5, 0.5),
+        second,
+    ]
+
+    result = aggregate_broker_comparison(snapshots)
+
+    assert result["eligible_broker_count"] == 1
+    assert result["privacy"] == {"minimum_distinct_users": 2, "identifiers_included": False}
+    broker = result["brokers"][0]
+    assert broker["sample_users"] == 2
+    assert broker["sample_accounts"] == 2
+    assert broker["commission_per_lot_median"] == 4.25
+    assert broker["dividend_per_lot_median"] == 1.0
+    assert [symbol["asset_key"] for symbol in broker["symbols"]][:4] == [
+        "sp500",
+        "gold",
+        "eurusd",
+        "bitcoin",
+    ]
+    sp500 = broker["symbols"][0]
+    assert sp500["spread_points_median"] == 15
+    assert sp500["swap_long_annualized_pct_median"] == -3.2
+    bitcoin = broker["symbols"][3]
+    assert bitcoin["swap_mode_mixed"] is True
+    assert bitcoin["swap_long_raw_median"] is None
+    serialized = json.dumps(result, default=str)
+    assert "owner-alpha" not in serialized
+    assert "account-one" not in serialized
+    assert "trade_server" not in serialized
+
+
+def test_broker_comparison_requires_two_distinct_users():
+    snapshots = [
+        _comparison_snapshot("owner-alpha", "account-one", 1, -3.5),
+        _comparison_snapshot("owner-alpha", "account-two", 2, -5.0),
+    ]
+
+    result = aggregate_broker_comparison(snapshots)
+
+    assert result["eligible_broker_count"] == 0
+    assert result["excluded_broker_count"] == 1
+    assert result["brokers"] == []
+
+
+def test_latest_accounts_for_aggregation_groups_by_owner_and_account():
+    document = _comparison_snapshot("owner-alpha", "account-one", 1, -3.5)
+    document["timestamp_utc"] = datetime(2026, 8, 27, 10, 0)
+
+    class Collection:
+        def __init__(self):
+            self.pipeline = None
+
+        def aggregate(self, pipeline):
+            self.pipeline = pipeline
+            return [document]
+
+    collection = Collection()
+
+    class MongoDB:
+        def get_collection(self, name):
+            return collection
+
+    result = MT5SnapshotService(MongoDB()).latest_accounts_for_aggregation()
+    identity = collection.pipeline[1]["$group"]["_id"]
+
+    assert set(identity) == {"owner_user_id", "broker_company", "trade_server", "account_identifier"}
+    assert result[0]["owner_user_id"] == "owner-alpha"
+    assert result[0]["timestamp_utc"].tzinfo is timezone.utc
+
+
+def test_broker_comparison_endpoint_uses_aggregate_contract():
+    result = aggregate_broker_comparison([
+        _comparison_snapshot("owner-alpha", "account-one", 1, -3.5),
+        _comparison_snapshot("owner-beta", "account-two", 2, -5.0),
+    ])
+
+    class MemoryComparison:
+        def comparison(self):
+            return result
+
+    app.dependency_overrides[broker_comparison_service] = lambda: MemoryComparison()
+    app.dependency_overrides[require_user] = lambda: {"id": "viewer", "username": "member", "role": "user"}
+    try:
+        response = TestClient(app).get(
+            "/api/v1/mt5/broker-comparison",
+            headers={"Authorization": "Bearer user-session"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["brokers"][0]["broker_name"] == "Test Broker"
+    assert response.json()["privacy"]["identifiers_included"] is False

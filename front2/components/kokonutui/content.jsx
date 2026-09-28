@@ -84,7 +84,7 @@ export default function Content() {
           </motion.div>
         </motion.div>
 
-        {/* News Ticker - Full Width Responsive */}
+        {/* Personalized dashboard summary - Full Width Responsive */}
         <motion.div
           variants={itemVariants}
           className="w-full"
