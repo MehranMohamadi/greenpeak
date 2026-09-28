@@ -89,7 +89,7 @@ export const marketAnalysisCategories = [
     page: "intermarket",
     icon: Globe,
     color: "from-cyan-600 to-cyan-500",
-    description: "Capital flows and relationships across equities, currencies, and commodities.",
+    description: "Cross-market relationships across the U.S. dollar and major commodity benchmarks.",
     subgroups: ["Capital flows", "Currencies", "Commodities & cross-asset"],
   },
 ]
@@ -112,7 +112,7 @@ export const indicatorOwnership = {
   valuation: ["sp500_pe", "earnings_yield", "dividend_yield"],
   market_internals: ["sector_performance", "index_concentration", "style_composition"],
   sentiment: ["VIXCLS", "spx_put_call_ratio", "aaii_bull_bear_spread", "cftc_sp500_positioning", "vix_term_structure"],
-  intermarket: ["SP500", "DTWEXBGS", "GOLDAMGBD228NLBM", "DCOILWTICO", "PCOPPUSDM"],
+  intermarket: ["DTWEXBGS", "GOLDAMGBD228NLBM", "DCOILWTICO", "PCOPPUSDM"],
 }
 
 // Compatibility export for older analysis components.
