@@ -2,7 +2,7 @@ import os
 
 os.environ["DEBUG"] = "false"
 
-from src.utils.telegram import send_telegram_market_report
+from src.utils.telegram import _message_chunks, send_telegram_market_report
 
 
 class FakeResponse:
@@ -13,6 +13,15 @@ class FakeResponse:
 
     def json(self):
         return {"ok": True}
+
+
+def test_long_telegram_sections_are_split_below_the_api_limit():
+    sections = ["<b>analysis</b>\n" + " ".join(["market"] * 1200), "<b>summary</b>\nshort"]
+    chunks = _message_chunks(sections, limit=500)
+
+    assert len(chunks) > 2
+    assert all(len(chunk) <= 500 for chunk in chunks)
+    assert chunks[-1].endswith("short")
 
 
 def test_send_telegram_market_report_sends_current_tab_then_summary(monkeypatch):

@@ -11,13 +11,33 @@ import {
   formatTradeNumber,
   formatTradeTime,
 } from "@/lib/mt5-trade-lifecycles"
-import { EmptyCollection, tradingCardClass, tradingCardContentClass, tradingCardHeaderClass } from "./mt5-data-view"
+import {
+  EmptyCollection,
+  accountKey,
+  tradingCardClass,
+  tradingCardContentClass,
+  tradingCardHeaderClass,
+} from "./mt5-data-view"
 
 const filters = [
-  { id: "all", label: "همه" },
-  { id: "open", label: "باز" },
-  { id: "closed", label: "بسته‌شده" },
+  { id: "open", label: "معاملات باز" },
+  { id: "pending", label: "سفارش‌های در انتظار" },
+  { id: "closed", label: "معاملات بسته‌شده" },
 ]
+
+const tradeGridClass = "grid-cols-[minmax(0,1.15fr)_minmax(0,.72fr)_minmax(0,.48fr)_minmax(0,1.15fr)_minmax(0,.76fr)_minmax(0,.76fr)_minmax(0,.64fr)_minmax(0,.64fr)_minmax(0,.95fr)_minmax(0,1.15fr)]"
+
+const orderTypes = {
+  0: { label: "Buy", direction: "long" },
+  1: { label: "Sell", direction: "short" },
+  2: { label: "Buy Limit", direction: "long" },
+  3: { label: "Sell Limit", direction: "short" },
+  4: { label: "Buy Stop", direction: "long" },
+  5: { label: "Sell Stop", direction: "short" },
+  6: { label: "Buy Stop Limit", direction: "long" },
+  7: { label: "Sell Stop Limit", direction: "short" },
+  8: { label: "Close By", direction: "unknown" },
+}
 
 const valueTone = (value) => value > 0
   ? "text-emerald-600 dark:text-emerald-400"
@@ -35,7 +55,103 @@ const statusTone = (status) => status === "closed"
   ? "border-gray-400/30 bg-gray-500/10 text-muted-foreground"
   : status === "partial"
     ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-    : "border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
+    : status === "pending"
+      ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+      : "border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
+
+const valueOf = (source, keys) => {
+  for (const key of keys) {
+    if (source?.[key] !== undefined && source?.[key] !== null && source?.[key] !== "") return source[key]
+  }
+  return null
+}
+
+const numeric = (value) => {
+  if (value === null || value === undefined || value === "") return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const protectivePrice = (value) => {
+  const parsed = numeric(value)
+  return parsed !== null && parsed > 0 ? parsed : null
+}
+
+const timestamp = (value) => {
+  if (value === null || value === undefined || value === "") return null
+  if (typeof value === "number" || /^\d+$/.test(String(value))) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? (parsed < 1e12 ? parsed * 1000 : parsed) : null
+  }
+  const parsed = new Date(value).getTime()
+  return Number.isNaN(parsed) ? null : parsed
+}
+
+const orderTypeMeta = (value) => {
+  const raw = String(value ?? "").trim()
+  if (orderTypes[raw]) return orderTypes[raw]
+  const normalized = raw.toUpperCase().replace(/^ORDER_TYPE_/, "").replaceAll(" ", "_")
+  const mapped = Object.values(orderTypes).find((item) => item.label.toUpperCase().replaceAll(" ", "_") === normalized)
+  if (mapped) return mapped
+  if (normalized.includes("BUY")) return { label: raw || "Buy", direction: "long" }
+  if (normalized.includes("SELL")) return { label: raw || "Sell", direction: "short" }
+  return { label: raw || "Order", direction: "unknown" }
+}
+
+const snapshotAccountLabel = (snapshot) => {
+  const broker = snapshot?.source?.broker_company || "Broker"
+  const identifier = snapshot?.source?.account_identifier
+  return identifier ? `${broker} · ${identifier}` : broker
+}
+
+const quoteForOrder = (snapshot, symbol, direction) => {
+  const quote = (snapshot?.broker_symbol_data || []).find((item) => String(item?.symbol || "").toUpperCase() === String(symbol || "").toUpperCase())
+  if (!quote) return { price: null, time: null }
+  return {
+    price: protectivePrice(direction === "long" ? quote.ask : direction === "short" ? quote.bid : null),
+    time: valueOf(quote, ["quote_timestamp_utc", "timestamp_utc"]),
+  }
+}
+
+function buildPendingOrders(snapshots) {
+  return snapshots.flatMap((snapshot, snapshotIndex) => (snapshot?.pending_orders || []).map((order, orderIndex) => {
+    const type = orderTypeMeta(valueOf(order, ["order_type", "type"]))
+    const symbol = valueOf(order, ["symbol"]) || "نماد نامشخص"
+    const quote = quoteForOrder(snapshot, symbol, type.direction)
+    const setupTime = valueOf(order, ["setup_time_utc", "open_time_utc", "created_at"])
+    const setupTimestamp = timestamp(setupTime)
+    const snapshotTimestamp = timestamp(snapshot?.timestamp_utc)
+    const stopLoss = protectivePrice(valueOf(order, ["stop_loss", "sl"]))
+    const takeProfit = protectivePrice(valueOf(order, ["take_profit", "tp"]))
+    const ticket = valueOf(order, ["ticket", "order_identifier", "order_id"])
+    const rawExpirationTime = valueOf(order, ["expiration_utc", "expiration_time_utc"])
+    const expirationTime = timestamp(rawExpirationTime) > 0 ? rawExpirationTime : null
+
+    return {
+      key: `${accountKey(snapshot) || snapshot?.snapshot_id || snapshotIndex}::pending::${ticket || orderIndex}`,
+      accountLabel: snapshotAccountLabel(snapshot),
+      symbol,
+      direction: type.direction,
+      orderTypeLabel: type.label,
+      volume: numeric(valueOf(order, ["volume", "volume_lots", "current_volume"])),
+      setupTime,
+      requestedPrice: protectivePrice(valueOf(order, ["requested_price", "order_price", "open_price", "price"])),
+      currentPrice: protectivePrice(valueOf(order, ["current_price", "current_valuation_price"])) ?? quote.price,
+      stopLoss,
+      takeProfit,
+      durationMs: setupTimestamp !== null && snapshotTimestamp !== null && snapshotTimestamp >= setupTimestamp
+        ? snapshotTimestamp - setupTimestamp
+        : null,
+      riskLabel: stopLoss !== null && stopLoss > 0 ? "Stop فعال" : "بدون Stop",
+      ticket,
+      expirationTime,
+      quoteTime: quote.time,
+      magicNumber: valueOf(order, ["magic_number", "magic"]),
+      comment: valueOf(order, ["comment"]),
+      sortTime: setupTimestamp || snapshotTimestamp || 0,
+    }
+  })).sort((left, right) => right.sortTime - left.sortTime)
+}
 
 function DetailValue({ label, value, tone = "" }) {
   return <div className="min-w-0 rounded-md border bg-background/70 p-2.5">
@@ -76,13 +192,14 @@ function LifecycleDetails({ lifecycle }) {
       <DetailValue label="Commission" value={lifecycle.hasCommissionData ? formatTradeMoney(lifecycle.commission, lifecycle.currency) : "ثبت نشده"} tone={valueTone(lifecycle.commission)} />
       <DetailValue label="Fee" value={lifecycle.hasFeeData ? formatTradeMoney(lifecycle.fee, lifecycle.currency) : "ثبت نشده"} tone={valueTone(lifecycle.fee)} />
       <DetailValue label="Dividend Adjustment" value={lifecycle.hasDividendData ? formatTradeMoney(lifecycle.dividendAdjustment, lifecycle.currency) : "ثبت نشده"} tone={valueTone(lifecycle.dividendAdjustment)} />
-      <DetailValue label="نتیجه خالص" value={formatTradeMoney(lifecycle.netProfit, lifecycle.currency)} tone={valueTone(lifecycle.netProfit)} />
-      <DetailValue label="Stop Loss" value={formatTradeNumber(lifecycle.stopLoss)} />
-      <DetailValue label="Take Profit" value={formatTradeNumber(lifecycle.takeProfit)} />
+      <DetailValue label="سود/زیان خالص" value={formatTradeMoney(lifecycle.netProfit, lifecycle.currency)} tone={valueTone(lifecycle.netProfit)} />
+      <DetailValue label="Stop Loss" value={formatTradeNumber(protectivePrice(lifecycle.stopLoss))} />
+      <DetailValue label="Take Profit" value={formatTradeNumber(protectivePrice(lifecycle.takeProfit))} />
       <DetailValue label="Position ID" value={lifecycle.positionId} />
       <DetailValue label="منبع معامله" value={lifecycle.sourceLabel} />
       <DetailValue label="زمان بازشدن" value={formatTradeTime(lifecycle.openTime)} />
       <DetailValue label="زمان بسته‌شدن" value={lifecycle.status === "closed" ? formatTradeTime(lifecycle.closeTime) : "هنوز باز است"} />
+      <DetailValue label="مدت نگهداری" value={formatHoldingDuration(lifecycle.durationMs)} />
       {lifecycle.mfe !== null && <DetailValue label="بیشترین سود شناور (MFE)" value={formatTradeMoney(lifecycle.mfe, lifecycle.currency)} tone={valueTone(lifecycle.mfe)} />}
       {lifecycle.mae !== null && <DetailValue label="بیشترین زیان شناور (MAE)" value={formatTradeMoney(lifecycle.mae, lifecycle.currency)} tone={valueTone(lifecycle.mae)} />}
     </dl>
@@ -93,65 +210,104 @@ function LifecycleDetails({ lifecycle }) {
 
 function LifecycleRow({ lifecycle }) {
   const destinationPrice = lifecycle.status === "closed" ? lifecycle.closePrice : lifecycle.valuationPrice
-  const priceLine = `${formatTradeNumber(lifecycle.openPrice)} → ${formatTradeNumber(destinationPrice)}`
   const riskStatus = lifecycle.status === "closed" ? lifecycle.statusLabel : `${lifecycle.statusLabel} · ${lifecycle.riskLabel}`
 
   return <details className="group rounded-lg border bg-gray-50 open:border-cyan-500/30 open:bg-cyan-500/[0.03] dark:border-[#2B2B30] dark:bg-[#0F0F12]">
     <summary className="relative cursor-pointer list-none p-3 pl-9 [&::-webkit-details-marker]:hidden">
       <ChevronDown aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform group-open:rotate-180" />
-
-      <div className="hidden items-center gap-3 text-xs lg:grid lg:grid-cols-[1.05fr_.55fr_.5fr_1fr_1.25fr_.7fr_.8fr_.95fr]">
-        <div className="min-w-0"><p className="truncate text-sm font-semibold text-foreground">{lifecycle.symbol}</p><p className="truncate text-[10px] text-muted-foreground">{lifecycle.accountLabel}</p></div>
-        <Badge variant="outline" className={`w-fit ${directionTone(lifecycle.direction)}`}>{lifecycle.directionLabel}</Badge>
-        <span className="tabular-nums">{formatTradeNumber(lifecycle.volume, 2, 2)}</span>
-        <time className="text-muted-foreground">{formatTradeTime(lifecycle.openTime)}</time>
-        <span className="tabular-nums" dir="ltr">{priceLine}</span>
-        <span className="tabular-nums text-muted-foreground" dir="ltr">{formatHoldingDuration(lifecycle.durationMs)}</span>
+      <div className={`grid ${tradeGridClass} items-center gap-2 whitespace-nowrap text-center text-[11px]`}>
+        <p className="min-w-0 truncate text-right"><span className="font-semibold text-foreground">{lifecycle.symbol}</span><span className="text-[10px] text-muted-foreground"> · {lifecycle.accountLabel}</span></p>
+        <Badge variant="outline" className={`mx-auto max-w-full truncate ${directionTone(lifecycle.direction)}`} title={lifecycle.directionLabel}>{lifecycle.directionLabel}</Badge>
+        <span className="tabular-nums" dir="ltr">{formatTradeNumber(lifecycle.volume, 2, 2)}</span>
+        <time className="tabular-nums text-muted-foreground">{formatTradeTime(lifecycle.openTime)}</time>
+        <span className="tabular-nums" dir="ltr">{formatTradeNumber(lifecycle.openPrice)}</span>
+        <span className="tabular-nums" dir="ltr">{formatTradeNumber(destinationPrice)}</span>
+        <span className="tabular-nums" dir="ltr">{formatTradeNumber(protectivePrice(lifecycle.stopLoss))}</span>
+        <span className="tabular-nums" dir="ltr">{formatTradeNumber(protectivePrice(lifecycle.takeProfit))}</span>
         <span className={`font-semibold tabular-nums ${valueTone(lifecycle.netProfit)}`} dir="ltr">{formatTradeMoney(lifecycle.netProfit, lifecycle.currency)}</span>
-        <div className="flex flex-wrap items-center gap-1.5"><Badge variant="outline" className={statusTone(lifecycle.status)}>{riskStatus}</Badge>{lifecycle.swap < 0 && <Badge variant="outline" className="border-amber-500/30 text-amber-700 dark:text-amber-300">هزینه نگهداری</Badge>}</div>
-      </div>
-
-      <div className="space-y-2 lg:hidden">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0"><p className="text-sm font-semibold text-foreground">{lifecycle.symbol} · {lifecycle.directionLabel} · {formatTradeNumber(lifecycle.volume, 2, 2)}</p><p className="mt-0.5 truncate text-[10px] text-muted-foreground">{lifecycle.accountLabel}</p></div>
-          <span className={`shrink-0 font-semibold tabular-nums ${valueTone(lifecycle.netProfit)}`} dir="ltr">{formatTradeMoney(lifecycle.netProfit, lifecycle.currency)}</span>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span className="tabular-nums" dir="ltr">{priceLine} · {formatHoldingDuration(lifecycle.durationMs)}</span>
-          <Badge variant="outline" className={statusTone(lifecycle.status)}>{riskStatus}</Badge>
-        </div>
+        <div className="flex min-w-0 items-center justify-center gap-1 overflow-hidden"><Badge variant="outline" className={`max-w-full truncate ${statusTone(lifecycle.status)}`} title={riskStatus}>{riskStatus}</Badge>{lifecycle.swap < 0 && <Badge variant="outline" className="max-w-full truncate border-amber-500/30 text-amber-700 dark:text-amber-300" title="هزینه نگهداری">هزینه نگهداری</Badge>}</div>
       </div>
     </summary>
     <LifecycleDetails lifecycle={lifecycle} />
   </details>
 }
 
-export default function LastTrades({ snapshots = [] }) {
-  const [filter, setFilter] = useState("all")
-  const lifecycles = useMemo(() => buildTradeLifecycles(snapshots), [snapshots])
-  const visible = filter === "all"
-    ? lifecycles
-    : filter === "closed"
-      ? lifecycles.filter((item) => item.status === "closed")
-      : lifecycles.filter((item) => item.status !== "closed")
+function PendingDetails({ order }) {
+  return <div className="border-t bg-muted/20 p-3 lg:p-4">
+    <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      <DetailValue label="Order ID" value={order.ticket || "—"} />
+      <DetailValue label="نوع سفارش" value={order.orderTypeLabel} />
+      <DetailValue label="زمان ثبت" value={formatTradeTime(order.setupTime)} />
+      <DetailValue label="مدت انتظار" value={formatHoldingDuration(order.durationMs)} />
+      <DetailValue label="انقضا" value={order.expirationTime ? formatTradeTime(order.expirationTime) : "بدون انقضا"} />
+      <DetailValue label="زمان Quote فعلی" value={formatTradeTime(order.quoteTime)} />
+      <DetailValue label="Magic Number" value={order.magicNumber ?? "—"} />
+      <DetailValue label="توضیح" value={order.comment || "—"} />
+    </dl>
+  </div>
+}
 
-  return <Card className={`${tradingCardClass} h-[32rem] xl:col-span-2 2xl:col-span-3`}>
-    <CardHeader className={`${tradingCardHeaderClass} gap-3 sm:flex-row sm:items-center sm:justify-between`}>
+function PendingRow({ order }) {
+  return <details className="group rounded-lg border bg-gray-50 open:border-amber-500/30 open:bg-amber-500/[0.03] dark:border-[#2B2B30] dark:bg-[#0F0F12]">
+    <summary className="relative cursor-pointer list-none p-3 pl-9 [&::-webkit-details-marker]:hidden">
+      <ChevronDown aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform group-open:rotate-180" />
+      <div className={`grid ${tradeGridClass} items-center gap-2 whitespace-nowrap text-center text-[11px]`}>
+        <p className="min-w-0 truncate text-right"><span className="font-semibold text-foreground">{order.symbol}</span><span className="text-[10px] text-muted-foreground"> · {order.accountLabel}</span></p>
+        <Badge variant="outline" className={`mx-auto max-w-full truncate ${directionTone(order.direction)}`} title={order.orderTypeLabel}>{order.orderTypeLabel}</Badge>
+        <span className="tabular-nums" dir="ltr">{formatTradeNumber(order.volume, 2, 2)}</span>
+        <time className="tabular-nums text-muted-foreground">{formatTradeTime(order.setupTime)}</time>
+        <span className="tabular-nums" dir="ltr">{formatTradeNumber(order.requestedPrice)}</span>
+        <span className="tabular-nums" dir="ltr">{formatTradeNumber(order.currentPrice)}</span>
+        <span className="tabular-nums" dir="ltr">{formatTradeNumber(order.stopLoss)}</span>
+        <span className="tabular-nums" dir="ltr">{formatTradeNumber(order.takeProfit)}</span>
+        <span className="text-muted-foreground">—</span>
+        <Badge variant="outline" className={`mx-auto max-w-full truncate ${statusTone("pending")}`} title={`در انتظار · ${order.riskLabel}`}>در انتظار · {order.riskLabel}</Badge>
+      </div>
+    </summary>
+    <PendingDetails order={order} />
+  </details>
+}
+
+const emptyMessages = {
+  open: "معامله بازی در Snapshot فعلی گزارش نشده است.",
+  pending: "سفارش در انتظاری گزارش نشده است.",
+  closed: "معامله بسته‌شده‌ای در بازه تاریخچه گزارش نشده است.",
+}
+
+export default function LastTrades({ snapshots = [] }) {
+  const [filter, setFilter] = useState("open")
+  const lifecycles = useMemo(() => buildTradeLifecycles(snapshots), [snapshots])
+  const pendingOrders = useMemo(() => buildPendingOrders(snapshots), [snapshots])
+  const groups = useMemo(() => ({
+    open: lifecycles.filter((item) => item.status !== "closed"),
+    pending: pendingOrders,
+    closed: lifecycles.filter((item) => item.status === "closed"),
+  }), [lifecycles, pendingOrders])
+  const visible = groups[filter]
+
+  return <Card className={`${tradingCardClass} !h-[16rem] xl:col-span-2`}>
+    <CardHeader className={`${tradingCardHeaderClass} flex-row flex-wrap items-center justify-between gap-3 space-y-0`}>
       <CardTitle className="flex items-center gap-2 text-base text-gray-900 dark:text-white">
         <Activity className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-        چرخه معاملات و پوزیشن‌ها
-        <Badge variant="secondary">{lifecycles.length}</Badge>
+        معاملات و سفارش‌ها
+        <Badge variant="secondary">{visible.length}</Badge>
       </CardTitle>
-      <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1" aria-label="فیلتر معاملات">
-        {filters.map((item) => <button key={item.id} type="button" aria-pressed={filter === item.id} onClick={() => setFilter(item.id)} className={`rounded-md px-2.5 py-1 text-xs transition ${filter === item.id ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{item.label}</button>)}
+      <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/30 p-1" aria-label="فیلتر معاملات و سفارش‌ها">
+        {filters.map((item) => <button key={item.id} type="button" aria-pressed={filter === item.id} onClick={() => setFilter(item.id)} className={`flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition ${filter === item.id ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          {item.label}<span className="tabular-nums opacity-70">{groups[item.id].length}</span>
+        </button>)}
       </div>
     </CardHeader>
-    <CardContent className={`${tradingCardContentClass} space-y-2`}>
-      <div className="sticky top-0 z-10 hidden gap-3 border-b bg-white px-3 py-2 text-[10px] font-medium text-muted-foreground dark:bg-[#1F1F23] lg:grid lg:grid-cols-[1.05fr_.55fr_.5fr_1fr_1.25fr_.7fr_.8fr_.95fr]">
-        <span>نماد / حساب</span><span>جهت</span><span>حجم</span><span>بازشدن</span><span>قیمت ورود ← خروج/فعلی</span><span>مدت</span><span>نتیجه خالص</span><span>وضعیت / ریسک</span>
+    <CardContent className={`${tradingCardContentClass} !overflow-x-hidden !overflow-y-auto`}>
+      <div className="min-w-0 space-y-2">
+        <div className={`sticky top-0 z-10 grid ${tradeGridClass} gap-2 border-b bg-white py-2 pl-9 pr-3 text-center text-[9px] font-medium text-muted-foreground dark:bg-[#1F1F23]`}>
+          <span className="text-right">نماد / حساب</span><span>جهت / نوع</span><span>حجم</span><span>زمان ورود / ثبت</span><span>قیمت ورود</span><span>خروج / فعلی</span><span>SL</span><span>TP</span><span>سود/زیان خالص</span><span>وضعیت / ریسک</span>
+        </div>
+        {!visible.length && <EmptyCollection>{emptyMessages[filter]}</EmptyCollection>}
+        {filter === "pending"
+          ? visible.map((order) => <PendingRow key={order.key} order={order} />)
+          : visible.map((lifecycle) => <LifecycleRow key={lifecycle.key} lifecycle={lifecycle} />)}
       </div>
-      {!visible.length && <EmptyCollection>{lifecycles.length ? "معامله‌ای با این وضعیت وجود ندارد." : "چرخهٔ معامله یا پوزیشن بازی در Snapshot فعلی گزارش نشده است."}</EmptyCollection>}
-      {visible.map((lifecycle) => <LifecycleRow key={lifecycle.key} lifecycle={lifecycle} />)}
     </CardContent>
   </Card>
 }

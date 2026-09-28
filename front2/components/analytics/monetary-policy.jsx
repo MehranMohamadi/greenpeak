@@ -137,7 +137,7 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
                   <AnalysisFactorCard
                     selected={selectedId === factor.id}
                     className={selectedId === factor.id
-                      ? "!border-cyan-500/60 !bg-cyan-500/10 !ring-cyan-500/30 dark:!border-cyan-400/60 dark:!bg-cyan-400/10 dark:!ring-cyan-400/30"
+                      ? "!border-cyan-500/60 !bg-cyan-500/10 !ring-cyan-500/30 dark:!border-cyan-400/60 dark:!ring-cyan-400/30"
                       : ""}
                   >
                     <CardHeader className="px-4 pb-3 !pt-2.5"><p className="text-xs text-slate-500">{factor.group}</p><CardTitle className="flex items-center justify-between gap-3 text-base"><span className="min-w-0 break-words">{factor.title}</span><Icon className="h-4 w-4 shrink-0 text-primary" /></CardTitle></CardHeader>

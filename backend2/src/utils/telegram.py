@@ -38,10 +38,37 @@ def _report_sections(report: dict) -> list[str]:
     ]
 
 
+def _split_oversized_section(section: str, limit: int) -> list[str]:
+    """Split escaped HTML text on whitespace without cutting common entities."""
+    if len(section) <= limit:
+        return [section]
+    chunks: list[str] = []
+    current = ""
+    for line in section.splitlines():
+        words = line.split()
+        if not words:
+            if current and len(current) + 1 <= limit:
+                current += "\n"
+            continue
+        for word in words:
+            separator = "" if not current else " "
+            if current and len(current) + len(separator) + len(word) > limit:
+                chunks.append(current.rstrip())
+                current = word
+            else:
+                current = f"{current}{separator}{word}"
+        if current and len(current) + 1 <= limit:
+            current += "\n"
+    if current.strip():
+        chunks.append(current.rstrip())
+    return chunks
+
+
 def _message_chunks(sections: list[str], limit: int = 3900) -> list[str]:
     chunks: list[str] = []
     current = ""
-    for section in sections:
+    safe_sections = [part for section in sections for part in _split_oversized_section(section, limit)]
+    for section in safe_sections:
         candidate = f"{current}\n\n{section}" if current else section
         if current and len(candidate) > limit:
             chunks.append(current)

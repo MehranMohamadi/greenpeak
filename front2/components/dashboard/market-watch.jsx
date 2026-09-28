@@ -310,7 +310,7 @@ export default function MarketWatch() {
                 whileHover={{ y: -4, scale: 1.02, transition: { duration: 0.2 } }}
                 whileTap={{ scale: 0.98 }}
                 title={item.source ? `منبع: ${item.source}` : item.error || undefined}
-                className="market-watch-item relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-[#2B2B30] dark:bg-[#0F0F12] md:p-3"
+                className="market-watch-item relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-[#2B2B30] dark:bg-[#0F0F12] md:p-2.5"
               >
                 <div className="mb-1 flex items-center justify-between">
                   <motion.span
@@ -351,7 +351,7 @@ export default function MarketWatch() {
                 </motion.div>
 
                 <motion.div
-                  className={`mb-2 truncate text-xs ${trendColor(item.trend)}`}
+                  className={`mb-1.5 truncate text-xs ${trendColor(item.trend)}`}
                   initial={{ y: 10, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: index * 0.1 + 0.5 }}
@@ -360,7 +360,7 @@ export default function MarketWatch() {
                 </motion.div>
 
                 <motion.div
-                  className="h-6 w-full md:h-8"
+                  className="h-6 w-full md:h-7"
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.1 + 0.6 }}

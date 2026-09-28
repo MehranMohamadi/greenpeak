@@ -18,7 +18,7 @@ export default function MarketWatchLoadingSkeleton() {
           {[...Array(6)].map((_, index) => (
             <div
               key={index}
-              className="flex flex-col p-2 md:p-3 rounded-lg bg-gray-50 dark:bg-[#0F0F12] border border-gray-200 dark:border-[#2B2B30] min-w-0"
+              className="flex flex-col p-2 md:p-2.5 rounded-lg bg-gray-50 dark:bg-[#0F0F12] border border-gray-200 dark:border-[#2B2B30] min-w-0"
             >
               {/* Symbol and trend icon */}
               <div className="flex items-center justify-between mb-1">
@@ -33,10 +33,10 @@ export default function MarketWatchLoadingSkeleton() {
               <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-16 md:w-20 mb-1 animate-pulse"></div>
 
               {/* Change percentage */}
-              <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-14 md:w-18 mb-2 animate-pulse"></div>
+              <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-14 md:w-18 mb-1.5 animate-pulse"></div>
 
               {/* Mini chart placeholder */}
-              <div className="h-6 md:h-8 w-full bg-gray-100 dark:bg-gray-700 rounded animate-pulse">
+              <div className="h-6 md:h-7 w-full bg-gray-100 dark:bg-gray-700 rounded animate-pulse">
                 <div className="h-full w-full bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-500 rounded animate-pulse"></div>
               </div>
             </div>

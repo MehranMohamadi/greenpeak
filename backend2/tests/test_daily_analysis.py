@@ -6,6 +6,8 @@ os.environ["DEBUG"] = "false"
 
 from src.core.config import get_settings
 from src.services.daily_analysis import (
+    MAX_ANALYSIS_ATTEMPTS,
+    _claim_daily_run,
     _deliver_daily_notification,
     _market_report_date,
     create_daily_analysis_scheduler,
@@ -51,6 +53,51 @@ def test_daily_scheduler_uses_configured_time(monkeypatch):
     assert str(job.trigger) == "cron[hour='6', minute='30']"
     retry_job = scheduler.get_job("greenpeak-daily-analysis-notification-retry")
     assert str(retry_job.trigger) == "cron[minute='*/10']"
+    analysis_retry_job = scheduler.get_job("greenpeak-daily-analysis-retry")
+    assert str(analysis_retry_job.trigger) == "cron[minute='*/30']"
+
+
+class FakeClaimRuns:
+    def __init__(self, duplicate=False, reclaimed=None):
+        self.duplicate = duplicate
+        self.reclaimed = reclaimed
+        self.inserted = None
+        self.claim = None
+
+    def insert_one(self, document):
+        if self.duplicate:
+            from pymongo.errors import DuplicateKeyError
+            raise DuplicateKeyError("duplicate")
+        self.inserted = document
+
+    def find_one_and_update(self, query, update, return_document):
+        self.claim = (query, update, return_document)
+        return self.reclaimed
+
+
+def test_daily_run_claims_a_new_calendar_day():
+    runs = FakeClaimRuns()
+    assert _claim_daily_run(runs, "daily:2026-09-28", date(2026, 9, 28), allow_retry=False)
+    assert runs.inserted["attempts"] == 1
+    assert runs.inserted["status"] == "running"
+    assert runs.claim is None
+
+
+def test_daily_run_retry_reclaims_failed_or_incomplete_work_with_a_limit():
+    runs = FakeClaimRuns(duplicate=True, reclaimed={"run_key": "daily:2026-09-28"})
+    assert _claim_daily_run(runs, "daily:2026-09-28", date(2026, 9, 28), allow_retry=True)
+    query, update, _ = runs.claim
+    recoverable = query["$and"][0]["$or"]
+    assert {"status": "failed"} in recoverable
+    assert {"status": {"$in": ["success", "partial"]}, "result.llm.market": None} in recoverable
+    assert {"attempts": {"$lt": MAX_ANALYSIS_ATTEMPTS}} in query["$and"][1]["$or"]
+    assert update["$inc"]["attempts"] == 1
+
+
+def test_daily_run_does_not_reclaim_without_retry_mode():
+    runs = FakeClaimRuns(duplicate=True)
+    assert not _claim_daily_run(runs, "daily:2026-09-28", date(2026, 9, 28), allow_retry=False)
+    assert runs.claim is None
 
 
 def test_catchup_only_runs_after_the_configured_tehran_time():

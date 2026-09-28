@@ -8,7 +8,7 @@ from pymongo.errors import PyMongoError
 
 from ....core.config import get_settings
 from ....services.greenpeak_config import load_registry
-from ....services.daily_analysis import next_scheduled_analysis_at
+from ....services.daily_analysis import market_analysis_completed, next_scheduled_analysis_at
 from ....services.llm_engine.local_cache import LocalNarrativeCache, NarrativeCacheError
 from ....services.llm_engine.repository import MongoNarrativeRepository
 from ....services.llm_engine.schemas import DomainNarrative, IndicatorNarrative, MarketNarrative
@@ -126,17 +126,20 @@ def _execute_manual_analysis(run_id: str, force_llm: bool) -> None:
             force_llm=force_llm,
         )
         status = "partial" if result["errors"] else "success"
+        notification = {"status": "unavailable", "error_code": "market_not_generated"}
+        if market_analysis_completed(result):
+            try:
+                market_data = build_telegram_market_report(client, settings.mongodb_database)
+                if market_data and send_telegram_market_report(market_data):
+                    notification = {"status": "sent", "sent_at": datetime.now(UTC), "error_code": None}
+                else:
+                    notification = {"status": "failed", "error_code": "telegram_send_failed"}
+            except Exception:
+                notification = {"status": "failed", "error_code": "telegram_send_failed"}
         client[settings.mongodb_database].gp_manual_analysis_runs.update_one(
             {"run_id": run_id},
-            {"$set": {"status": status, "finished_at": datetime.now(UTC), "result": result}},
+            {"$set": {"status": status, "finished_at": datetime.now(UTC), "result": result, "notification": notification}},
         )
-        if status == "success":
-            market_data = build_telegram_market_report(client, settings.mongodb_database)
-            if market_data:
-                try:
-                    send_telegram_market_report(market_data)
-                except Exception:
-                    pass
     except Exception as exc:
         client[settings.mongodb_database].gp_manual_analysis_runs.update_one(
             {"run_id": run_id},

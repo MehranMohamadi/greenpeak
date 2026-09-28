@@ -1,7 +1,7 @@
 """Once-daily persisted LLM analysis, coordinated across API workers."""
 
 import logging
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -17,6 +17,9 @@ from ..utils.telegram import build_telegram_market_report, send_telegram_market_
 logger = logging.getLogger(__name__)
 RUN_COLLECTION = "gp_scheduled_analysis_runs"
 NOTIFICATION_RETRY_MINUTES = 10
+ANALYSIS_RETRY_MINUTES = 30
+MAX_ANALYSIS_ATTEMPTS = 3
+STALE_ANALYSIS_AFTER = timedelta(hours=3)
 
 
 def should_schedule_catchup(now: datetime, hour: int, minute: int) -> bool:
@@ -118,7 +121,59 @@ def retry_daily_notification() -> None:
         client.close()
 
 
-def run_daily_analysis() -> None:
+def _claim_daily_run(runs, run_key: str, local_day: date, allow_retry: bool) -> bool:
+    """Atomically create or reclaim today's run without duplicating healthy work."""
+    now = datetime.now(UTC)
+    try:
+        runs.insert_one(
+            {
+                "run_key": run_key,
+                "as_of_date": local_day.isoformat(),
+                "status": "running",
+                "attempts": 1,
+                "started_at": now,
+            }
+        )
+        return True
+    except DuplicateKeyError:
+        if not allow_retry:
+            return False
+
+    claimed = runs.find_one_and_update(
+        {
+            "run_key": run_key,
+            "$and": [
+                {
+                    "$or": [
+                        {"status": "failed"},
+                        {"status": {"$in": ["success", "partial"]}, "result.llm.market": None},
+                        {"status": "running", "started_at": {"$lt": now - STALE_ANALYSIS_AFTER}},
+                    ]
+                },
+                {
+                    "$or": [
+                        {"attempts": {"$exists": False}},
+                        {"attempts": {"$lt": MAX_ANALYSIS_ATTEMPTS}},
+                    ]
+                },
+            ],
+        },
+        {
+            "$set": {
+                "status": "running",
+                "started_at": now,
+                "finished_at": None,
+                "error_code": None,
+            },
+            "$inc": {"attempts": 1},
+            "$unset": {"notification": ""},
+        },
+        return_document=ReturnDocument.AFTER,
+    )
+    return claimed is not None
+
+
+def run_daily_analysis(*, retry_failed: bool = False) -> None:
     """Generate one shared analysis per configured local calendar day."""
     settings = get_settings()
     try:
@@ -133,16 +188,7 @@ def run_daily_analysis() -> None:
     runs = client[settings.mongodb_database][RUN_COLLECTION]
     try:
         runs.create_index("run_key", unique=True)
-        try:
-            runs.insert_one(
-                {
-                    "run_key": run_key,
-                    "as_of_date": local_day.isoformat(),
-                    "status": "running",
-                    "started_at": datetime.now(UTC),
-                }
-            )
-        except DuplicateKeyError:
+        if not _claim_daily_run(runs, run_key, local_day, retry_failed):
             return
 
         provider = OpenAICompatibleProvider(
@@ -156,7 +202,9 @@ def run_daily_analysis() -> None:
             settings.mongodb_database,
             provider,
             local_day,
-            force_llm=True,
+            # A recovery run can reuse today's successful indicator/domain
+            # narratives and retry only the missing downstream work.
+            force_llm=not retry_failed,
         )
         status = "partial" if result["errors"] else "success"
         notification_status = "pending" if market_analysis_completed(result) else "unavailable"
@@ -187,6 +235,19 @@ def run_daily_analysis() -> None:
         client.close()
 
 
+def retry_daily_analysis() -> None:
+    """Retry today's failed, incomplete, or abandoned analysis a limited number of times."""
+    settings = get_settings()
+    try:
+        timezone = ZoneInfo(settings.greenpeak_daily_analysis_timezone)
+    except ZoneInfoNotFoundError:
+        logger.error("Daily analysis timezone is invalid; analysis retry skipped")
+        return
+    now = datetime.now(timezone)
+    if should_schedule_catchup(now, settings.greenpeak_daily_analysis_hour, settings.greenpeak_daily_analysis_minute):
+        run_daily_analysis(retry_failed=True)
+
+
 def create_daily_analysis_scheduler() -> BackgroundScheduler | None:
     """Create the server scheduler when daily LLM generation is configured."""
     settings = get_settings()
@@ -214,6 +275,14 @@ def create_daily_analysis_scheduler() -> BackgroundScheduler | None:
         retry_daily_notification,
         CronTrigger(minute=f"*/{NOTIFICATION_RETRY_MINUTES}", timezone=timezone),
         id="greenpeak-daily-analysis-notification-retry",
+        replace_existing=True,
+        coalesce=True,
+        max_instances=1,
+    )
+    scheduler.add_job(
+        retry_daily_analysis,
+        CronTrigger(minute=f"*/{ANALYSIS_RETRY_MINUTES}", timezone=timezone),
+        id="greenpeak-daily-analysis-retry",
         replace_existing=True,
         coalesce=True,
         max_instances=1,

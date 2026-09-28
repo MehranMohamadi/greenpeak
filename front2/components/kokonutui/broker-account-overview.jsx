@@ -71,20 +71,20 @@ function SwapPair({ row, compact = false }) {
     : "—"
 
   return <div
-    className={`tabular-nums ${compact ? "text-[11px]" : "text-xs"}`}
+    className={`text-center tabular-nums ${compact ? "text-[11px]" : "text-xs"}`}
     dir="ltr"
     title={hasAnnualizedPair ? "نرخ سالانه سواپ" : "مقدار اعلام‌شده بروکر؛ واحد به روش محاسبه سواپ نماد بستگی دارد"}
   >
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+    <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
       <span><span className="text-muted-foreground">L</span> {format(long)}</span>
       <span><span className="text-muted-foreground">S</span> {format(short)}</span>
     </div>
-    {!compact && <p className="mt-0.5 text-[9px] text-muted-foreground" dir="rtl">{hasAnnualizedPair ? "سالانه" : "عدد بروکر"}</p>}
+    {!compact && !hasAnnualizedPair && <p className="mt-0.5 text-[9px] text-muted-foreground" dir="rtl">عدد بروکر</p>}
   </div>
 }
 
 function Value({ value, tone = "", dir = "ltr" }) {
-  return <span className={`font-medium tabular-nums ${tone}`} dir={dir}>{value}</span>
+  return <span className={`block text-center font-medium tabular-nums ${tone}`} dir={dir}>{value}</span>
 }
 
 function DetailValue({ label, value, tone = "" }) {
@@ -118,7 +118,7 @@ function SymbolDetails({ rows }) {
   return <div className="space-y-2">
     <p className="text-xs font-medium text-foreground">ریسک نماد و شرایط اجرای بروکر</p>
     <div className="hidden gap-3 border-b px-3 py-2 text-[10px] font-medium text-muted-foreground lg:grid lg:grid-cols-[1fr_1fr_.7fr_1.05fr_.8fr_1fr]">
-      <span>نماد</span><span>Exposure خالص</span><span>لورج نماد</span><span>Bid / Ask</span><span>Spread</span><span>سواپ L / S</span>
+      <span>نماد</span><span>مواجهه خالص</span><span>اهرم نماد</span><span>قیمت خرید / فروش</span><span>فاصله قیمت</span><span>سواپ خرید / فروش</span>
     </div>
     {rows.map((row) => {
       const risk = row.risk || {}
@@ -146,10 +146,10 @@ function SymbolDetails({ rows }) {
             <SwapPair row={row} compact />
           </div>
           <dl className="grid grid-cols-2 gap-2 text-xs">
-            <div><dt className="text-[10px] text-muted-foreground">Exposure خالص</dt><dd dir="ltr">{hasNumber(risk.net_symbol_exposure_usd) ? money(risk.net_symbol_exposure_usd, "USD") : "—"}</dd></div>
-            <div><dt className="text-[10px] text-muted-foreground">لورج نماد</dt><dd dir="ltr">{hasNumber(risk.net_symbol_leverage) ? `${number(risk.net_symbol_leverage, 2, 2)}×` : "—"}</dd></div>
-            <div><dt className="text-[10px] text-muted-foreground">Bid / Ask</dt><dd dir="ltr">{quote}</dd></div>
-            <div><dt className="text-[10px] text-muted-foreground">Spread</dt><dd dir="ltr">{hasNumber(broker.spread_points) ? number(broker.spread_points, 2) : "—"}</dd></div>
+            <div><dt className="text-[10px] text-muted-foreground">مواجهه خالص</dt><dd dir="ltr">{hasNumber(risk.net_symbol_exposure_usd) ? money(risk.net_symbol_exposure_usd, "USD") : "—"}</dd></div>
+            <div><dt className="text-[10px] text-muted-foreground">اهرم نماد</dt><dd dir="ltr">{hasNumber(risk.net_symbol_leverage) ? `${number(risk.net_symbol_leverage, 2, 2)}×` : "—"}</dd></div>
+            <div><dt className="text-[10px] text-muted-foreground">قیمت خرید / فروش</dt><dd dir="ltr">{quote}</dd></div>
+            <div><dt className="text-[10px] text-muted-foreground">فاصله قیمت</dt><dd dir="ltr">{hasNumber(broker.spread_points) ? number(broker.spread_points, 2) : "—"}</dd></div>
           </dl>
         </div>
       </div>
@@ -162,8 +162,6 @@ function AccountRow({ snapshot }) {
   const portfolio = snapshot.portfolio_metrics || {}
   const swap = snapshot.swap_metrics || {}
   const rows = symbolRows(snapshot)
-  const sp500 = rows.find((row) => assetType(row.symbol) === "sp500")
-  const gold = rows.find((row) => assetType(row.symbol) === "gold")
   const currency = account.currency || "USD"
   const broker = snapshot.source?.broker_company || "Broker"
   const accountIdentifier = snapshot.source?.account_identifier || "—"
@@ -174,15 +172,13 @@ function AccountRow({ snapshot }) {
     <summary className="relative cursor-pointer list-none p-3 pl-9 [&::-webkit-details-marker]:hidden">
       <ChevronDown aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform group-open:rotate-180" />
 
-      <div className="hidden items-center gap-3 text-xs lg:grid lg:grid-cols-[1.15fr_.75fr_.75fr_.75fr_.65fr_.75fr_1fr_1fr_.65fr]">
-        <div className="min-w-0"><p className="truncate text-sm font-semibold text-foreground">{broker}</p><p className="truncate text-[10px] text-muted-foreground">حساب {accountIdentifier}</p></div>
+      <div className="hidden items-center gap-2 text-center text-[11px] lg:grid lg:grid-cols-7">
+        <div className="min-w-0 text-right"><p className="truncate text-sm font-semibold text-foreground">{broker}</p><p className="truncate text-[10px] text-muted-foreground">حساب {accountIdentifier}</p></div>
         <Value value={money(account.balance, currency)} />
         <Value value={money(account.equity, currency)} />
         <Value value={money(account.floating_profit_loss, currency)} tone={profitTone(account.floating_profit_loss)} />
         <Value value={hasNumber(totalLeverage) ? `${number(totalLeverage, 2, 2)}×` : "—"} />
         <Value value={hasNumber(account.margin_level_pct) ? `${number(account.margin_level_pct, 2)}%` : "—"} tone={marginTone(account.margin_level_pct)} />
-        <SwapPair row={sp500} />
-        <SwapPair row={gold} />
         <Value value={hasNumber(drawdown) ? `${number(drawdown, 2)}%` : "—"} tone={drawdownTone(drawdown)} />
       </div>
 
@@ -192,30 +188,28 @@ function AccountRow({ snapshot }) {
           <Value value={money(account.equity, currency)} />
         </div>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
-          <div><dt className="text-[10px] text-muted-foreground">Balance</dt><dd><Value value={money(account.balance, currency)} /></dd></div>
-          <div><dt className="text-[10px] text-muted-foreground">Floating P/L</dt><dd><Value value={money(account.floating_profit_loss, currency)} tone={profitTone(account.floating_profit_loss)} /></dd></div>
-          <div><dt className="text-[10px] text-muted-foreground">لورج کل</dt><dd><Value value={hasNumber(totalLeverage) ? `${number(totalLeverage, 2, 2)}×` : "—"} /></dd></div>
-          <div><dt className="text-[10px] text-muted-foreground">Margin Level</dt><dd><Value value={hasNumber(account.margin_level_pct) ? `${number(account.margin_level_pct, 2)}%` : "—"} tone={marginTone(account.margin_level_pct)} /></dd></div>
-          <div><dt className="text-[10px] text-muted-foreground">Drawdown</dt><dd><Value value={hasNumber(drawdown) ? `${number(drawdown, 2)}%` : "—"} tone={drawdownTone(drawdown)} /></dd></div>
-          <div><dt className="text-[10px] text-muted-foreground">سواپ S&P 500</dt><dd><SwapPair row={sp500} compact /></dd></div>
-          <div><dt className="text-[10px] text-muted-foreground">سواپ طلا</dt><dd><SwapPair row={gold} compact /></dd></div>
+          <div><dt className="text-[10px] text-muted-foreground">موجودی</dt><dd><Value value={money(account.balance, currency)} /></dd></div>
+          <div><dt className="text-[10px] text-muted-foreground">سود/زیان شناور</dt><dd><Value value={money(account.floating_profit_loss, currency)} tone={profitTone(account.floating_profit_loss)} /></dd></div>
+          <div><dt className="text-[10px] text-muted-foreground">اهرم کل</dt><dd><Value value={hasNumber(totalLeverage) ? `${number(totalLeverage, 2, 2)}×` : "—"} /></dd></div>
+          <div><dt className="text-[10px] text-muted-foreground">سطح مارجین</dt><dd><Value value={hasNumber(account.margin_level_pct) ? `${number(account.margin_level_pct, 2)}%` : "—"} tone={marginTone(account.margin_level_pct)} /></dd></div>
+          <div><dt className="text-[10px] text-muted-foreground">افت سرمایه</dt><dd><Value value={hasNumber(drawdown) ? `${number(drawdown, 2)}%` : "—"} tone={drawdownTone(drawdown)} /></dd></div>
         </dl>
       </div>
     </summary>
 
     <div className="space-y-4 border-t bg-muted/20 p-3 lg:p-4">
-      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7">
-        <DetailValue label="Free Margin" value={money(account.free_margin, currency)} />
-        <DetailValue label="Used Margin" value={money(account.used_margin, currency)} />
-        <DetailValue label="لورج خالص" value={hasNumber(portfolio.net_portfolio_leverage) ? `${number(portfolio.net_portfolio_leverage, 2, 2)}×` : "—"} />
-        <DetailValue label="Exposure ناخالص" value={hasNumber(portfolio.gross_portfolio_exposure_usd) ? money(portfolio.gross_portfolio_exposure_usd, "USD") : "—"} />
-        <DetailValue label="Exposure خالص" value={hasNumber(portfolio.net_portfolio_exposure_usd) ? money(portfolio.net_portfolio_exposure_usd, "USD") : "—"} />
-        <DetailValue label="هزینه سالانه Swap" value={hasNumber(swap.portfolio_annualized_swap_cost_usd) ? money(swap.portfolio_annualized_swap_cost_usd, "USD") : "—"} tone={profitTone(swap.portfolio_annualized_swap_cost_usd)} />
+      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8">
+        <DetailValue label="مارجین آزاد" value={money(account.free_margin, currency)} />
+        <DetailValue label="مارجین استفاده‌شده" value={money(account.used_margin, currency)} />
+        <DetailValue label="اهرم خالص" value={hasNumber(portfolio.net_portfolio_leverage) ? `${number(portfolio.net_portfolio_leverage, 2, 2)}×` : "—"} />
+        <DetailValue label="مواجهه ناخالص" value={hasNumber(portfolio.gross_portfolio_exposure_usd) ? money(portfolio.gross_portfolio_exposure_usd, "USD") : "—"} />
+        <DetailValue label="مواجهه خالص" value={hasNumber(portfolio.net_portfolio_exposure_usd) ? money(portfolio.net_portfolio_exposure_usd, "USD") : "—"} />
+        <DetailValue label="هزینه سالانه سواپ" value={hasNumber(swap.portfolio_annualized_swap_cost_usd) ? money(swap.portfolio_annualized_swap_cost_usd, "USD") : "—"} tone={profitTone(swap.portfolio_annualized_swap_cost_usd)} />
+        <DetailValue label="نسبت هزینه سواپ به خالص دارایی" value={hasNumber(swap.portfolio_annual_swap_burden_pct_equity) ? `${number(swap.portfolio_annual_swap_burden_pct_equity, 2)}%` : "—"} tone={profitTone(swap.portfolio_annual_swap_burden_pct_equity)} />
         <DetailValue label="آخرین به‌روزرسانی" value={formatField(snapshot.timestamp_utc, "timestamp_utc", currency)} />
       </dl>
       <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
         {snapshot.source?.trade_server && <Badge variant="outline">سرور {snapshot.source.trade_server}</Badge>}
-        {hasNumber(swap.portfolio_annual_swap_burden_pct_equity) && <Badge variant="outline">هزینه Swap / Equity: {number(swap.portfolio_annual_swap_burden_pct_equity, 2)}%</Badge>}
       </div>
       <SymbolDetails rows={rows} />
     </div>
@@ -223,20 +217,22 @@ function AccountRow({ snapshot }) {
 }
 
 export default function BrokerAccountOverview({ snapshots = [] }) {
-  return <Card className={`${tradingCardClass} h-[32rem] xl:col-span-2 2xl:col-span-3`}>
+  return <Card className={`${tradingCardClass} !h-[16rem] xl:col-span-2`}>
     <CardHeader className={tradingCardHeaderClass}>
       <CardTitle className="flex items-center gap-2 text-base text-gray-900 dark:text-white">
         <Building2 className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-        خلاصه حساب‌ها و شرایط بروکر
+        حساب بروکرها
         <Badge variant="secondary">{snapshots.length}</Badge>
       </CardTitle>
     </CardHeader>
-    <CardContent className={`${tradingCardContentClass} space-y-2`}>
-      <div className="sticky top-0 z-10 hidden gap-3 border-b bg-white px-3 py-2 text-[10px] font-medium text-muted-foreground dark:bg-[#1F1F23] lg:grid lg:grid-cols-[1.15fr_.75fr_.75fr_.75fr_.65fr_.75fr_1fr_1fr_.65fr]">
-        <span>بروکر / حساب</span><span>Balance</span><span>Equity</span><span>Floating P/L</span><span>لورج کل</span><span>Margin Level</span><span>سواپ S&P 500<br />L / S</span><span>سواپ طلا<br />L / S</span><span>Drawdown</span>
+    <CardContent className={`${tradingCardContentClass} !overflow-x-hidden !overflow-y-auto`}>
+      <div className="min-w-0 space-y-2">
+        <div className="sticky top-0 z-10 hidden gap-2 border-b bg-white py-2 pl-9 pr-3 text-center text-[10px] font-medium text-muted-foreground dark:bg-[#1F1F23] lg:grid lg:grid-cols-7">
+          <span className="text-right">بروکر / حساب</span><span>موجودی</span><span>خالص دارایی</span><span>سود/زیان شناور</span><span>اهرم کل</span><span>سطح مارجین</span><span>افت سرمایه</span>
+        </div>
+        {!snapshots.length && <EmptyCollection>حساب بروکری برای نمایش وجود ندارد.</EmptyCollection>}
+        {snapshots.map((snapshot) => <AccountRow key={accountKey(snapshot)} snapshot={snapshot} />)}
       </div>
-      {!snapshots.length && <EmptyCollection>حساب بروکری برای نمایش وجود ندارد.</EmptyCollection>}
-      {snapshots.map((snapshot) => <AccountRow key={accountKey(snapshot)} snapshot={snapshot} />)}
     </CardContent>
   </Card>
 }
