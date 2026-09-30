@@ -12,15 +12,16 @@ const SOURCES = {
 }
 
 const initialResults = () => Object.fromEntries(Object.keys(SOURCES).map((key) => [key, { data: [], series: {}, metadata: null, loading: true, error: null }]))
+const DAILY_REFRESH_MS = 60 * 60 * 1000
 
 export default function useSentimentData() {
   const [results, setResults] = useState(initialResults)
 
   useEffect(() => {
     const controller = new AbortController()
-    Object.entries(SOURCES).forEach(async ([key, url]) => {
+    const loadSource = async (key, url) => {
       try {
-        const response = await fetch(url, { signal: controller.signal })
+        const response = await fetch(url, { signal: controller.signal, cache: "no-store" })
         const payload = await response.json()
         if (!response.ok) throw new Error(payload?.detail?.message || payload?.detail || `HTTP ${response.status}`)
         if (controller.signal.aborted) return
@@ -30,8 +31,24 @@ export default function useSentimentData() {
         if (reason.name === "AbortError") return
         setResults((current) => ({ ...current, [key]: { ...current[key], loading: false, error: reason } }))
       }
-    })
-    return () => controller.abort()
+    }
+    const loadAll = () => Object.entries(SOURCES).forEach(([key, url]) => loadSource(key, url))
+    const refreshDailyVolatility = () => {
+      loadSource("vix", SOURCES.vix)
+      loadSource("vix_term_structure", SOURCES.vix_term_structure)
+    }
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") refreshDailyVolatility()
+    }
+
+    loadAll()
+    const refreshTimer = window.setInterval(refreshDailyVolatility, DAILY_REFRESH_MS)
+    document.addEventListener("visibilitychange", refreshWhenVisible)
+    return () => {
+      controller.abort()
+      window.clearInterval(refreshTimer)
+      document.removeEventListener("visibilitychange", refreshWhenVisible)
+    }
   }, [])
 
   return { results }

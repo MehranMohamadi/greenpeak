@@ -103,7 +103,7 @@ const releaseLabel = (value) => ({
 
 const importanceMeta = (level) => IMPORTANCE_OPTIONS.find((option) => option.level === Number(level))
 
-function EarningsCalendarWidget() {
+function EarningsCalendarWidget({ compact = false }) {
   const [country, setCountry] = useState(DEFAULT_COUNTRY)
   const [importance, setImportance] = useState(DEFAULT_IMPORTANCE)
   const [dateRange, setDateRange] = useState("recentAndNext")
@@ -177,7 +177,7 @@ function EarningsCalendarWidget() {
   }
 
   return (
-    <div className="flex h-[576px] min-h-[416px] w-full flex-col overflow-hidden rounded-lg bg-background text-foreground">
+    <div className={`flex ${compact ? "h-[490px] min-h-[354px]" : "h-[576px] min-h-[416px]"} w-full flex-col overflow-hidden rounded-lg bg-background text-foreground`}>
       <div className="shrink-0 border-b border-border bg-muted/20 p-3">
         <div className="flex flex-wrap items-center gap-2">
           <label className="text-xs font-medium text-muted-foreground" htmlFor="earnings-country">Country</label>

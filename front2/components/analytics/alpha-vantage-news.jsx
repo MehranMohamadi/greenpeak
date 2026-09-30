@@ -1,15 +1,15 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Loader2, Newspaper } from "lucide-react"
+import { ExternalLink, Loader2, Newspaper } from "lucide-react"
 import { endpoints } from "@/api/api"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const SOURCES = [
-  { id: "cnbc_rss", label: "CNBC" },
   { id: "alpha_vantage", label: "Alpha Vantage" },
+  { id: "cnbc_rss", label: "CNBC" },
   { id: "investing_rss", label: "Investing.com" },
 ]
 
@@ -20,8 +20,8 @@ function formatTime(value) {
 
 const formatScore = (value) => typeof value === "number" ? value.toFixed(3) : "—"
 
-export default function AlphaVantageNews() {
-  const [activeSource, setActiveSource] = useState("cnbc_rss")
+export default function AlphaVantageNews({ selectedArticleId, onArticleSelect }) {
+  const [activeSource, setActiveSource] = useState("alpha_vantage")
   const [feeds, setFeeds] = useState({})
   const [loadingSource, setLoadingSource] = useState(null)
   const [errors, setErrors] = useState({})
@@ -34,7 +34,7 @@ export default function AlphaVantageNews() {
       controller.signal.addEventListener("abort", () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")) }, { once: true })
     })
     async function requestFeed() {
-      const response = await fetch(endpoints.news.source(activeSource, 50), { signal: controller.signal })
+      const response = await fetch(endpoints.news.source(activeSource, 20), { signal: controller.signal })
       return { response, payload: await response.json() }
     }
     async function load() {
@@ -63,46 +63,51 @@ export default function AlphaVantageNews() {
     return () => controller.abort()
   }, [activeSource, feeds])
 
-  return <Card dir="rtl">
-    <CardHeader>
+  useEffect(() => {
+    const visibleItems = (feeds[activeSource]?.items || []).slice(0, 10)
+    if (!visibleItems.length || typeof onArticleSelect !== "function") return
+    if (!visibleItems.some((item) => item.item_id === selectedArticleId)) onArticleSelect(visibleItems[0])
+  }, [activeSource, feeds, onArticleSelect, selectedArticleId])
+
+  return <Card className="flex h-[34rem] min-h-0 flex-col overflow-hidden" dir="rtl">
+    <CardHeader className="shrink-0">
       <CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-primary" />اخبار بازار</CardTitle>
-      <CardDescription>هر منبع به‌صورت مستقل نمایش داده می‌شود؛ بدون مقایسه یا ادغام خبرها. تب پیش‌فرض CNBC است.</CardDescription>
     </CardHeader>
-    <CardContent>
-      <Tabs value={activeSource} onValueChange={setActiveSource} dir="ltr">
-        <TabsList className="mb-5 grid h-auto w-full grid-cols-3">
+    <CardContent className="flex min-h-0 flex-1">
+      <Tabs value={activeSource} onValueChange={setActiveSource} className="flex min-h-0 w-full flex-col" dir="ltr">
+        <TabsList className="mb-4 grid h-auto w-full shrink-0 grid-cols-3">
           {SOURCES.map((source) => <TabsTrigger key={source.id} value={source.id}>{source.label}</TabsTrigger>)}
         </TabsList>
         {SOURCES.map((source) => {
           const feed = feeds[source.id]
           const error = errors[source.id]
-          return <TabsContent key={source.id} value={source.id}>
-            {loadingSource === source.id && <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />در حال دریافت حداقل ۲۰ خبر…</div>}
+          const visibleItems = (feed?.items || []).slice(0, 10)
+          return <TabsContent key={source.id} value={source.id} className="mt-0 min-h-0 flex-1 overflow-y-auto pe-1">
+            {loadingSource === source.id && <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />در حال دریافت خبرهای مهم…</div>}
             {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-right text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">{error}</div>}
             {feed && <>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3" dir="rtl">
-                <span className="text-sm text-muted-foreground">‏نمایش ‎{feed.count}‎ خبر از ‎{feed.available_count}‎ خبر موجود</span>
+                <span className="text-sm text-muted-foreground">‏نمایش ‎{visibleItems.length}‎ خبر از ‎{feed.available_count}‎ خبر موجود</span>
                 {feed.searched_topics?.length > 0 && <div className="flex flex-wrap items-center gap-1.5"><span className="text-xs text-muted-foreground">تاپیک‌های جست‌وجوشده:</span>{feed.searched_topics.map((topic) => <Badge key={topic} variant="secondary" dir="ltr">{topic}</Badge>)}</div>}
               </div>
               {!feed.native_importance_score_available && <p className="mb-4 text-right text-xs text-muted-foreground">‏این ‎RSS‎ امتیاز اهمیت بومی ارائه نمی‌کند؛ اخبار این تب بر اساس زمان انتشار مرتب شده‌اند.</p>}
-              <div className="grid gap-4 md:grid-cols-2" dir="ltr">
-                {feed.items.map((article) => <article key={article.item_id || article.url} className="flex h-full flex-col rounded-lg border p-4 text-left">
-                  <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <time dir="rtl">{formatTime(article.published_at)}</time>
-                    {source.id === "alpha_vantage" && <>
-                      <Badge variant="outline">Relevance: {formatScore(article.source_score)}</Badge>
-                      {article.importance && <Badge variant={article.importance === "high" ? "default" : "secondary"}>{article.importance === "high" ? "High" : "Medium"}</Badge>}
-                      {article.minimum_backfill && <Badge variant="outline">Top available</Badge>}
-                    </>}
-                  </div>
-                  <h3 className="font-medium leading-snug">
-                    <a className="transition-colors hover:text-primary hover:underline" href={article.url} target="_blank" rel="noopener noreferrer">
-                      {article.title}
-                    </a>
-                  </h3>
-                  {article.summary && <p className="mt-3 whitespace-pre-line text-sm leading-6 text-muted-foreground">{article.summary}</p>}
-                  <div className="mt-3 flex flex-wrap gap-1.5">{article.topics?.map((topic) => <Badge key={topic} variant="outline">{topic}</Badge>)}</div>
-                  {source.id === "alpha_vantage" && article.alpha_sentiment_score !== null && <div className="mt-3 text-xs text-muted-foreground">News sentiment: {formatScore(article.alpha_sentiment_score)}{article.alpha_sentiment_label ? ` · ${article.alpha_sentiment_label}` : ""}</div>}
+              <div className="divide-y rounded-lg border" dir="ltr">
+                {visibleItems.map((article) => <article key={article.item_id || article.url} className={`px-4 py-3.5 text-left transition-colors ${selectedArticleId === article.item_id ? "bg-primary/10 ring-1 ring-inset ring-primary/30" : "hover:bg-muted/30"}`}>
+                  <button type="button" aria-pressed={selectedArticleId === article.item_id} onClick={() => onArticleSelect?.(article)} className="block w-full text-left">
+                    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <time dir="rtl">{formatTime(article.published_at)}</time>
+                      {source.id === "alpha_vantage" && <>
+                        <Badge variant="outline">Relevance: {formatScore(article.source_score)}</Badge>
+                        {article.importance && <Badge variant={article.importance === "high" ? "default" : "secondary"}>{article.importance === "high" ? "High" : "Medium"}</Badge>}
+                        {article.minimum_backfill && <Badge variant="outline">Top available</Badge>}
+                      </>}
+                    </div>
+                    <h3 className="line-clamp-2 font-medium leading-6" dir={article.title_fa ? "rtl" : "ltr"}>{article.title_fa || article.title}</h3>
+                    {article.summary && <p className="mt-1.5 line-clamp-3 whitespace-pre-line text-sm leading-6 text-muted-foreground">{article.summary}</p>}
+                    <div className="mt-2 flex flex-wrap gap-1.5">{article.topics?.map((topic) => <Badge key={topic} variant="outline">{topic}</Badge>)}</div>
+                    {source.id === "alpha_vantage" && article.alpha_sentiment_score !== null && <div className="mt-3 text-xs text-muted-foreground">News sentiment: {formatScore(article.alpha_sentiment_score)}{article.alpha_sentiment_label ? ` · ${article.alpha_sentiment_label}` : ""}</div>}
+                  </button>
+                  <a className="mt-2 inline-flex items-center gap-1 text-xs text-primary transition hover:underline" href={article.url} target="_blank" rel="noopener noreferrer">Source <ExternalLink className="h-3 w-3" /></a>
                 </article>)}
               </div>
             </>}

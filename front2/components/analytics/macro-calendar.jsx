@@ -26,7 +26,7 @@ export default function MacroCalendar({ showPageHeader = true }) {
             <CardDescription>Release times, published values, forecasts, and prior observations supplied by Tradays.</CardDescription>
           </CardHeader>
           <CardContent className="p-0 sm:px-3 sm:pb-3">
-            <EconomicCalendarWidget />
+            <EconomicCalendarWidget compact={!showPageHeader} />
           </CardContent>
         </Card>
 
@@ -36,7 +36,7 @@ export default function MacroCalendar({ showPageHeader = true }) {
             <CardDescription>Expected company earnings dates, EPS, revenue, forecasts, and release timing supplied by Finlogix.</CardDescription>
           </CardHeader>
           <CardContent className="p-0 sm:px-3 sm:pb-3">
-            <EarningsCalendarWidget />
+            <EarningsCalendarWidget compact={!showPageHeader} />
           </CardContent>
         </Card>
       </div>

@@ -47,7 +47,7 @@ SOURCE_CONFIG = {
     "spx_put_call_ratio": {"ttl": timedelta(hours=18), "stale_days": 5, "frequency": "daily", "unit": "ratio", "source_series_id": "SPX+SPXW_PUT_CALL_RATIO"},
     "aaii_bull_bear_spread": {"ttl": timedelta(days=3), "stale_days": 10, "frequency": "weekly", "unit": "percentage points", "source_series_id": "AAII_BULL_MINUS_BEAR"},
     "cftc_sp500_positioning": {"ttl": timedelta(days=3), "stale_days": 10, "frequency": "weekly", "unit": "contracts", "source_series_id": "TFF_13874A_ASSET_MGR_NET"},
-    "vix_term_structure": {"ttl": timedelta(hours=18), "stale_days": 5, "frequency": "daily", "unit": "volatility points", "source_series_id": "VIX1Y_MINUS_VIX9D"},
+    "vix_term_structure": {"ttl": timedelta(hours=4), "stale_days": 5, "frequency": "daily", "unit": "volatility points", "source_series_id": "VIX1Y_MINUS_VIX9D"},
 }
 
 
@@ -213,6 +213,52 @@ def filter_payload(payload: dict[str, Any], limit: int | None = None, start_date
     value["series"] = {key: filtered(points) for key, points in value.get("series", {}).items()}
     value["metadata"]["returned_records"] = len(value["data"])
     return value
+
+
+def extract_vix_close_payload(
+    term_structure_payload: dict[str, Any],
+    limit: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict[str, Any]:
+    """Expose Cboe's reported daily VIX close as a standalone series."""
+    for value in (start_date, end_date):
+        if value:
+            date.fromisoformat(value)
+
+    points = list(term_structure_payload.get("series", {}).get("vix", []))
+    if not points:
+        raise OfficialSourceUnavailable("Cboe VIX close series is unavailable")
+    points = [
+        item
+        for item in points
+        if (not start_date or item["date"] >= start_date)
+        and (not end_date or item["date"] <= end_date)
+    ]
+    if limit:
+        points = points[-limit:]
+
+    metadata = json.loads(json.dumps(term_structure_payload.get("metadata", {})))
+    latest = points[-1] if points else None
+    metadata.update({
+        "indicator_id": "vix",
+        "owner_group": OWNER_GROUP,
+        "latest_value": latest["value"] if latest else None,
+        "latest_date": latest["date"] if latest else None,
+        "observation_date": latest["date"] if latest else None,
+        "total_records": len(points),
+        "description": "Cboe Volatility Index daily closing value",
+        "unit": "index",
+        "frequency": "daily",
+        "source": "Cboe Global Markets",
+        "source_url": "https://www.cboe.com/tradable-products/vix/vix-historical-data",
+        "source_series_id": "VIX",
+        "transformation": "reported_daily_close",
+        "quality_status": metadata.get("quality_status", "available") if points else "unavailable",
+        "quality_reason": metadata.get("quality_reason") if points else "no_observations_in_requested_range",
+        "data_version": "3.0",
+    })
+    return {"data": points, "metadata": metadata}
 
 
 class OfficialSentimentService:

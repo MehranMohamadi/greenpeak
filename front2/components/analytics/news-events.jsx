@@ -1,23 +1,33 @@
+"use client"
+
+import { useCallback, useState } from "react"
 import { CalendarDays, Newspaper } from "lucide-react"
 
 import AlphaVantageNews from "./alpha-vantage-news"
 import MacroCalendar from "./macro-calendar"
+import NewsImpactAnalysis from "./news-impact-analysis"
 
 export default function NewsEvents() {
+  const [selectedArticle, setSelectedArticle] = useState(null)
+  const handleArticleSelect = useCallback((article) => setSelectedArticle(article), [])
+
   return <main className="space-y-5 bg-background py-3 md:py-4">
     <header className="space-y-2 px-4 md:px-6">
       <div className="flex items-center gap-3">
         <span className="rounded-xl bg-primary/10 p-2 text-primary"><Newspaper className="h-6 w-6" /></span>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">News &amp; Events</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Economic releases first, followed by independent market-news feeds.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Independent market-news feeds followed by economic and earnings calendars.</p>
         </div>
       </div>
     </header>
+    <div className="grid min-w-0 grid-cols-1 gap-4 px-4 lg:grid-cols-2 md:px-6" dir="ltr">
+      <section aria-label="News impact analysis" className="order-2 min-w-0 lg:order-1"><NewsImpactAnalysis article={selectedArticle} /></section>
+      <section aria-label="Market news" className="order-1 min-w-0 lg:order-2"><AlphaVantageNews selectedArticleId={selectedArticle?.item_id} onArticleSelect={handleArticleSelect} /></section>
+    </div>
     <section aria-labelledby="calendar-summary-title" className="space-y-2">
       <h2 id="calendar-summary-title" className="flex items-center gap-2 px-4 text-[1.2rem] font-medium md:px-6"><CalendarDays className="h-5 w-5 text-primary" />Calendar summary</h2>
       <MacroCalendar showPageHeader={false} />
     </section>
-    <section aria-label="Market news" className="px-4 md:px-6"><AlphaVantageNews /></section>
   </main>
 }

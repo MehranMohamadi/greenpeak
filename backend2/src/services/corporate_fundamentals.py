@@ -30,8 +30,9 @@ S_AND_P_EPS_URL = (
     "sp-500-eps-est.xlsx"
 )
 SEC_COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
-CORPORATE_METHODOLOGY_VERSION = "sec_companyfacts_spy_current_cohort_v1"
+CORPORATE_METHODOLOGY_VERSION = "sec_companyfacts_spy_current_cohort_v2"
 CORPORATE_FORMULA_VERSION = "1.0"
+CORPORATE_MIN_PUBLISHABLE_COVERAGE_PCT = 60.0
 
 REVENUE_TAGS = (
     "RevenueFromContractWithCustomerExcludingAssessedTax",
@@ -252,6 +253,39 @@ def load_sp500_operating_eps(
         points=points,
         report_as_of=report_as_of,
         source_path=path,
+    )
+
+
+def load_sp500_operating_eps_ttm(
+    workbook_path: Path | None = None,
+) -> PublishedCorporateSeries:
+    """Derive trailing-four-quarter operating EPS from reported S&P values."""
+
+    quarterly = load_sp500_operating_eps(workbook_path)
+    points: list[PublishedCorporatePoint] = []
+    for index in range(3, len(quarterly.points)):
+        window = quarterly.points[index - 3 : index + 1]
+        quarter_indexes = []
+        for point in window:
+            parsed = date.fromisoformat(point.date)
+            quarter_indexes.append(parsed.year * 4 + (parsed.month - 1) // 3)
+        if quarter_indexes != list(range(quarter_indexes[0], quarter_indexes[0] + 4)):
+            continue
+        points.append(
+            PublishedCorporatePoint(
+                date=window[-1].date,
+                value=math.fsum(point.value for point in window),
+                is_estimate=any(point.is_estimate for point in window),
+            )
+        )
+    if len(points) < 5:
+        raise CorporateFundamentalsSourceError(
+            "S&P EPS workbook returned insufficient consecutive quarters for TTM EPS"
+        )
+    return PublishedCorporateSeries(
+        points=tuple(points),
+        report_as_of=quarterly.report_as_of,
+        source_path=quarterly.source_path,
     )
 
 
@@ -663,6 +697,12 @@ def build_sec_corporate_documents(
                 )
             )
 
+    aggregate_documents = [
+        document
+        for document in aggregate_documents
+        if float(document["metadata"]["coverage_pct"])
+        >= CORPORATE_MIN_PUBLISHABLE_COVERAGE_PCT
+    ]
     aggregate_documents.sort(key=lambda item: (item["indicator"], item["date"]))
     normalized.sort(key=lambda item: (item["symbol"], item["metric"], item["date"]))
     return CorporateBuildResult(

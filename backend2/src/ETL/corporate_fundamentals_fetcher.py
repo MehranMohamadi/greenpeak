@@ -3,6 +3,7 @@
 Run from ``backend2`` or directly from this directory:
 
     python src/ETL/corporate_fundamentals_fetcher.py --dry-run --max-companies 10
+    python src/ETL/corporate_fundamentals_fetcher.py --dry-run --write-cache
     python src/ETL/corporate_fundamentals_fetcher.py
 """
 
@@ -26,11 +27,17 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="Fetch and calculate without MongoDB writes")
     parser.add_argument("--max-companies", type=int, default=None, help="Limit the SPY cohort for a smoke test")
     parser.add_argument("--workers", type=int, default=4, help="Concurrent SEC downloads (1-6)")
+    parser.add_argument(
+        "--write-cache",
+        action="store_true",
+        help="Write the validated file fallback (allowed with --dry-run for a cache-only refresh)",
+    )
     args = parser.parse_args()
     try:
         summary = CorporateFundamentalsJob(workers=args.workers).run(
             write=not args.dry_run,
             max_companies=args.max_companies,
+            write_cache=args.write_cache or not args.dry_run,
         )
         print(json.dumps(summary, ensure_ascii=False, indent=2, default=str))
         return 0

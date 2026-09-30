@@ -2,8 +2,11 @@ from datetime import UTC, datetime
 
 import pytest
 
+from src.services import data_service as data_service_module
+from src.services.data_service import DataService
 from src.services.official_sentiment import (
     OfficialSentimentService,
+    extract_vix_close_payload,
     filter_payload,
     parse_aaii_html,
     parse_cboe_daily_ratio,
@@ -52,6 +55,58 @@ def test_cftc_parser_calculates_both_tff_net_positions():
 def test_vix_parser_reads_official_close_column():
     rows = parse_cboe_volatility_csv(b"DATE,OPEN,HIGH,LOW,CLOSE\n09/03/2026,15,17,14,16.25\n", "VIX")
     assert rows[-1]["value"] == 16.25
+
+
+def test_vix_close_payload_uses_cboe_series_and_standard_metadata():
+    payload = {
+        "data": [{"time": 1, "date": "2026-09-02", "value": 8.0}],
+        "series": {
+            "vix": [
+                {"time": 1, "date": "2026-09-02", "value": 15.5},
+                {"time": 2, "date": "2026-09-03", "value": 16.25},
+            ]
+        },
+        "metadata": {
+            "quality_status": "available",
+            "quality_reason": None,
+            "retrieved_at": "2026-09-04T00:00:00+00:00",
+        },
+    }
+
+    result = extract_vix_close_payload(payload, limit=1)
+
+    assert result["data"] == [{"time": 2, "date": "2026-09-03", "value": 16.25}]
+    assert result["metadata"]["indicator_id"] == "vix"
+    assert result["metadata"]["source"] == "Cboe Global Markets"
+    assert result["metadata"]["source_series_id"] == "VIX"
+    assert result["metadata"]["transformation"] == "reported_daily_close"
+    assert result["metadata"]["latest_date"] == "2026-09-03"
+
+
+def test_data_service_prefers_official_cboe_vix(monkeypatch):
+    payload = {
+        "data": [{"time": 1, "date": "2026-09-02", "value": 8.0}],
+        "series": {
+            "vix": [
+                {"time": 1, "date": "2026-09-02", "value": 15.5},
+                {"time": 2, "date": "2026-09-03", "value": 16.25},
+            ]
+        },
+        "metadata": {
+            "quality_status": "available",
+            "quality_reason": None,
+            "retrieved_at": "2026-09-04T00:00:00+00:00",
+        },
+    }
+    monkeypatch.setattr(data_service_module.official_sentiment_service, "get", lambda _: payload)
+    service = DataService.__new__(DataService)
+
+    result = service.get_vix_data(limit=1)
+
+    assert result.data[-1].value == 16.25
+    assert result.metadata.source == "Cboe Global Markets"
+    assert result.metadata.source_series_id == "VIX"
+    assert result.metadata.data_version == "3.0"
 
 
 def test_cache_is_returned_as_stale_after_refresh_failure(tmp_path):

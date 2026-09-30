@@ -8,6 +8,11 @@ from src.services.corporate_fundamentals import (
     build_sec_corporate_documents,
     extract_company_fundamentals,
     load_sp500_operating_eps,
+    load_sp500_operating_eps_ttm,
+)
+from src.services.corporate_fundamentals_cache import (
+    load_corporate_aggregate_cache,
+    write_corporate_aggregate_cache,
 )
 
 
@@ -87,6 +92,18 @@ def test_official_sp500_workbook_returns_reported_operating_eps():
     assert series.report_as_of == "2025-08-06"
 
 
+def test_official_sp500_workbook_derives_reported_ttm_operating_eps():
+    path = Path(__file__).parents[1] / "src" / "data" / "raw" / "sp-500-eps-est.xlsx"
+
+    quarterly = load_sp500_operating_eps(path)
+    series = load_sp500_operating_eps_ttm(path)
+
+    assert len(series.points) == len(quarterly.points) - 3
+    assert series.points[-1].date == "2025-03-31"
+    assert series.points[-1].value == pytest.approx(236.24)
+    assert series.points[-1].is_estimate is False
+
+
 def test_sec_aggregate_formulas_use_common_cohorts_and_summed_amounts():
     payloads = {"AAA": _company_payload(1), "BBB": _company_payload(2)}
     identifiers = {
@@ -121,6 +138,41 @@ def test_sec_aggregate_formulas_use_common_cohorts_and_summed_amounts():
         "net_income",
         "assets",
     }
+
+
+def test_verified_corporate_cache_round_trip_requires_all_three_indicators(tmp_path):
+    payloads = {"AAA": _company_payload(1), "BBB": _company_payload(2)}
+    identifiers = {
+        "AAA": {"cik": "1", "name": "Alpha"},
+        "BBB": {"cik": "2", "name": "Beta"},
+    }
+    built_at = datetime(2025, 5, 2)
+    result = build_sec_corporate_documents(
+        payloads,
+        identifiers,
+        expected_symbols=["AAA", "BBB"],
+        holdings_as_of="2025-04-01",
+        updated_at=built_at,
+    )
+    cache_path = tmp_path / "corporate.json"
+
+    write_corporate_aggregate_cache(
+        result.aggregates,
+        holdings_as_of="2025-04-01",
+        built_at=built_at,
+        cache_path=cache_path,
+    )
+    cached = load_corporate_aggregate_cache(cache_path)
+
+    assert {item["indicator"] for item in cached} == {
+        "revenue_growth",
+        "profit_margins",
+        "return_on_assets",
+    }
+    assert all(
+        item["methodology_version"] == CORPORATE_METHODOLOGY_VERSION
+        for item in cached
+    )
 
 
 def test_fourth_quarter_flow_is_derived_only_from_published_annual_and_q1_to_q3():

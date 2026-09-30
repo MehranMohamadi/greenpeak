@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     greenpeak_daily_analysis_timezone: str = "Asia/Tehran"
     greenpeak_news_enabled: bool = True
     greenpeak_official_sentiment_enabled: bool = True
-    sec_user_agent: str = "GreenPeak/1.0 (+https://greenpeak.tech)"
+    sec_user_agent: str = "GreenPeak/1.0 admin@greenpeak.ir"
     greenpeak_cnbc_rss_url: str = "https://www.cnbc.com/id/10000664/device/rss/rss.html"
     greenpeak_investing_rss_url: str = "https://www.investing.com/rss/news_25.rss"
 

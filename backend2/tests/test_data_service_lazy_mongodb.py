@@ -1,9 +1,12 @@
 import os
+from datetime import datetime
 import pytest
 
 os.environ["DEBUG"] = "false"
 
 from src.services.data_service import DataService
+from src.services.corporate_fundamentals import CORPORATE_METHODOLOGY_VERSION
+from src.services.corporate_fundamentals_cache import write_corporate_aggregate_cache
 from src.services.fred_public import (
     FredObservation,
     FredPublicSeries,
@@ -79,8 +82,9 @@ def test_sp500_eps_uses_official_workbook_without_mongodb():
     assert service.mongodb.requested == []
     assert response.data
     assert response.data[-1].date == "2025-03-31"
-    assert response.data[-1].value == pytest.approx(57.51)
-    assert response.metadata.source_series_id == "SP500_OPERATING_EPS_QUARTERLY"
+    assert response.data[-1].value == pytest.approx(236.24)
+    assert response.metadata.source_series_id == "SP500_OPERATING_EPS_TTM_REPORTED"
+    assert response.metadata.formula_version == "ttm_sum_4q_v1"
     assert response.metadata.latest_observation_is_estimate is False
 
 
@@ -315,8 +319,19 @@ def test_consumer_confidence_fallback_only_accepts_matching_umcsent_documents():
     assert response.metadata.source_series_id == "UMCSENT"
 
 
-def test_empty_corporate_data_returns_valid_metadata():
-    service = make_service({"corporate_earnings": FakeCollection([])})
+def test_empty_corporate_data_returns_valid_metadata(tmp_path):
+    service = make_service({
+        "corporate_earnings": FakeCollection([
+            {
+                "indicator": "revenue_growth",
+                "date": "2025-03-31",
+                "value": 999,
+                "methodology_version": "legacy_unverified_method",
+                "metadata": {"coverage_pct": 100},
+            }
+        ])
+    })
+    service.corporate_cache_path = tmp_path / "missing.json"
 
     response = service.get_revenue_growth_data()
 
@@ -325,15 +340,80 @@ def test_empty_corporate_data_returns_valid_metadata():
     assert response.metadata.description.startswith("Aggregate year-over-year revenue growth")
 
 
+def test_empty_mongodb_uses_verified_corporate_file_cache(tmp_path):
+    metadata = {
+        "unit": "Percent",
+        "frequency": "quarterly",
+        "source": "SEC Company Facts + State Street SPY holdings",
+        "source_provider": "U.S. Securities and Exchange Commission; State Street Global Advisors",
+        "source_url": "https://data.sec.gov/api/xbrl/companyfacts/",
+        "source_series_id": "SEC_COMPANYFACTS_SPY_CURRENT_CONSTITUENTS",
+        "population": "Current SPY holdings cohort as of 2025-04-01",
+        "transformation": "verified test formula",
+        "methodology_version": CORPORATE_METHODOLOGY_VERSION,
+        "formula_version": "1.0",
+        "companies_expected": 500,
+        "companies_received": 450,
+        "coverage_pct": 90,
+        "missing_symbols_count": 50,
+        "missing_symbols": ["MISS"],
+        "holdings_as_of": "2025-04-01",
+        "latest_filing_date": "2025-05-01",
+        "proxy": True,
+    }
+    documents = [
+        {
+            "indicator": indicator,
+            "date": "2025-03-31",
+            "value": value,
+            "methodology_version": CORPORATE_METHODOLOGY_VERSION,
+            "updated_at": "2025-05-02T00:00:00",
+            "metadata": metadata,
+        }
+        for indicator, value in (
+            ("revenue_growth", 8.5),
+            ("profit_margins", 11.5),
+            ("return_on_assets", 7.5),
+        )
+    ]
+    cache_path = tmp_path / "corporate.json"
+    write_corporate_aggregate_cache(
+        documents,
+        holdings_as_of="2025-04-01",
+        built_at=datetime(2025, 5, 2),
+        cache_path=cache_path,
+    )
+    service = make_service({
+        "corporate_earnings": FakeCollection([
+            {
+                "indicator": "revenue_growth",
+                "date": "2025-03-31",
+                "value": 999,
+                "methodology_version": "legacy_unverified_method",
+                "metadata": {"coverage_pct": 100},
+            }
+        ])
+    })
+    service.corporate_cache_path = cache_path
+
+    response = service.get_revenue_growth_data()
+
+    assert [(point.date, point.value) for point in response.data] == [
+        ("2025-03-31", 8.5)
+    ]
+    assert response.metadata.companies_received == 450
+    assert response.metadata.coverage_pct == 90
+
+
 def test_verified_corporate_limit_returns_latest_records_in_ascending_order():
     documents = [
         {
             "indicator": "revenue_growth",
             "date": f"202{year}-03-31",
             "value": float(year),
-            "methodology_version": "sec_companyfacts_spy_current_cohort_v1",
+            "methodology_version": CORPORATE_METHODOLOGY_VERSION,
             "metadata": {
-                "methodology_version": "sec_companyfacts_spy_current_cohort_v1",
+                "methodology_version": CORPORATE_METHODOLOGY_VERSION,
                 "formula_version": "1.0",
                 "coverage_pct": 90,
                 "companies_expected": 500,

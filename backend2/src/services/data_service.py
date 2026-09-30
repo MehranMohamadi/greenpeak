@@ -24,9 +24,16 @@ from .umich_consumer import UmichConsumerClient, UmichConsumerSourceError
 from .valuation_sources import PublishedValuationSeries, ValuationSourceClient
 from .corporate_fundamentals import (
     CORPORATE_METHODOLOGY_VERSION,
+    CORPORATE_MIN_PUBLISHABLE_COVERAGE_PCT,
     S_AND_P_EPS_URL,
     CorporateFundamentalsSourceError,
-    load_sp500_operating_eps,
+    load_sp500_operating_eps_ttm,
+)
+from .corporate_fundamentals_cache import load_corporate_aggregate_cache
+from .official_sentiment import (
+    OfficialSourceUnavailable,
+    extract_vix_close_payload,
+    official_sentiment_service,
 )
 import logging
 import pandas as pd
@@ -463,7 +470,18 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Get VIX volatility index data from MongoDB or fallback to CSV."""
+        """Get the official Cboe daily VIX close, with legacy fallbacks."""
+        try:
+            payload = extract_vix_close_payload(
+                official_sentiment_service.get("vix_term_structure"),
+                limit=limit,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            return DataResponse(**payload)
+        except (OfficialSourceUnavailable, OSError, ValueError, KeyError, TypeError) as exc:
+            logger.warning("Official Cboe VIX unavailable: %s. Falling back to legacy sources.", exc)
+
         response = None
         source_series_id = "VIXCLS"
         # Try MongoDB first (unified systemic_risk collection)
@@ -2770,40 +2788,56 @@ class DataService:
         source: str = "",
         symbol: str = ""
     ) -> DataResponse:
-        """Read the latest verified SEC-backed aggregate snapshots from MongoDB."""
+        """Read verified SEC aggregates from MongoDB or the validated file cache."""
         unavailable_source = "SEC Company Facts + State Street SPY holdings"
-        if not self.mongodb:
-            return self._unavailable_response(
-                indicator_id=indicator_name,
-                owner_group="corporate_fundamentals",
-                description=description,
-                unit=unit,
-                frequency=frequency,
-                source=unavailable_source,
-                source_series_id="SEC_COMPANYFACTS_SPY_CURRENT_CONSTITUENTS",
-                quality_status="unavailable",
-                quality_reason="verified_sec_snapshot_not_available",
-                transformation="verified_aggregate_not_available",
-                population="Current SPY holdings cohort",
+        documents = []
+
+        def verified_documents(candidates):
+            verified = []
+            for document in candidates:
+                metadata = document.get("metadata", {})
+                try:
+                    coverage_pct = float(metadata.get("coverage_pct", 0))
+                except (TypeError, ValueError):
+                    continue
+                if (
+                    (
+                        document.get("methodology_version")
+                        == CORPORATE_METHODOLOGY_VERSION
+                        or metadata.get("methodology_version")
+                        == CORPORATE_METHODOLOGY_VERSION
+                    )
+                    and coverage_pct >= CORPORATE_MIN_PUBLISHABLE_COVERAGE_PCT
+                    and (not start_date or str(document.get("date", "")) >= start_date)
+                    and (not end_date or str(document.get("date", "")) <= end_date)
+                ):
+                    verified.append(document)
+            return sorted(verified, key=lambda item: item["date"])
+
+        try:
+            if self.mongodb:
+                collection = self.mongodb.get_collection("corporate_earnings")
+                documents = verified_documents(
+                    collection.find({"indicator": indicator_name}).sort("date", 1)
+                )
+        except Exception as exc:
+            logger.warning(
+                "MongoDB corporate snapshot unavailable for %s: %s",
+                indicator_name,
+                exc,
             )
         try:
-            collection = self.mongodb.get_collection("corporate_earnings")
-            documents = list(collection.find({"indicator": indicator_name}).sort("date", 1))
-            documents = [
-                document
-                for document in documents
-                if (
-                    document.get("methodology_version") == CORPORATE_METHODOLOGY_VERSION
-                    or document.get("metadata", {}).get("methodology_version")
-                    == CORPORATE_METHODOLOGY_VERSION
+            if not documents:
+                cache_path = getattr(self, "corporate_cache_path", None)
+                documents = verified_documents(
+                    document
+                    for document in load_corporate_aggregate_cache(cache_path)
+                    if document["indicator"] == indicator_name
                 )
-                and (not start_date or str(document.get("date", "")) >= start_date)
-                and (not end_date or str(document.get("date", "")) <= end_date)
-            ]
             if limit and limit > 0:
                 documents = documents[-limit:]
             if not documents:
-                logger.warning(f"No corporate earnings data found for indicator: {indicator_name}")
+                logger.warning("No verified corporate data found for indicator: %s", indicator_name)
                 return DataResponse(
                     data=[],
                     metadata=self._build_metadata(
@@ -2882,7 +2916,7 @@ class DataService:
             metadata.source_url = doc_metadata.get("source_url")
             return DataResponse(data=data_points, metadata=metadata)
         except Exception as e:
-            logger.error(f"Error fetching corporate earnings data for {indicator_name}: {e}")
+            logger.error("Error fetching corporate earnings data for %s: %s", indicator_name, e)
             return self._unavailable_response(
                 indicator_id=indicator_name,
                 owner_group="corporate_fundamentals",
@@ -2903,9 +2937,9 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Return reported quarterly S&P 500 operating EPS from S&P Dow Jones."""
+        """Return reported trailing-four-quarter S&P 500 operating EPS."""
         try:
-            series = load_sp500_operating_eps()
+            series = load_sp500_operating_eps_ttm()
             points = [
                 point
                 for point in series.points
@@ -2933,17 +2967,17 @@ class DataService:
                 latest_value=data_points[-1].value if data_points else None,
                 latest_date=data_points[-1].date if data_points else None,
                 total_records=len(data_points),
-                description="S&P 500 reported quarterly operating earnings per share",
+                description="S&P 500 trailing-four-quarter reported operating earnings per share",
                 unit="USD per share",
                 frequency="quarterly",
                 source="S&P Dow Jones Indices Earnings and Estimate Report",
-                source_series_id="SP500_OPERATING_EPS_QUARTERLY",
+                source_series_id="SP500_OPERATING_EPS_TTM_REPORTED",
                 population="S&P 500 index",
                 seasonal_adjustment="not_applicable",
-                transformation="published reported operating earnings per share; estimates excluded",
+                transformation="rolling sum of four consecutive reported quarterly operating EPS observations; estimates excluded",
                 stale_after_days=185,
-                methodology_version="sp_global_workbook_v1",
-                formula_version="published_value_no_greenpeak_formula",
+                methodology_version="sp_global_workbook_v2",
+                formula_version="ttm_sum_4q_v1",
                 proxy=False,
             )
             metadata.source_provider = "S&P Dow Jones Indices"
@@ -2955,14 +2989,14 @@ class DataService:
             return self._unavailable_response(
                 indicator_id="sp500_eps",
                 owner_group="corporate_fundamentals",
-                description="S&P 500 reported quarterly operating earnings per share",
+                description="S&P 500 trailing-four-quarter reported operating earnings per share",
                 unit="USD per share",
                 frequency="quarterly",
                 source="S&P Dow Jones Indices Earnings and Estimate Report",
-                source_series_id="SP500_OPERATING_EPS_QUARTERLY",
+                source_series_id="SP500_OPERATING_EPS_TTM_REPORTED",
                 quality_status="unavailable",
                 quality_reason="sp_global_eps_workbook_unavailable_or_invalid",
-                transformation="published reported operating earnings per share; estimates excluded",
+                transformation="rolling sum of four consecutive reported quarterly operating EPS observations; estimates excluded",
                 population="S&P 500 index",
             )
 

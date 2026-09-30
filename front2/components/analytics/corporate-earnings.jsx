@@ -4,7 +4,7 @@ import useCorporateEarningsData from "@/hooks/useCorporateEarningsData"
 import GroupAnalysisLayout from "./group-analysis-layout"
 
 const factors = [
-  { id: "sp500-eps", key: "sp500eps", indicatorId: "sp500_eps", title: "S&P 500 EPS", group: "Earnings", icon: BadgeDollarSign, unit: "USD", description: "Reported quarterly operating EPS published by S&P Dow Jones Indices." },
+  { id: "sp500-eps", key: "sp500eps", indicatorId: "sp500_eps", title: "S&P 500 TTM Operating EPS", group: "Earnings", icon: BadgeDollarSign, unit: "USD", description: "Trailing-four-quarter reported operating EPS derived from S&P Dow Jones Indices quarterly values." },
   { id: "revenue-growth", key: "revenue", indicatorId: "revenue_growth", title: "Revenue Growth", group: "Revenue", icon: Building2, unit: "%", description: "Aggregate SEC-filed revenue growth for a comparable current-SPY cohort." },
   { id: "profit-margins", key: "margins", indicatorId: "profit_margins", title: "Profit Margins", group: "Margins", icon: Percent, unit: "%", description: "Aggregate SEC-filed net income divided by aggregate revenue." },
   { id: "return-on-assets", key: "returnOnAssets", indicatorId: "return_on_assets", title: "Return on Assets", group: "Margins", icon: Scale, unit: "%", description: "Trailing-four-quarter net income divided by average assets from SEC filings." },

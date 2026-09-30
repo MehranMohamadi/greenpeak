@@ -5,6 +5,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 import logging
+from pathlib import Path
 from threading import Lock
 import time
 from typing import Any, Callable
@@ -20,6 +21,7 @@ from .corporate_fundamentals import (
     CorporateFundamentalsSourceError,
     build_sec_corporate_documents,
 )
+from .corporate_fundamentals_cache import write_corporate_aggregate_cache
 from .market_structure import STATE_STREET_HOLDINGS_URL, parse_spy_holdings_xlsx
 from .mongodb_service import MongoDBService
 
@@ -58,11 +60,13 @@ class CorporateFundamentalsJob:
         http_get: Callable[..., Any] | None = None,
         now: Callable[[], datetime] | None = None,
         workers: int = 4,
+        cache_path: Path | None = None,
     ) -> None:
         self.mongodb = mongodb or MongoDBService()
         self.http_get = http_get or requests.get
         self.now = now or (lambda: datetime.now(UTC))
         self.workers = max(1, min(workers, 6))
+        self.cache_path = cache_path
         self.settings = get_settings()
         self.headers = {
             "User-Agent": self.settings.sec_user_agent,
@@ -121,7 +125,12 @@ class CorporateFundamentalsJob:
         *,
         write: bool = True,
         max_companies: int | None = None,
+        write_cache: bool | None = None,
     ) -> dict[str, Any]:
+        if write_cache is None:
+            write_cache = write
+        if max_companies is not None and (write or write_cache):
+            raise ValueError("partial-cohort runs cannot write MongoDB or the shared cache")
         holdings, holdings_as_of = self._load_cohort()
         sec_identifiers = self._load_sec_identifiers()
         cohort: list[tuple[str, dict[str, str]]] = []
@@ -166,13 +175,21 @@ class CorporateFundamentalsJob:
             raise CorporateFundamentalsSourceError("SEC facts produced no aggregate observations")
         if write:
             self._write(result)
+        written_cache_path = None
+        if write_cache:
+            written_cache_path = write_corporate_aggregate_cache(
+                result.aggregates,
+                holdings_as_of=holdings_as_of,
+                built_at=self.now(),
+                cache_path=self.cache_path,
+            )
 
         by_indicator: dict[str, int] = {}
         for document in result.aggregates:
             indicator = str(document["indicator"])
             by_indicator[indicator] = by_indicator.get(indicator, 0) + 1
         return {
-            "status": "written" if write else "dry_run",
+            "status": "written" if write else "cache_written" if write_cache else "dry_run",
             "methodology_version": CORPORATE_METHODOLOGY_VERSION,
             "holdings_as_of": holdings_as_of,
             "companies_expected": result.companies_expected,
@@ -181,6 +198,8 @@ class CorporateFundamentalsJob:
             "unmapped_holdings": len(unmapped),
             "normalized_facts": len(result.normalized_facts),
             "aggregate_records": by_indicator,
+            "cache_written": written_cache_path is not None,
+            "cache_path": str(written_cache_path) if written_cache_path else None,
         }
 
     def _write(self, result: CorporateBuildResult) -> None:
