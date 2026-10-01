@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import SP500Dashboard from "@/components/analytics/SP500Dashboard"
 
-const analysisTabClass = "flex items-center justify-center border border-transparent px-1.5 text-xs leading-none text-slate-500 transition sm:px-3 sm:text-sm dark:text-slate-400 data-[state=active]:border-cyan-500/50 data-[state=active]:bg-cyan-50 data-[state=active]:font-semibold data-[state=active]:text-cyan-900 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-cyan-500/15 dark:data-[state=active]:border-cyan-400/50 dark:data-[state=active]:bg-cyan-400/15 dark:data-[state=active]:text-cyan-100 dark:data-[state=active]:ring-cyan-400/15"
+const analysisTabClass = "flex h-full w-full items-center justify-center border border-transparent px-1.5 py-0 text-xs leading-none text-slate-500 transition sm:px-3 sm:text-sm dark:text-slate-400 data-[state=active]:border-cyan-500/50 data-[state=active]:bg-cyan-50 data-[state=active]:font-semibold data-[state=active]:text-cyan-900 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-cyan-500/15 dark:data-[state=active]:border-cyan-400/50 dark:data-[state=active]:bg-cyan-400/15 dark:data-[state=active]:text-cyan-100 dark:data-[state=active]:ring-cyan-400/15"
 
 const statusLabels = {
   favorable: "مساعد", mixed: "ترکیبی", challenging: "پرچالش", unknown: "نامشخص",
@@ -26,6 +26,25 @@ const normalizeLegacy = (item, index, direction) => {
     why_it_matters_fa: item?.detail_fa || item?.detail || item?.description || "",
     evidence_refs: item?.evidence_refs || [],
   }
+}
+
+const factorTitle = (item) => typeof item === "string"
+  ? item
+  : item?.title_fa || item?.title || item?.driver || item?.risk || item?.conflict || item?.fact || ""
+
+const factorTitleKey = (item) => factorTitle(item)
+  .normalize("NFKC")
+  .replace(/[\u200c\u200f\s،؛:,.!?؟]+/g, "")
+  .toLocaleLowerCase("fa")
+
+const uniqueFactors = (items) => {
+  const seen = new Set()
+  return items.filter((item) => {
+    const key = factorTitleKey(item)
+    if (!key || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 }
 
 const formatTime = (value) => {
@@ -301,7 +320,7 @@ export default function MarketIntelligenceSections({ market }) {
 
   const structuredDrivers = market.market_drivers || []
   const positive = useMemo(() => structuredDrivers.filter(item => item.sentiment === "risk_on").concat((market.positive_drivers || []).map((item, index) => normalizeLegacy(item, index, "positive"))), [market, structuredDrivers])
-  const negative = useMemo(() => structuredDrivers.filter(item => item.sentiment === "risk_off").concat((market.negative_drivers || []).map((item, index) => normalizeLegacy(item, index, "negative"))), [market, structuredDrivers])
+  const negative = useMemo(() => uniqueFactors(structuredDrivers.filter(item => item.sentiment === "risk_off").concat((market.negative_drivers || []).map((item, index) => normalizeLegacy(item, index, "negative")))), [market, structuredDrivers])
   const summary = market.status_summary || {}
   const fallbackReleasedData = structuredDrivers
     .filter(item => item.current !== null && item.current !== undefined && (item.previous !== null && item.previous !== undefined || item.forecast !== null && item.forecast !== undefined))
@@ -318,10 +337,16 @@ export default function MarketIntelligenceSections({ market }) {
   const upcomingMarketEvents = upcomingEvents.map(item => enrichCalendarEvent(item, structuredDrivers))
   const upcomingEventGroups = groupEventsByDate(upcomingMarketEvents)
   const potentialItems = market.market_potentials || []
-  const riskItems = market.risk_monitor?.length ? market.risk_monitor.map(item => ({
+  const structuredRisks = (market.risk_monitor || []).map(item => ({
     ...item,
-    detail_fa: `${item.why_active_fa} تشدید: ${item.escalation_conditions_fa} کاهش: ${item.easing_conditions_fa}`,
-  })) : market.key_risks
+    detail_fa: [item.why_active_fa, item.escalation_conditions_fa && `تشدید: ${item.escalation_conditions_fa}`, item.easing_conditions_fa && `کاهش: ${item.easing_conditions_fa}`].filter(Boolean).join(" — "),
+  }))
+  const conflictRisks = (market.market_conflicts?.length ? market.market_conflicts : market.cross_domain_conflicts || []).map(item => ({
+    ...item,
+    detail_fa: [item.supportive_signal_fa && `عامل حمایتی: ${item.supportive_signal_fa}`, item.pressuring_signal_fa && `عامل فشاری: ${item.pressuring_signal_fa}`, item.current_balance_fa, item.reversal_condition_fa && `شرط تغییر: ${item.reversal_condition_fa}`, item.detail_fa || item.detail].filter(Boolean).join(" — "),
+  }))
+  const riskItems = uniqueFactors([...structuredRisks, ...conflictRisks, ...(market.key_risks || [])])
+    .filter(item => !negative.some(challenge => factorTitleKey(challenge) === factorTitleKey(item)))
   const selectedNewsAnalysis = selectedNews ? newsAnalyses[selectedNews.item_id] : null
   const selectedNewsAnalysisError = selectedNews ? newsAnalysisErrors[selectedNews.item_id] : ""
   const selectedNewsTitle = selectedNews ? selectedNews.title_fa || selectedNews.title || selectedNews.analysis_title_fa : ""
@@ -356,7 +381,7 @@ export default function MarketIntelligenceSections({ market }) {
                   <DialogHeader className="text-right">
                     <DialogTitle>راهنمای تحلیل بازار</DialogTitle>
                     <DialogDescription className="space-y-3 leading-7 text-muted-foreground">
-                      <span className="block">این تب‌ها آخرین تحلیل ذخیره‌شدهٔ هوش مصنوعی را در افق اکنون، کوتاه‌مدت، میان‌مدت و جمع‌بندی پنج‌خطی نمایش می‌دهند.</span>
+                      <span className="block">این تب‌ها آخرین تحلیل ذخیره‌شدهٔ هوش مصنوعی را در جریان بازار، افق کوتاه‌مدت، میان‌مدت و جمع‌بندی پنج‌خطی نمایش می‌دهند.</span>
                       <span className="block text-primary">تحلیل بعدی: {nextAnalysisLabel} به وقت تهران</span>
                     </DialogDescription>
                   </DialogHeader>
@@ -364,7 +389,7 @@ export default function MarketIntelligenceSections({ market }) {
               </Dialog>
             </div>
           </div>
-          <TabsList className="mt-2 grid h-10 w-full grid-cols-4 items-stretch border border-slate-300/80 bg-slate-100/90 p-1 dark:border-white/10 dark:bg-black/20">
+          <TabsList className="mt-3 grid h-12 w-full grid-cols-4 items-stretch border border-slate-300/80 bg-slate-100/90 p-1.5 dark:border-white/10 dark:bg-black/20">
             <TabsTrigger value="current" className={analysisTabClass}>جریان بازار</TabsTrigger>
             <TabsTrigger value="short-term" className={analysisTabClass}>کوتاه‌مدت</TabsTrigger>
             <TabsTrigger value="medium-term" className={analysisTabClass}>میان‌مدت</TabsTrigger>
@@ -373,7 +398,7 @@ export default function MarketIntelligenceSections({ market }) {
         </CardHeader>
         <CardContent className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
           <TabsContent value="current" className="mt-0 space-y-3">
-            <p className="whitespace-pre-line text-sm font-medium leading-7 text-foreground md:text-base">{market.current_market_move_fa || market.what_changed_fa || market.market_story_fa}</p>
+            <p className="whitespace-pre-line text-sm leading-7 text-foreground md:text-base">{market.current_market_move_fa || market.what_changed_fa || market.market_story_fa}</p>
             <p className="whitespace-pre-line text-sm leading-8 text-muted-foreground">{market.current_analysis_fa || market.systemic_synthesis_fa || market.narrative_fa}</p>
           </TabsContent>
           <TabsContent value="short-term" className="mt-0">
@@ -392,9 +417,12 @@ export default function MarketIntelligenceSections({ market }) {
       </Card>
       <SP500Dashboard compact />
       </div>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5"><Kpi label="شرایط کلی بازار" value={statusLabels[summary.market_condition] || "نامشخص"} color="violet" /><Kpi label="ریسک بازار" value={statusLabels[summary.risk_level] || "نامشخص"} color="amber" /><Kpi label="سنتیمنت" value={statusLabels[summary.sentiment] || "نامشخص"} color="slate" /><Kpi label="تغییر روزانه" value={statusLabels[summary.change_intensity] || "نامشخص"} color="cyan" hint="مبنا: تغییر نسبت به پایان روز معاملاتی قبل" /><Kpi label="اعتماد به تحلیل" value={statusLabels[summary.confidence_level] || "نامشخص"} color={summary.confidence_level === "high" ? "green" : "violet"} /></div>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5"><Kpi label="شرایط کلی بازار" value={statusLabels[summary.market_condition] || "نامشخص"} color="violet" /><Kpi label="ریسک بازار" value={statusLabels[summary.risk_level] || "نامشخص"} color="amber" /><Kpi label="سنتیمنت" value={statusLabels[summary.sentiment] || "نامشخص"} color="slate" /><Kpi label="تغییر روزانه" value={statusLabels[summary.change_intensity] || "نامشخص"} color="cyan" /><Kpi label="اعتماد به تحلیل" value={statusLabels[summary.confidence_level] || "نامشخص"} color={summary.confidence_level === "high" ? "green" : "violet"} /></div>
     </section>
 
+    <Card className="overflow-hidden border-border bg-muted/15">
+      <CardHeader className="pb-4"><CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-primary" />اخبار و رویدادها</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
     <section className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-4">
       <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-border">
         <CardHeader className="shrink-0 pb-3"><div className="flex items-center justify-between"><CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-primary" />اخبار پرتأثیر</CardTitle><Link href="/analytics/events" className="text-xs text-primary">مشاهده همه</Link></div></CardHeader>
@@ -441,17 +469,24 @@ export default function MarketIntelligenceSections({ market }) {
         </section>)}</div> : <CalendarContentState isLoading={calendarState.upcoming.loading} error={calendarState.upcoming.error} emptyText="دادهٔ مهم آینده‌ای از تقویم دریافت نشد." onRetry={() => setCalendarReloadKey(current => current + 1)} />}</CardContent>
       </Card>
     </section>
+      </CardContent>
+    </Card>
 
     <Card className="overflow-hidden border-border bg-muted/15">
       <CardHeader className="pb-4">
         <CardTitle>عوامل اثرگذار بر بازار</CardTitle>
-        <p className="text-xs leading-6 text-muted-foreground">اخبار و رویدادهای کوتاه‌مدت در ردیف بالا؛ پتانسیل‌ها و ریسک‌های میان‌مدت در ردیف پایین</p>
       </CardHeader>
-      <CardContent className="grid gap-4 lg:grid-cols-2" dir="rtl">
-        <FactorSection title="عوامل حمایتی" subtitle="کوتاه‌مدت · اخبار و رویدادها" items={positive} positive emptyText="عامل حمایتی ثبت نشده است." />
-        <FactorSection title="عوامل چالشی" subtitle="کوتاه‌مدت · اخبار و رویدادها" items={negative} emptyText="عامل چالشی ثبت نشده است." />
-        <FactorSection title="پتانسیل‌های بازار" subtitle="میان‌مدت · زمینه‌های رشد بازار" items={potentialItems} positive emptyText="پتانسیل میان‌مدتی در تحلیل موجود ثبت نشده است." />
-        <FactorSection title="ریسک‌های بازار" subtitle="میان‌مدت · تهدیدهای بنیادی و ساختاری" items={riskItems} emptyText="ریسک میان‌مدتی ثبت نشده است." />
+      <CardContent className="space-y-4" dir="rtl">
+        <div className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-4">
+          <FactorSection title="عوامل حمایتی" subtitle="کوتاه‌مدت · اخبار و رویدادها" items={positive} positive emptyText="عامل حمایتی ثبت نشده است." />
+          <CardConnector label="ارتباط عوامل حمایتی و چالشی" />
+          <FactorSection title="عوامل چالشی" subtitle="کوتاه‌مدت · اخبار و رویدادها" items={negative} emptyText="عامل چالشی ثبت نشده است." />
+        </div>
+        <div className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-4">
+          <FactorSection title="پتانسیل‌های بازار" subtitle="میان‌مدت · زمینه‌های رشد بازار" items={potentialItems} positive emptyText="پتانسیل میان‌مدتی در تحلیل موجود ثبت نشده است." />
+          <CardConnector label="ارتباط پتانسیل‌ها و ریسک‌های حاکم بر بازار" />
+          <FactorSection title="ریسک‌های حاکم بر بازار" subtitle="میان‌مدت · تهدیدهای بنیادی و ساختاری" items={riskItems} emptyText="ریسک میان‌مدتی ثبت نشده است." />
+        </div>
       </CardContent>
     </Card>
   </div>

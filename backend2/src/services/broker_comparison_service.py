@@ -9,7 +9,6 @@ from typing import Any, Iterable
 from .mt5_snapshot_service import MT5SnapshotService
 
 
-MINIMUM_DISTINCT_USERS = 2
 MAX_DYNAMIC_SYMBOLS = 12
 
 ASSET_LABELS = {
@@ -172,9 +171,8 @@ def _account_symbol_rows(snapshot: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 def aggregate_broker_comparison(
     snapshots: list[dict[str, Any]],
-    minimum_distinct_users: int = MINIMUM_DISTINCT_USERS,
 ) -> dict[str, Any]:
-    """Aggregate latest account snapshots without exposing user/account identifiers."""
+    """Aggregate all current broker account snapshots without exposing identifiers."""
     groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for snapshot in snapshots:
         owner = str(snapshot.get("owner_user_id") or "").strip()
@@ -182,11 +180,7 @@ def aggregate_broker_comparison(
         if owner and broker:
             groups[broker].append(snapshot)
 
-    eligible = {
-        broker: items
-        for broker, items in groups.items()
-        if len({str(item.get("owner_user_id")) for item in items}) >= minimum_distinct_users
-    }
+    eligible = groups
     coverage: Counter[str] = Counter()
     for items in eligible.values():
         seen: set[str] = set()
@@ -251,14 +245,11 @@ def aggregate_broker_comparison(
             "dividend_sample_records": len(dividend),
             "symbols": symbols,
         })
-    brokers.sort(key=lambda broker: (-broker["sample_users"], broker["broker_name"].casefold()))
+    brokers.sort(key=lambda broker: (-broker["sample_accounts"], broker["broker_name"].casefold()))
 
     return {
         "generated_at_utc": datetime.now(timezone.utc),
-        "privacy": {
-            "minimum_distinct_users": minimum_distinct_users,
-            "identifiers_included": False,
-        },
+        "privacy": {"identifiers_included": False},
         "eligible_broker_count": len(brokers),
         "excluded_broker_count": len(groups) - len(eligible),
         "brokers": brokers,

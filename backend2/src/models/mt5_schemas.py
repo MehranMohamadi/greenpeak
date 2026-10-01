@@ -76,7 +76,6 @@ class MT5SnapshotReceipt(BaseModel):
 
 
 class BrokerComparisonPrivacy(BaseModel):
-    minimum_distinct_users: int = Field(ge=2)
     identifiers_included: Literal[False]
 
 
@@ -97,7 +96,7 @@ class BrokerComparisonSymbol(BaseModel):
 class BrokerComparisonBroker(BaseModel):
     broker_key: str
     broker_name: str
-    sample_users: int = Field(ge=2)
+    sample_users: int = Field(ge=1)
     sample_accounts: int = Field(ge=1)
     latest_observation_utc: datetime | None = None
     account_currency: str | None = None

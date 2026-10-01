@@ -276,7 +276,7 @@ def test_broker_comparison_is_aggregated_anonymous_and_column_ready():
     result = aggregate_broker_comparison(snapshots)
 
     assert result["eligible_broker_count"] == 1
-    assert result["privacy"] == {"minimum_distinct_users": 2, "identifiers_included": False}
+    assert result["privacy"] == {"identifiers_included": False}
     broker = result["brokers"][0]
     assert broker["sample_users"] == 2
     assert broker["sample_accounts"] == 2
@@ -300,7 +300,7 @@ def test_broker_comparison_is_aggregated_anonymous_and_column_ready():
     assert "trade_server" not in serialized
 
 
-def test_broker_comparison_requires_two_distinct_users():
+def test_broker_comparison_includes_accounts_from_one_user():
     snapshots = [
         _comparison_snapshot("owner-alpha", "account-one", 1, -3.5),
         _comparison_snapshot("owner-alpha", "account-two", 2, -5.0),
@@ -308,9 +308,10 @@ def test_broker_comparison_requires_two_distinct_users():
 
     result = aggregate_broker_comparison(snapshots)
 
-    assert result["eligible_broker_count"] == 0
-    assert result["excluded_broker_count"] == 1
-    assert result["brokers"] == []
+    assert result["eligible_broker_count"] == 1
+    assert result["excluded_broker_count"] == 0
+    assert result["brokers"][0]["sample_accounts"] == 2
+    assert result["brokers"][0]["sample_users"] == 1
 
 
 def test_latest_accounts_for_aggregation_groups_by_owner_and_account():

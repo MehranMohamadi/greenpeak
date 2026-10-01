@@ -284,7 +284,7 @@ function ComparisonTable({ comparison, loading, error, onRetry }) {
   if (!brokers.length) return <div className="flex h-full flex-col items-center justify-center gap-2 p-5 text-center">
     <Scale className="h-7 w-7 text-muted-foreground" />
     <p className="text-sm font-medium text-foreground">هنوز نمونه کافی برای مقایسه امن وجود ندارد</p>
-    <p className="max-w-md text-xs leading-5 text-muted-foreground">هر بروکر فقط بعد از دریافت داده از حداقل {comparison?.privacy?.minimum_distinct_users || 2} کاربر مستقل نمایش داده می‌شود. نام کاربر، شماره حساب و سرور در این خروجی وجود ندارد.</p>
+    <p className="max-w-md text-xs leading-5 text-muted-foreground">نام کاربر، شماره حساب و سرور در این مقایسه نمایش داده نمی‌شود.</p>
   </div>
 
   return <div className="min-w-max">

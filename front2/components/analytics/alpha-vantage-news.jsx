@@ -104,7 +104,6 @@ export default function AlphaVantageNews({ selectedArticleId, onArticleSelect })
                     </div>
                     <h3 className="line-clamp-2 font-medium leading-6" dir={article.title_fa ? "rtl" : "ltr"}>{article.title_fa || article.title}</h3>
                     {article.summary && <p className="mt-1.5 line-clamp-3 whitespace-pre-line text-sm leading-6 text-muted-foreground">{article.summary}</p>}
-                    <div className="mt-2 flex flex-wrap gap-1.5">{article.topics?.map((topic) => <Badge key={topic} variant="outline">{topic}</Badge>)}</div>
                     {source.id === "alpha_vantage" && article.alpha_sentiment_score !== null && <div className="mt-3 text-xs text-muted-foreground">News sentiment: {formatScore(article.alpha_sentiment_score)}{article.alpha_sentiment_label ? ` · ${article.alpha_sentiment_label}` : ""}</div>}
                   </button>
                   <a className="mt-2 inline-flex items-center gap-1 text-xs text-primary transition hover:underline" href={article.url} target="_blank" rel="noopener noreferrer">Source <ExternalLink className="h-3 w-3" /></a>

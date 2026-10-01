@@ -94,7 +94,7 @@ def test_market_contract_and_prompt_include_structured_dashboard_sections():
         "glance_summary",
     } <= set(schema)
     prompt = load_prompt("market")
-    assert prompt.version == "0.3.0+0.6.0"
+    assert prompt.version == "0.3.0+0.9.0"
     assert "market_drivers" in prompt.content
     assert "exactly five concise Persian strings" in prompt.content
     assert "six-to-twelve-month" in prompt.content
