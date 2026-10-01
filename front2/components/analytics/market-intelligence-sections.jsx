@@ -2,14 +2,14 @@
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, CalendarDays, CircleHelp, Clock3, Link2, LoaderCircle, Newspaper, RefreshCw, ShieldAlert, TrendingDown, TrendingUp, Triangle } from "lucide-react"
+import { CalendarDays, CircleHelp, Clock3, Link2, LoaderCircle, Newspaper, RefreshCw, ShieldAlert, TrendingUp, Triangle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import SP500Dashboard from "@/components/analytics/SP500Dashboard"
 
-const analysisTabClass = "border border-transparent px-1.5 text-xs text-slate-500 transition sm:px-3 sm:text-sm dark:text-slate-400 data-[state=active]:border-cyan-500/50 data-[state=active]:bg-cyan-50 data-[state=active]:font-semibold data-[state=active]:text-cyan-900 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-cyan-500/15 dark:data-[state=active]:border-cyan-400/50 dark:data-[state=active]:bg-cyan-400/15 dark:data-[state=active]:text-cyan-100 dark:data-[state=active]:ring-cyan-400/15"
+const analysisTabClass = "flex items-center justify-center border border-transparent px-1.5 text-xs leading-none text-slate-500 transition sm:px-3 sm:text-sm dark:text-slate-400 data-[state=active]:border-cyan-500/50 data-[state=active]:bg-cyan-50 data-[state=active]:font-semibold data-[state=active]:text-cyan-900 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-cyan-500/15 dark:data-[state=active]:border-cyan-400/50 dark:data-[state=active]:bg-cyan-400/15 dark:data-[state=active]:text-cyan-100 dark:data-[state=active]:ring-cyan-400/15"
 
 const statusLabels = {
   favorable: "مساعد", mixed: "ترکیبی", challenging: "پرچالش", unknown: "نامشخص",
@@ -104,16 +104,16 @@ function HelpDialog({ title, item, children }) {
     ["اهمیت", item.importance === "high" ? "بالا" : item.importance],
     ["داده واقعی", item.actual ?? item.current], ["مقدار قبلی", item.previous], ["پیش‌بینی", item.forecast],
     ["تغییر", item.change_fa], ["چرا مهم است؟", item.why_it_matters_fa || item.detail_fa],
-    ["اثر بر بازار", statusLabels[item.impact] || item.impact], ["اثر بر Sentiment", statusLabels[item.sentiment] || item.sentiment],
+    ["اثر بر بازار", statusLabels[item.impact] || item.impact], ["اثر بر سنتیمنت", statusLabels[item.sentiment] || item.sentiment],
     ["ماندگاری اثر", statusLabels[item.duration] || item.duration], ["عامل تغییردهنده اثر", item.reversal_conditions_fa],
     ["منبع", item.source],
   ].filter(([, value]) => hasValue(value))
   return <Dialog><DialogTrigger asChild>{children}</DialogTrigger><DialogContent className="max-h-[85vh] overflow-y-auto" dir="rtl"><DialogHeader className="text-right"><DialogTitle className="pl-7 leading-8">{title}</DialogTitle><DialogDescription>جزئیات کامل ثبت‌شده در آخرین داده و تحلیل معتبر بازار</DialogDescription></DialogHeader><div className="space-y-2">{rows.length ? rows.map(([label, value]) => <div key={label} className="rounded-lg border bg-muted/30 p-3"><p className="text-xs text-primary">{label}</p><p className="mt-1 text-sm leading-7">{value}</p></div>) : <p className="text-sm text-muted-foreground">جزئیات تکمیلی هنوز در خروجی تحلیل ثبت نشده است.</p>}</div>{item.source_url && <a href={item.source_url} target="_blank" rel="noreferrer" className="inline-flex text-sm text-primary hover:underline">مشاهده منبع داده</a>}{item.evidence_refs?.length > 0 && <p className="text-xs text-muted-foreground" dir="ltr">{item.evidence_refs.join(" · ")}</p>}</DialogContent></Dialog>
 }
 
-function Kpi({ label, value, color }) {
+function Kpi({ label, value, color, hint }) {
   const colors = { green: "border-primary/30 bg-primary/10 text-primary", amber: "border-amber-500/30 bg-amber-500/10 text-amber-500", cyan: "border-primary/30 bg-primary/10 text-primary", violet: "border-primary/30 bg-primary/10 text-primary", slate: "border-border bg-muted text-muted-foreground" }
-  return <div className="flex min-h-14 items-center justify-between gap-3 rounded-xl border bg-card p-2.5"><span className="text-xs text-muted-foreground">{label}</span><span className={`rounded-full border px-3 py-0.5 text-xs font-medium ${colors[color]}`}>{value}</span></div>
+  return <div className="flex min-h-14 items-center justify-between gap-3 rounded-xl border bg-card p-2.5"><div><span className="text-xs text-muted-foreground">{label}</span>{hint && <p className="mt-1 text-[10px] text-muted-foreground">{hint}</p>}</div><span className={`shrink-0 rounded-full border px-3 py-0.5 text-xs font-medium ${colors[color]}`}>{value}</span></div>
 }
 
 function DisclosureTriangle({ className = "" }) {
@@ -165,9 +165,16 @@ function InfoDialog({ title, description }) {
   </Dialog>
 }
 
-function Drivers({ title, items, tone }) {
-  const positive = tone === "positive"
-  return <Card className="border-border"><CardHeader><CardTitle className={`flex items-center gap-2 ${positive ? "text-primary" : "text-destructive"}`}>{positive ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}{title}</CardTitle></CardHeader><CardContent className="space-y-2">{items.length ? items.slice(0, 5).map((item) => <HelpDialog key={item.metric} title={item.title_fa} item={item}><button type="button" aria-label={`نمایش جزئیات ${item.title_fa}`} className={`flex w-full items-center justify-between gap-3 rounded-lg border border-border p-3 text-right text-sm transition ${positive ? "bg-primary/10" : "bg-destructive/10"}`}><span>{item.title_fa}</span><DisclosureTriangle className="opacity-70" /></button></HelpDialog>) : <p className="text-sm text-muted-foreground">موردی ثبت نشده است.</p>}</CardContent></Card>
+function FactorSection({ title, subtitle, items, positive, emptyText }) {
+  return <section className="flex h-72 min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
+    <div className="shrink-0 px-6 pb-3 pt-5">
+      <h3 className={`flex items-center gap-2 text-base font-semibold ${positive ? "text-primary" : "text-destructive"}`}>
+        {positive ? <TrendingUp className="h-5 w-5" /> : <ShieldAlert className="h-5 w-5" />}{title}
+      </h3>
+      <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+    </div>
+    <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-5"><DialogAnalysisList items={items} emptyText={emptyText} /></div>
+  </section>
 }
 
 function CardConnector({ label }) {
@@ -196,7 +203,7 @@ function DialogAnalysisList({ items, emptyText }) {
       title,
       dialogItem: {
         ...item,
-        detail_fa: item.detail_fa || item.detail || item.description || item.explanation || "",
+        detail_fa: item.detail_fa || item.why_it_matters_fa || item.detail || item.description || item.explanation || "",
         evidence_refs: item.evidence_refs || (item.evidence_ref ? [item.evidence_ref] : []),
       },
       key: item.risk_id || `${index}-${item.title_fa || item.title || "item"}`,
@@ -293,8 +300,8 @@ export default function MarketIntelligenceSections({ market }) {
   }, [selectedNews, newsAnalyses])
 
   const structuredDrivers = market.market_drivers || []
-  const positive = useMemo(() => structuredDrivers.filter(item => item.sentiment === "risk_on").concat((market.positive_drivers || []).map((item, index) => normalizeLegacy(item, index, "positive"))).slice(0, 5), [market, structuredDrivers])
-  const negative = useMemo(() => structuredDrivers.filter(item => item.sentiment === "risk_off").concat((market.negative_drivers || []).map((item, index) => normalizeLegacy(item, index, "negative"))).slice(0, 5), [market, structuredDrivers])
+  const positive = useMemo(() => structuredDrivers.filter(item => item.sentiment === "risk_on").concat((market.positive_drivers || []).map((item, index) => normalizeLegacy(item, index, "positive"))), [market, structuredDrivers])
+  const negative = useMemo(() => structuredDrivers.filter(item => item.sentiment === "risk_off").concat((market.negative_drivers || []).map((item, index) => normalizeLegacy(item, index, "negative"))), [market, structuredDrivers])
   const summary = market.status_summary || {}
   const fallbackReleasedData = structuredDrivers
     .filter(item => item.current !== null && item.current !== undefined && (item.previous !== null && item.previous !== undefined || item.forecast !== null && item.forecast !== undefined))
@@ -310,10 +317,7 @@ export default function MarketIntelligenceSections({ market }) {
   const publishedEventGroups = groupEventsByDate(publishedEvents)
   const upcomingMarketEvents = upcomingEvents.map(item => enrichCalendarEvent(item, structuredDrivers))
   const upcomingEventGroups = groupEventsByDate(upcomingMarketEvents)
-  const conflictItems = market.market_conflicts?.length ? market.market_conflicts.map(item => ({
-    ...item,
-    detail_fa: `${item.supportive_signal_fa} در برابر ${item.pressuring_signal_fa} — ${item.current_balance_fa} شرط چرخش: ${item.reversal_condition_fa}`,
-  })) : market.cross_domain_conflicts
+  const potentialItems = market.market_potentials || []
   const riskItems = market.risk_monitor?.length ? market.risk_monitor.map(item => ({
     ...item,
     detail_fa: `${item.why_active_fa} تشدید: ${item.escalation_conditions_fa} کاهش: ${item.easing_conditions_fa}`,
@@ -360,8 +364,8 @@ export default function MarketIntelligenceSections({ market }) {
               </Dialog>
             </div>
           </div>
-          <TabsList className="grid h-9 w-full grid-cols-4 border border-slate-300/80 bg-slate-100/90 p-1 dark:border-white/10 dark:bg-black/20">
-            <TabsTrigger value="current" className={analysisTabClass}>اکنون</TabsTrigger>
+          <TabsList className="mt-2 grid h-10 w-full grid-cols-4 items-stretch border border-slate-300/80 bg-slate-100/90 p-1 dark:border-white/10 dark:bg-black/20">
+            <TabsTrigger value="current" className={analysisTabClass}>جریان بازار</TabsTrigger>
             <TabsTrigger value="short-term" className={analysisTabClass}>کوتاه‌مدت</TabsTrigger>
             <TabsTrigger value="medium-term" className={analysisTabClass}>میان‌مدت</TabsTrigger>
             <TabsTrigger value="summary" className={analysisTabClass}>جمع‌بندی</TabsTrigger>
@@ -388,7 +392,7 @@ export default function MarketIntelligenceSections({ market }) {
       </Card>
       <SP500Dashboard compact />
       </div>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5"><Kpi label="شرایط کلی بازار" value={statusLabels[summary.market_condition] || "نامشخص"} color="violet" /><Kpi label="ریسک بازار" value={statusLabels[summary.risk_level] || "نامشخص"} color="amber" /><Kpi label="Sentiment" value={statusLabels[summary.sentiment] || "نامشخص"} color="slate" /><Kpi label="شدت تغییر" value={statusLabels[summary.change_intensity] || "نامشخص"} color="cyan" /><Kpi label="اعتماد به تحلیل" value={statusLabels[summary.confidence_level] || "نامشخص"} color={summary.confidence_level === "high" ? "green" : "violet"} /></div>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5"><Kpi label="شرایط کلی بازار" value={statusLabels[summary.market_condition] || "نامشخص"} color="violet" /><Kpi label="ریسک بازار" value={statusLabels[summary.risk_level] || "نامشخص"} color="amber" /><Kpi label="سنتیمنت" value={statusLabels[summary.sentiment] || "نامشخص"} color="slate" /><Kpi label="تغییر روزانه" value={statusLabels[summary.change_intensity] || "نامشخص"} color="cyan" hint="مبنا: تغییر نسبت به پایان روز معاملاتی قبل" /><Kpi label="اعتماد به تحلیل" value={statusLabels[summary.confidence_level] || "نامشخص"} color={summary.confidence_level === "high" ? "green" : "violet"} /></div>
     </section>
 
     <section className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-4">
@@ -438,22 +442,17 @@ export default function MarketIntelligenceSections({ market }) {
       </Card>
     </section>
 
-    <section className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-4">
-      <Drivers title="محرک‌های حمایتی" items={positive} tone="positive" />
-      <CardConnector label="ارتباط محرک‌های حمایتی با عوامل چالشی" />
-      <Drivers title="عوامل چالشی" items={negative} tone="negative" />
-    </section>
-
-    <section className="grid gap-4 lg:grid-cols-2">
-      <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-border">
-        <CardHeader className="shrink-0 pb-3"><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-foreground" />داده‌های متضاد بازار</CardTitle></CardHeader>
-        <CardContent className="min-h-0 flex-1 overflow-y-auto"><DialogAnalysisList items={conflictItems} emptyText="دادهٔ متضادی ثبت نشده است." /></CardContent>
-      </Card>
-      <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-border">
-        <CardHeader className="shrink-0 pb-3"><CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5 text-foreground" />ریسک مانیتور</CardTitle></CardHeader>
-        <CardContent className="min-h-0 flex-1 overflow-y-auto"><DialogAnalysisList items={riskItems} emptyText="ریسک فعالی ثبت نشده است." /></CardContent>
-      </Card>
-    </section>
-
+    <Card className="overflow-hidden border-border bg-muted/15">
+      <CardHeader className="pb-4">
+        <CardTitle>عوامل اثرگذار بر بازار</CardTitle>
+        <p className="text-xs leading-6 text-muted-foreground">اخبار و رویدادهای کوتاه‌مدت در ردیف بالا؛ پتانسیل‌ها و ریسک‌های میان‌مدت در ردیف پایین</p>
+      </CardHeader>
+      <CardContent className="grid gap-4 lg:grid-cols-2" dir="rtl">
+        <FactorSection title="عوامل حمایتی" subtitle="کوتاه‌مدت · اخبار و رویدادها" items={positive} positive emptyText="عامل حمایتی ثبت نشده است." />
+        <FactorSection title="عوامل چالشی" subtitle="کوتاه‌مدت · اخبار و رویدادها" items={negative} emptyText="عامل چالشی ثبت نشده است." />
+        <FactorSection title="پتانسیل‌های بازار" subtitle="میان‌مدت · زمینه‌های رشد بازار" items={potentialItems} positive emptyText="پتانسیل میان‌مدتی در تحلیل موجود ثبت نشده است." />
+        <FactorSection title="ریسک‌های بازار" subtitle="میان‌مدت · تهدیدهای بنیادی و ساختاری" items={riskItems} emptyText="ریسک میان‌مدتی ثبت نشده است." />
+      </CardContent>
+    </Card>
   </div>
 }

@@ -56,7 +56,8 @@ export default function MT5AccountSnapshot() {
     </Card>
   }
 
-  return <section className="space-y-3" aria-labelledby="trading-accounts-title" dir="rtl">
+  return <section className="relative space-y-3 overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-cyan-500/[0.035] via-background to-background p-3 shadow-sm ring-1 ring-black/[0.02] dark:border-cyan-400/15 dark:from-cyan-400/[0.04] dark:ring-white/[0.025] md:space-y-4 md:p-5" aria-labelledby="trading-accounts-title" dir="rtl">
+    <div aria-hidden="true" className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-cyan-500/70 to-transparent" />
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-2">
         <Server className="h-5 w-5 text-primary" />

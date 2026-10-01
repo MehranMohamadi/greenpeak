@@ -96,6 +96,12 @@ class MarketRiskItem(StrictModel):
     evidence_refs: list[str] = Field(default_factory=list)
 
 
+class MarketPotentialItem(StrictModel):
+    title_fa: str
+    detail_fa: str
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
 class MarketConflictItem(StrictModel):
     title_fa: str
     supportive_signal_fa: str
@@ -147,6 +153,7 @@ class MarketNarrative(NarrativeBase):
     watch_next_fa: list[str] = Field(default_factory=list)
     status_summary: MarketStatusSummary = Field(default_factory=MarketStatusSummary)
     market_drivers: list[MarketImpactItem] = Field(default_factory=list)
+    market_potentials: list[MarketPotentialItem] = Field(default_factory=list)
     market_conflicts: list[MarketConflictItem] = Field(default_factory=list)
     risk_monitor: list[MarketRiskItem] = Field(default_factory=list)
     important_changes: list[MarketChangeItem] = Field(default_factory=list)
