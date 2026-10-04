@@ -24,6 +24,21 @@ async def get_eps_data(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
+@router.get("/eps/sp500-real", response_model=DataResponse)
+async def get_real_eps_data(
+    limit: Optional[int] = Query(None, description="Limit number of records"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+):
+    """Get Multpl's monthly inflation-adjusted S&P 500 EPS data."""
+    try:
+        return data_service.get_sp500_real_eps_data(
+            limit=limit, start_date=start_date, end_date=end_date
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 @router.get("/revenue-growth", response_model=DataResponse)
 async def get_revenue_growth_data(
     limit: Optional[int] = Query(None, description="Limit number of records"),

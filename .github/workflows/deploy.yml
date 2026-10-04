@@ -62,15 +62,25 @@ jobs:
       - name: Package backend
         shell: bash
         run: |
+          mkdir -p release-backend
           tar \
             --exclude='**/__pycache__' \
             --exclude='backend2/src/data/raw' \
-            -czf greenpeak-backend-${{ github.event.workflow_run.head_sha }}.tar.gz \
+            -cf - \
             backend2/main.py \
             backend2/requirements.txt \
             backend2/src \
             config/greenpeak \
-            prompts/greenpeak
+            prompts/greenpeak \
+            | tar -xf - -C release-backend
+          mkdir -p release-backend/backend2/src/data/raw
+          cp backend2/src/data/raw/sp500-earnings-multpl-monthly.csv \
+            release-backend/backend2/src/data/raw/
+          tar \
+            --exclude='**/__pycache__' \
+            -C release-backend \
+            -czf greenpeak-backend-${{ github.event.workflow_run.head_sha }}.tar.gz \
+            backend2 config prompts
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v7

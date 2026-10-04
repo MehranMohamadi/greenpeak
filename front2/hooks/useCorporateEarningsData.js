@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { endpoints } from "../api/api.js"
 
 const SOURCES = {
-  sp500eps: endpoints.corporate.epsSp500,
+  sp500eps: endpoints.corporate.epsSp500Real,
   revenue: endpoints.corporate.revenueGrowth,
   margins: endpoints.corporate.profitMargins,
   returnOnAssets: endpoints.corporate.returnOnAssets,

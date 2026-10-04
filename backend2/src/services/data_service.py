@@ -26,8 +26,11 @@ from .corporate_fundamentals import (
     CORPORATE_METHODOLOGY_VERSION,
     CORPORATE_MIN_PUBLISHABLE_COVERAGE_PCT,
     S_AND_P_EPS_URL,
+    MULTPL_SP500_EARNINGS_URL,
+    MULTPL_SP500_EARNINGS_BASIS,
     CorporateFundamentalsSourceError,
     load_sp500_operating_eps_ttm,
+    load_multpl_sp500_real_eps,
 )
 from .corporate_fundamentals_cache import load_corporate_aggregate_cache
 from .official_sentiment import (
@@ -2997,6 +3000,86 @@ class DataService:
                 quality_status="unavailable",
                 quality_reason="sp_global_eps_workbook_unavailable_or_invalid",
                 transformation="rolling sum of four consecutive reported quarterly operating EPS observations; estimates excluded",
+                population="S&P 500 index",
+            )
+
+    def get_sp500_real_eps_data(
+        self,
+        limit: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> DataResponse:
+        """Return Multpl's monthly inflation-adjusted trailing-12-month EPS."""
+        description = (
+            "S&P 500 12-month real earnings per share, inflation-adjusted "
+            f"to {MULTPL_SP500_EARNINGS_BASIS} as published by Multpl"
+        )
+        unit = f"USD per share ({MULTPL_SP500_EARNINGS_BASIS})"
+        transformation = (
+            "Multpl-published monthly 12-month real EPS; source values are "
+            "already inflation-adjusted, with no additional transformation"
+        )
+        try:
+            series = load_multpl_sp500_real_eps()
+            points = [
+                point
+                for point in series.points
+                if (not start_date or point.date >= start_date)
+                and (not end_date or point.date <= end_date)
+            ]
+            if limit and limit > 0:
+                points = points[-limit:]
+            data_points = [
+                EconomicDataPoint(
+                    time=int(
+                        datetime.fromisoformat(point.date)
+                        .replace(tzinfo=timezone.utc)
+                        .timestamp()
+                    ),
+                    date=point.date,
+                    value=point.value,
+                    rate=point.value,
+                )
+                for point in points
+            ]
+            metadata = self._build_metadata(
+                indicator_id="sp500_eps",
+                owner_group="corporate_fundamentals",
+                latest_value=data_points[-1].value if data_points else None,
+                latest_date=data_points[-1].date if data_points else None,
+                total_records=len(data_points),
+                description=description,
+                unit=unit,
+                frequency="monthly",
+                source="Multpl S&P 500 Earnings by Month",
+                source_series_id="MULTPL_SP500_REAL_EPS_TTM",
+                population="S&P 500 index",
+                seasonal_adjustment="not_applicable",
+                transformation=transformation,
+                stale_after_days=185,
+                methodology_version="multpl_monthly_real_eps_v1",
+                formula_version="source_reported_value_v1",
+                proxy=False,
+            )
+            metadata.source_provider = "Multpl"
+            metadata.source_url = MULTPL_SP500_EARNINGS_URL
+            metadata.latest_observation_is_estimate = False if data_points else None
+            metadata.latest_observation_status = (
+                "source_published" if data_points else None
+            )
+            return DataResponse(data=data_points, metadata=metadata)
+        except CorporateFundamentalsSourceError:
+            return self._unavailable_response(
+                indicator_id="sp500_eps",
+                owner_group="corporate_fundamentals",
+                description=description,
+                unit=unit,
+                frequency="monthly",
+                source="Multpl S&P 500 Earnings by Month",
+                source_series_id="MULTPL_SP500_REAL_EPS_TTM",
+                quality_status="unavailable",
+                quality_reason="multpl_eps_snapshot_unavailable_or_invalid",
+                transformation=transformation,
                 population="S&P 500 index",
             )
 

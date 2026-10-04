@@ -15,10 +15,10 @@ class Settings(BaseSettings):
     api_version: str = "2.0.0"
     debug: bool = False
     greenpeak_enable_pipeline_preview: bool = False
-    greenpeak_llm_provider: str = "disabled"
-    greenpeak_llm_model: str = ""
+    greenpeak_llm_provider: str = "openai-compatible"
+    greenpeak_llm_model: str = "gpt-6-luna"
     greenpeak_llm_api_key: str = ""
-    greenpeak_llm_base_url: str = "https://api.openai.com/v1"
+    greenpeak_llm_base_url: str = "https://api.gapgpt.app/v1"
     greenpeak_analysis_admin_token: str = ""
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""

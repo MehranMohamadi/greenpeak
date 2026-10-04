@@ -12,6 +12,7 @@ pure so they can be tested without MongoDB or network access.
 
 from __future__ import annotations
 
+import csv
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from io import BytesIO
@@ -29,6 +30,8 @@ S_AND_P_EPS_URL = (
     "https://www.spglobal.com/spdji/en/documents/additional-material/"
     "sp-500-eps-est.xlsx"
 )
+MULTPL_SP500_EARNINGS_URL = "https://www.multpl.com/s-p-500-earnings/table/by-month"
+MULTPL_SP500_EARNINGS_BASIS = "July 2026 dollars"
 SEC_COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 CORPORATE_METHODOLOGY_VERSION = "sec_companyfacts_spy_current_cohort_v2"
 CORPORATE_FORMULA_VERSION = "1.0"
@@ -286,6 +289,84 @@ def load_sp500_operating_eps_ttm(
         points=tuple(points),
         report_as_of=quarterly.report_as_of,
         source_path=quarterly.source_path,
+    )
+
+
+def load_multpl_sp500_real_eps(
+    csv_path: Path | None = None,
+) -> PublishedCorporateSeries:
+    """Load Multpl's manually refreshed monthly real trailing-12-month EPS.
+
+    The source restates its history to the current inflation reference month.
+    Refresh the complete CSV and ``MULTPL_SP500_EARNINGS_BASIS`` when Multpl
+    changes that reference, then include the newly published month; appending
+    alone would mix dollar bases.
+    """
+
+    path = csv_path or get_settings().data_dir / "sp500-earnings-multpl-monthly.csv"
+    try:
+        with path.open("r", encoding="utf-8-sig", newline="") as source:
+            reader = csv.DictReader(source)
+            if reader.fieldnames != ["date", "value"]:
+                raise CorporateFundamentalsSourceError(
+                    "Multpl EPS snapshot columns changed"
+                )
+
+            points: list[PublishedCorporatePoint] = []
+            previous_date: date | None = None
+            for row in reader:
+                try:
+                    observation_date = date.fromisoformat(row["date"])
+                    eps = float(row["value"])
+                except (TypeError, ValueError) as exc:
+                    raise CorporateFundamentalsSourceError(
+                        "Multpl EPS snapshot contains an invalid observation"
+                    ) from exc
+
+                if not math.isfinite(eps):
+                    raise CorporateFundamentalsSourceError(
+                        "Multpl EPS snapshot contains a non-finite value"
+                    )
+                if (
+                    (observation_date + timedelta(days=1)).month
+                    == observation_date.month
+                ):
+                    raise CorporateFundamentalsSourceError(
+                        "Multpl EPS observations must use month-end dates"
+                    )
+                if previous_date is not None:
+                    expected_month = (
+                        (previous_date.year + 1, 1)
+                        if previous_date.month == 12
+                        else (previous_date.year, previous_date.month + 1)
+                    )
+                    if (observation_date.year, observation_date.month) != expected_month:
+                        raise CorporateFundamentalsSourceError(
+                            "Multpl EPS snapshot must contain consecutive monthly observations"
+                        )
+
+                points.append(
+                    PublishedCorporatePoint(
+                        date=observation_date.isoformat(), value=eps, is_estimate=False
+                    )
+                )
+                previous_date = observation_date
+
+        if len(points) < 12:
+            raise CorporateFundamentalsSourceError(
+                "Multpl EPS snapshot returned insufficient monthly observations"
+            )
+    except CorporateFundamentalsSourceError:
+        raise
+    except (OSError, csv.Error, TypeError, ValueError) as exc:
+        raise CorporateFundamentalsSourceError(
+            "Multpl EPS snapshot could not be read"
+        ) from exc
+
+    return PublishedCorporateSeries(
+        points=tuple(points),
+        report_as_of=points[-1].date,
+        source_path=path,
     )
 
 

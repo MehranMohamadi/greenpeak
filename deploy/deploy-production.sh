@@ -64,15 +64,24 @@ test -f "$release_root/front2/server.js"
 test -d "$release_root/front2/.next/static"
 test -f "$release_root/backend2/main.py"
 test -f "$release_root/backend2/requirements.txt"
+test -f "$release_root/backend2/src/data/raw/sp500-earnings-multpl-monthly.csv"
 test -f "$release_root/config/greenpeak/domains.yaml"
 test -f "$release_root/prompts/greenpeak/core_system.md"
 
 # Market source files are production data and are deliberately not shipped in
-# release archives. Keep using the existing server-owned dataset.
-if [[ -d "$legacy_root/backend2/src/data/raw" ]]; then
+# release archives, except the curated Multpl EPS snapshot required by this
+# release's new corporate earnings endpoint.
+legacy_raw_dir="$legacy_root/backend2/src/data/raw"
+eps_snapshot="$release_root/backend2/src/data/raw/sp500-earnings-multpl-monthly.csv"
+if [[ -f "$eps_snapshot" && -d "$legacy_raw_dir" ]]; then
+  install -m 644 "$eps_snapshot" \
+    "$legacy_raw_dir/sp500-earnings-multpl-monthly.csv"
+fi
+
+if [[ -d "$legacy_raw_dir" ]]; then
   mkdir -p "$release_root/backend2/src/data"
   rm -rf "$release_root/backend2/src/data/raw"
-  ln -s "$legacy_root/backend2/src/data/raw" "$release_root/backend2/src/data/raw"
+  ln -s "$legacy_raw_dir" "$release_root/backend2/src/data/raw"
 fi
 
 # Preserve an environment file if production has one. Its contents never enter

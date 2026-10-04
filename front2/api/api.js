@@ -93,6 +93,7 @@ export const endpoints = {
     },
     corporate: {
         epsSp500: `${API_BASE}/corporate/eps/sp500`,
+        epsSp500Real: `${API_BASE}/corporate/eps/sp500-real`,
         revenueGrowth: `${API_BASE}/corporate/revenue-growth`,
         profitMargins: `${API_BASE}/corporate/profit-margins`,
         returnOnAssets: `${API_BASE}/corporate/return-on-assets`,
