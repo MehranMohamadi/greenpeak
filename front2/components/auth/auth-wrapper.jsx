@@ -7,7 +7,7 @@ export default function AuthWrapper({ children }) {
   const pathname = usePathname()
   
   // Authentication pages are public.
-  if (['/login', '/signup', '/verify-email', '/resend-verification', '/forgot-password', '/reset-password'].includes(pathname)) {
+  if (pathname === '/login' || pathname === '/signup') {
     return children
   }
   
