@@ -2,14 +2,21 @@
 
 from functools import lru_cache
 from typing import Annotated
+import hashlib
+import hmac
+import secrets
+import time
+from collections import deque
+from threading import Lock
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from pymongo.errors import PyMongoError
 
 from ....core.config import get_settings
 from ....services.auth import AuthError, AuthService, AuthStorageError
+from ....services.auth_identity import IdentityService
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -17,7 +24,7 @@ bearer = HTTPBearer(auto_error=False)
 
 
 class Credentials(BaseModel):
-    username: str = Field(min_length=3, max_length=32)
+    username: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=6, max_length=128)
 
 
@@ -33,6 +40,34 @@ class AuthResponse(BaseModel):
     user: UserResponse
 
 
+class SignupCredentials(BaseModel):
+    username: str = Field(min_length=3, max_length=32)
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=8, max_length=128)
+
+
+class EmailRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+
+
+class LinkRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=256)
+
+
+class ResetRequest(LinkRequest):
+    password: str = Field(min_length=8, max_length=128)
+
+
+class GoogleRequest(BaseModel):
+    credential: str = Field(min_length=20, max_length=10000)
+    nonce: str = Field(min_length=20, max_length=128)
+
+
+class MessageResponse(BaseModel):
+    message: str
+    verification_required: bool = False
+
+
 @lru_cache(maxsize=1)
 def get_auth_service() -> AuthService:
     try:
@@ -41,17 +76,71 @@ def get_auth_service() -> AuthService:
         raise auth_failure(exc) from exc
 
 
+def get_identity_service(service: Annotated[AuthService, Depends(get_auth_service)]):
+    return IdentityService(service, get_settings())
+
+
+_attempts = {}
+_attempt_lock = Lock()
+
+
+def limit_auth_requests(request: Request):
+    # Per-process guard; deploy an edge/global limiter for multiple workers.
+    key = request.client.host if request.client else "unknown"
+    now = time.monotonic()
+    with _attempt_lock:
+        expired = [key for key, values in _attempts.items() if not values or values[-1] <= now - 600]
+        for expired_key in expired:
+            del _attempts[expired_key]
+        attempts = _attempts.setdefault(key, deque())
+        while attempts and attempts[0] <= now - 600:
+            attempts.popleft()
+        if len(attempts) >= 30 or len(_attempts) > 10000:
+            raise HTTPException(429, "Too many attempts. Please try again later.", headers={"Retry-After": "600"})
+        attempts.append(now)
+
+
+def check_google_nonce(request, body):
+    settings = get_settings()
+    if request.headers.get("origin") != settings.auth_public_url.rstrip("/"):
+        raise HTTPException(403, "Invalid sign-in origin.")
+    cookie = request.cookies.get("gp_google_nonce", "")
+    try:
+        nonce, timestamp, signature = cookie.split(".")
+        expected = hmac.new(settings.auth_secret_key.encode(), f"{nonce}.{timestamp}".encode(), hashlib.sha256).hexdigest()
+        if (not hmac.compare_digest(signature, expected) or not hmac.compare_digest(nonce, body.nonce)
+                or not 0 <= time.time() - int(timestamp) < 600):
+            raise ValueError
+    except (ValueError, TypeError):
+        raise HTTPException(403, "Google sign-in expired. Refresh the page and try again.") from None
+    return nonce
+
+
 def auth_failure(exc: Exception) -> HTTPException:
     if isinstance(exc, AuthError):
         return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc))
-    return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Authentication database is unavailable.")
+    detail = str(exc) if isinstance(exc, AuthStorageError) else "Authentication database is unavailable."
+    return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)
 
 
-@router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-def signup(credentials: Credentials, service: Annotated[AuthService, Depends(get_auth_service)]):
+def set_session_cookie(response, token):
+    settings = get_settings()
+    response.set_cookie("gp_session", token, max_age=settings.auth_token_ttl_seconds,
+                        httponly=True, secure=settings.auth_public_url.startswith("https://"), samesite="lax", path="/")
+    response.headers["Cache-Control"] = "no-store"
+
+
+def check_browser_origin(request):
+    origin = request.headers.get("origin")
+    if origin and origin != get_settings().auth_public_url.rstrip("/"):
+        raise HTTPException(403, "Invalid request origin.")
+
+
+@router.post("/signup", response_model=MessageResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(limit_auth_requests)])
+def signup(credentials: SignupCredentials, service: Annotated[IdentityService, Depends(get_identity_service)]):
     try:
-        user, token = service.signup(credentials.username, credentials.password)
-        return AuthResponse(access_token=token, user=UserResponse(**user))
+        service.signup(credentials.username, credentials.email, credentials.password)
+        return MessageResponse(message="Check your email to verify your account. If already registered, sign in or recover your password.", verification_required=True)
     except (AuthError, AuthStorageError, PyMongoError) as exc:
         error = auth_failure(exc)
         if isinstance(exc, AuthError) and "already registered" in str(exc):
@@ -59,13 +148,15 @@ def signup(credentials: Credentials, service: Annotated[AuthService, Depends(get
         raise error from exc
 
 
-@router.post("/login", response_model=AuthResponse)
-def login(credentials: Credentials, service: Annotated[AuthService, Depends(get_auth_service)]):
+@router.post("/login", response_model=AuthResponse, dependencies=[Depends(limit_auth_requests)])
+def login(credentials: Credentials, request: Request, response: Response, service: Annotated[AuthService, Depends(get_auth_service)]):
+    check_browser_origin(request)
     try:
         settings = get_settings()
         if settings.environment == "development" and settings.auth_local_test_user_enabled:
             service.ensure_test_user(settings.auth_local_test_username, settings.auth_local_test_password)
         user, token = service.login(credentials.username, credentials.password)
+        set_session_cookie(response, token)
         return AuthResponse(access_token=token, user=UserResponse(**user))
     except (AuthError, AuthStorageError, PyMongoError) as exc:
         raise auth_failure(exc) from exc
@@ -93,5 +184,113 @@ def require_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
     try:
         return service.user_from_token(credentials.credentials)
+    except (AuthError, AuthStorageError, PyMongoError) as exc:
+        raise auth_failure(exc) from exc
+
+
+@router.post("/session/migrate", response_model=AuthResponse)
+def migrate_session(request: Request, response: Response,
+                    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
+                    user: Annotated[dict, Depends(require_user)]):
+    check_browser_origin(request)
+    set_session_cookie(response, credentials.credentials)
+    return AuthResponse(access_token=credentials.credentials, user=UserResponse(**user))
+
+
+@router.get("/session", response_model=AuthResponse)
+def session(request: Request, response: Response, service: Annotated[AuthService, Depends(get_auth_service)]):
+    check_browser_origin(request)
+    token = request.cookies.get("gp_session", "")
+    try:
+        user = service.user_from_token(token)
+        response.headers["Cache-Control"] = "no-store"
+        return AuthResponse(access_token=token, user=UserResponse(**user))
+    except (AuthError, AuthStorageError, PyMongoError) as exc:
+        raise auth_failure(exc) from exc
+
+
+@router.post("/logout", response_model=MessageResponse)
+def logout(request: Request, response: Response):
+    check_browser_origin(request)
+    response.delete_cookie("gp_session", path="/")
+    response.headers["Cache-Control"] = "no-store"
+    return MessageResponse(message="Signed out.")
+
+
+@router.get("/google/challenge", dependencies=[Depends(limit_auth_requests)])
+def google_challenge(response: Response):
+    settings = get_settings()
+    if not settings.google_client_id:
+        return {"enabled": False}
+    nonce = secrets.token_urlsafe(32)
+    timestamp = int(time.time())
+    value = f"{nonce}.{timestamp}"
+    signature = hmac.new(settings.auth_secret_key.encode(), value.encode(), hashlib.sha256).hexdigest()
+    response.set_cookie("gp_google_nonce", f"{value}.{signature}", max_age=600, httponly=True,
+                        secure=settings.auth_public_url.startswith("https://"), samesite="lax", path="/")
+    response.headers["Cache-Control"] = "no-store"
+    return {"enabled": True, "client_id": settings.google_client_id, "nonce": nonce}
+
+
+@router.post("/google", response_model=AuthResponse | MessageResponse, dependencies=[Depends(limit_auth_requests)])
+def google_signin(body: GoogleRequest, request: Request, response: Response,
+                  service: Annotated[IdentityService, Depends(get_identity_service)]):
+    nonce = check_google_nonce(request, body)
+    try:
+        user, token = service.google(body.credential, nonce)
+        response.delete_cookie("gp_google_nonce", path="/")
+        if user is None:
+            return MessageResponse(message="Check your email to verify your account, then continue with Google again.", verification_required=True)
+        set_session_cookie(response, token)
+        return AuthResponse(access_token=token, user=UserResponse(**user))
+    except (AuthError, AuthStorageError, PyMongoError) as exc:
+        raise auth_failure(exc) from exc
+
+
+@router.post("/google/link", response_model=MessageResponse, dependencies=[Depends(limit_auth_requests)])
+def google_link(body: GoogleRequest, request: Request, response: Response,
+                user: Annotated[dict, Depends(require_user)],
+                service: Annotated[IdentityService, Depends(get_identity_service)]):
+    nonce = check_google_nonce(request, body)
+    try:
+        service.google(body.credential, nonce, current_user=user)
+        response.delete_cookie("gp_google_nonce", path="/")
+        return MessageResponse(message="Google account connected. You can now sign in with Google.")
+    except (AuthError, AuthStorageError, PyMongoError) as exc:
+        raise auth_failure(exc) from exc
+
+
+@router.post("/verify-email", response_model=MessageResponse, dependencies=[Depends(limit_auth_requests)])
+def verify_email(body: LinkRequest, service: Annotated[IdentityService, Depends(get_identity_service)]):
+    try:
+        service.consume_link(body.token, "verification")
+        return MessageResponse(message="Email verified. You can now sign in.")
+    except (AuthError, AuthStorageError, PyMongoError) as exc:
+        raise auth_failure(exc) from exc
+
+
+@router.post("/resend-verification", response_model=MessageResponse, dependencies=[Depends(limit_auth_requests)])
+def resend_verification(body: EmailRequest, service: Annotated[IdentityService, Depends(get_identity_service)]):
+    return request_email_link(body.email, "verification", service)
+
+
+@router.post("/forgot-password", response_model=MessageResponse, dependencies=[Depends(limit_auth_requests)])
+def forgot_password(body: EmailRequest, service: Annotated[IdentityService, Depends(get_identity_service)]):
+    return request_email_link(body.email, "reset", service)
+
+
+def request_email_link(email, purpose, service):
+    try:
+        service.request_link(email, purpose)
+        return MessageResponse(message="If an eligible account exists, we have sent an email. Check your inbox and spam folder.")
+    except (AuthError, AuthStorageError, PyMongoError) as exc:
+        raise auth_failure(exc) from exc
+
+
+@router.post("/reset-password", response_model=MessageResponse, dependencies=[Depends(limit_auth_requests)])
+def reset_password(body: ResetRequest, service: Annotated[IdentityService, Depends(get_identity_service)]):
+    try:
+        service.consume_link(body.token, "reset", body.password)
+        return MessageResponse(message="Password reset. Sign in with your new password.")
     except (AuthError, AuthStorageError, PyMongoError) as exc:
         raise auth_failure(exc) from exc

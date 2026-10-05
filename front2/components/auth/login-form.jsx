@@ -10,6 +10,7 @@ import { useAuth } from "./auth-context"
 import { TrendingUp, Lock, User, Eye, EyeOff, Shield, ChevronRight } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
+import GoogleSignin from "@/components/auth/google-signin"
 
 const LOGIN_STARS = Array.from({ length: 15 }, (_, index) => ({
   left: `${(index * 37 + 11) % 100}%`,
@@ -198,6 +199,7 @@ export default function LoginForm() {
           </CardHeader>
           
           <CardContent className="space-y-6">
+            <GoogleSignin />
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
                 <motion.div
@@ -212,12 +214,13 @@ export default function LoginForm() {
               <div className="space-y-2">
                 <Label htmlFor="username" className="text-slate-200 flex items-center gap-2">
                   <User className="w-4 h-4" />
-                  Username
+                  Email or username
                 </Label>
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Enter your username"
+                  placeholder="Enter your email or username"
+                  autoComplete="username"
                   value={credentials.username}
                   onChange={(e) => setCredentials((prev) => ({ ...prev, username: e.target.value }))}
                   required
@@ -269,6 +272,10 @@ export default function LoginForm() {
                 )}
               </Button>
             </form>
+            <div className="flex justify-between text-sm text-cyan-400">
+              <Link href="/forgot-password">Forgot password?</Link>
+              <Link href="/resend-verification">Verify email</Link>
+            </div>
             
             {process.env.NODE_ENV !== "production" && (
               <div className="rounded-lg border border-slate-700/50 bg-slate-800/30 p-3 text-center text-sm text-slate-300">

@@ -3,6 +3,7 @@ import CustomizationPanel from "@/components/dashboard/customization-panel"
 import WatchlistManager from "@/components/dashboard/watchlist-manager"
 import DashboardThemes from "@/components/dashboard/dashboard-themes"
 import MT5Pairing from "@/components/dashboard/mt5-pairing"
+import GoogleSignin from "@/components/auth/google-signin"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,10 @@ export default function SettingsPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader><CardTitle>Account sign-in</CardTitle><CardDescription>Connect Google to your existing GreenPeak account</CardDescription></CardHeader>
+            <CardContent><GoogleSignin linkAccount /></CardContent>
+          </Card>
           {/* Layout Customization */}
           <Card>
             <CardHeader>

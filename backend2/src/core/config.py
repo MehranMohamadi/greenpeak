@@ -105,6 +105,16 @@ class Settings(BaseSettings):
     auth_local_test_user_enabled: bool = True
     auth_local_test_username: str = "greenpeak"
     auth_local_test_password: str = "greenpeak"
+    google_client_id: str = ""
+    auth_public_url: str = "http://localhost:3000"
+    auth_email_token_ttl_seconds: int = 3600
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_starttls: bool = True
+    smtp_ssl: bool = False
 
     # Persist the last validated narrative snapshot for local development so
     # read-only analysis pages remain usable while MongoDB is offline.

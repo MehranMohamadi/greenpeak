@@ -15,6 +15,21 @@ async function readError(response) {
   }
 }
 
+export async function authRequest(url, body, token) {
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(body),
+    })
+    if (!response.ok) return { success: false, error: await readError(response) }
+    return { success: true, ...await response.json() }
+  } catch {
+    return { success: false, error: "Cannot connect to the authentication service." }
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [accessToken, setAccessToken] = useState(null)
@@ -22,16 +37,23 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const restoreSession = async () => {
-      const token = window.localStorage.getItem(TOKEN_KEY)
-      if (!token) {
-        setIsLoading(false)
-        return
-      }
+      // Migrate existing browser sessions once; all new persistent sessions
+      // live in an HttpOnly cookie. Bearer tokens remain only in React memory
+      // for existing authenticated dashboard consumers.
+      const legacyToken = window.localStorage.getItem(TOKEN_KEY)
+      window.localStorage.removeItem(TOKEN_KEY)
       try {
-        setAccessToken(token)
-        const response = await fetch(endpoints.auth.me, { headers: { Authorization: `Bearer ${token}` } })
-        if (!response.ok) throw new Error("Invalid session")
-        setUser(await response.json())
+        const response = await fetch(endpoints.auth.session, { credentials: "include", cache: "no-store" })
+        if (response.ok) {
+          const session = await response.json()
+          setAccessToken(session.access_token)
+          setUser(session.user)
+        } else if (legacyToken) {
+          const previous = await authRequest(endpoints.auth.migrateSession, {}, legacyToken)
+          if (!previous.success) throw new Error("Invalid session")
+          setAccessToken(previous.access_token)
+          setUser(previous.user)
+        }
       } catch {
         window.localStorage.removeItem(TOKEN_KEY)
         setAccessToken(null)
@@ -42,28 +64,24 @@ export function AuthProvider({ children }) {
     restoreSession()
   }, [])
 
-  const authenticate = async (url, username, password) => {
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      })
-      if (!response.ok) return { success: false, error: await readError(response) }
-      const data = await response.json()
-      window.localStorage.setItem(TOKEN_KEY, data.access_token)
-      setAccessToken(data.access_token)
-      setUser(data.user)
-      return { success: true, user: data.user }
-    } catch {
-      return { success: false, error: "Cannot connect to the authentication service." }
-    }
+  const authenticate = async (url, body) => {
+    const data = await authRequest(url, body)
+    if (!data.success || !data.access_token) return data
+    setAccessToken(data.access_token)
+    setUser(data.user)
+    return { success: true, user: data.user }
   }
 
-  const login = (username, password) => authenticate(endpoints.auth.login, username, password)
-  const signup = (username, password) => authenticate(endpoints.auth.signup, username, password)
+  const login = (username, password) => authenticate(endpoints.auth.login, { username, password })
+  const signup = (username, email, password) => authRequest(endpoints.auth.signup, { username, email, password })
+  const googleLogin = (credential, nonce) => authenticate(endpoints.auth.google, { credential, nonce })
 
-  const logout = () => {
+  const logout = async () => {
+    const result = await authRequest(endpoints.auth.logout, {})
+    if (!result.success) {
+      window.alert(result.error)
+      return
+    }
     window.localStorage.removeItem(TOKEN_KEY)
     setAccessToken(null)
     setUser(null)
@@ -71,7 +89,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated: Boolean(user), user, accessToken, isLoading, login, signup, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated: Boolean(user), user, accessToken, isLoading, login, signup, googleLogin, logout }}>
       {children}
     </AuthContext.Provider>
   )

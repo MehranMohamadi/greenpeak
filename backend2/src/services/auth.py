@@ -10,6 +10,7 @@ import re
 import secrets
 import sqlite3
 import time
+from types import SimpleNamespace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -68,6 +69,11 @@ class LocalUserCollection:
                 )
                 """
             )
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(gp_users)")}
+            if "extra_json" not in columns:
+                connection.execute("ALTER TABLE gp_users ADD COLUMN extra_json TEXT NOT NULL DEFAULT '{}'")
+            for field in ("email_normalized", "google_sub"):
+                connection.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS gp_users_{field} ON gp_users(json_extract(extra_json, '$.{field}'))")
 
     def create_index(self, *_args: Any, **_kwargs: Any) -> str:
         # The SQLite schema already enforces the same unique normalized username.
@@ -80,8 +86,8 @@ class LocalUserCollection:
                     """
                     INSERT INTO gp_users (
                         username, username_normalized, password_hash, role,
-                        is_active, created_at, updated_at, is_local_test_user
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        is_active, created_at, updated_at, is_local_test_user, extra_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         document["username"],
@@ -92,6 +98,7 @@ class LocalUserCollection:
                         self._serialize_datetime(document.get("created_at")),
                         self._serialize_datetime(document.get("updated_at")),
                         int(document.get("is_local_test_user", False)),
+                        json.dumps(document, default=str),
                     ),
                 )
                 return _LocalInsertResult(int(cursor.lastrowid))
@@ -101,24 +108,52 @@ class LocalUserCollection:
             raise AuthStorageError("Local authentication database is unavailable.") from exc
 
     def find_one(self, query: dict[str, Any]) -> dict[str, Any] | None:
-        normalized = query.get("username_normalized")
-        if not isinstance(normalized, str):
-            raise AuthStorageError("Unsupported local authentication query.")
         try:
             with self._connect() as connection:
-                row = connection.execute(
-                    "SELECT * FROM gp_users WHERE username_normalized = ? LIMIT 1",
-                    (normalized,),
-                ).fetchone()
+                for row in connection.execute("SELECT * FROM gp_users"):
+                    document = self._document(row)
+                    if self._matches(document, query):
+                        return document
         except sqlite3.Error as exc:
             raise AuthStorageError("Local authentication database is unavailable.") from exc
-        if row is None:
-            return None
+        return None
+
+    @staticmethod
+    def _document(row):
         document = dict(row)
+        document.update(json.loads(document.pop("extra_json", "{}")))
         document["_id"] = document.pop("id")
         document["is_active"] = bool(document["is_active"])
         document["is_local_test_user"] = bool(document["is_local_test_user"])
         return document
+
+    @staticmethod
+    def _matches(document, query):
+        return all(document.get(key) == value for key, value in query.items())
+
+    def update_one(self, query, update):
+        try:
+            with self._connect() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                for row in connection.execute("SELECT * FROM gp_users").fetchall():
+                    document = self._document(row)
+                    if not self._matches(document, query):
+                        continue
+                    document.update(update.get("$set", {}))
+                    for key in update.get("$unset", {}):
+                        document.pop(key, None)
+                    for key, amount in update.get("$inc", {}).items():
+                        document[key] = document.get(key, 0) + amount
+                    connection.execute(
+                        "UPDATE gp_users SET password_hash = ?, extra_json = ? WHERE id = ?",
+                        (document["password_hash"], json.dumps(document, default=str), document["_id"]),
+                    )
+                    return SimpleNamespace(modified_count=1)
+                return SimpleNamespace(modified_count=0)
+        except sqlite3.IntegrityError as exc:
+            raise DuplicateKeyError("duplicate identity") from exc
+        except sqlite3.Error as exc:
+            raise AuthStorageError("Local authentication database is unavailable.") from exc
 
     @staticmethod
     def _serialize_datetime(value: Any) -> str:
@@ -162,6 +197,8 @@ class AuthService:
 
     @classmethod
     def from_settings(cls, settings: Any) -> "AuthService":
+        if settings.environment != "development" and (settings.auth_secret_key == "development-only-change-me" or len(settings.auth_secret_key) < 32):
+            raise AuthStorageError("A strong authentication secret is required.")
         if settings.environment == "development" and settings.auth_local_fallback_enabled:
             client = None
             try:
@@ -178,6 +215,8 @@ class AuthService:
 
     def ensure_indexes(self) -> None:
         self.collection.create_index([("username_normalized", ASCENDING)], unique=True)
+        for field in ("email_normalized", "google_sub"):
+            self.collection.create_index([(field, ASCENDING)], unique=True, partialFilterExpression={field: {"$type": "string"}})
 
     def signup(self, username: str, password: str) -> tuple[dict[str, Any], str]:
         username = username.strip()
@@ -205,11 +244,14 @@ class AuthService:
         return user, self.create_token(user)
 
     def login(self, username: str, password: str) -> tuple[dict[str, Any], str]:
-        document = self.collection.find_one({"username_normalized": username.strip().casefold()})
+        field = "email_normalized" if "@" in username else "username_normalized"
+        document = self.collection.find_one({field: username.strip().casefold()})
         if not document or not document.get("is_active", True) or not verify_password(password, document.get("password_hash", "")):
             raise AuthError("Invalid username or password.")
+        if document.get("email_verified") is False:
+            raise AuthError("Please verify your email before signing in.")
         user = {"id": str(document["_id"]), "username": document["username"], "role": document.get("role", "user")}
-        return user, self.create_token(user)
+        return user, self.create_token({**user, "session_version": document.get("session_version", 0)})
 
     def ensure_test_user(self, username: str, password: str) -> None:
         """Create the local-only test account once without resetting its password."""
@@ -241,6 +283,7 @@ class AuthService:
             "username": user["username"],
             "role": user.get("role", "user"),
             "exp": int(time.time()) + self.token_ttl_seconds,
+            "ver": user.get("session_version", 0),
         }
         encoded = _b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
         signature = _b64encode(hmac.new(self.secret_key, encoded.encode("ascii"), hashlib.sha256).digest())
@@ -253,12 +296,14 @@ class AuthService:
             if not hmac.compare_digest(supplied_signature, expected_signature):
                 raise AuthError("Invalid or expired session.")
             payload = json.loads(_b64decode(encoded))
-            if int(payload["exp"]) < int(time.time()):
+            if int(payload["exp"]) <= int(time.time()):
                 raise AuthError("Invalid or expired session.")
         except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
             raise AuthError("Invalid or expired session.") from exc
 
         document = self.collection.find_one({"username_normalized": str(payload["username"]).casefold()})
-        if not document or not document.get("is_active", True) or str(document["_id"]) != payload["sub"]:
+        if (not document or not document.get("is_active", True) or str(document["_id"]) != payload["sub"]
+                or document.get("email_verified") is False
+                or document.get("session_version", 0) != payload.get("ver", 0)):
             raise AuthError("Invalid or expired session.")
         return {"id": str(document["_id"]), "username": document["username"], "role": document.get("role", "user")}
