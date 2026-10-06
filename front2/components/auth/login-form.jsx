@@ -212,12 +212,13 @@ export default function LoginForm() {
               <div className="space-y-2">
                 <Label htmlFor="username" className="text-slate-200 flex items-center gap-2">
                   <User className="w-4 h-4" />
-                  Username
+                  Email or username
                 </Label>
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Enter your username"
+                  placeholder="Enter your email or username"
+                  autoComplete="username"
                   value={credentials.username}
                   onChange={(e) => setCredentials((prev) => ({ ...prev, username: e.target.value }))}
                   required
@@ -269,6 +270,10 @@ export default function LoginForm() {
                 )}
               </Button>
             </form>
+            <div className="flex justify-between text-sm text-cyan-400">
+              <Link href="/forgot-password">Forgot password?</Link>
+              <Link href="/resend-verification">Verify email</Link>
+            </div>
             
             {process.env.NODE_ENV !== "production" && (
               <div className="rounded-lg border border-slate-700/50 bg-slate-800/30 p-3 text-center text-sm text-slate-300">

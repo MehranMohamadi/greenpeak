@@ -12,6 +12,13 @@ export const endpoints = {
         signup: `${API_BASE}/auth/signup`,
         login: `${API_BASE}/auth/login`,
         me: `${API_BASE}/auth/me`,
+        session: `${API_BASE}/auth/session`,
+        migrateSession: `${API_BASE}/auth/session/migrate`,
+        logout: `${API_BASE}/auth/logout`,
+        verifyEmail: `${API_BASE}/auth/verify-email`,
+        resendVerification: `${API_BASE}/auth/resend-verification`,
+        forgotPassword: `${API_BASE}/auth/forgot-password`,
+        resetPassword: `${API_BASE}/auth/reset-password`,
     },
     news: {
         bootstrap: `${API_BASE}/news/bootstrap`,
