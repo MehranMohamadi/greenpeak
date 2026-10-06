@@ -105,6 +105,10 @@ class Settings(BaseSettings):
     auth_local_test_user_enabled: bool = True
     auth_local_test_username: str = "greenpeak"
     auth_local_test_password: str = "greenpeak"
+    auth_public_url: str = "http://localhost:3000"
+    auth_email_token_ttl_seconds: int = 3600
+    resend_api_key: str = ""
+    auth_email_from: str = ""
 
     # Persist the last validated narrative snapshot for local development so
     # read-only analysis pages remain usable while MongoDB is offline.
