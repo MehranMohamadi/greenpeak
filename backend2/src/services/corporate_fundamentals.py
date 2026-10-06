@@ -3,8 +3,10 @@
 The customer-facing series use two distinct source contracts:
 
 * S&P 500 operating EPS is read from the checked-in S&P Dow Jones workbook.
-* Revenue growth, profit margin, and ROA are calculated from SEC Company Facts
-  for the current State Street SPY holdings cohort by the offline ETL job.
+* Multpl's monthly real EPS and quarterly nominal sales growth are loaded from
+  manually refreshed CSV snapshots.
+* Profit margin and ROA are calculated from SEC Company Facts for the current
+  State Street SPY holdings cohort by the offline ETL job.
 
 This module contains no database writes.  Parsing and financial formulas stay
 pure so they can be tested without MongoDB or network access.
@@ -32,6 +34,9 @@ S_AND_P_EPS_URL = (
 )
 MULTPL_SP500_EARNINGS_URL = "https://www.multpl.com/s-p-500-earnings/table/by-month"
 MULTPL_SP500_EARNINGS_BASIS = "July 2026 dollars"
+MULTPL_SP500_SALES_GROWTH_URL = (
+    "https://www.multpl.com/s-p-500-sales-growth/table/by-quarter"
+)
 SEC_COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 CORPORATE_METHODOLOGY_VERSION = "sec_companyfacts_spy_current_cohort_v2"
 CORPORATE_FORMULA_VERSION = "1.0"
@@ -361,6 +366,90 @@ def load_multpl_sp500_real_eps(
     except (OSError, csv.Error, TypeError, ValueError) as exc:
         raise CorporateFundamentalsSourceError(
             "Multpl EPS snapshot could not be read"
+        ) from exc
+
+    return PublishedCorporateSeries(
+        points=tuple(points),
+        report_as_of=points[-1].date,
+        source_path=path,
+    )
+
+
+def load_multpl_sp500_sales_growth(
+    csv_path: Path | None = None,
+) -> PublishedCorporateSeries:
+    """Load Multpl's manually refreshed quarterly nominal sales growth.
+
+    The CSV contains Multpl's annual percentage change in trailing-12-month
+    S&P 500 sales per share. Append new quarter-end observations as they are
+    published; values are already growth rates and require no calculation.
+    """
+
+    path = (
+        csv_path
+        or get_settings().data_dir / "sp500-sales-growth-multpl-quarterly.csv"
+    )
+    quarter_end_month_days = {(3, 31), (6, 30), (9, 30), (12, 31)}
+    try:
+        with path.open("r", encoding="utf-8-sig", newline="") as source:
+            reader = csv.DictReader(source)
+            if reader.fieldnames != ["date", "value"]:
+                raise CorporateFundamentalsSourceError(
+                    "Multpl sales growth snapshot columns changed"
+                )
+
+            points: list[PublishedCorporatePoint] = []
+            previous_date: date | None = None
+            for row in reader:
+                try:
+                    observation_date = date.fromisoformat(row["date"])
+                    growth = float(row["value"])
+                except (TypeError, ValueError) as exc:
+                    raise CorporateFundamentalsSourceError(
+                        "Multpl sales growth snapshot contains an invalid observation"
+                    ) from exc
+
+                if not math.isfinite(growth):
+                    raise CorporateFundamentalsSourceError(
+                        "Multpl sales growth snapshot contains a non-finite value"
+                    )
+                if (
+                    observation_date.month,
+                    observation_date.day,
+                ) not in quarter_end_month_days:
+                    raise CorporateFundamentalsSourceError(
+                        "Multpl sales growth observations must use calendar quarter-end dates"
+                    )
+                if previous_date is not None:
+                    previous_quarter = (previous_date.year * 4) + (
+                        previous_date.month - 1
+                    ) // 3
+                    current_quarter = (observation_date.year * 4) + (
+                        observation_date.month - 1
+                    ) // 3
+                    if current_quarter != previous_quarter + 1:
+                        raise CorporateFundamentalsSourceError(
+                            "Multpl sales growth snapshot must contain consecutive quarterly observations"
+                        )
+
+                points.append(
+                    PublishedCorporatePoint(
+                        date=observation_date.isoformat(),
+                        value=growth,
+                        is_estimate=False,
+                    )
+                )
+                previous_date = observation_date
+
+        if len(points) < 4:
+            raise CorporateFundamentalsSourceError(
+                "Multpl sales growth snapshot returned insufficient quarterly observations"
+            )
+    except CorporateFundamentalsSourceError:
+        raise
+    except (OSError, csv.Error, TypeError, ValueError) as exc:
+        raise CorporateFundamentalsSourceError(
+            "Multpl sales growth snapshot could not be read"
         ) from exc
 
     return PublishedCorporateSeries(

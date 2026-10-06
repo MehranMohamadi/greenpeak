@@ -45,7 +45,7 @@ async def get_revenue_growth_data(
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
 ):
-    """Get SEC-backed aggregate revenue growth for the current SPY cohort."""
+    """Get Multpl's quarterly S&P 500 sales-per-share growth data."""
     try:
         return data_service.get_revenue_growth_data(
             limit=limit, start_date=start_date, end_date=end_date

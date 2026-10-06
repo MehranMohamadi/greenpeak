@@ -7,6 +7,7 @@ from src.services.corporate_fundamentals import (
     CORPORATE_METHODOLOGY_VERSION,
     build_sec_corporate_documents,
     extract_company_fundamentals,
+    load_multpl_sp500_sales_growth,
     load_sp500_operating_eps,
     load_sp500_operating_eps_ttm,
 )
@@ -101,6 +102,24 @@ def test_official_sp500_workbook_derives_reported_ttm_operating_eps():
     assert len(series.points) == len(quarterly.points) - 3
     assert series.points[-1].date == "2025-03-31"
     assert series.points[-1].value == pytest.approx(236.24)
+    assert series.points[-1].is_estimate is False
+
+
+def test_multpl_sales_growth_snapshot_is_quarterly_and_manual():
+    path = (
+        Path(__file__).parents[1]
+        / "src"
+        / "data"
+        / "raw"
+        / "sp500-sales-growth-multpl-quarterly.csv"
+    )
+
+    series = load_multpl_sp500_sales_growth(path)
+
+    assert len(series.points) == 96
+    assert series.points[0].date == "2001-12-31"
+    assert series.points[-1].date == "2025-09-30"
+    assert series.points[-1].value == pytest.approx(4.61)
     assert series.points[-1].is_estimate is False
 
 

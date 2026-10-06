@@ -28,9 +28,11 @@ from .corporate_fundamentals import (
     S_AND_P_EPS_URL,
     MULTPL_SP500_EARNINGS_URL,
     MULTPL_SP500_EARNINGS_BASIS,
+    MULTPL_SP500_SALES_GROWTH_URL,
     CorporateFundamentalsSourceError,
     load_sp500_operating_eps_ttm,
     load_multpl_sp500_real_eps,
+    load_multpl_sp500_sales_growth,
 )
 from .corporate_fundamentals_cache import load_corporate_aggregate_cache
 from .official_sentiment import (
@@ -3089,18 +3091,75 @@ class DataService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> DataResponse:
-        """Get aggregate SEC-filed revenue growth for the current SPY cohort."""
-        return self.get_corporate_earnings_data(
-            indicator_name="revenue_growth",
-            limit=limit,
-            start_date=start_date,
-            end_date=end_date,
-            description="Aggregate year-over-year revenue growth for a common current-SPY cohort",
-            unit="Percent",
-            frequency="quarterly",
-            source="SEC Company Facts + State Street SPY holdings",
-            symbol="SEC_COMPANYFACTS_SPY_CURRENT_CONSTITUENTS"
+        """Return Multpl's manually refreshed quarterly S&P 500 sales growth."""
+        description = (
+            "Annual percentage change in trailing-12-month S&P 500 sales per share; "
+            "nominal and not inflation-adjusted"
         )
+        transformation = (
+            "Multpl-published quarterly sales growth; source values are already "
+            "annual percentage changes in 12-month sales per share"
+        )
+        try:
+            series = load_multpl_sp500_sales_growth()
+            points = self._filter_transformed_points(
+                [
+                    EconomicDataPoint(
+                        time=int(
+                            datetime.fromisoformat(point.date)
+                            .replace(tzinfo=timezone.utc)
+                            .timestamp()
+                        ),
+                        date=point.date,
+                        value=point.value,
+                        rate=point.value,
+                    )
+                    for point in series.points
+                ],
+                limit,
+                start_date,
+                end_date,
+            )
+            metadata = self._build_metadata(
+                indicator_id="revenue_growth",
+                owner_group="corporate_fundamentals",
+                latest_value=points[-1].value if points else None,
+                latest_date=points[-1].date if points else None,
+                total_records=len(points),
+                description=description,
+                unit="Percent",
+                frequency="quarterly",
+                source="Multpl S&P 500 Sales Per Share Growth",
+                source_series_id="MULTPL_SP500_SALES_PER_SHARE_GROWTH",
+                population="S&P 500 index",
+                seasonal_adjustment="not_applicable",
+                transformation=transformation,
+                stale_after_days=185,
+                methodology_version="multpl_quarterly_sales_growth_v1",
+                formula_version="source_reported_value_v1",
+            )
+            metadata.source_provider = "Multpl"
+            metadata.source_url = MULTPL_SP500_SALES_GROWTH_URL
+            metadata.latest_observation_is_estimate = False if points else None
+            metadata.latest_observation_status = "source_published" if points else None
+            return DataResponse(data=points, metadata=metadata)
+        except CorporateFundamentalsSourceError:
+            response = self._unavailable_response(
+                indicator_id="revenue_growth",
+                owner_group="corporate_fundamentals",
+                description=description,
+                unit="Percent",
+                frequency="quarterly",
+                source="Multpl S&P 500 Sales Per Share Growth",
+                source_series_id="MULTPL_SP500_SALES_PER_SHARE_GROWTH",
+                quality_status="unavailable",
+                quality_reason="multpl_sales_growth_snapshot_unavailable_or_invalid",
+                transformation=transformation,
+                population="S&P 500 index",
+            )
+            response.metadata.source_provider = "Multpl"
+            response.metadata.source_url = MULTPL_SP500_SALES_GROWTH_URL
+            return response
 
     def get_profit_margins_data(
         self,

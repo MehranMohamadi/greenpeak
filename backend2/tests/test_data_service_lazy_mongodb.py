@@ -1,12 +1,9 @@
 import os
-from datetime import datetime
 import pytest
 
 os.environ["DEBUG"] = "false"
 
 from src.services.data_service import DataService
-from src.services.corporate_fundamentals import CORPORATE_METHODOLOGY_VERSION
-from src.services.corporate_fundamentals_cache import write_corporate_aggregate_cache
 from src.services.fred_public import (
     FredObservation,
     FredPublicSeries,
@@ -319,7 +316,7 @@ def test_consumer_confidence_fallback_only_accepts_matching_umcsent_documents():
     assert response.metadata.source_series_id == "UMCSENT"
 
 
-def test_empty_corporate_data_returns_valid_metadata(tmp_path):
+def test_revenue_growth_uses_multpl_snapshot_and_ignores_mongodb():
     service = make_service({
         "corporate_earnings": FakeCollection([
             {
@@ -331,110 +328,25 @@ def test_empty_corporate_data_returns_valid_metadata(tmp_path):
             }
         ])
     })
-    service.corporate_cache_path = tmp_path / "missing.json"
-
     response = service.get_revenue_growth_data()
 
-    assert response.data == []
-    assert response.metadata.total_records == 0
-    assert response.metadata.description.startswith("Aggregate year-over-year revenue growth")
-
-
-def test_empty_mongodb_uses_verified_corporate_file_cache(tmp_path):
-    metadata = {
-        "unit": "Percent",
-        "frequency": "quarterly",
-        "source": "SEC Company Facts + State Street SPY holdings",
-        "source_provider": "U.S. Securities and Exchange Commission; State Street Global Advisors",
-        "source_url": "https://data.sec.gov/api/xbrl/companyfacts/",
-        "source_series_id": "SEC_COMPANYFACTS_SPY_CURRENT_CONSTITUENTS",
-        "population": "Current SPY holdings cohort as of 2025-04-01",
-        "transformation": "verified test formula",
-        "methodology_version": CORPORATE_METHODOLOGY_VERSION,
-        "formula_version": "1.0",
-        "companies_expected": 500,
-        "companies_received": 450,
-        "coverage_pct": 90,
-        "missing_symbols_count": 50,
-        "missing_symbols": ["MISS"],
-        "holdings_as_of": "2025-04-01",
-        "latest_filing_date": "2025-05-01",
-        "proxy": True,
-    }
-    documents = [
-        {
-            "indicator": indicator,
-            "date": "2025-03-31",
-            "value": value,
-            "methodology_version": CORPORATE_METHODOLOGY_VERSION,
-            "updated_at": "2025-05-02T00:00:00",
-            "metadata": metadata,
-        }
-        for indicator, value in (
-            ("revenue_growth", 8.5),
-            ("profit_margins", 11.5),
-            ("return_on_assets", 7.5),
-        )
-    ]
-    cache_path = tmp_path / "corporate.json"
-    write_corporate_aggregate_cache(
-        documents,
-        holdings_as_of="2025-04-01",
-        built_at=datetime(2025, 5, 2),
-        cache_path=cache_path,
+    assert service.mongodb.requested == []
+    assert len(response.data) == 96
+    assert (response.data[-1].date, response.data[-1].value) == ("2025-09-30", 4.61)
+    assert response.metadata.source == "Multpl S&P 500 Sales Per Share Growth"
+    assert response.metadata.source_series_id == "MULTPL_SP500_SALES_PER_SHARE_GROWTH"
+    assert response.metadata.source_url == (
+        "https://www.multpl.com/s-p-500-sales-growth/table/by-quarter"
     )
-    service = make_service({
-        "corporate_earnings": FakeCollection([
-            {
-                "indicator": "revenue_growth",
-                "date": "2025-03-31",
-                "value": 999,
-                "methodology_version": "legacy_unverified_method",
-                "metadata": {"coverage_pct": 100},
-            }
-        ])
-    })
-    service.corporate_cache_path = cache_path
-
-    response = service.get_revenue_growth_data()
-
-    assert [(point.date, point.value) for point in response.data] == [
-        ("2025-03-31", 8.5)
-    ]
-    assert response.metadata.companies_received == 450
-    assert response.metadata.coverage_pct == 90
+    assert "not inflation-adjusted" in response.metadata.description
 
 
-def test_verified_corporate_limit_returns_latest_records_in_ascending_order():
-    documents = [
-        {
-            "indicator": "revenue_growth",
-            "date": f"202{year}-03-31",
-            "value": float(year),
-            "methodology_version": CORPORATE_METHODOLOGY_VERSION,
-            "metadata": {
-                "methodology_version": CORPORATE_METHODOLOGY_VERSION,
-                "formula_version": "1.0",
-                "coverage_pct": 90,
-                "companies_expected": 500,
-                "companies_received": 450,
-                "source": "SEC Company Facts + State Street SPY holdings",
-                "source_provider": "SEC; State Street",
-                "source_url": "https://data.sec.gov/api/xbrl/companyfacts/",
-                "transformation": "test formula",
-                "population": "Current SPY holdings cohort",
-                "proxy": True,
-            },
-        }
-        for year in range(2, 6)
-    ]
-    service = make_service({"corporate_earnings": FakeCollection(documents)})
-
+def test_revenue_growth_limit_returns_latest_records_in_ascending_order():
+    service = make_service({})
     response = service.get_revenue_growth_data(limit=2)
 
-    assert [point.date for point in response.data] == ["2024-03-31", "2025-03-31"]
-    assert response.metadata.companies_received == 450
-    assert response.metadata.coverage_pct == 90
+    assert [point.date for point in response.data] == ["2025-06-30", "2025-09-30"]
+    assert [point.value for point in response.data] == [4.83, 4.61]
 
 
 def test_sector_latest_uses_lazy_collection_accessor():

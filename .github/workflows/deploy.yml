@@ -74,7 +74,12 @@ jobs:
             prompts/greenpeak \
             | tar -xf - -C release-backend
           mkdir -p release-backend/backend2/src/data/raw
-          cp backend2/src/data/raw/sp500-earnings-multpl-monthly.csv \
+          cp \
+            backend2/src/data/raw/sp500-earnings-multpl-monthly.csv \
+            backend2/src/data/raw/sp500-sales-growth-multpl-quarterly.csv \
+            backend2/src/data/raw/sp500-price-to-book-multpl-quarterly.csv \
+            backend2/src/data/raw/sp500-price-to-sales-multpl-quarterly.csv \
+            backend2/src/data/raw/sp500-dividend-yield-multpl-monthly.csv \
             release-backend/backend2/src/data/raw/
           tar \
             --exclude='**/__pycache__' \

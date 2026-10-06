@@ -7,17 +7,21 @@ valuation data.
 
 from __future__ import annotations
 
+import csv
 from dataclasses import dataclass
 from datetime import datetime
 from html import unescape
 import math
 import re
+from pathlib import Path
 from threading import Lock
 from time import monotonic
 from typing import Callable, Dict, Optional, Tuple
 from urllib.parse import urljoin, urlparse
 
 import requests
+
+from ..core.config import get_settings
 
 
 USER_AGENT = "Mozilla/5.0 (compatible; GreenPeak/1.0; +https://greenpeak.tech)"
@@ -103,6 +107,103 @@ MULTPL_SERIES: Dict[str, _MultplDefinition] = {
         source_series_id="S&P 500 Earnings",
     ),
 }
+
+
+# These Multpl snapshots follow the same manual-refresh contract as the EPS
+# datasets: the checked-in CSV is the source used by the API, and future source
+# observations are appended manually.  Re-read these small files on each API
+# call so an appended row becomes visible without waiting for the live-source
+# cache or restarting the process.
+MANUAL_MULTPL_SNAPSHOT_FILES: Dict[str, str] = {
+    "price_to_book": "sp500-price-to-book-multpl-quarterly.csv",
+    "price_to_sales": "sp500-price-to-sales-multpl-quarterly.csv",
+    "dividend_yield": "sp500-dividend-yield-multpl-monthly.csv",
+}
+
+
+def load_manual_multpl_snapshot(
+    indicator_id: str, csv_path: Optional[Path] = None
+) -> PublishedValuationSeries:
+    """Load a manually maintained, verbatim Multpl table snapshot."""
+
+    definition = MULTPL_SERIES.get(indicator_id)
+    filename = MANUAL_MULTPL_SNAPSHOT_FILES.get(indicator_id)
+    if definition is None or filename is None:
+        raise ValuationSourceError(
+            f"No manual Multpl snapshot is configured for {indicator_id}"
+        )
+
+    path = csv_path or (get_settings().data_dir / filename)
+    try:
+        with path.open("r", encoding="utf-8-sig", newline="") as source:
+            reader = csv.DictReader(source)
+            if reader.fieldnames != ["date", "value", "is_estimate"]:
+                raise ValuationSourceError(
+                    f"{filename} must have date,value,is_estimate columns"
+                )
+
+            points = []
+            previous_date = None
+            for row in reader:
+                observation_date = row.get("date", "")
+                try:
+                    parsed_date = datetime.strptime(
+                        observation_date, "%Y-%m-%d"
+                    ).date()
+                    value = float(row.get("value", ""))
+                except (TypeError, ValueError) as exc:
+                    raise ValuationSourceError(
+                        f"{filename} contains an invalid observation"
+                    ) from exc
+                if not math.isfinite(value):
+                    raise ValuationSourceError(
+                        f"{filename} contains a non-finite value"
+                    )
+
+                estimate_text = (row.get("is_estimate") or "").strip().lower()
+                if estimate_text not in {"true", "false"}:
+                    raise ValuationSourceError(
+                        f"{filename} contains an invalid estimate flag"
+                    )
+                if previous_date is not None and parsed_date <= previous_date:
+                    raise ValuationSourceError(
+                        f"{filename} observations must be uniquely date-sorted"
+                    )
+
+                points.append(
+                    PublishedValuationPoint(
+                        date=parsed_date.isoformat(),
+                        value=value,
+                        is_estimate=estimate_text == "true",
+                    )
+                )
+                previous_date = parsed_date
+    except ValuationSourceError:
+        raise
+    except (OSError, csv.Error, TypeError, ValueError) as exc:
+        raise ValuationSourceError(
+            f"{filename} could not be read"
+        ) from exc
+
+    if len(points) < 2:
+        raise ValuationSourceError(f"{filename} has insufficient observations")
+
+    return PublishedValuationSeries(
+        indicator_id=definition.indicator_id,
+        points=tuple(points),
+        description=definition.description,
+        unit="percent" if indicator_id == "dividend_yield" else "ratio",
+        frequency=definition.frequency,
+        source="Multpl (manual snapshot)",
+        source_provider="Multpl",
+        source_url=definition.url,
+        source_series_id=definition.source_series_id,
+        population="S&P 500 index",
+        transformation=(
+            "verbatim published table values from the checked-in manual snapshot; "
+            "source-marked estimates are flagged; GreenPeak generates no observations"
+        ),
+    )
 
 
 def _plain_text(fragment: str) -> str:
@@ -296,6 +397,9 @@ class ValuationSourceClient:
         self._cache_lock = Lock()
 
     def get_series(self, indicator_id: str) -> PublishedValuationSeries:
+        if indicator_id in MANUAL_MULTPL_SNAPSHOT_FILES:
+            return load_manual_multpl_snapshot(indicator_id)
+
         with self._cache_lock:
             cached = self._cache.get(indicator_id)
             if cached and monotonic() - cached[0] < self._cache_ttl_seconds:
