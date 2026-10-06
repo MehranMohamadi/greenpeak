@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Eye, EyeOff, Lock, TrendingUp, User } from "lucide-react"
 import { useAuth } from "./auth-context"
@@ -11,8 +12,8 @@ import { Label } from "@/components/ui/label"
 
 export default function SignupForm() {
   const { signup } = useAuth()
+  const router = useRouter()
   const [form, setForm] = useState({ username: "", email: "", password: "", confirmPassword: "" })
-  const [message, setMessage] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -27,8 +28,11 @@ export default function SignupForm() {
     }
     setIsLoading(true)
     const result = await signup(form.username, form.email, form.password)
-    if (result.success) setMessage(result.message)
-    else setError(result.error)
+    if (result.success) {
+      router.replace("/check-email")
+      return
+    }
+    setError(result.error)
     setIsLoading(false)
   }
 
@@ -45,7 +49,6 @@ export default function SignupForm() {
           </div>
         </CardHeader>
         <CardContent>
-          {message && <p role="status" className="my-3 text-sm text-cyan-300">{message} <Link href="/resend-verification" className="underline">Resend verification email</Link></p>}
           <form onSubmit={handleSubmit} className="grid gap-3 sm:grid-cols-2">
             {error && <div role="alert" className="rounded-lg border border-red-400/30 bg-red-500/20 p-3 text-sm text-red-200 sm:col-span-2">{error}</div>}
             <div className="space-y-1.5 sm:col-span-2">
