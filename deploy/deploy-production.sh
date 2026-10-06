@@ -64,18 +64,34 @@ test -f "$release_root/front2/server.js"
 test -d "$release_root/front2/.next/static"
 test -f "$release_root/backend2/main.py"
 test -f "$release_root/backend2/requirements.txt"
-test -f "$release_root/backend2/src/data/raw/sp500-earnings-multpl-monthly.csv"
+for snapshot_name in \
+  sp500-earnings-multpl-monthly.csv \
+  sp500-sales-growth-multpl-quarterly.csv \
+  sp500-price-to-book-multpl-quarterly.csv \
+  sp500-price-to-sales-multpl-quarterly.csv \
+  sp500-dividend-yield-multpl-monthly.csv
+do
+  test -f "$release_root/backend2/src/data/raw/$snapshot_name"
+done
 test -f "$release_root/config/greenpeak/domains.yaml"
 test -f "$release_root/prompts/greenpeak/core_system.md"
 
 # Market source files are production data and are deliberately not shipped in
-# release archives, except the curated Multpl EPS snapshot required by this
-# release's new corporate earnings endpoint.
+# release archives, except the curated Multpl snapshots consumed directly by
+# the corporate earnings and valuation endpoints.
 legacy_raw_dir="$legacy_root/backend2/src/data/raw"
-eps_snapshot="$release_root/backend2/src/data/raw/sp500-earnings-multpl-monthly.csv"
-if [[ -f "$eps_snapshot" && -d "$legacy_raw_dir" ]]; then
-  install -m 644 "$eps_snapshot" \
-    "$legacy_raw_dir/sp500-earnings-multpl-monthly.csv"
+if [[ -d "$legacy_raw_dir" ]]; then
+  for snapshot_name in \
+    sp500-earnings-multpl-monthly.csv \
+    sp500-sales-growth-multpl-quarterly.csv \
+    sp500-price-to-book-multpl-quarterly.csv \
+    sp500-price-to-sales-multpl-quarterly.csv \
+    sp500-dividend-yield-multpl-monthly.csv
+  do
+    install -m 644 \
+      "$release_root/backend2/src/data/raw/$snapshot_name" \
+      "$legacy_raw_dir/$snapshot_name"
+  done
 fi
 
 if [[ -d "$legacy_raw_dir" ]]; then
