@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import SP500Dashboard from "@/components/analytics/SP500Dashboard"
+import { formatGregorianDate, formatGregorianTehranDateTime, GREGORIAN_PERSIAN_LOCALE, TEHRAN_TIME_ZONE } from "@/lib/date-format"
 
 const analysisTabClass = "flex h-full w-full items-center justify-center border border-transparent px-1.5 py-0 text-xs leading-none text-slate-500 transition sm:px-3 sm:text-sm dark:text-slate-400 data-[state=active]:border-cyan-500/50 data-[state=active]:bg-cyan-50 data-[state=active]:font-semibold data-[state=active]:text-cyan-900 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-cyan-500/15 dark:data-[state=active]:border-cyan-400/50 dark:data-[state=active]:bg-cyan-400/15 dark:data-[state=active]:text-cyan-100 dark:data-[state=active]:ring-cyan-400/15"
 
@@ -48,23 +49,20 @@ const uniqueFactors = (items) => {
 }
 
 const formatTime = (value) => {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(date)
+  return formatGregorianTehranDateTime(value)
 }
 
 const formatTehranTime = (value) => {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Tehran" }).format(date)
+  return formatGregorianTehranDateTime(value)
 }
 
 const formatTehranDate = (value) => {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeZone: "Asia/Tehran" }).format(date)
+  return formatGregorianDate(value)
 }
 
 const formatTehranClock = (value) => {
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("fa-IR", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tehran" }).format(date)
+  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat(GREGORIAN_PERSIAN_LOCALE, { hour: "2-digit", minute: "2-digit", timeZone: TEHRAN_TIME_ZONE }).format(date)
 }
 
 const displayValue = (value) => value === null || value === undefined || value === "" ? "—" : value
@@ -112,8 +110,8 @@ const fallbackNextAnalysisLabel = () => {
   }).formatToParts(new Date())
   const values = Object.fromEntries(parts.map(part => [part.type, part.value]))
   const afterDailyRun = Number(values.hour) >= 16
-  const scheduled = new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day) + (afterDailyRun ? 1 : 0), 16, 0))
-  return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(scheduled)
+  const scheduled = new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day) + (afterDailyRun ? 1 : 0), 12, 30))
+  return formatGregorianTehranDateTime(scheduled)
 }
 
 function HelpDialog({ title, item, children }) {

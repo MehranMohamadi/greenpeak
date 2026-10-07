@@ -55,6 +55,7 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
+        timeZone: "Asia/Tehran",
       }).format(lastUpdated)
     : null
 

@@ -5,7 +5,7 @@ import useIntermarketSymbol from "@/hooks/useIntermarketSymbol"
 import GroupAnalysisLayout from "./group-analysis-layout"
 
 const factors = [
-  { id: "broad-dollar", series: "DTWEXBGS", indicatorId: "broad_trade_weighted_dollar", title: "Broad Trade-Weighted U.S. Dollar", group: "Currencies", icon: DollarSign },
+  { id: "dxy", series: "DXY", indicatorId: "ice_us_dollar_index", title: "U.S. Dollar Index (DXY)", group: "Currencies", icon: DollarSign },
   { id: "gold", series: "GOLDAMGBD228NLBM", indicatorId: "gold_price", title: "Gold", group: "Commodities", icon: Coins },
   { id: "wti", series: "DCOILWTICO", indicatorId: "wti_crude_oil", title: "WTI Crude Oil", group: "Commodities", icon: Droplets },
   { id: "copper", series: "PCOPPUSDM", indicatorId: "copper_price", title: "Copper", group: "Commodities", icon: Globe2 },
@@ -38,7 +38,7 @@ function directionLabel(value) {
 
 function intermarketSummary(rows) {
   const byId = Object.fromEntries(rows.map((row) => [row.id, row]))
-  const dollar = byId["broad-dollar"]?.changePct
+  const dollar = byId.dxy?.changePct
   const commodities = [byId.gold?.changePct, byId.wti?.changePct, byId.copper?.changePct].filter(Number.isFinite)
   if (dollar == null || commodities.length < 2) return "برای جمع‌بندی بین‌بازاری هنوز داده هم‌زمان کافی از دلار و کالاها دریافت نشده است."
   const commodityAverage = commodities.reduce((sum, value) => sum + value, 0) / commodities.length
@@ -87,10 +87,10 @@ function IntermarketGroupAnalysis({ results }) {
 }
 
 export default function Intermarket() {
-  const dollar = useIntermarketSymbol("DTWEXBGS")
+  const dollar = useIntermarketSymbol("DXY")
   const gold = useIntermarketSymbol("GOLDAMGBD228NLBM")
   const wti = useIntermarketSymbol("DCOILWTICO")
   const copper = useIntermarketSymbol("PCOPPUSDM")
-  const results = { "broad-dollar": dollar, gold, wti, copper }
+  const results = { dxy: dollar, gold, wti, copper }
   return <GroupAnalysisLayout page="intermarket" title="Capital Flows & Intermarket" domainId="capital_flows_intermarket" factors={factors} periods={periods} results={results} getData={getData} getMetadata={getMetadata} getError={getError} slicePeriod={slicePeriod} formatValue={(value) => Number.isFinite(value) ? new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value) : "N/A"} domainAnalysis={<IntermarketGroupAnalysis results={results} />} />
 }

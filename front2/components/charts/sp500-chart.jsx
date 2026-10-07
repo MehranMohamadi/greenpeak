@@ -2,7 +2,50 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useTheme } from "next-themes"
-import { createChart } from "lightweight-charts"
+import { createChart, TickMarkType } from "lightweight-charts"
+
+const GREGORIAN_PERSIAN_LOCALE = "fa-IR-u-ca-gregory"
+const TEHRAN_TIME_ZONE = "Asia/Tehran"
+
+const chartDateFormatter = new Intl.DateTimeFormat(GREGORIAN_PERSIAN_LOCALE, {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  timeZone: TEHRAN_TIME_ZONE,
+})
+const chartTimeFormatter = new Intl.DateTimeFormat(GREGORIAN_PERSIAN_LOCALE, {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: TEHRAN_TIME_ZONE,
+})
+const chartDateTimeFormatter = new Intl.DateTimeFormat(GREGORIAN_PERSIAN_LOCALE, {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: TEHRAN_TIME_ZONE,
+})
+
+function toChartDate(time) {
+  if (typeof time === "number") return new Date(time * 1000)
+  if (typeof time === "string") return new Date(`${time}T00:00:00Z`)
+  if (time && typeof time === "object") {
+    return new Date(Date.UTC(time.year, time.month - 1, time.day))
+  }
+  return new Date(Number.NaN)
+}
+
+function formatChartTime(time) {
+  const date = toChartDate(time)
+  return Number.isNaN(date.getTime()) ? "" : chartDateTimeFormatter.format(date)
+}
+
+function formatChartTick(time, tickMarkType) {
+  const date = toChartDate(time)
+  if (Number.isNaN(date.getTime())) return ""
+  if (tickMarkType === TickMarkType.Time || tickMarkType === TickMarkType.TimeWithSeconds) {
+    return chartTimeFormatter.format(date)
+  }
+  return chartDateFormatter.format(date)
+}
 
 /**
  * @typedef {Object} SP500Candle
@@ -58,6 +101,10 @@ export default function SP500Chart({ data = [], className = "h-[420px] w-full sm
       const chart = createChart(container, {
         width: container.clientWidth || 800,
         height: container.clientHeight || 500,
+        localization: {
+          locale: GREGORIAN_PERSIAN_LOCALE,
+          timeFormatter: formatChartTime,
+        },
         layout: {
           background: {
             type: "solid",
@@ -76,6 +123,7 @@ export default function SP500Chart({ data = [], className = "h-[420px] w-full sm
         timeScale: {
           timeVisible: true,
           secondsVisible: false,
+          tickMarkFormatter: formatChartTick,
           borderColor: isDarkTheme ? "#334155" : "#e2e8f0",
           rightOffset: 4,
           barSpacing: 6,

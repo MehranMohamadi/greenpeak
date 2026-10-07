@@ -24,13 +24,25 @@ const SERIES = {
     transformation: "source index level",
     fred_source: "Board of Governors of the Federal Reserve System via FRED",
     fred_max_age_days: 14,
+  },
+  DXY: {
+    indicator_id: "ice_us_dollar_index",
+    title: "ICE U.S. Dollar Index (DXY)",
+    unit: "index points",
+    frequency: "daily",
+    population: "Fixed basket of six major currencies",
+    seasonal_adjustment: "not applicable",
+    transformation: "ICE U.S. Dollar Index futures quote",
+    yahoo_first: true,
     yahoo_symbol: "DX-Y.NYB",
-    yahoo_title: "U.S. Dollar Index Futures",
+    yahoo_title: "ICE U.S. Dollar Index (DXY)",
     yahoo_metadata: {
-      indicator_id: "us_dollar_index_futures",
+      indicator_id: "ice_us_dollar_index",
       unit: "index points",
-      population: "ICE U.S. Dollar Index basket of six currencies",
+      population: "Fixed basket of six major currencies",
       seasonal_adjustment: "not applicable",
+      data_provider: "ICE Data Services",
+      source_delay_minutes: 30,
     },
   },
   GOLDAMGBD228NLBM: {
@@ -88,7 +100,7 @@ function isFresh(data, maximumAgeDays) {
 }
 
 async function fetchFred(series, definition, range, apiKey) {
-  if (!apiKey) return null
+  if (!apiKey || !definition.fred_source) return null
   const params = new URLSearchParams({
     series_id: series,
     api_key: apiKey,
@@ -158,7 +170,9 @@ async function fetchYahoo(definition, range) {
     data,
     metadata: {
       ...definition.yahoo_metadata,
-      source: "Yahoo Finance",
+      source: definition.yahoo_metadata?.source_delay_minutes
+        ? `Yahoo Finance (ICE Data Services; ${definition.yahoo_metadata.source_delay_minutes}-minute delay)`
+        : "Yahoo Finance",
       source_provider: "Yahoo Finance",
       source_series_id: definition.yahoo_symbol,
       source_url: `https://finance.yahoo.com/quote/${encodeURIComponent(definition.yahoo_symbol)}`,
@@ -180,18 +194,20 @@ export async function GET(req) {
   }
 
   try {
-    const result = await fetchFred(series, definition, range, process.env.FRED_API_KEY)
-      || await fetchYahoo(definition, range)
+    const result = definition.yahoo_first
+      ? await fetchYahoo(definition, range)
+      : await fetchFred(series, definition, range, process.env.FRED_API_KEY)
+        || await fetchYahoo(definition, range)
 
     if (!result) {
-      const reason = process.env.FRED_API_KEY
+      const reason = process.env.FRED_API_KEY && definition.fred_source
         ? "Verified upstream sources did not return valid observations."
-        : "FRED_API_KEY is not configured and no verified fallback returned data."
+        : "No verified upstream source returned data."
       return Response.json({ error: reason }, { status: 503 })
     }
 
     const observationDate = result.data.at(-1)?.date || null
-    const { fred_source, fred_max_age_days, yahoo_symbol, yahoo_title, yahoo_metadata, ...publicDefinition } = definition
+    const { fred_source, fred_max_age_days, yahoo_first, yahoo_symbol, yahoo_title, yahoo_metadata, ...publicDefinition } = definition
     return Response.json({
       series,
       data: result.data,
@@ -203,7 +219,7 @@ export async function GET(req) {
         retrieved_at: new Date().toISOString(),
         quality_status: result.data.length > 0 ? "available" : "unavailable",
         quality_reason: result.data.length > 0 ? null : "no_valid_observations",
-        data_version: "2.1",
+        data_version: "2.2",
       },
     }, {
       headers: {

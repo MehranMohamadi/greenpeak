@@ -45,7 +45,7 @@ const marketSeries = [
   {
     id: "dollar-index",
     symbol: "شاخص دلار",
-    url: "/api/intermarket?series=DTWEXBGS&range=1mo",
+    url: "/api/intermarket?series=DXY&range=1mo",
     decimals: 2,
   },
   {
@@ -107,7 +107,7 @@ function formatChange(value, decimals = 2) {
 }
 
 function formatObservationDate(timestamp) {
-  return new Intl.DateTimeFormat("fa-IR", {
+  return new Intl.DateTimeFormat("fa-IR-u-ca-gregory", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

@@ -112,7 +112,7 @@ export const indicatorOwnership = {
   valuation: ["sp500_pe", "earnings_yield", "dividend_yield"],
   market_internals: ["sector_performance", "index_concentration", "style_composition"],
   sentiment: ["VIXCLS", "spx_put_call_ratio", "aaii_bull_bear_spread", "cftc_sp500_positioning", "vix_term_structure"],
-  intermarket: ["DTWEXBGS", "GOLDAMGBD228NLBM", "DCOILWTICO", "PCOPPUSDM"],
+  intermarket: ["DXY", "GOLDAMGBD228NLBM", "DCOILWTICO", "PCOPPUSDM"],
 }
 
 // Compatibility export for older analysis components.

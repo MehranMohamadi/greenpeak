@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { ExternalLink, Loader2, Newspaper } from "lucide-react"
 import { endpoints } from "@/api/api"
+import { formatGregorianTehranDateTime } from "@/lib/date-format"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -14,8 +15,7 @@ const SOURCES = [
 ]
 
 function formatTime(value) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(date)
+  return formatGregorianTehranDateTime(value)
 }
 
 const formatScore = (value) => typeof value === "number" ? value.toFixed(3) : "—"

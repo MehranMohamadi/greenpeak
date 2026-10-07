@@ -5,6 +5,7 @@ import { ArrowLeft, CircleAlert, ExternalLink, GitBranch, HelpCircle, Loader2, N
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatGregorianTehranDateTime } from "@/lib/date-format"
 
 const directionConfig = {
   up: { label: "صعودی", className: "border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300", Icon: TrendingUp },
@@ -17,8 +18,7 @@ const confidenceLabels = { low: "اطمینان کم", medium: "اطمینان �
 const evidenceLabels = { reported: "واقعیت منبع", derived: "استنباط تحلیلی", unknown: "نامشخص" }
 
 function formatTime(value) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(date)
+  return formatGregorianTehranDateTime(value)
 }
 
 function DirectionBadge({ direction = "unclear" }) {
