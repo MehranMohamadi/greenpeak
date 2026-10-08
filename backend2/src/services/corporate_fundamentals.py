@@ -1173,15 +1173,25 @@ def build_sec_corporate_documents(
                 ):
                     continue
                 if any(
-                    starts[position] != ends[position - 1] + timedelta(days=1)
+                    not 0 <= (starts[position] - ends[position - 1] - timedelta(days=1)).days <= 3
                     for position in range(1, 4)
                 ):
                     continue
                 ttm_days = (ends[-1] - starts[0]).days + 1
                 if not 330 <= ttm_days <= 400:
                     continue
-                beginning_date = (starts[0] - timedelta(days=1)).isoformat()
-                beginning_assets = company.assets_by_date.get(beginning_date)
+                beginning_target = starts[0] - timedelta(days=1)
+                beginning_candidates = [
+                    (observation_date, observation)
+                    for observation_date, observation in company.assets_by_date.items()
+                    if date.fromisoformat(observation_date) <= beginning_target
+                    and (beginning_target - date.fromisoformat(observation_date)).days <= 7
+                ]
+                beginning_assets = (
+                    max(beginning_candidates, key=lambda item: item[0])[1]
+                    if beginning_candidates
+                    else None
+                )
                 ending_assets = company.assets_by_date.get(ends[-1].isoformat())
                 if not beginning_assets or not ending_assets:
                     continue
