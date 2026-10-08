@@ -387,12 +387,16 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
   }, [])
 
   useEffect(() => {
-    if (tab === "comparison" && !comparison && !comparisonLoading && !comparisonError) loadComparison()
-  }, [tab, comparison, comparisonLoading, comparisonError, loadComparison])
+    if ((accessToken || tab === "comparison") && !comparison && !comparisonLoading && !comparisonError) loadComparison()
+  }, [tab, accessToken, comparison, comparisonLoading, comparisonError, loadComparison])
 
   const tabs = [
     { id: "accounts", label: "حساب‌های من", count: snapshots.length },
-    { id: "comparison", label: "مقایسه بروکرها", count: comparison?.eligible_broker_count },
+    {
+      id: "comparison",
+      label: "مقایسه بروکرها",
+      count: comparison?.eligible_broker_count ?? (comparisonLoading || (accessToken && !comparisonError) ? "…" : "—"),
+    },
   ]
 
   return <Card className={`${tradingCardClass} !h-[16rem] xl:col-span-2`}>

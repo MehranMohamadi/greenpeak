@@ -55,6 +55,11 @@ class ResetRequest(LinkRequest):
     password: str = Field(min_length=8, max_length=128)
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class MessageResponse(BaseModel):
     message: str
     verification_required: bool = False
@@ -160,6 +165,19 @@ def require_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
     try:
         return service.user_from_token(credentials.credentials)
+    except (AuthError, AuthStorageError, PyMongoError) as exc:
+        raise auth_failure(exc) from exc
+
+
+@router.post("/change-password", response_model=MessageResponse, dependencies=[Depends(limit_auth_requests)])
+def change_password(
+    body: ChangePasswordRequest,
+    user: Annotated[dict, Depends(require_user)],
+    service: Annotated[AuthService, Depends(get_auth_service)],
+):
+    try:
+        service.change_password(user["username"], body.current_password, body.new_password)
+        return MessageResponse(message="Password updated successfully.")
     except (AuthError, AuthStorageError, PyMongoError) as exc:
         raise auth_failure(exc) from exc
 

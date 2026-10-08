@@ -109,6 +109,7 @@ class Settings(BaseSettings):
     auth_email_token_ttl_seconds: int = 3600
     resend_api_key: str = ""
     auth_email_from: str = ""
+    support_contact_email: str = "greenpeak.fin@gmail.com"
 
     # Persist the last validated narrative snapshot for local development so
     # read-only analysis pages remain usable while MongoDB is offline.

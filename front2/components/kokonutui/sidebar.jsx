@@ -10,7 +10,7 @@ import { useSidebarHover } from "@/app/context/sidebar-hover-context";
 
 const markets = [{ ...US_MARKET, children: marketAnalysisCategories.map((category) => ({ ...category, href: `/analytics/${category.page}` })) }];
 let marketExpansionState = { [US_MARKET.id]: true };
-const hrefs = ["/", "/help", "/analytics/events", ...markets.flatMap((market) => [market.href, ...market.children.map((child) => child.href)])];
+const hrefs = ["/", "/support", "/analytics/events", ...markets.flatMap((market) => [market.href, ...market.children.map((child) => child.href)])];
 const focusStyle = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 const USIcon = () => <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-current text-[10px] font-bold">US</span>;
 

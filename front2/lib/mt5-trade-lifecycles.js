@@ -167,8 +167,6 @@ function buildLifecycle(snapshot, positionId, position, deals) {
   const exitCommissionIncluded = status === "closed" || Boolean(valueOf(position, ["exit_commission_included", "estimated_exit_commission_included"]))
   const stopLoss = numeric(valueOf(position, ["stop_loss", "sl"]))
   const takeProfit = numeric(valueOf(position, ["take_profit", "tp"]))
-  const riskLabel = status === "closed" ? "—" : stopLoss && stopLoss > 0 ? "Stop فعال" : "بدون Stop"
-  const statusLabel = status === "closed" ? "بسته‌شده" : status === "partial" ? "بخشی بسته‌شده" : "باز"
   const positionSource = position || {}
 
   return {
@@ -178,8 +176,6 @@ function buildLifecycle(snapshot, positionId, position, deals) {
     direction,
     directionLabel: direction === "long" ? "Long" : direction === "short" ? "Short" : "نامشخص",
     status,
-    statusLabel,
-    riskLabel,
     volume: status === "closed" ? openingVolume || closingVolume || null : positionVolume ?? Math.max(openingVolume - closingVolume, 0),
     openTime,
     closeTime,
@@ -261,9 +257,20 @@ export function formatTradeNumber(value, maximumFractionDigits = 5, minimumFract
 
 export function formatTradeTime(value) {
   if (value === null || value === undefined) return "—"
-  const date = new Date(value)
+  const numericValue = typeof value === "number" || /^\d+$/.test(String(value).trim()) ? Number(value) : null
+  const normalizedValue = numericValue === null ? value : numericValue < 1e12 ? numericValue * 1000 : numericValue
+  const date = new Date(normalizedValue)
   if (Number.isNaN(date.getTime())) return "—"
-  return date.toLocaleString("fa-IR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "Asia/Tehran",
+  }).formatToParts(date).map((part) => [part.type, part.value]))
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`
 }
 
 export function formatHoldingDuration(durationMs) {

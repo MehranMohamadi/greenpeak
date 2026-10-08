@@ -253,6 +253,25 @@ class AuthService:
         user = {"id": str(document["_id"]), "username": document["username"], "role": document.get("role", "user")}
         return user, self.create_token({**user, "session_version": document.get("session_version", 0)})
 
+    def change_password(self, username: str, current_password: str, new_password: str) -> None:
+        normalized_username = username.strip().casefold()
+        document = self.collection.find_one({"username_normalized": normalized_username})
+        if not document or not document.get("is_active", True):
+            raise AuthError("Account not found.")
+        if not verify_password(current_password, document.get("password_hash", "")):
+            raise AuthError("Current password is incorrect.")
+        if len(new_password) < 8 or len(new_password) > 128:
+            raise AuthError("New password must be between 8 and 128 characters.")
+        if verify_password(new_password, document.get("password_hash", "")):
+            raise AuthError("Choose a password different from your current password.")
+
+        result = self.collection.update_one(
+            {"_id": document["_id"]},
+            {"$set": {"password_hash": hash_password(new_password), "updated_at": datetime.now(timezone.utc)}},
+        )
+        if not result.modified_count:
+            raise AuthStorageError("Password could not be updated.")
+
     def ensure_test_user(self, username: str, password: str) -> None:
         """Create the local-only test account once without resetting its password."""
         normalized = username.casefold()

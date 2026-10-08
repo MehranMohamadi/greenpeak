@@ -2,7 +2,6 @@ import Layout from "@/components/kokonutui/layout"
 import CustomizationPanel from "@/components/dashboard/customization-panel"
 import WatchlistManager from "@/components/dashboard/watchlist-manager"
 import DashboardThemes from "@/components/dashboard/dashboard-themes"
-import MT5Pairing from "@/components/dashboard/mt5-pairing"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -28,9 +27,9 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <LayoutIcon className="h-5 w-5" />
-                Layout & Alerts
+                Layout Customization
               </CardTitle>
-              <CardDescription>Customize dashboard components and set up alerts</CardDescription>
+              <CardDescription>Customize dashboard components and layout</CardDescription>
             </CardHeader>
             <CardContent>
               <CustomizationPanel />
@@ -69,10 +68,6 @@ export default function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
-
-          <div className="lg:col-span-2">
-            <MT5Pairing />
-          </div>
         </div>
 
         {/* Watchlist Manager */}

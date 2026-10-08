@@ -225,6 +225,7 @@ export function previewTrade(snapshot, draft, rules, openRisk) {
   const entry = finiteNumber(draft?.entryPrice)
   const stop = finiteNumber(draft?.stopLoss)
   const target = finiteNumber(draft?.takeProfit)
+  const volume = finiteNumber(draft?.volume)
   const risk = stopRisk({
     direction: draft?.direction,
     entryPrice: entry,
@@ -250,12 +251,34 @@ export function previewTrade(snapshot, draft, rules, openRisk) {
 
   const checks = [
     {
+      key: "inputs",
+      label: "اطلاعات پایه معامله",
+      status: normalizeSymbol(draft?.symbol) && entry != null && entry > 0 && volume != null && volume > 0 ? "pass" : "fail",
+      detail: !normalizeSymbol(draft?.symbol)
+        ? "نماد انتخاب نشده است"
+        : entry == null || entry <= 0
+          ? "قیمت ورود معتبر نیست"
+          : volume == null || volume <= 0
+            ? "حجم معامله معتبر نیست"
+            : "نماد، قیمت ورود و حجم ثبت شده‌اند",
+    },
+    {
       key: "stop",
       label: "حد ضرر معتبر",
       status: risk.status === "available" ? "pass" : "fail",
       detail: risk.reason || "حد ضرر با جهت معامله سازگار است",
     },
   ]
+  checks.push({
+    key: "target",
+    label: "هدف معتبر",
+    status: target == null || target <= 0 ? "unknown" : rewardDistance != null && rewardDistance > 0 ? "pass" : "fail",
+    detail: target == null || target <= 0
+      ? "هدف سود ثبت نشده است"
+      : rewardDistance != null && rewardDistance > 0
+        ? "هدف با جهت معامله سازگار است"
+        : "جای هدف با جهت معامله سازگار نیست",
+  })
   const maxTradeRisk = positiveRule(rules?.maxTradeRiskPct)
   checks.push({
     key: "trade-risk",
@@ -282,6 +305,116 @@ export function previewTrade(snapshot, draft, rules, openRisk) {
       : checks.some((check) => check.status === "unknown")
         ? "review"
         : "compatible",
+  }
+}
+
+function meaningfulText(value) {
+  return String(value || "").trim().replace(/\s+/g, " ")
+}
+
+function wordCount(value) {
+  const text = meaningfulText(value)
+  return text ? text.split(" ").length : 0
+}
+
+export function buildTradeReview(snapshot, draft, rules, openRisk) {
+  const review = previewTrade(snapshot, draft, rules, openRisk)
+  const risks = []
+  const strengths = []
+  const limitations = []
+  const rationale = meaningfulText(draft?.rationale)
+  const invalidation = meaningfulText(draft?.invalidation)
+  const setup = meaningfulText(draft?.setup)
+  const mentalState = meaningfulText(draft?.mentalState)
+  const history = analyzeTradeHistory(snapshot)
+  const freshness = freshnessSummary(snapshot)
+  const maxTrades = positiveRule(rules?.maxTradesPerDay)
+  const dailyLossLimitPct = positiveRule(rules?.dailyLossLimitPct)
+  const equity = finiteNumber(snapshot?.account?.equity)
+  const dailyLossLimit = dailyLossLimitPct != null && equity != null && equity > 0
+    ? equity * dailyLossLimitPct / 100
+    : null
+
+  if (wordCount(rationale) < 8) {
+    risks.push("منطق ورود کوتاه یا ناکافی است؛ شواهد قابل سنجش، تایم‌فریم و دلیل انتخاب نقطه ورود را روشن‌تر ثبت کنید.")
+  } else {
+    strengths.push("برای منطق ورود توضیح نسبتاً کافی ثبت شده است؛ کیفیت خود تحلیل همچنان نیازمند قضاوت معامله‌گر است.")
+  }
+
+  if (wordCount(invalidation) < 5) {
+    risks.push("شرط ابطال سناریو دقیق نیست؛ رویداد یا سطحی را مشخص کنید که با وقوع آن دیگر نباید در معامله بمانید.")
+  } else {
+    strengths.push("شرط ابطال سناریو ثبت شده است.")
+  }
+
+  if (!setup || setup.length < 3) risks.push("ستاپ معامله مشخص نشده یا بیش از حد کلی است.")
+
+  if (review.rewardRisk == null) {
+    risks.push("نسبت سود به زیان قابل محاسبه نیست؛ قیمت ورود، حد ضرر و هدف را بررسی کنید.")
+  } else if (review.rewardRisk < 1) {
+    risks.push(`نسبت سود به زیان ${review.rewardRisk.toFixed(2)} است و زیان برنامه‌ریزی‌شده از سود هدف بیشتر است.`)
+  } else if (review.rewardRisk < 1.5) {
+    risks.push(`نسبت سود به زیان ${review.rewardRisk.toFixed(2)} است؛ حاشیه پاداش نسبت به ریسک محدود است.`)
+  } else {
+    strengths.push(`نسبت سود به زیان برنامه‌ریزی‌شده ${review.rewardRisk.toFixed(2)} است.`)
+  }
+
+  if (freshness.stale) {
+    risks.push(freshness.ageMinutes == null
+      ? "زمان Snapshot حساب معتبر نیست و بررسی بر داده تازه تکیه ندارد."
+      : `Snapshot حساب حدود ${Math.round(freshness.ageMinutes)} دقیقه قدیمی است؛ قیمت، Equity و ریسک باز ممکن است تغییر کرده باشند.`)
+  }
+
+  if (!openRisk?.complete) {
+    limitations.push("ریسک همه پوزیشن‌های باز قابل محاسبه نیست؛ بنابراین ریسک کل پس از این معامله ممکن است کمتر از مقدار واقعی دیده شود.")
+  }
+
+  const sameSymbolPositions = (snapshot?.positions || []).filter(
+    (position) => normalizeSymbol(position?.symbol) === normalizeSymbol(draft?.symbol),
+  )
+  if (sameSymbolPositions.length) {
+    risks.push(`${sameSymbolPositions.length} پوزیشن باز روی همین نماد وجود دارد؛ هم‌جهتی و تمرکز ریسک را جداگانه بررسی کنید.`)
+  }
+
+  if (maxTrades != null && history.todayEntryCount >= maxTrades) {
+    risks.push(`تعداد ورودهای امروز (${history.todayEntryCount}) به سقف برنامه روزانه (${maxTrades}) رسیده است.`)
+  } else if (maxTrades == null) {
+    limitations.push("سقف تعداد معاملات روزانه تعیین نشده است.")
+  }
+
+  if (dailyLossLimit != null && history.realizedLossUsed >= dailyLossLimit) {
+    risks.push("سقف زیان روزانه پر شده یا از آن عبور کرده است.")
+  } else if (dailyLossLimitPct == null) {
+    limitations.push("سقف زیان روزانه تعیین نشده است.")
+  }
+
+  if (!positiveRule(rules?.maxTradeRiskPct)) limitations.push("سقف ریسک هر معامله تعیین نشده است.")
+  if (!positiveRule(rules?.maxOpenRiskPct)) limitations.push("سقف ریسک کل باز تعیین نشده است.")
+
+  if (/عجول|انتقام|جبران|خشم|استرس|اضطراب|پس از زیان|بعد از زیان/i.test(mentalState)) {
+    risks.push("وضعیت ذهنی ثبت‌شده می‌تواند احتمال تصمیم عجولانه یا معامله جبرانی را افزایش دهد؛ پیش از اجرا مکث و بازبینی مستقل انجام دهید.")
+  } else if (!mentalState) {
+    limitations.push("وضعیت ذهنی ثبت نشده است؛ این مورد اختیاری است اما برای کنترل رفتار معاملاتی مفید است.")
+  }
+
+  if (draft?.orderType === "PENDING") {
+    limitations.push("در سفارش در انتظار، فاصله قیمت اجرا و لغزش احتمالی پس از فعال‌شدن در این محاسبه لحاظ نشده است.")
+  }
+  limitations.push("لغزش، گپ، نقدشوندگی و کمیسیون خروجِ ناشناخته در برآورد عددی لحاظ نشده‌اند.")
+
+  const failedChecks = review.checks.filter((check) => check.status === "fail").length
+  const unknownChecks = review.checks.filter((check) => check.status === "unknown").length
+  const summary = failedChecks
+    ? `این معامله ${failedChecks} کنترل ناسازگار دارد و پیش از اجرا باید اصلاح شود.`
+    : unknownChecks
+      ? `کنترل عددی ناسازگار ثبت نشده، اما ${unknownChecks} مورد به داده یا تصمیم تکمیلی نیاز دارد.`
+      : risks.length
+        ? "کنترل‌های عددی عبور کرده‌اند، اما نکات کیفی و زمینه‌ای زیر هنوز نیازمند توجه‌اند."
+        : "بر اساس اطلاعات فعلی، کنترل‌های عددی و کیفی اصلی مانع مشخصی نشان نمی‌دهند."
+
+  return {
+    ...review,
+    analysis: { summary, risks, strengths, limitations },
   }
 }
 

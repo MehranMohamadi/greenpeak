@@ -20,8 +20,10 @@ const routeLabels = {
   "/analytics/events": "News & Events",
   "/analytics/feature-pipeline-debug": "Feature Pipeline JSON",
   "/analytics/mt5-snapshots": "MetaTrader Snapshot JSON",
+  "/profile": "Profile",
   "/settings": "Settings",
-  "/help": "راهنما",
+  "/help": "Support",
+  "/support": "Support",
   "/test-charts": "Test Charts",
   "/fun": "حیاط",
 };

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { Bell, CreditCard, FileText, LogOut, Settings, User } from "lucide-react";
+import { FileText, LogOut, Settings, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-context";
@@ -17,9 +17,7 @@ import {
 
 const SAMPLE_PROFILE_DATA = {
     name: "Admin User",
-    email: "admin@greenpeak.com",
     avatar: "/user-icon.jpg",
-    subscription: "Premium",
     role: "System Administrator",
 };
 
@@ -45,25 +43,15 @@ export default function ProfileDropdown({
         ...data,
         name: user.username,
         role: user.role === 'admin' ? 'System Administrator' : 'User',
-        email: user.role === 'admin' ? 'admin@greenpeak.com' : 'user@greenpeak.com'
     } : data;
+    const isPremium = user?.is_premium === true || ["premium", "pro"].includes(String(user?.subscription ?? user?.plan ?? "").toLowerCase());
+    const subscriptionLabel = isPremium ? "Premium" : "Free";
 
     const menuItems = [
         {
             label: "Profile",
-            href: "#",
+            href: "/profile",
             icon: <User className="w-4 h-4" />,
-        },
-        {
-            label: "Subscription",
-            value: profileData.subscription,
-            href: "#",
-            icon: <CreditCard className="w-4 h-4" />,
-        },
-        {
-            label: "Notifications",
-            href: "#",
-            icon: <Bell className="w-4 h-4" />,
         },
         {
             label: "Settings",
@@ -71,8 +59,8 @@ export default function ProfileDropdown({
             icon: <Settings className="w-4 h-4" />,
         },
         {
-            label: "Help & Support",
-            href: "/help",
+            label: "Support",
+            href: "/support",
             icon: <FileText className="w-4 h-4" />,
         },
     ];
@@ -166,9 +154,19 @@ export default function ProfileDropdown({
                                     </div>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-                                        {profileData.name}
-                                    </p>
+                                    <div className="flex min-w-0 items-center gap-2">
+                                        <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                                            {profileData.name}
+                                        </p>
+                                        <span className={cn(
+                                            "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                                            isPremium
+                                                ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                                : "border-zinc-300 bg-zinc-100 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                                        )}>
+                                            {subscriptionLabel}
+                                        </span>
+                                    </div>
                                     <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
                                         {profileData.role}
                                     </p>

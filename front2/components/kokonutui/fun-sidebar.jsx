@@ -43,7 +43,7 @@ export default function FunSidebar() {
   const { hoveredItem, setHoveredItem, selectedRightItem, setSelectedRightItem } = useSidebarHover();
   const activeHref = getActiveNavHref(pathname, funHrefs);
   const isFunRoute = activeHref !== null;
-  const isHelpActive = pathname === "/help" || pathname.startsWith("/help/");
+  const isSupportActive = pathname === "/support" || pathname.startsWith("/support/");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMashhadOpen, setIsMashhadOpen] = useState(false);
   const showLabels = isMobileMenuOpen;
@@ -129,10 +129,10 @@ export default function FunSidebar() {
             </div>
           </div>
           <div className="shrink-0 border-t border-gray-200 bg-white px-2 py-2 dark:border-[#1F1F23] dark:bg-[#0F0F12]">
-            <Link href="/help" aria-label="راهنما" aria-current={isHelpActive ? "page" : undefined} title="راهنما" onClick={() => setIsMobileMenuOpen(false)} className={`relative flex h-9 min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors ${itemFocus} ${isHelpActive ? "bg-primary/10 font-medium text-primary" : neutralItem}`}>
-              {isHelpActive && <span aria-hidden="true" className="absolute inset-y-2 right-0 w-[3px] rounded-full bg-primary" />}
+            <Link href="/support" aria-label="پشتیبانی" aria-current={isSupportActive ? "page" : undefined} title="پشتیبانی" onClick={() => setIsMobileMenuOpen(false)} className={`relative flex h-9 min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors ${itemFocus} ${isSupportActive ? "bg-primary/10 font-medium text-primary" : neutralItem}`}>
+              {isSupportActive && <span aria-hidden="true" className="absolute inset-y-2 right-0 w-[3px] rounded-full bg-primary" />}
               <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><HelpCircle className="h-5 w-5" /></span>
-              {showLabels && <span className="truncate">راهنما</span>}
+              {showLabels && <span className="truncate">پشتیبانی</span>}
             </Link>
             <ThemeToggle showLabel={showLabels} label="تم" className={showLabels ? "h-9 justify-start px-3" : "h-9 w-full rounded-lg"} />
             <ProfileDropdown showLabel={showLabels} triggerLabel="حساب کاربری" triggerClassName="h-11 w-full justify-start rounded-lg px-2.5 py-2" />

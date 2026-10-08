@@ -19,6 +19,10 @@ export const endpoints = {
         resendVerification: `${API_BASE}/auth/resend-verification`,
         forgotPassword: `${API_BASE}/auth/forgot-password`,
         resetPassword: `${API_BASE}/auth/reset-password`,
+        changePassword: `${API_BASE}/auth/change-password`,
+    },
+    support: {
+        feedback: `${API_BASE}/support/feedback`,
     },
     news: {
         bootstrap: `${API_BASE}/news/bootstrap`,

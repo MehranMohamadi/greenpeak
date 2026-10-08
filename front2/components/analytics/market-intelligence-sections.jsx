@@ -79,12 +79,120 @@ const tehranDateKey = (value) => {
   }).format(date)
 }
 
-const groupEventsByDate = (items) => Array.from(items.reduce((groups, item) => {
-  const key = tehranDateKey(item.release_at)
-  if (!groups.has(key)) groups.set(key, { key, label: formatTehranDate(item.release_at), items: [] })
+const FINLOGIX_EARNINGS_URL = "https://apieconomic.finlogix.com/v1/earnings"
+const MEGA_CAP_EARNINGS_THRESHOLD_USD = 300_000_000_000
+
+const shiftCalendarDate = (date, days) => {
+  const [year, month, day] = date.split("-").map(Number)
+  const shifted = new Date(Date.UTC(year, month - 1, day + days))
+  return shifted.toISOString().slice(0, 10)
+}
+
+const tehranCalendarDate = (value = new Date()) => new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: TEHRAN_TIME_ZONE,
+}).format(value)
+
+const marketCapToUsd = (value) => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null
+  if (typeof value !== "string") return null
+  const normalized = value.trim().replace(/[,$\s]/g, "").toUpperCase()
+  const match = normalized.match(/^(-?\d+(?:\.\d+)?)([KMBT])?$/)
+  if (!match) return null
+  const scales = { K: 1e3, M: 1e6, B: 1e9, T: 1e12 }
+  const amount = Number(match[1])
+  return Number.isFinite(amount) ? amount * (scales[match[2]] || 1) : null
+}
+
+const formatMarketCap = (value) => new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  notation: "compact",
+  maximumFractionDigits: 1,
+}).format(value)
+
+const earningsCompanyKey = (value) => String(value || "")
+  .normalize("NFKC")
+  .toLocaleLowerCase("en-US")
+  .replace(/\bclass\s+[a-z0-9]+\b/g, " ")
+  .replace(/\b(incorporated|inc|corporation|corp|limited|ltd|plc|company|co)\b/g, " ")
+  .replace(/[^\p{L}\p{N}]+/gu, "")
+
+const hasEarningsValue = (value) => value !== null && value !== undefined && value !== ""
+
+const earningsCalendarEvents = (rows, now = new Date()) => {
+  if (!Array.isArray(rows)) return []
+  const today = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "America/New_York",
+  }).format(now)
+  const eventsByCompanyAndDate = new Map()
+
+  rows.forEach((row) => {
+    const date = String(row?.date || "").slice(0, 10)
+    const marketCapUSD = marketCapToUsd(row?.marketCapUSD)
+    const company = row?.name || row?.ticker || row?.symbol
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !company || marketCapUSD === null || marketCapUSD <= MEGA_CAP_EARNINGS_THRESHOLD_USD) return
+
+    const earnings = row.indices?.earnings || {}
+    const revenues = row.indices?.revenues || {}
+    const actual = earnings.actual
+    const marketRelease = row.marketRelease
+    const releasedToday = hasEarningsValue(actual) || hasEarningsValue(revenues.actual)
+    const isReleased = date < today || (date === today && releasedToday)
+    const releaseTimeLabels = {
+      before_open: "پیش از بازگشایی",
+      after_close: "پس از بسته‌شدن بازار",
+      by_day_end: "طی روز معاملاتی",
+    }
+    const ticker = row.ticker || row.symbol
+    const title = `${company}${ticker ? ` (${ticker})` : ""} — گزارش سود فصلی`
+    const releaseAt = `${date}T12:00:00Z`
+    const details = [
+      `ارزش بازار: ${formatMarketCap(marketCapUSD)}`,
+      hasEarningsValue(revenues.actual) ? `درآمد واقعی: ${revenues.actual}` : null,
+      hasEarningsValue(revenues.forecast) ? `پیش‌بینی درآمد: ${revenues.forecast}` : null,
+    ].filter(Boolean).join("؛ ")
+    const event = {
+      event_id: `earnings-${date}-${ticker || earningsCompanyKey(company)}`,
+      title_fa: title,
+      release_at: releaseAt,
+      calendar_date: date,
+      release_time_label_fa: releaseTimeLabels[marketRelease] || "زمان انتشار در تقویم مشخص نشده",
+      actual,
+      forecast: earnings.forecast,
+      previous: earnings.previous,
+      detail_fa: details,
+      source: "Finlogix Earnings Calendar",
+      source_url: "https://www.finlogix.com/calendar/earnings?utm_source=greenpeak&utm_medium=widget&utm_campaign=EarningCalendar",
+      _is_released: isReleased,
+    }
+    const companyKey = earningsCompanyKey(company) || String(ticker || "").toLocaleLowerCase("en-US")
+    const eventKey = `${date}-${companyKey}`
+    const existing = eventsByCompanyAndDate.get(eventKey)
+    if (!existing || (!hasEarningsValue(existing.actual) && hasEarningsValue(actual))) {
+      eventsByCompanyAndDate.set(eventKey, event)
+    }
+  })
+
+  return Array.from(eventsByCompanyAndDate.values())
+}
+
+const groupEventsByDate = (items, newestFirst = false) => Array.from(items.reduce((groups, item) => {
+  const key = item.calendar_date || tehranDateKey(item.release_at)
+  const label = item.calendar_date
+    ? formatTehranDate(`${item.calendar_date}T12:00:00Z`)
+    : formatTehranDate(item.release_at)
+  if (!groups.has(key)) groups.set(key, { key, label, items: [] })
   groups.get(key).items.push(item)
   return groups
-}, new Map()).values())
+}, new Map()).values()).sort((left, right) => newestFirst
+  ? right.key.localeCompare(left.key)
+  : left.key.localeCompare(right.key))
 
 const enrichCalendarEvent = (event, drivers) => {
   const comparable = (value) => String(value ?? "").trim().toLocaleLowerCase("fa")
@@ -117,7 +225,7 @@ const fallbackNextAnalysisLabel = () => {
 function HelpDialog({ title, item, children }) {
   const rows = [
     ["تاریخ", item.release_at ? formatTehranDate(item.release_at) : null],
-    ["ساعت تهران", item.release_at ? formatTehranClock(item.release_at) : null],
+    [item.release_time_label_fa ? "زمان انتشار" : "ساعت تهران", item.release_at ? item.release_time_label_fa || formatTehranClock(item.release_at) : null],
     ["اهمیت", item.importance === "high" ? "بالا" : item.importance],
     ["داده واقعی", item.actual ?? item.current], ["مقدار قبلی", item.previous], ["پیش‌بینی", item.forecast],
     ["تغییر", item.change_fa], ["چرا مهم است؟", item.why_it_matters_fa || item.detail_fa],
@@ -148,7 +256,7 @@ function MarketEventRow({ item }) {
       <div className="min-w-0 flex-1">
         <a href={item.source_url} target="_blank" rel="noreferrer" className="text-sm font-medium leading-6 transition hover:text-primary">{item.title_fa}</a>
         <time dateTime={item.release_at} className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
-          <Clock3 className="h-3 w-3 text-primary" />{formatTehranClock(item.release_at)}
+          <Clock3 className="h-3 w-3 text-primary" />{item.release_time_label_fa || formatTehranClock(item.release_at)}
         </time>
       </div>
       <div className="flex shrink-0 items-start justify-start gap-1.5 self-end sm:self-auto" dir="rtl">
@@ -242,6 +350,7 @@ export default function MarketIntelligenceSections({ market }) {
   const [newsAnalysisErrors, setNewsAnalysisErrors] = useState({})
   const [upcomingEvents, setUpcomingEvents] = useState([])
   const [releasedEvents, setReleasedEvents] = useState([])
+  const [earningsEvents, setEarningsEvents] = useState([])
   const [calendarReloadKey, setCalendarReloadKey] = useState(0)
   const [calendarState, setCalendarState] = useState({
     upcoming: { loading: true, error: "" },
@@ -290,8 +399,25 @@ export default function MarketIntelligenceSections({ market }) {
         if (!controller.signal.aborted) setCalendarState(current => ({ ...current, [kind]: { ...current[kind], loading: false } }))
       }
     }
+    const loadEarningsCalendar = async () => {
+      const today = tehranCalendarDate()
+      const url = new URL(FINLOGIX_EARNINGS_URL)
+      url.searchParams.set("countries", "US")
+      url.searchParams.set("start", `${shiftCalendarDate(today, -14)}T00:00:00`)
+      url.searchParams.set("end", `${shiftCalendarDate(today, 14)}T23:59:59`)
+      try {
+        const response = await fetch(url, { cache: "no-store", signal: controller.signal })
+        if (!response.ok) throw new Error("Finlogix earnings request failed")
+        const payload = await response.json()
+        if (!Array.isArray(payload)) throw new Error("Finlogix earnings response is invalid")
+        if (!controller.signal.aborted) setEarningsEvents(earningsCalendarEvents(payload))
+      } catch {
+        if (!controller.signal.aborted) setEarningsEvents([])
+      }
+    }
     void loadCalendar("upcoming", "/analytics-data/news/calendar/upcoming?limit=6", setUpcomingEvents, "دریافت داده های مهم پیش رو ناموفق بود.")
     void loadCalendar("released", "/analytics-data/news/calendar/released?limit=6", setReleasedEvents, "دریافت داده‌های مهم منتشرشده ناموفق بود.")
+    void loadEarningsCalendar()
     return () => controller.abort()
   }, [calendarReloadKey])
 
@@ -330,9 +456,15 @@ export default function MarketIntelligenceSections({ market }) {
       release_at: item.release_at || market.data_as_of || market.as_of_date,
       source_url: item.source_url || "/analytics/events",
     }))
-  const publishedEvents = releasedEvents.length ? releasedEvents.map(item => enrichCalendarEvent(item, structuredDrivers)) : fallbackReleasedData
-  const publishedEventGroups = groupEventsByDate(publishedEvents)
-  const upcomingMarketEvents = upcomingEvents.map(item => enrichCalendarEvent(item, structuredDrivers))
+  const publishedEvents = [
+    ...(releasedEvents.length ? releasedEvents.map(item => enrichCalendarEvent(item, structuredDrivers)) : fallbackReleasedData),
+    ...earningsEvents.filter(item => item._is_released),
+  ]
+  const publishedEventGroups = groupEventsByDate(publishedEvents, true)
+  const upcomingMarketEvents = [
+    ...upcomingEvents.map(item => enrichCalendarEvent(item, structuredDrivers)),
+    ...earningsEvents.filter(item => !item._is_released),
+  ]
   const upcomingEventGroups = groupEventsByDate(upcomingMarketEvents)
   const potentialItems = market.market_potentials || []
   const structuredRisks = (market.risk_monitor || []).map(item => ({
