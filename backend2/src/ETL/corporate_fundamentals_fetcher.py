@@ -5,6 +5,11 @@ Run from ``backend2`` or directly from this directory:
     python src/ETL/corporate_fundamentals_fetcher.py --dry-run --max-companies 10
     python src/ETL/corporate_fundamentals_fetcher.py --dry-run --write-cache
     python src/ETL/corporate_fundamentals_fetcher.py
+
+Refresh after new SEC reports by running the full command. It reloads current
+SPY holdings and SEC Company Facts, rebuilds the quarterly history, and writes
+both MongoDB aggregates and the local fallback cache. Increment the corporate
+methodology/formula version before changing the calculation rules.
 """
 
 from __future__ import annotations

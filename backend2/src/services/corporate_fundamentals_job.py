@@ -135,39 +135,69 @@ class CorporateFundamentalsJob:
         sec_identifiers = self._load_sec_identifiers()
         cohort: list[tuple[str, dict[str, str]]] = []
         unmapped: list[str] = []
+        expected_symbols: list[str] = []
+        holding_weights: dict[str, float] = {}
         for holding in holdings:
             symbol = _normalized_symbol(holding["symbol"])
+            expected_symbols.append(symbol)
+            holding_weights[symbol] = holding_weights.get(symbol, 0.0) + float(
+                holding.get("weight_pct") or 0.0
+            )
             identifiers = sec_identifiers.get(symbol)
             if identifiers:
                 cohort.append((symbol, identifiers))
             else:
                 unmapped.append(symbol)
         if max_companies is not None:
-            cohort = cohort[: max(0, max_companies)]
+            selected_ciks = set()
+            for _, identifiers in cohort:
+                if identifiers["cik"] not in selected_ciks:
+                    if len(selected_ciks) >= max(0, max_companies):
+                        break
+                    selected_ciks.add(identifiers["cik"])
+            cohort = [
+                (symbol, identifiers)
+                for symbol, identifiers in cohort
+                if identifiers["cik"] in selected_ciks
+            ]
+            selected_symbols = {symbol for symbol, _ in cohort}
+            expected_symbols = [symbol for symbol in expected_symbols if symbol in selected_symbols]
+            holding_weights = {
+                symbol: weight
+                for symbol, weight in holding_weights.items()
+                if symbol in selected_symbols
+            }
+            unmapped = []
         if not cohort:
             raise CorporateFundamentalsSourceError("no SPY holdings mapped to SEC CIKs")
 
         payloads: dict[str, dict[str, Any]] = {}
         failures: list[str] = []
+        symbols_by_cik: dict[str, list[str]] = {}
+        for symbol, identifiers in cohort:
+            cik = identifiers["cik"]
+            symbols_by_cik.setdefault(cik, []).append(symbol)
         with ThreadPoolExecutor(max_workers=self.workers) as executor:
             futures = {
-                executor.submit(self._load_companyfacts, identifiers["cik"]): symbol
-                for symbol, identifiers in cohort
+                executor.submit(self._load_companyfacts, cik): cik
+                for cik in symbols_by_cik
             }
             for future in as_completed(futures):
-                symbol = futures[future]
+                cik = futures[future]
                 try:
-                    payloads[symbol] = future.result()
+                    payload = future.result()
+                    for symbol in symbols_by_cik[cik]:
+                        payloads[symbol] = payload
                 except Exception:
-                    failures.append(symbol)
-                    logger.warning("SEC Company Facts unavailable for %s", symbol)
+                    failures.append(cik)
+                    logger.warning("SEC Company Facts unavailable for CIK %s", cik)
 
         company_identifiers = {symbol: identifiers for symbol, identifiers in cohort}
-        expected_symbols = [symbol for symbol, _ in cohort]
         result = build_sec_corporate_documents(
             payloads,
             company_identifiers,
             expected_symbols=expected_symbols,
+            holding_weights=holding_weights,
             holdings_as_of=holdings_as_of,
             updated_at=self.now(),
         )

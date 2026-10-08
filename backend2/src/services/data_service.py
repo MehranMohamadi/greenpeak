@@ -1,7 +1,7 @@
 """Data service for financial market data."""
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from ..models.schemas import (
     OHLCDataPoint, 
     EconomicDataPoint, 
@@ -267,10 +267,13 @@ class DataService:
         companies_expected: Optional[int] = None,
         companies_received: Optional[int] = None,
         coverage_pct: Optional[float] = None,
+        covered_weight_pct: Optional[float] = None,
+        total_holding_weight_pct: Optional[float] = None,
         missing_symbols_count: Optional[int] = None,
         missing_symbols: Optional[List[str]] = None,
         holdings_as_of: Optional[str] = None,
         latest_filing_date: Optional[str] = None,
+        company_period_ends: Optional[List[Dict[str, Any]]] = None,
         proxy: Optional[bool] = None,
     ) -> DataMetadata:
         """Build traceable metadata without inventing unavailable semantics."""
@@ -337,10 +340,13 @@ class DataService:
             companies_expected=companies_expected,
             companies_received=companies_received,
             coverage_pct=coverage_pct,
+            covered_weight_pct=covered_weight_pct,
+            total_holding_weight_pct=total_holding_weight_pct,
             missing_symbols_count=missing_symbols_count,
             missing_symbols=missing_symbols,
             holdings_as_of=holdings_as_of,
             latest_filing_date=latest_filing_date,
+            company_period_ends=company_period_ends,
             proxy=proxy,
         )
 
@@ -2910,10 +2916,13 @@ class DataService:
                 companies_expected=doc_metadata.get("companies_expected"),
                 companies_received=doc_metadata.get("companies_received"),
                 coverage_pct=coverage_pct,
+                covered_weight_pct=doc_metadata.get("covered_weight_pct"),
+                total_holding_weight_pct=doc_metadata.get("total_holding_weight_pct"),
                 missing_symbols_count=doc_metadata.get("missing_symbols_count"),
                 missing_symbols=doc_metadata.get("missing_symbols"),
                 holdings_as_of=doc_metadata.get("holdings_as_of"),
                 latest_filing_date=doc_metadata.get("latest_filing_date"),
+                company_period_ends=doc_metadata.get("company_period_ends"),
                 proxy=doc_metadata.get("proxy", True),
                 stale_after_days=185,
             )
@@ -3218,7 +3227,10 @@ class DataService:
             limit=limit,
             start_date=start_date,
             end_date=end_date,
-            description="Aggregate trailing-four-quarter net income divided by aggregate average assets",
+            description=(
+                "Aggregate latest-four-fiscal-quarter net income divided by aggregate "
+                "average assets; SPY weights are used only to measure coverage"
+            ),
             unit="Percent",
             frequency="quarterly",
             source="SEC Company Facts + State Street SPY holdings",

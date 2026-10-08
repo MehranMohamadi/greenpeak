@@ -263,11 +263,16 @@ class DataMetadata(BaseModel):
     formula_version: Optional[str] = Field(None, description="Version of the financial formula contract")
     companies_expected: Optional[int] = Field(None, description="Companies expected in the source cohort")
     companies_received: Optional[int] = Field(None, description="Companies included in the latest aggregate")
-    coverage_pct: Optional[float] = Field(None, description="Latest aggregate company coverage percentage")
+    coverage_pct: Optional[float] = Field(None, description="Latest aggregate SPY holding-weight coverage percentage")
+    covered_weight_pct: Optional[float] = Field(None, description="Sum of SPY holding weights with complete inputs")
+    total_holding_weight_pct: Optional[float] = Field(None, description="Total SPY holding weight used as the coverage denominator")
     missing_symbols_count: Optional[int] = Field(None, description="Count of cohort symbols missing from the latest aggregate")
     missing_symbols: Optional[List[str]] = Field(None, description="Sample of cohort symbols missing from the latest aggregate")
     holdings_as_of: Optional[str] = Field(None, description="Observation date of the constituent cohort")
     latest_filing_date: Optional[str] = Field(None, description="Latest SEC filing date used in the aggregate")
+    company_period_ends: Optional[List[Dict[str, Any]]] = Field(
+        None, description="Per-company fiscal periods and asset dates used in the latest ROA aggregate"
+    )
     proxy: Optional[bool] = Field(None, description="Whether the population is a disclosed proxy for the named index")
 
 

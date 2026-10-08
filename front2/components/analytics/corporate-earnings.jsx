@@ -7,7 +7,7 @@ const factors = [
   { id: "sp500-eps", key: "sp500eps", indicatorId: "sp500_eps", title: "S&P 500 Real TTM EPS", group: "Earnings", icon: BadgeDollarSign, unit: "USD", description: "Monthly 12-month real earnings per share from Multpl. The source inflation-adjusts the series and may restate historical values when its reference month changes." },
   { id: "sales-growth", key: "revenue", indicatorId: "revenue_growth", title: "Sales Growth", group: "Sales", icon: Building2, unit: "%", description: "Quarterly nominal growth in S&P 500 trailing 12-month sales per share, as published by Multpl." },
   { id: "profit-margins", key: "margins", indicatorId: "profit_margins", title: "Profit Margins", group: "Margins", icon: Percent, unit: "%", description: "Aggregate SEC-filed net income divided by aggregate revenue." },
-  { id: "return-on-assets", key: "returnOnAssets", indicatorId: "return_on_assets", title: "Return on Assets", group: "Margins", icon: Scale, unit: "%", description: "Trailing-four-quarter net income divided by average assets from SEC filings." },
+  { id: "return-on-assets", key: "returnOnAssets", indicatorId: "return_on_assets", title: "Return on Assets", group: "Margins", icon: Scale, unit: "%", description: "Aggregate net income over each company's latest four fiscal quarters divided by aggregate average assets. SPY weights measure data coverage only." },
 ]
 const periods = ["1Y", "5Y", "10Y", "MAX"]
 const slicePeriod = (data, period) => { if (period === "MAX" || !data.length) return data; const end = new Date(`${data.at(-1).date}T00:00:00Z`); const start = new Date(end); start.setUTCFullYear(start.getUTCFullYear() - Number.parseInt(period, 10)); return data.filter((point) => new Date(`${point.date}T00:00:00Z`) >= start) }
