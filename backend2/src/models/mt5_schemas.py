@@ -113,3 +113,30 @@ class BrokerComparisonResponse(BaseModel):
     eligible_broker_count: int = Field(ge=0)
     excluded_broker_count: int = Field(ge=0)
     brokers: list[BrokerComparisonBroker] = Field(default_factory=list)
+
+
+class BrokerDeleteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    broker_company: str = Field(min_length=1, max_length=512)
+
+    @field_validator("broker_company")
+    @classmethod
+    def require_broker_name(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("broker_company must not be blank")
+        # Match the stored identity exactly, including any surrounding spaces.
+        return value
+
+
+class BrokerDeletedAccount(BaseModel):
+    broker_company: str
+    trade_server: str
+    account_identifier: str
+
+
+class BrokerDeleteResponse(BaseModel):
+    broker_company: str
+    deleted_snapshots: int = Field(ge=0)
+    deleted_connections: int = Field(ge=0)
+    deleted_accounts: list[BrokerDeletedAccount] = Field(default_factory=list)

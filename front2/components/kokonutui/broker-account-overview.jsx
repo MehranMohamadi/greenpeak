@@ -1,9 +1,12 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Building2, ChevronDown, RefreshCw, Scale } from "lucide-react"
+import { Building2, ChevronDown, Loader2, RefreshCw, Scale, Trash2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { MT5_BROKER_DELETED_EVENT } from "@/lib/mt5-account-changes"
 import {
   EmptyCollection,
   accountKey,
@@ -160,7 +163,7 @@ function SymbolDetails({ rows }) {
   </div>
 }
 
-function AccountRow({ snapshot }) {
+function AccountRow({ snapshot, onDelete, deleting }) {
   const account = snapshot.account || {}
   const portfolio = snapshot.portfolio_metrics || {}
   const swap = snapshot.swap_metrics || {}
@@ -172,9 +175,19 @@ function AccountRow({ snapshot }) {
   const drawdown = portfolio.account_current_drawdown_pct
 
   return <details className="group rounded-lg border bg-gray-50 open:border-cyan-500/30 open:bg-cyan-500/[0.03] dark:border-[#2B2B30] dark:bg-[#0F0F12]">
-    <summary className="relative cursor-pointer list-none p-3 pl-9 [&::-webkit-details-marker]:hidden">
+    <summary className="relative cursor-pointer list-none p-3 pl-[4.5rem] [&::-webkit-details-marker]:hidden">
       <ChevronDown aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform group-open:rotate-180" />
 
+      {onDelete && <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="absolute left-8 top-1/2 h-8 w-8 -translate-y-1/2 text-rose-600 hover:bg-rose-500/10 hover:text-rose-700 dark:text-rose-400"
+        aria-label={`حذف بروکر ${broker} و تمام داده‌های آن`}
+        title={`حذف بروکر ${broker}`}
+        disabled={deleting || !snapshot.source?.broker_company?.trim()}
+        onClick={(event) => { event.preventDefault(); event.stopPropagation(); onDelete(snapshot.source.broker_company) }}
+      ><Trash2 className="h-4 w-4" /></Button>}
       <div className="hidden items-center gap-2 text-center text-[11px] lg:grid lg:grid-cols-7">
         <div className="min-w-0 text-right"><p className="truncate text-sm font-semibold text-foreground">{broker}</p><p className="truncate text-[10px] text-muted-foreground">حساب {accountIdentifier}</p></div>
         <Value value={money(account.balance, currency)} />
@@ -344,34 +357,69 @@ function AssetComparisonRows({ asset, brokers, symbolFor, renderSwap }) {
   </>
 }
 
-export default function BrokerAccountOverview({ snapshots = [], accessToken = "" }) {
+export default function BrokerAccountOverview({ snapshots = [], accessToken = "", onDeleteBroker }) {
   const [tab, setTab] = useState("accounts")
   const [comparison, setComparison] = useState(null)
   const [comparisonLoading, setComparisonLoading] = useState(false)
   const [comparisonError, setComparisonError] = useState("")
+  const [brokerToDelete, setBrokerToDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState("")
+  const comparisonController = useRef(null)
+
+  const confirmDelete = async (event) => {
+    event.preventDefault()
+    if (deleting || brokerToDelete === null) return
+    setDeleting(true)
+    setDeleteError("")
+    try {
+      await onDeleteBroker(brokerToDelete)
+      setBrokerToDelete(null)
+    } catch (reason) {
+      setDeleteError(reason instanceof Error ? reason.message : "حذف بروکر انجام نشد؛ دوباره تلاش کنید.")
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const loadComparison = useCallback(async () => {
     if (!accessToken) {
       setComparisonError("برای مشاهده مقایسه بروکرها وارد حساب کاربری شوید.")
       return
     }
+    comparisonController.current?.abort()
+    const controller = new AbortController()
+    comparisonController.current = controller
     setComparisonLoading(true)
     setComparisonError("")
     try {
       const response = await fetch("/dashboard-data/mt5/broker-comparison", {
         cache: "no-store",
+        signal: controller.signal,
         headers: { Authorization: `Bearer ${accessToken}` },
       })
       const body = await response.json().catch(() => null)
       if (!response.ok) throw new Error(typeof body?.detail === "string" ? body.detail : `دریافت مقایسه ممکن نشد (${response.status})`)
       if (!body || !Array.isArray(body.brokers)) throw new Error("پاسخ مقایسه بروکرها معتبر نیست")
-      setComparison(body)
+      if (!controller.signal.aborted) setComparison(body)
     } catch (reason) {
-      setComparisonError(reason instanceof Error ? reason.message : "دریافت مقایسه بروکرها ممکن نشد")
+      if (!controller.signal.aborted) setComparisonError(reason instanceof Error ? reason.message : "دریافت مقایسه بروکرها ممکن نشد")
     } finally {
-      setComparisonLoading(false)
+      if (!controller.signal.aborted) setComparisonLoading(false)
     }
   }, [accessToken])
+
+  useEffect(() => {
+    const handleDelete = () => {
+      setComparison(null)
+      loadComparison()
+    }
+    window.addEventListener(MT5_BROKER_DELETED_EVENT, handleDelete)
+    return () => {
+      comparisonController.current?.abort()
+      window.removeEventListener(MT5_BROKER_DELETED_EVENT, handleDelete)
+    }
+  }, [loadComparison])
 
   useEffect(() => {
     setComparison(null)
@@ -399,7 +447,7 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
     },
   ]
 
-  return <Card className={`${tradingCardClass} !h-[16rem] xl:col-span-2`}>
+  return <><Card className={`${tradingCardClass} !h-[16rem] xl:col-span-2`}>
     <CardHeader className={`${tradingCardHeaderClass} flex-row flex-wrap items-center justify-between gap-3 space-y-0`}>
       <CardTitle className="flex items-center gap-2 text-base text-gray-900 dark:text-white">
         <Building2 className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
@@ -415,12 +463,30 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
     <CardContent className={`${tradingCardContentClass} ${tab === "accounts" ? "!overflow-x-hidden !overflow-y-auto" : "!overflow-auto"}`}>
       {tab === "comparison" ? <ComparisonTable comparison={comparison} loading={comparisonLoading} error={comparisonError} onRetry={loadComparison} /> :
       <div className="min-w-0 space-y-2">
-        <div className="sticky top-0 z-10 hidden gap-2 border-b bg-white py-2 pl-9 pr-3 text-center text-[10px] font-medium text-muted-foreground dark:bg-[#1F1F23] lg:grid lg:grid-cols-7">
+        <div className="sticky top-0 z-10 hidden gap-2 border-b bg-white py-2 pl-[4.5rem] pr-3 text-center text-[10px] font-medium text-muted-foreground dark:bg-[#1F1F23] lg:grid lg:grid-cols-7">
           <span className="text-right">بروکر / حساب</span><span>موجودی</span><span>خالص دارایی</span><span>سود/زیان شناور</span><span>اهرم کل</span><span>سطح مارجین</span><span>افت سرمایه</span>
         </div>
         {!snapshots.length && <EmptyCollection>حساب بروکری برای نمایش وجود ندارد.</EmptyCollection>}
-        {snapshots.map((snapshot) => <AccountRow key={accountKey(snapshot)} snapshot={snapshot} />)}
+        {snapshots.map((snapshot) => <AccountRow key={accountKey(snapshot)} snapshot={snapshot} deleting={deleting} onDelete={onDeleteBroker ? (broker) => { setDeleteError(""); setBrokerToDelete(broker) } : undefined} />)}
       </div>}
     </CardContent>
   </Card>
+  <AlertDialog open={brokerToDelete !== null} onOpenChange={(open) => { if (!open && !deleting) setBrokerToDelete(null) }}>
+    <AlertDialogContent dir="rtl" className="w-[calc(100vw-2rem)]">
+      <AlertDialogHeader className="text-right sm:text-right">
+        <AlertDialogTitle>حذف بروکر «{brokerToDelete}»</AlertDialogTitle>
+        <AlertDialogDescription className="leading-7">
+          تمام حساب‌ها، تاریخچه معاملات، سفارش‌ها و داده‌های مدیریت ریسک این بروکر در حساب کاربری شما از GreenPeak پاک می‌شوند. برنامه‌ها و تنظیمات ریسک ذخیره‌شده در این مرورگر هم پاک می‌شوند. اتصال‌های MT5 این بروکر حذف می‌شوند؛ اتصال دوباره به توکن جدید نیاز دارد. این حذف قابل بازگشت نیست.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      {deleteError && <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">{deleteError}</p>}
+      <AlertDialogFooter className="gap-2 sm:space-x-0">
+        <AlertDialogCancel disabled={deleting}>انصراف</AlertDialogCancel>
+        <AlertDialogAction disabled={deleting} onClick={confirmDelete} className="bg-rose-600 text-white hover:bg-rose-700">
+          {deleting ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Trash2 className="ml-2 h-4 w-4" />}
+          {deleting ? "در حال حذف…" : "حذف تمام داده‌های بروکر"}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog></>
 }

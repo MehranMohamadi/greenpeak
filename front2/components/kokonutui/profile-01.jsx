@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { FileText, LogOut, Settings, User } from "lucide-react";
+import { Headset, LogOut, Settings, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-context";
@@ -61,7 +61,7 @@ export default function ProfileDropdown({
         {
             label: "Support",
             href: "/support",
-            icon: <FileText className="w-4 h-4" />,
+            icon: <Headset className="w-4 h-4" />,
         },
     ];
 
@@ -136,13 +136,13 @@ export default function ProfileDropdown({
                     <DropdownMenuContent
                         align="end"
                         sideOffset={4}
-                        className="w-64 p-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl shadow-xl shadow-zinc-900/5 dark:shadow-zinc-950/20 
+                        className="w-[11.2rem] p-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl shadow-xl shadow-zinc-900/5 dark:shadow-zinc-950/20
                     data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-top-right"
                     >
                         {/* User Info Header */}
                         <div className="px-3 py-2 border-b border-zinc-200/60 dark:border-zinc-800/60 mb-2">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 via-cyan-500 to-cyan-600 p-0.5">
+                                <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-cyan-400 via-cyan-500 to-cyan-600 p-0.5">
                                     <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-zinc-900">
                                         <Image
                                             src={profileData.avatar}
@@ -154,7 +154,7 @@ export default function ProfileDropdown({
                                     </div>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex min-w-0 items-center gap-2">
+                                    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                                         <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                                             {profileData.name}
                                         </p>

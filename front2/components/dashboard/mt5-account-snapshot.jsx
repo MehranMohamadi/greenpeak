@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { AlertTriangle, RefreshCw, Server } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import BrokerAccountOverview from "@/components/kokonutui/broker-account-overview"
 import LastTrades from "@/components/kokonutui/last-trades"
 import { useAuth } from "@/components/auth/auth-context"
+import { MT5_BROKER_DELETED_EVENT, notifyBrokerDeleted, withoutBroker } from "@/lib/mt5-account-changes"
 
 function responseError(body, status) {
   if (typeof body?.detail === "string") return body.detail
@@ -20,33 +21,66 @@ export default function MT5AccountSnapshot() {
   const [snapshots, setSnapshots] = useState([])
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(true)
+  const requestController = useRef(null)
 
   const load = useCallback(async () => {
     if (authLoading) return
+    requestController.current?.abort()
     if (!accessToken) {
+      setSnapshots([])
       setError("برای مشاهده حساب‌های معاملاتی ابتدا وارد حساب کاربری شوید")
       setLoading(false)
       return
     }
+    const controller = new AbortController()
+    requestController.current = controller
     setLoading(true)
     try {
       const response = await fetch("/dashboard-data/mt5/accounts", {
         cache: "no-store",
+        signal: controller.signal,
         headers: { Authorization: `Bearer ${accessToken}` },
       })
       const body = await response.json().catch(() => null)
       if (!response.ok) throw new Error(responseError(body, response.status))
       if (!Array.isArray(body)) throw new Error("پاسخ حساب‌های معاملاتی معتبر نیست")
+      if (controller.signal.aborted) return
       setSnapshots(body)
       setError("")
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "دریافت حساب‌های معاملاتی ممکن نشد")
+      if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "دریافت حساب‌های معاملاتی ممکن نشد")
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) setLoading(false)
     }
   }, [accessToken, authLoading])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+    const handleDelete = (event) => {
+      setSnapshots((current) => withoutBroker(current, event.detail.broker_company))
+      load()
+    }
+    window.addEventListener(MT5_BROKER_DELETED_EVENT, handleDelete)
+    return () => {
+      requestController.current?.abort()
+      window.removeEventListener(MT5_BROKER_DELETED_EVENT, handleDelete)
+    }
+  }, [load])
+
+  const deleteBroker = async (brokerCompany) => {
+    if (!accessToken) throw new Error("برای حذف بروکر وارد حساب کاربری شوید.")
+    const response = await fetch("/dashboard-data/mt5/brokers", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ broker_company: brokerCompany }),
+    })
+    const body = await response.json().catch(() => null)
+    if (!response.ok) throw new Error(typeof body?.detail === "string" ? body.detail : "حذف بروکر انجام نشد؛ دوباره تلاش کنید.")
+    if (body?.broker_company !== brokerCompany || !Array.isArray(body?.deleted_accounts)) {
+      throw new Error("پاسخ حذف بروکر معتبر نیست؛ دوباره تلاش کنید.")
+    }
+    notifyBrokerDeleted(body, snapshots)
+  }
 
   if (loading && snapshots.length === 0) {
     return <Card className="border-gray-200 bg-white dark:border-[#2B2B30] dark:bg-[#1F1F23]">
@@ -78,7 +112,7 @@ export default function MT5AccountSnapshot() {
     </div>}
     {error && snapshots.length > 0 && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">به‌روزرسانی انجام نشد؛ آخرین Snapshot سالم نمایش داده می‌شود. {error}</p>}
     <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-      <BrokerAccountOverview snapshots={snapshots} accessToken={accessToken} />
+      <BrokerAccountOverview snapshots={snapshots} accessToken={accessToken} onDeleteBroker={deleteBroker} />
       <LastTrades snapshots={snapshots} />
     </div>
   </section>

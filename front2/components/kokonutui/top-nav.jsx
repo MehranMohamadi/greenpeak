@@ -22,10 +22,11 @@ const routeLabels = {
   "/analytics/mt5-snapshots": "MetaTrader Snapshot JSON",
   "/profile": "Profile",
   "/settings": "Settings",
-  "/help": "Support",
+  "/help": "Help",
   "/support": "Support",
   "/test-charts": "Test Charts",
-  "/fun": "حیاط",
+  "/fun": "حیات",
+  "/fun/investment-course": "دوره سرمایه‌گذاری",
 };
 
 export default function TopNav() {

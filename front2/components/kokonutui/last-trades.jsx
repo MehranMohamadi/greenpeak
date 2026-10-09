@@ -153,13 +153,6 @@ function DetailValue({ label, value, tone = "" }) {
   </div>
 }
 
-function SummaryValue({ label, value, tone = "", dir }) {
-  return <div className="min-w-0 rounded-md bg-muted/40 px-2 py-1.5">
-    <dt className="truncate text-[10px] leading-4 text-muted-foreground">{label}</dt>
-    <dd dir={dir} className={`mt-0.5 truncate text-xs font-medium tabular-nums ${tone}`}>{value}</dd>
-  </div>
-}
-
 function ExecutionList({ lifecycle }) {
   if (!lifecycle.executions.length) {
     return <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">جزئیات Dealهای این پوزیشن در Snapshot فعلی موجود نیست.</p>
@@ -207,10 +200,10 @@ function LifecycleDetails({ lifecycle }) {
 function LifecycleRow({ lifecycle }) {
   const destinationPrice = lifecycle.status === "closed" ? lifecycle.closePrice : lifecycle.valuationPrice
 
-  return <details className="group rounded-lg border bg-gray-50 open:border-cyan-500/30 open:bg-cyan-500/[0.03] dark:border-[#2B2B30] dark:bg-[#0F0F12]">
+  return <details className="group border-b border-gray-200 last:border-b-0 dark:border-[#2B2B30]">
     <summary className="relative cursor-pointer list-none p-3 pl-9 [&::-webkit-details-marker]:hidden">
       <ChevronDown aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform group-open:rotate-180" />
-      <div className={`hidden ${tradeGridClass} items-center gap-2 whitespace-nowrap text-center text-[11px] xl:grid`}>
+      <div className={`grid ${tradeGridClass} items-center gap-2 whitespace-nowrap text-center text-[11px]`}>
         <p className="min-w-0 truncate text-right"><span className="font-semibold text-foreground">{lifecycle.symbol}</span><span className="text-[10px] text-muted-foreground"> · {lifecycle.accountLabel}</span></p>
         <Badge variant="outline" className={`mx-auto max-w-full truncate ${directionTone(lifecycle.direction)}`} title={lifecycle.directionLabel}>{lifecycle.directionLabel}</Badge>
         <span className="tabular-nums" dir="ltr">{formatTradeNumber(lifecycle.volume, 2, 2)}</span>
@@ -220,26 +213,6 @@ function LifecycleRow({ lifecycle }) {
         <span className="tabular-nums" dir="ltr">{formatTradeNumber(protectivePrice(lifecycle.stopLoss))}</span>
         <span className="tabular-nums" dir="ltr">{formatTradeNumber(protectivePrice(lifecycle.takeProfit))}</span>
         <span className={`font-semibold tabular-nums ${valueTone(lifecycle.netProfit)}`} dir="ltr">{formatTradeMoney(lifecycle.netProfit, lifecycle.currency)}</span>
-      </div>
-      <div className="grid gap-2 xl:hidden">
-        <div className="flex min-w-0 items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <span className="truncate text-sm font-semibold text-foreground">{lifecycle.symbol}</span>
-              <Badge variant="outline" className={`max-w-full truncate ${directionTone(lifecycle.direction)}`}>{lifecycle.directionLabel}</Badge>
-            </div>
-            <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{lifecycle.accountLabel}</p>
-          </div>
-          <p className={`shrink-0 text-sm font-semibold tabular-nums ${valueTone(lifecycle.netProfit)}`} dir="ltr">{formatTradeMoney(lifecycle.netProfit, lifecycle.currency)}</p>
-        </div>
-        <dl className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-          <SummaryValue label="زمان ورود" value={formatTradeTime(lifecycle.openTime)} dir="ltr" />
-          <SummaryValue label="حجم" value={formatTradeNumber(lifecycle.volume, 2, 2)} dir="ltr" />
-          <SummaryValue label="قیمت ورود" value={formatTradeNumber(lifecycle.openPrice)} dir="ltr" />
-          <SummaryValue label={lifecycle.status === "closed" ? "قیمت خروج" : "قیمت فعلی"} value={formatTradeNumber(destinationPrice)} dir="ltr" />
-          <SummaryValue label="SL" value={formatTradeNumber(protectivePrice(lifecycle.stopLoss))} dir="ltr" />
-          <SummaryValue label="TP" value={formatTradeNumber(protectivePrice(lifecycle.takeProfit))} dir="ltr" />
-        </dl>
       </div>
     </summary>
     <LifecycleDetails lifecycle={lifecycle} />
@@ -260,10 +233,10 @@ function PendingDetails({ order }) {
 }
 
 function PendingRow({ order }) {
-  return <details className="group rounded-lg border bg-gray-50 open:border-amber-500/30 open:bg-amber-500/[0.03] dark:border-[#2B2B30] dark:bg-[#0F0F12]">
+  return <details className="group border-b border-gray-200 last:border-b-0 dark:border-[#2B2B30]">
     <summary className="relative cursor-pointer list-none p-3 pl-9 [&::-webkit-details-marker]:hidden">
       <ChevronDown aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform group-open:rotate-180" />
-      <div className={`hidden ${tradeGridClass} items-center gap-2 whitespace-nowrap text-center text-[11px] xl:grid`}>
+      <div className={`grid ${tradeGridClass} items-center gap-2 whitespace-nowrap text-center text-[11px]`}>
         <p className="min-w-0 truncate text-right"><span className="font-semibold text-foreground">{order.symbol}</span><span className="text-[10px] text-muted-foreground"> · {order.accountLabel}</span></p>
         <Badge variant="outline" className={`mx-auto max-w-full truncate ${directionTone(order.direction)}`} title={order.orderTypeLabel}>{order.orderTypeLabel}</Badge>
         <span className="tabular-nums" dir="ltr">{formatTradeNumber(order.volume, 2, 2)}</span>
@@ -273,23 +246,6 @@ function PendingRow({ order }) {
         <span className="tabular-nums" dir="ltr">{formatTradeNumber(order.stopLoss)}</span>
         <span className="tabular-nums" dir="ltr">{formatTradeNumber(order.takeProfit)}</span>
         <span className="text-muted-foreground">—</span>
-      </div>
-      <div className="grid gap-2 xl:hidden">
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">{order.symbol}</p>
-            <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{order.accountLabel}</p>
-          </div>
-          <Badge variant="outline" className={`max-w-full truncate ${directionTone(order.direction)}`}>{order.orderTypeLabel}</Badge>
-        </div>
-        <dl className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-          <SummaryValue label="زمان ثبت" value={formatTradeTime(order.setupTime)} dir="ltr" />
-          <SummaryValue label="حجم" value={formatTradeNumber(order.volume, 2, 2)} dir="ltr" />
-          <SummaryValue label="قیمت سفارش" value={formatTradeNumber(order.requestedPrice)} dir="ltr" />
-          <SummaryValue label="قیمت فعلی" value={formatTradeNumber(order.currentPrice)} dir="ltr" />
-          <SummaryValue label="SL" value={formatTradeNumber(order.stopLoss)} dir="ltr" />
-          <SummaryValue label="TP" value={formatTradeNumber(order.takeProfit)} dir="ltr" />
-        </dl>
       </div>
     </summary>
     <PendingDetails order={order} />
@@ -313,7 +269,7 @@ export default function LastTrades({ snapshots = [] }) {
   }), [lifecycles, pendingOrders])
   const visible = groups[filter]
 
-  return <Card className={`${tradingCardClass} !h-[26rem] xl:!h-[16rem] xl:col-span-2`}>
+  return <Card className={`${tradingCardClass} !h-[16rem] xl:col-span-2`}>
     <CardHeader className={`${tradingCardHeaderClass} flex-row flex-wrap items-center justify-between gap-3 space-y-0`}>
       <CardTitle className="flex items-center gap-2 text-base text-gray-900 dark:text-white">
         <Activity className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
@@ -326,9 +282,9 @@ export default function LastTrades({ snapshots = [] }) {
         </button>)}
       </div>
     </CardHeader>
-    <CardContent className={`${tradingCardContentClass} !overflow-x-hidden !overflow-y-auto`}>
-      <div className="min-w-0 space-y-2">
-        <div className={`sticky top-0 z-10 hidden ${tradeGridClass} gap-2 border-b bg-white py-2 pl-9 pr-3 text-center text-[9px] font-medium text-muted-foreground dark:bg-[#1F1F23] xl:grid`}>
+    <CardContent className={`${tradingCardContentClass} !overflow-auto`}>
+      <div className="min-w-[960px]">
+        <div className={`sticky top-0 z-10 grid ${tradeGridClass} gap-2 border-b bg-white py-2 pl-9 pr-3 text-center text-[9px] font-medium text-muted-foreground dark:bg-[#1F1F23]`}>
           <span className="text-right">نماد / حساب</span><span>جهت / نوع</span><span>حجم</span><span>زمان ورود / ثبت</span><span>قیمت ورود</span><span>خروج / فعلی</span><span>SL</span><span>TP</span><span>سود/زیان خالص</span>
         </div>
         {!visible.length && <EmptyCollection>{emptyMessages[filter]}</EmptyCollection>}

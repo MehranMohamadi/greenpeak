@@ -5,7 +5,7 @@ import DashboardThemes from "@/components/dashboard/dashboard-themes"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Settings, LayoutIcon, Star, Database, FileJson2 } from "lucide-react"
+import { Settings, Star, Database, FileJson2 } from "lucide-react"
 
 export default function SettingsPage() {
   return (
@@ -22,19 +22,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Layout Customization */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <LayoutIcon className="h-5 w-5" />
-                Layout Customization
-              </CardTitle>
-              <CardDescription>Customize dashboard components and layout</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CustomizationPanel />
-            </CardContent>
-          </Card>
+          <CustomizationPanel />
 
           {/* Theme Selection */}
           <DashboardThemes />

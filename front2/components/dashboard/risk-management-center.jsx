@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   BrainCircuit,
   CheckCircle2,
@@ -45,6 +45,7 @@ import {
 import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
 import { accountKey, money, number } from "@/components/kokonutui/mt5-data-view"
+import { MT5_BROKER_DELETED_EVENT, withoutBroker } from "@/lib/mt5-account-changes"
 import { createRiskDemoSnapshot } from "@/lib/mt5-demo-snapshot"
 import {
   analyzeOpenRisk,
@@ -447,6 +448,7 @@ export default function RiskManagementCenter() {
   const [demoAvailable, setDemoAvailable] = useState(false)
   const [dailyPlanOpen, setDailyPlanOpen] = useState(false)
   const [scenarioOpen, setScenarioOpen] = useState(false)
+  const requestController = useRef(null)
 
   useEffect(() => {
     setDemoAvailable(["localhost", "127.0.0.1", "::1"].includes(window.location.hostname))
@@ -476,44 +478,68 @@ export default function RiskManagementCenter() {
 
   const load = useCallback(async () => {
     if (authLoading) return
+    requestController.current?.abort()
     if (!accessToken) {
+      setSnapshots([])
+      setSelectedAccount("")
       setError("برای مشاهده مدیریت ریسک ابتدا وارد حساب کاربری شوید")
       setLoading(false)
       return
     }
+    const controller = new AbortController()
+    requestController.current = controller
     setLoading(true)
     try {
       const response = await fetch("/dashboard-data/mt5/accounts", {
         cache: "no-store",
+        signal: controller.signal,
         headers: { Authorization: `Bearer ${accessToken}` },
       })
       const body = await response.json().catch(() => null)
       if (!response.ok) throw new Error(responseError(body, response.status))
       if (!Array.isArray(body)) throw new Error("پاسخ حساب‌های معاملاتی معتبر نیست")
+      if (controller.signal.aborted) return
       setSnapshots(body)
       setSelectedAccount((current) => current && body.some((item) => accountKey(item) === current) ? current : accountKey(body[0]) || "")
       setError("")
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "دریافت اطلاعات ریسک ممکن نشد")
+      if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "دریافت اطلاعات ریسک ممکن نشد")
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) setLoading(false)
     }
   }, [accessToken, authLoading])
 
   useEffect(() => {
     load()
     const timer = window.setInterval(load, 60000)
-    return () => window.clearInterval(timer)
+    return () => { window.clearInterval(timer); requestController.current?.abort() }
   }, [load])
 
   const snapshot = useMemo(() => snapshots.find((item) => accountKey(item) === selectedAccount) || snapshots[0] || null, [snapshots, selectedAccount])
   const storageKey = snapshot ? accountKey(snapshot) : ""
 
   useEffect(() => {
-    if (!storageKey) return
+    const handleDelete = (event) => {
+      const broker = event.detail.broker_company
+      setSnapshots((current) => withoutBroker(current, broker))
+      if (snapshot?.source?.broker_company === broker) {
+        setSelectedAccount("")
+        setReviewOpen(false)
+        setDailyPlanOpen(false)
+        setScenarioOpen(false)
+        setScenarioSymbol("")
+        setShockPct(-5)
+      }
+      load()
+    }
+    window.addEventListener(MT5_BROKER_DELETED_EVENT, handleDelete)
+    return () => window.removeEventListener(MT5_BROKER_DELETED_EVENT, handleDelete)
+  }, [load, snapshot])
+
+  useEffect(() => {
     try {
-      const storedRules = JSON.parse(window.localStorage.getItem(`greenpeak:risk-rules:${storageKey}`) || "null")
-      const storedDraft = JSON.parse(window.localStorage.getItem(`greenpeak:trade-draft:${storageKey}`) || "null")
+      const storedRules = storageKey ? JSON.parse(window.localStorage.getItem(`greenpeak:risk-rules:${storageKey}`) || "null") : null
+      const storedDraft = storageKey ? JSON.parse(window.localStorage.getItem(`greenpeak:trade-draft:${storageKey}`) || "null") : null
       setRules(storedRules ? { ...EMPTY_RISK_RULES, ...storedRules } : EMPTY_RISK_RULES)
       setDraft(storedDraft ? { ...EMPTY_TRADE_DRAFT, ...storedDraft } : EMPTY_TRADE_DRAFT)
     } catch {

@@ -1,7 +1,8 @@
 "use client"
 
+import { MT5_BROKER_DELETED_EVENT, withoutBroker } from "@/lib/mt5-account-changes"
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   AlertTriangle,
@@ -228,7 +229,7 @@ export function buildDashboardInsights({ snapshots, comparison, articles, snooze
   const keywords = portfolioKeywords(activeSnapshots)
   articles.filter((article) => articleMatchesPortfolio(article, keywords)).slice(0, 2).forEach((article, index) => add({ id: `portfolio-news:${article.item_id || article.id || article.url || index}`, kind: "portfolio", priority: 45 - index, title: article.title_fa?.trim() || article.title?.trim(), detail: "این خبر با یکی از نمادها یا محرک‌های مرتبط با پرتفوی فعلی شما هم‌پوشانی دارد.", meta: formatRelativeTime(article.published_at) || article.published_label || "خبر مرتبط", href: "/analytics/events" }))
   articles.slice(0, 6).forEach((article, index) => add({ id: `market-news:${article.item_id || article.id || article.url || index}`, kind: "news", priority: 35 - index, title: article.title_fa?.trim() || article.title?.trim(), detail: article.summary_fa?.trim() || article.summary?.trim() || "خبر مهم بازار آمریکا", meta: formatRelativeTime(article.published_at) || article.published_label || "بازار آمریکا", href: "/analytics/events" }))
-  EDUCATIONAL_FILLERS.forEach((item, index) => add({ ...item, kind: "education", priority: 18 - index, meta: "آموزش کوتاه", href: "/support" }))
+  EDUCATIONAL_FILLERS.forEach((item, index) => add({ ...item, kind: "education", priority: 18 - index, meta: "آموزش کوتاه", href: "/help" }))
 
   const active = candidates.filter((item) => !Number(snoozed[item.id]) || Number(snoozed[item.id]) <= now.getTime())
   const unique = []
@@ -303,6 +304,19 @@ export default function NewsTicker() {
   const [hovered, setHovered] = useState(false)
   const [now, setNow] = useState(() => new Date())
   const [rulesRevision, setRulesRevision] = useState(0)
+  const [accountsRevision, setAccountsRevision] = useState(0)
+  const privateDataGeneration = useRef(0)
+
+  useEffect(() => {
+    const handleDelete = (event) => {
+      privateDataGeneration.current += 1
+      setSnapshots((current) => withoutBroker(current, event.detail.broker_company))
+      setComparison(null)
+      setAccountsRevision((value) => value + 1)
+    }
+    window.addEventListener(MT5_BROKER_DELETED_EVENT, handleDelete)
+    return () => window.removeEventListener(MT5_BROKER_DELETED_EVENT, handleDelete)
+  }, [])
 
   useEffect(() => {
     try {
@@ -335,15 +349,17 @@ export default function NewsTicker() {
     setPrivateDataReady(!accessToken)
     setPrivateDataUnavailable(false)
     const refresh = async () => {
+      const generation = privateDataGeneration.current
       try {
         const [nextArticles, privateData] = await Promise.all([loadNews(controller.signal), loadPrivateData(accessToken, controller.signal)])
+        if (controller.signal.aborted || generation !== privateDataGeneration.current) return
         setArticles(nextArticles.length ? nextArticles : fallbackArticles())
         setSnapshots(privateData.snapshots)
         setComparison(privateData.comparison)
         setPrivateDataUnavailable(!privateData.accountDataAvailable)
         setPrivateDataOwner(accessToken || null)
       } catch (error) {
-        if (error.name !== "AbortError") {
+        if (!controller.signal.aborted && generation === privateDataGeneration.current && error.name !== "AbortError") {
           setArticles((current) => current.length ? current : fallbackArticles())
           setSnapshots([])
           setComparison(null)
@@ -351,7 +367,7 @@ export default function NewsTicker() {
           setPrivateDataOwner(accessToken || null)
         }
       } finally {
-        if (!controller.signal.aborted) setPrivateDataReady(true)
+        if (!controller.signal.aborted && generation === privateDataGeneration.current) setPrivateDataReady(true)
       }
     }
     refresh()
@@ -360,7 +376,7 @@ export default function NewsTicker() {
       window.clearInterval(timer)
       controller.abort()
     }
-  }, [accessToken, authLoading])
+  }, [accessToken, authLoading, accountsRevision])
 
   const privateDataMatchesSession = privateDataOwner === (accessToken || null)
   const insights = useMemo(() => buildDashboardInsights({

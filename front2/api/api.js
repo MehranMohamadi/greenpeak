@@ -37,6 +37,7 @@ export const endpoints = {
     mt5: {
         latestSnapshot: `${API_BASE}/mt5/snapshots/latest`,
         connections: `${API_BASE}/mt5/connections`,
+        brokers: `${API_BASE}/mt5/brokers`,
     },
     indicatorFeatures: {
         latest: (indicatorId, debug = false) => `${API_BASE}/indicators/${indicatorId}/features/latest${debug ? "?mode=debug" : ""}`,

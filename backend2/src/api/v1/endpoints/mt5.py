@@ -7,10 +7,10 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, 
 from pydantic import BaseModel, Field
 from pymongo.errors import PyMongoError
 
-from ....models.mt5_schemas import BrokerComparisonResponse, MT5Snapshot, MT5SnapshotReceipt
+from ....models.mt5_schemas import BrokerComparisonResponse, BrokerDeleteRequest, BrokerDeleteResponse, MT5Snapshot, MT5SnapshotReceipt
 from ....services.broker_comparison_service import BrokerComparisonService
 from ....services.mt5_connection_service import MT5ConnectionService
-from ....services.mt5_snapshot_service import MT5SnapshotService
+from ....services.mt5_snapshot_service import MT5ConnectionUnavailableError, MT5SnapshotService
 from .auth import require_user
 
 
@@ -106,6 +106,8 @@ def ingest_snapshot(
         if connection is None:
             raise HTTPException(status_code=401, detail="Invalid pairing token or account mismatch")
         result = snapshots.store(snapshot, connection["user_id"], str(connection["_id"]))
+    except MT5ConnectionUnavailableError as exc:
+        raise HTTPException(status_code=401, detail="MT5 connection is no longer active") from exc
     except PyMongoError as exc:
         raise HTTPException(status_code=503, detail="Snapshot storage unavailable") from exc
     return MT5SnapshotReceipt(status=result, snapshot_id=snapshot.snapshot_id, received_at_utc=datetime.now(timezone.utc))
@@ -161,3 +163,16 @@ def broker_comparison(
     except PyMongoError as exc:
         raise HTTPException(status_code=503, detail="Broker comparison is unavailable") from exc
     return BrokerComparisonResponse.model_validate(result)
+
+
+@router.delete("/brokers", response_model=BrokerDeleteResponse)
+def delete_broker(
+    body: BrokerDeleteRequest,
+    user: Annotated[dict, Depends(require_user)],
+    service: Annotated[MT5SnapshotService, Depends(snapshot_service)],
+) -> BrokerDeleteResponse:
+    try:
+        result = service.delete_broker(user["id"], body.broker_company)
+    except PyMongoError as exc:
+        raise HTTPException(status_code=503, detail="Broker deletion unavailable; please retry") from exc
+    return BrokerDeleteResponse.model_validate(result)
