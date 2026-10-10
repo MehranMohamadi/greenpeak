@@ -8,6 +8,13 @@ const API_BASE = configuredApiBase || "/api/v1";
 export { API_BASE };
 
 export const endpoints = {
+    chat: {
+        status: `${API_BASE}/chat/status`,
+        accounts: `${API_BASE}/chat/accounts`,
+        conversations: `${API_BASE}/chat/conversations`,
+        conversation: (id) => `${API_BASE}/chat/conversations/${id}`,
+        messages: (id) => `${API_BASE}/chat/conversations/${id}/messages`,
+    },
     auth: {
         signup: `${API_BASE}/auth/signup`,
         login: `${API_BASE}/auth/login`,

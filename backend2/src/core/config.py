@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     greenpeak_llm_model: str = "gpt-6-luna"
     greenpeak_llm_api_key: str = ""
     greenpeak_llm_base_url: str = "https://api.gapgpt.app/v1"
+    greenpeak_chat_db_path: Path = Path(__file__).parent.parent.parent / "instance" / "chat" / "chat.db"
+    greenpeak_chat_retention_days: int = 30
+    greenpeak_chat_daily_limit: int = 100
+    greenpeak_chat_mt5_stale_minutes: int = 5
     greenpeak_analysis_admin_token: str = ""
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""

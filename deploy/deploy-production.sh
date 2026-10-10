@@ -113,6 +113,10 @@ if [[ -f "$legacy_root/front2/.env" ]]; then
   ln -s "$legacy_root/front2/.env" "$release_root/front2/.env.production.local"
 fi
 
+# Chat history and its SQLite journal must survive release switches.
+mkdir -p "$legacy_root/backend2/instance/chat" "$release_root/backend2/instance"
+ln -s "$legacy_root/backend2/instance/chat" "$release_root/backend2/instance/chat"
+
 if [[ -n "$previous_target" \
   && -x "$previous_target/backend2/.venv/bin/python" \
   && -f "$previous_target/backend2/requirements.txt" ]] \

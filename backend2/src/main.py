@@ -9,6 +9,7 @@ from .api.v1.endpoints import analysis_router, rules_router, features_router, ma
 from .services.daily_analysis import create_daily_analysis_scheduler
 from .services.news.scheduler import create_news_scheduler
 from .services.official_sentiment_scheduler import create_official_sentiment_scheduler
+from .api.v1.endpoints import chat_router
 
 
 def create_app() -> FastAPI:
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
     app.include_router(news_router, prefix="/api/v1")
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(support_router, prefix="/api/v1")
+    app.include_router(chat_router, prefix="/api/v1")
 
     return app
 
