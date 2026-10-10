@@ -28,7 +28,7 @@ def provider_http_failure(exc):
         else:
             description = str(error)[:500].lower()
         quota = status == 402 or any(marker in description for marker in (
-            "insufficient_quota", "insufficient quota", "insufficient credit", "insufficient balance",
+            "insufficient_quota", "insufficient_user_quota", "insufficient quota", "insufficient credit", "insufficient balance",
             "quota exceeded", "quota_exceeded", "credit exhausted",
         ))
     if quota:

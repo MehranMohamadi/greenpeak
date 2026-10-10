@@ -23,6 +23,7 @@ CONNECTION_ID = "a" * 24
 
 
 @pytest.mark.parametrize("status,body,code", [
+    (403, {"error": {"code": "insufficient_user_quota", "type": "gap_api_error"}}, "CHAT_PROVIDER_QUOTA"),
     (403, {"error": {"code": "insufficient_quota", "message": "insufficient quota"}}, "CHAT_PROVIDER_QUOTA"),
     (429, {"error": {"type": "insufficient_quota"}}, "CHAT_PROVIDER_QUOTA"),
     (402, {}, "CHAT_PROVIDER_QUOTA"),
