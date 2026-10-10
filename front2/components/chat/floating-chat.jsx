@@ -197,7 +197,8 @@ function ChatWidget({ accessToken }) {
     <Dialog.Trigger asChild>
       <button type="button" aria-label={open ? "بستن دستیار GreenPeak" : "گفت‌وگو با دستیار GreenPeak"}
         className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-6 z-[70] flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 ring-1 ring-primary/20 transition duration-200 hover:scale-105 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 motion-reduce:transform-none lg:right-24">
-        {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-7 w-7" />}
+        {!open && <span aria-hidden="true" className="pointer-events-none absolute inset-0 animate-ping rounded-full bg-primary/20 [animation-duration:2.5s] motion-reduce:hidden" />}
+        {open ? <X className="relative h-6 w-6" /> : <MessageCircle className="relative h-7 w-7" />}
       </button>
     </Dialog.Trigger>
     <Dialog.Portal>
