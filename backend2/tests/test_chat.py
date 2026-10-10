@@ -6,19 +6,51 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.api.v1.endpoints import chat
 from src.api.v1.endpoints.auth import require_user
 from src.services.chat.data import ChatData
-from src.services.chat.engine import generate_reply
+from src.services.chat.engine import generate_reply, provider_http_failure
 from src.services.chat.schemas import MessageRequest, Retrieval
 from src.services.chat.store import ChatError, ChatStore
 from test_mt5_snapshots import SNAPSHOT
 
 
 CONNECTION_ID = "a" * 24
+
+
+@pytest.mark.parametrize("status,body,code", [
+    (403, {"error": {"code": "insufficient_quota", "message": "insufficient quota"}}, "CHAT_PROVIDER_QUOTA"),
+    (429, {"error": {"type": "insufficient_quota"}}, "CHAT_PROVIDER_QUOTA"),
+    (402, {}, "CHAT_PROVIDER_QUOTA"),
+    (401, {"error": {"message": "secret-provider-value"}}, "CHAT_PROVIDER_ACCESS_DENIED"),
+    (403, {}, "CHAT_PROVIDER_ACCESS_DENIED"),
+    (429, {}, "CHAT_PROVIDER_RATE_LIMIT"),
+    (500, {}, "CHAT_PROVIDER_UNAVAILABLE"),
+])
+def test_provider_errors_are_actionable_and_sanitized(status, body, code):
+    response = httpx.Response(status, json=body, request=httpx.Request("POST", "https://provider.invalid/chat/completions"))
+    failure = provider_http_failure(httpx.HTTPStatusError("provider error", request=response.request, response=response))
+    assert failure.code == code
+    assert "secret-provider-value" not in failure.message
+
+
+def test_quota_failure_does_not_persist_and_releases_lease(harness, monkeypatch):
+    client, store, data, provider, app = harness
+    conversation_id = store.create("alice", "site", None)["id"]
+    def exhausted(prompt, evidence):
+        response = httpx.Response(403, json={"error": {"code": "insufficient_quota"}}, request=httpx.Request("POST", "https://provider.invalid/chat/completions"))
+        response.raise_for_status()
+    monkeypatch.setattr(provider, "generate_json", exhausted)
+    url = f"/api/v1/chat/conversations/{conversation_id}"
+    result = client.post(url + "/messages", json={"content": "market", "request_id": str(uuid4())})
+    assert result.status_code == 503
+    assert result.json()["detail"]["code"] == "CHAT_PROVIDER_QUOTA"
+    assert not store.get("alice", conversation_id)["messages"]
+    assert client.delete(url).status_code == 204
 
 
 class Evidence:
