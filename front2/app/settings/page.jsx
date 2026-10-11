@@ -1,3 +1,5 @@
+"use client"
+
 import Layout from "@/components/kokonutui/layout"
 import CustomizationPanel from "@/components/dashboard/customization-panel"
 import WatchlistManager from "@/components/dashboard/watchlist-manager"
@@ -5,9 +7,11 @@ import DashboardThemes from "@/components/dashboard/dashboard-themes"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Settings, Star, Database, FileJson2 } from "lucide-react"
+import { Settings, Star, ShieldCheck } from "lucide-react"
+import { useAuth } from "@/components/auth/auth-context"
 
 export default function SettingsPage() {
+  const { isAdmin } = useAuth()
   return (
     <Layout>
       <div className="p-6 space-y-6">
@@ -27,35 +31,20 @@ export default function SettingsPage() {
           {/* Theme Selection */}
           <DashboardThemes />
 
-          <Card>
+          {isAdmin && <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                Feature Pipeline
+                <ShieldCheck className="h-5 w-5" />
+                Admin Panel
               </CardTitle>
-              <CardDescription>View raw rate data and each transformation stage as JSON</CardDescription>
+              <CardDescription>مدیران سایت و ابزارهای بررسی فنی</CardDescription>
             </CardHeader>
             <CardContent>
               <Button asChild>
-                <Link href="/analytics/feature-pipeline-debug">Open Pipeline JSON</Link>
+                <Link href="/admin/settings">Admin Settings</Link>
               </Button>
             </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileJson2 className="h-5 w-5" />
-                MetaTrader Snapshots
-              </CardTitle>
-              <CardDescription>View every stored MetaTrader snapshot as complete, unfiltered JSON</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild>
-                <Link href="/analytics/mt5-snapshots">Open Snapshot JSON</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          </Card>}
         </div>
 
         {/* Watchlist Manager */}

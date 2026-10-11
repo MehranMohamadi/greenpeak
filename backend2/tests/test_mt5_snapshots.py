@@ -118,6 +118,8 @@ def test_snapshot_round_trip_and_idempotency():
         second = client.post("/api/v1/mt5/snapshots", json=payload, headers=pairing_headers)
         latest = client.get("/api/v1/mt5/snapshots/latest?account_identifier=123456", headers=user_headers)
         accounts = client.get("/api/v1/mt5/snapshots/latest-by-account", headers=user_headers)
+        assert client.get("/api/v1/mt5/snapshots", headers=user_headers).status_code == 403
+        app.dependency_overrides[require_user] = lambda: {"id": "user-1", "username": "member", "role": "admin"}
         all_snapshots = client.get("/api/v1/mt5/snapshots", headers=user_headers)
     finally:
         app.dependency_overrides.clear()

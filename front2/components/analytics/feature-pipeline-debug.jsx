@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { AlertTriangle, Database, RefreshCw } from "lucide-react"
 
 import { endpoints } from "@/api/api"
+import { useAuth } from "@/components/auth/auth-context"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,6 +26,7 @@ function errorMessage(value, fallback) {
 }
 
 export default function FeaturePipelineDebug() {
+  const { accessToken, isAdmin } = useAuth()
   const [indicator, setIndicator] = useState(indicators[0].id)
   const [payload, setPayload] = useState(null)
   const [error, setError] = useState("")
@@ -32,6 +34,7 @@ export default function FeaturePipelineDebug() {
   const requestController = useRef(null)
 
   const load = async () => {
+    if (!isAdmin || !accessToken) return
     requestController.current?.abort()
     const controller = new AbortController()
     requestController.current = controller
@@ -48,7 +51,7 @@ export default function FeaturePipelineDebug() {
       const observations = (rawBody.data || []).map((item) => ({ date: item.date, value: item.value ?? item.rate }))
       const response = await fetch(endpoints.indicatorFeatures.pipelinePreview, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ indicator_id: selected.id, source_series_id: selected.series, source_provider: rawBody.metadata?.source || "GreenPeak existing API", observations }),
         signal: controller.signal,
       })
@@ -85,7 +88,7 @@ export default function FeaturePipelineDebug() {
   useEffect(() => {
     const timer = window.setTimeout(load, 0)
     return () => window.clearTimeout(timer)
-  }, [indicator])
+  }, [indicator, isAdmin, accessToken])
 
   useEffect(() => () => requestController.current?.abort(), [])
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { AlertTriangle, Beaker, ChevronDown, Database } from "lucide-react"
 
 import { endpoints } from "@/api/api"
+import { useAuth } from "@/components/auth/auth-context"
 import AnalysisListCard from "@/components/analytics/analysis-list-card"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,7 +15,7 @@ const indicatorConfigs = {
 }
 const value = (number, suffix = "") => number == null ? "—" : `${number > 0 && suffix === " bp" ? "+" : ""}${Number(number).toFixed(2)}${suffix}`
 
-async function loadPreviewSnapshot(indicatorConfig, signal) {
+async function loadPreviewSnapshot(indicatorConfig, signal, isAdmin, accessToken) {
   const startDate = new Date()
   startDate.setUTCFullYear(startDate.getUTCFullYear() - 6)
   const separator = indicatorConfig.rawUrl.includes("?") ? "&" : "?"
@@ -30,9 +31,9 @@ async function loadPreviewSnapshot(indicatorConfig, signal) {
     .filter((item) => item.date && item.value != null)
   if (!observations.length) throw new Error("No rate observations are available for analysis.")
 
-  const previewResponse = await fetch(endpoints.indicatorFeatures.pipelinePreview, {
+  const previewResponse = await fetch(isAdmin ? endpoints.indicatorFeatures.pipelinePreview : endpoints.indicatorFeatures.preview, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(isAdmin ? { Authorization: `Bearer ${accessToken}` } : {}) },
     body: JSON.stringify({
       indicator_id: indicatorConfig.id,
       source_series_id: indicatorConfig.seriesId,
@@ -45,10 +46,11 @@ async function loadPreviewSnapshot(indicatorConfig, signal) {
   if (!previewResponse.ok) {
     throw new Error(previewBody?.detail?.message || "Rate feature preview is unavailable.")
   }
-  return previewBody.data?.stages?.validated_snapshot?.snapshot
+  return isAdmin ? previewBody.data?.stages?.validated_snapshot?.snapshot : previewBody.data
 }
 
 export default function RateFeatureCard({ factorId }) {
+  const { isAdmin, accessToken } = useAuth()
   const indicatorConfig = indicatorConfigs[factorId]
   const indicatorId = indicatorConfig?.id
   const [snapshot, setSnapshot] = useState(null)
@@ -66,15 +68,15 @@ export default function RateFeatureCard({ factorId }) {
     const load = async () => {
       try {
         const [storedResponse, narrativeResponse] = await Promise.all([
-          fetch(endpoints.indicatorFeatures.latest(indicatorId), { cache: "no-store", signal: controller.signal }),
-          fetch(endpoints.analysis.indicatorLatest(indicatorId), { cache: "no-store", signal: controller.signal }),
+          fetch(endpoints.indicatorFeatures.latest(indicatorId, isAdmin), { cache: "no-store", signal: controller.signal, headers: isAdmin ? { Authorization: `Bearer ${accessToken}` } : {} }),
+          fetch(`${endpoints.analysis.indicatorLatest(indicatorId)}${isAdmin ? "?mode=debug" : ""}`, { cache: "no-store", signal: controller.signal, headers: isAdmin ? { Authorization: `Bearer ${accessToken}` } : {} }),
         ])
         const storedBody = await storedResponse.json()
         const narrativeBody = await narrativeResponse.json()
         let nextSnapshot = storedBody.data
         let nextSourceMode = "stored snapshot"
         if (!storedResponse.ok) {
-          nextSnapshot = await loadPreviewSnapshot(indicatorConfig, controller.signal)
+          nextSnapshot = await loadPreviewSnapshot(indicatorConfig, controller.signal, isAdmin, accessToken)
           nextSourceMode = "live API preview"
         }
         if (!nextSnapshot) throw new Error("Rate analysis did not return a validated snapshot.")
@@ -89,7 +91,7 @@ export default function RateFeatureCard({ factorId }) {
 
     load()
     return () => controller.abort()
-  }, [indicatorId])
+  }, [indicatorId, isAdmin, accessToken])
 
   if (!indicatorId) return null
   if (error) return (
@@ -107,7 +109,7 @@ export default function RateFeatureCard({ factorId }) {
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary" /> تحلیل استاندارد نرخ</CardTitle>
-          <div className="flex gap-2"><Badge variant="outline">{sourceMode}</Badge><Badge variant="outline">{snapshot.quality.status}</Badge><Badge variant="outline"><Beaker className="mr-1 h-3 w-3" /> آزمایشی</Badge></div>
+          <div className="flex gap-2">{isAdmin && <Badge variant="outline">{sourceMode}</Badge>}<Badge variant="outline">{snapshot.quality.status}</Badge><Badge variant="outline"><Beaker className="mr-1 h-3 w-3" /> آزمایشی</Badge></div>
         </div>
         <CardDescription>دادهٔ {snapshot.source.latest_observation_date} · {snapshot.source.series_id} · محاسبه‌شده در Python</CardDescription>
       </CardHeader>
@@ -147,8 +149,8 @@ export default function RateFeatureCard({ factorId }) {
             </div>}
           </> : <p className="mt-2 text-sm text-muted-foreground">تحلیل هنوز تولید نشده است.</p>}
         </div>
-        {process.env.NODE_ENV !== "production" && <button className="text-xs text-primary" onClick={() => setDebug(!debug)}>{debug ? "بستن JSON توسعه‌دهنده" : "نمایش JSON توسعه‌دهنده"}</button>}
-        {debug && <pre dir="ltr" className="max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(snapshot, null, 2)}</pre>}
+        {isAdmin && <button className="text-xs text-primary" onClick={() => setDebug(!debug)}>{debug ? "بستن JSON توسعه‌دهنده" : "نمایش JSON توسعه‌دهنده"}</button>}
+        {isAdmin && debug && <pre dir="ltr" className="max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(snapshot, null, 2)}</pre>}
       </CardContent>
     </Card>
   )

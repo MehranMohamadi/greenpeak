@@ -431,7 +431,7 @@ export default function HelpPage() {
               ["اتصال MetaTrader", "اطلاعات Pairing لازم برای ارسال Snapshot حساب از ابزار MT5 را ارائه می‌کند."],
             ].map(([title, text]) => <Card key={title}><CardHeader className="pb-2"><CardTitle className="text-base">{title}</CardTitle></CardHeader><CardContent><p className="text-sm leading-7 text-muted-foreground">{text}</p></CardContent></Card>)}
           </div>
-          <p className="rounded-xl border bg-muted/20 p-4 text-sm leading-7 text-muted-foreground">نمایشگرهای Feature Pipeline و MetaTrader Snapshot در تنظیمات برای بررسی فنی JSON خام هستند. کاربران عادی برای مشاهده نمودارها و خلاصه حساب نیازی به استفاده از آن‌ها ندارند.</p>
+          <p className="rounded-xl border bg-muted/20 p-4 text-sm leading-7 text-muted-foreground">تنظیمات شخصی برای تغییر ظاهر و واچ‌لیست است. اتصال متاتریدر و تنظیمات حساب در پروفایل قرار دارند.</p>
         </section>
 
         <section className="space-y-5">

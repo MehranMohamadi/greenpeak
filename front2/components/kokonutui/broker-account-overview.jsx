@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
+import { useAuth } from "@/components/auth/auth-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, ChevronDown, Loader2, RefreshCw, Scale, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -266,6 +267,7 @@ function MissingComparisonValue({ label = "داده کافی نیست" }) {
 }
 
 function ComparisonTable({ comparison, loading, error, onRetry }) {
+  const { isAdmin } = useAuth()
   const brokers = comparison?.brokers || []
   const assets = useMemo(() => {
     const rows = new Map()
@@ -284,12 +286,12 @@ function ComparisonTable({ comparison, loading, error, onRetry }) {
     if (!symbol) return <MissingComparisonValue />
     const annualized = symbol[`swap_${side}_annualized_pct_median`]
     if (hasNumber(annualized)) {
-      return <ComparisonValue detail={`سالانه · میانه ${symbol.sample_accounts} حساب`}>{number(annualized, 3)}%</ComparisonValue>
+      return <ComparisonValue detail={isAdmin ? `سالانه · میانه ${symbol.sample_accounts} حساب` : "سالانه"}>{number(annualized, 3)}%</ComparisonValue>
     }
     if (symbol.swap_mode_mixed) return <MissingComparisonValue label="روش‌های سواپ متفاوت" />
     const raw = symbol[`swap_${side}_raw_median`]
     if (!hasNumber(raw)) return <MissingComparisonValue />
-    return <ComparisonValue detail={`${swapModeLabel(symbol.swap_mode)} · میانه ${symbol.sample_accounts} حساب`}>{number(raw, 4)}</ComparisonValue>
+    return <ComparisonValue detail={`${swapModeLabel(symbol.swap_mode)}${isAdmin ? ` · میانه ${symbol.sample_accounts} حساب` : ""}`}>{number(raw, 4)}</ComparisonValue>
   }
 
   if (loading) return <div className="flex h-full items-center justify-center gap-2 p-6 text-sm text-muted-foreground"><RefreshCw className="h-4 w-4 animate-spin" />در حال ساخت مقایسه تجمیعی…</div>
@@ -308,7 +310,7 @@ function ComparisonTable({ comparison, loading, error, onRetry }) {
           <th className="sticky right-0 top-0 z-30 min-w-[11rem] border-b bg-white px-3 py-2 text-right font-medium text-muted-foreground dark:bg-[#1F1F23]">شاخص مقایسه</th>
           {brokers.map((broker) => <th key={broker.broker_key} className="sticky top-0 z-20 min-w-[10rem] border-b bg-white px-3 py-2 text-center dark:bg-[#1F1F23]">
             <span className="block max-w-[10rem] truncate font-semibold text-foreground" title={broker.broker_name}>{broker.broker_name}</span>
-            <span className="mt-0.5 block text-[9px] font-normal text-muted-foreground">{broker.sample_accounts} حساب · {broker.sample_users} کاربر</span>
+            {isAdmin && <span className="mt-0.5 block text-[9px] font-normal text-muted-foreground">{broker.sample_accounts} حساب · {broker.sample_users} کاربر</span>}
           </th>)}
         </tr>
       </thead>
@@ -316,13 +318,13 @@ function ComparisonTable({ comparison, loading, error, onRetry }) {
         <tr className="bg-muted/20">
           <th className="sticky right-0 z-10 border-b bg-gray-50 px-3 py-2 text-right font-medium dark:bg-[#18181c]">کمیسیون هر لات</th>
           {brokers.map((broker) => hasNumber(broker.commission_per_lot_median)
-            ? <td key={broker.broker_key} className="border-b"><ComparisonValue detail={`میانه ${broker.commission_sample_deals} اجرای معامله`}>{number(broker.commission_per_lot_median, 3)} {broker.account_currency || ""}</ComparisonValue></td>
+            ? <td key={broker.broker_key} className="border-b"><ComparisonValue detail={isAdmin ? `میانه ${broker.commission_sample_deals} اجرای معامله` : "میانه هزینه هر لات"}>{number(broker.commission_per_lot_median, 3)} {broker.account_currency || ""}</ComparisonValue></td>
             : <td key={broker.broker_key} className="border-b"><MissingComparisonValue label="کمیسیون ثبت نشده" /></td>)}
         </tr>
         <tr>
           <th className="sticky right-0 z-10 border-b bg-white px-3 py-2 text-right font-medium dark:bg-[#1F1F23]">دیویدند هر لات</th>
           {brokers.map((broker) => hasNumber(broker.dividend_per_lot_median)
-            ? <td key={broker.broker_key} className="border-b"><ComparisonValue detail={`میانه ${broker.dividend_sample_records} رکورد`}>{number(broker.dividend_per_lot_median, 3)} {broker.account_currency || ""}</ComparisonValue></td>
+            ? <td key={broker.broker_key} className="border-b"><ComparisonValue detail={isAdmin ? `میانه ${broker.dividend_sample_records} رکورد` : "میانه هر لات"}>{number(broker.dividend_per_lot_median, 3)} {broker.account_currency || ""}</ComparisonValue></td>
             : <td key={broker.broker_key} className="border-b"><MissingComparisonValue label="دیویدند گزارش نشده" /></td>)}
         </tr>
         {assets.map((asset) => <AssetComparisonRows key={asset.asset_key} asset={asset} brokers={brokers} symbolFor={symbolFor} renderSwap={renderSwap} />)}
@@ -332,6 +334,7 @@ function ComparisonTable({ comparison, loading, error, onRetry }) {
 }
 
 function AssetComparisonRows({ asset, brokers, symbolFor, renderSwap }) {
+  const { isAdmin } = useAuth()
   const label = comparisonAssetLabel(asset)
   return <>
     <tr>
@@ -342,7 +345,7 @@ function AssetComparisonRows({ asset, brokers, symbolFor, renderSwap }) {
       {brokers.map((broker) => {
         const symbol = symbolFor(broker, asset.asset_key)
         return hasNumber(symbol?.spread_bps_median)
-          ? <td key={broker.broker_key} className="border-b"><ComparisonValue detail={`${hasNumber(symbol.spread_points_median) ? `${number(symbol.spread_points_median, 2)} پوینت · ` : ""}میانه ${symbol.sample_accounts} حساب`}>{number(symbol.spread_bps_median, 3)} bp</ComparisonValue></td>
+          ? <td key={broker.broker_key} className="border-b"><ComparisonValue detail={`${hasNumber(symbol.spread_points_median) ? `${number(symbol.spread_points_median, 2)} پوینت` : ""}${isAdmin ? ` · میانه ${symbol.sample_accounts} حساب` : ""}`}>{number(symbol.spread_bps_median, 3)} bp</ComparisonValue></td>
           : <td key={broker.broker_key} className="border-b"><MissingComparisonValue /></td>
       })}
     </tr>
@@ -358,6 +361,7 @@ function AssetComparisonRows({ asset, brokers, symbolFor, renderSwap }) {
 }
 
 export default function BrokerAccountOverview({ snapshots = [], accessToken = "", onDeleteBroker }) {
+  const { isAdmin } = useAuth()
   const [tab, setTab] = useState("accounts")
   const [comparison, setComparison] = useState(null)
   const [comparisonLoading, setComparisonLoading] = useState(false)
@@ -439,11 +443,11 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
   }, [tab, accessToken, comparison, comparisonLoading, comparisonError, loadComparison])
 
   const tabs = [
-    { id: "accounts", label: "حساب‌های من", count: snapshots.length },
+    { id: "accounts", label: "حساب‌های من", count: isAdmin ? snapshots.length : undefined },
     {
       id: "comparison",
       label: "مقایسه بروکرها",
-      count: comparison?.eligible_broker_count ?? (comparisonLoading || (accessToken && !comparisonError) ? "…" : "—"),
+      count: isAdmin ? comparison?.eligible_broker_count ?? (comparisonLoading || (accessToken && !comparisonError) ? "…" : "—") : undefined,
     },
   ]
 
@@ -452,7 +456,7 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
       <CardTitle className="flex items-center gap-2 text-base text-gray-900 dark:text-white">
         <Building2 className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
         حساب بروکرها
-        <Badge variant="secondary">{tab === "accounts" ? snapshots.length : (comparison?.eligible_broker_count ?? "—")}</Badge>
+        {isAdmin && <Badge variant="secondary">{tab === "accounts" ? snapshots.length : (comparison?.eligible_broker_count ?? "—")}</Badge>}
       </CardTitle>
       <div className={tradingTabListClass} aria-label="بخش حساب‌ها و مقایسه بروکرها">
         {tabs.map((item) => <button key={item.id} type="button" aria-pressed={tab === item.id} onClick={() => setTab(item.id)} className={tradingTabClass(tab === item.id)}>

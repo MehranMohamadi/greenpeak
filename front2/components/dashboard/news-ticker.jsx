@@ -219,10 +219,10 @@ export function buildDashboardInsights({ snapshots, comparison, articles, snooze
 
     add({ id: "accounts-summary", kind: "summary", priority: 52, title: `${formatCount(activeSnapshots.length)} حساب متصل، ${formatCount(totalPositions)} پوزیشن باز و ${formatCount(totalPending)} سفارش در انتظار دارید`, detail: "این خلاصه از آخرین Snapshot هر حساب ساخته شده است.", meta: "وضعیت حساب‌ها", href: "#trading-accounts-title" })
 
-    if (comparison?.eligible_broker_count > 0) {
+    if (comparison?.brokers?.length > 0) {
       const accountBrokers = new Set(activeSnapshots.map((snapshot) => String(snapshot?.source?.broker_company || "").trim().toLocaleLowerCase()))
       const matched = (comparison.brokers || []).find((broker) => accountBrokers.has(String(broker?.broker_name || "").trim().toLocaleLowerCase()))
-      add({ id: "broker-comparison-ready", kind: "broker", priority: 44, title: matched ? `مقایسه هزینه‌های ${matched.broker_name} با داده تجمیعی بروکرها آماده است` : `مقایسه تجمیعی ${formatCount(comparison.eligible_broker_count)} بروکر آماده مشاهده است`, detail: "اسپرد، کمیسیون و سواپ فقط از داده واقعی و بی‌نام حساب‌ها ساخته می‌شوند.", meta: "هزینه معامله", href: "#trading-accounts-title", focus: "broker-comparison" })
+      add({ id: "broker-comparison-ready", kind: "broker", priority: 44, title: matched ? `مقایسه هزینه‌های ${matched.broker_name} با داده تجمیعی بروکرها آماده است` : comparison.eligible_broker_count != null ? `مقایسه تجمیعی ${formatCount(comparison.eligible_broker_count)} بروکر آماده مشاهده است` : "مقایسه هزینه‌های بروکرها آماده مشاهده است", detail: "اسپرد، کمیسیون و سواپ فقط از داده واقعی و بی‌نام حساب‌ها ساخته می‌شوند.", meta: "هزینه معامله", href: "#trading-accounts-title", focus: "broker-comparison" })
     }
   }
 

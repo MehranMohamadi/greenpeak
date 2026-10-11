@@ -16,6 +16,8 @@ export const endpoints = {
         messages: (id) => `${API_BASE}/chat/conversations/${id}/messages`,
     },
     auth: {
+        admins: `${API_BASE}/auth/admins`,
+        users: `${API_BASE}/auth/users`,
         signup: `${API_BASE}/auth/signup`,
         login: `${API_BASE}/auth/login`,
         me: `${API_BASE}/auth/me`,
@@ -47,6 +49,7 @@ export const endpoints = {
         brokers: `${API_BASE}/mt5/brokers`,
     },
     indicatorFeatures: {
+        preview: `${API_BASE}/indicators/features/preview`,
         latest: (indicatorId, debug = false) => `${API_BASE}/indicators/${indicatorId}/features/latest${debug ? "?mode=debug" : ""}`,
         pipelineDebug: (indicatorId) => `${API_BASE}/indicators/${indicatorId}/features/pipeline-debug`,
         pipelinePreview: `${API_BASE}/indicators/features/pipeline-preview`,

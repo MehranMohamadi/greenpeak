@@ -115,6 +115,45 @@ class BrokerComparisonResponse(BaseModel):
     brokers: list[BrokerComparisonBroker] = Field(default_factory=list)
 
 
+class BrokerComparisonDisplaySymbol(BrokerComparisonSymbol):
+    sample_accounts: int | None = Field(default=None, exclude=True)
+
+
+class BrokerComparisonDisplayBroker(BrokerComparisonBroker):
+    sample_users: int | None = Field(default=None, exclude=True)
+    sample_accounts: int | None = Field(default=None, exclude=True)
+    commission_sample_deals: int | None = Field(default=None, exclude=True)
+    dividend_sample_records: int | None = Field(default=None, exclude=True)
+    symbols: list[BrokerComparisonDisplaySymbol] = Field(default_factory=list)
+
+
+class BrokerComparisonDisplayResponse(BrokerComparisonResponse):
+    eligible_broker_count: int | None = Field(default=None, exclude=True)
+    excluded_broker_count: int | None = Field(default=None, exclude=True)
+    brokers: list[BrokerComparisonDisplayBroker] = Field(default_factory=list)
+
+
+class MT5DisplaySource(BaseModel):
+    broker_company: str
+    trade_server: str
+    account_identifier: str
+
+
+class MT5DisplaySnapshot(BaseModel):
+    """Financial dashboard output, separate from the ingestion/raw contract."""
+    timestamp_utc: datetime
+    source: MT5DisplaySource
+    account: MT5Account
+    portfolio_metrics: MT5PortfolioMetrics
+    symbol_metrics: list[dict[str, Any]]
+    positions: list[dict[str, Any]]
+    pending_orders: list[dict[str, Any]]
+    broker_symbol_data: list[dict[str, Any]]
+    swap_metrics: dict[str, Any]
+    trade_history_delta: list[dict[str, Any]]
+    calculation_status: dict[str, Any]
+
+
 class BrokerDeleteRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

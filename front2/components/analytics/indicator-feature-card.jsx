@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, ChevronDown, Database } from "lucide-react"
 
 import { endpoints } from "@/api/api"
+import { useAuth } from "@/components/auth/auth-context"
 import AnalysisListCard from "@/components/analytics/analysis-list-card"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,7 +20,7 @@ export const indicatorFeatureConfigs = Object.entries(configs).map(([key, [id, s
 
 const formatNumber = (value, suffix = "") => value == null ? "—" : `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}${suffix}`
 
-async function loadPreview(config, signal) {
+async function loadPreview(config, signal, isAdmin, accessToken) {
   const start = new Date()
   start.setUTCFullYear(start.getUTCFullYear() - 11)
   const separator = config.rawUrl.includes("?") ? "&" : "?"
@@ -28,16 +29,17 @@ async function loadPreview(config, signal) {
   if (!response.ok) throw new Error(body?.detail || "Source observations are unavailable.")
   const observations = (body.data || []).map(item => ({ date: item.date, value: item.value ?? item.rate })).filter(item => item.date && item.value != null)
   if (!observations.length) throw new Error("No real observations are available for this indicator.")
-  const result = await fetch(endpoints.indicatorFeatures.pipelinePreview, {
-    method: "POST", headers: { "Content-Type": "application/json" }, signal,
+  const result = await fetch(isAdmin ? endpoints.indicatorFeatures.pipelinePreview : endpoints.indicatorFeatures.preview, {
+    method: "POST", headers: { "Content-Type": "application/json", ...(isAdmin ? { Authorization: `Bearer ${accessToken}` } : {}) }, signal,
     body: JSON.stringify({ indicator_id: config.id, source_series_id: config.seriesId, source_provider: body.metadata?.source || "GreenPeak API", observations }),
   })
   const resultBody = await result.json()
   if (!result.ok) throw new Error(resultBody?.detail?.message || "Feature preview is unavailable.")
-  return resultBody.data?.stages?.validated_snapshot?.snapshot
+  return isAdmin ? resultBody.data?.stages?.validated_snapshot?.snapshot : resultBody.data
 }
 
 export default function IndicatorFeatureCard({ page, factorId, compact = false }) {
+  const { isAdmin, accessToken } = useAuth()
   const config = useMemo(() => {
     const item = configs[`${page}:${factorId}`]
     return item ? { id: item[0], seriesId: item[1], rawUrl: item[2] } : null
@@ -54,12 +56,12 @@ export default function IndicatorFeatureCard({ page, factorId, compact = false }
     const controller = new AbortController()
     setSnapshot(null); setNarrative(null); setNarrativeMismatch(null); setError(""); setExpanded(false)
     Promise.all([
-      fetch(endpoints.indicatorFeatures.latest(config.id), { cache: "no-store", signal: controller.signal }),
-      fetch(endpoints.analysis.indicatorLatest(config.id), { cache: "no-store", signal: controller.signal }),
+      fetch(endpoints.indicatorFeatures.latest(config.id, isAdmin), { cache: "no-store", signal: controller.signal, headers: isAdmin ? { Authorization: `Bearer ${accessToken}` } : {} }),
+      fetch(`${endpoints.analysis.indicatorLatest(config.id)}${isAdmin ? "?mode=debug" : ""}`, { cache: "no-store", signal: controller.signal, headers: isAdmin ? { Authorization: `Bearer ${accessToken}` } : {} }),
     ]).then(async ([featureResponse, narrativeResponse]) => {
       const featureBody = await featureResponse.json()
       const narrativeBody = await narrativeResponse.json()
-      const nextSnapshot = featureResponse.ok ? featureBody.data : await loadPreview(config, controller.signal)
+      const nextSnapshot = featureResponse.ok ? featureBody.data : await loadPreview(config, controller.signal, isAdmin, accessToken)
       if (!nextSnapshot) throw new Error("A validated feature snapshot was not returned.")
       if (!controller.signal.aborted) {
         const candidate = narrativeResponse.ok ? narrativeBody.data : null
@@ -75,7 +77,7 @@ export default function IndicatorFeatureCard({ page, factorId, compact = false }
       if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Indicator analysis is unavailable.")
     })
     return () => controller.abort()
-  }, [config])
+  }, [config, isAdmin, accessToken])
 
   if (!config) return null
   if (error) return <Card className="border-amber-500/30"><CardContent className="flex gap-3 p-5 text-sm text-amber-700"><AlertTriangle className="h-5 w-5" /><div><div className="font-medium">Analysis is temporarily unavailable</div><div className="text-xs opacity-80">{error}</div></div></CardContent></Card>
@@ -94,15 +96,21 @@ export default function IndicatorFeatureCard({ page, factorId, compact = false }
 
   return <Card className="border-primary/30">
     <CardHeader>
-      <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary" />Deterministic indicator analysis</CardTitle><div className="flex gap-2"><Badge variant="outline">{sourceMode}</Badge><Badge variant="outline">{snapshot.quality.status}</Badge></div></div>
-      <CardDescription>{snapshot.source.series_id} · data through {snapshot.source.latest_observation_date} · calculated in Python</CardDescription>
+      <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary" />تحلیل شاخص</CardTitle><div className="flex gap-2">{isAdmin && <Badge variant="outline">{sourceMode}</Badge>}<Badge variant="outline">{snapshot.quality.status}</Badge></div></div>
+      <CardDescription>{snapshot.source.series_id} · data through {snapshot.source.latest_observation_date}{isAdmin && " · calculated in Python"}</CardDescription>
     </CardHeader>
     <CardContent className="space-y-4">
       <div className={`grid grid-cols-2 gap-3 ${compact ? "" : "md:grid-cols-5"}`}>{metrics.map(([label, value, suffix]) => <div key={label} className="rounded-lg border p-3"><div className="text-xs text-muted-foreground">{label}</div><div className="mt-1 font-mono font-semibold">{formatNumber(value, suffix)}</div></div>)}</div>
       <div className="rounded-lg bg-muted/50 p-4 text-sm leading-6">{snapshot.llm_context.summary_template_fa}</div>
       <div className="rounded-lg border border-primary/30 bg-primary/10 p-4">
-        <div className="flex items-center justify-between"><span className="font-semibold">Persisted AI interpretation</span>{narrative && <Badge variant="outline">coverage {Math.round((narrative.coverage?.ratio || 0) * 100)}%</Badge>}</div>
-        {narrative ? <><p className="mt-2 leading-7" dir="rtl">{narrative.current_state_fa} {narrative.what_changed_fa}</p><p className="mt-2 text-xs text-muted-foreground">Analysis {narrative.analysis_version} · input {narrative.provenance?.input_hash || "unversioned"} · coverage {narrative.coverage?.status || "unknown"}</p><button className="mt-2 inline-flex items-center gap-1 text-xs text-primary" onClick={() => setExpanded(value => !value)}><ChevronDown className={`h-4 w-4 ${expanded ? "rotate-180" : ""}`} />{expanded ? "Less" : "More"}</button>{expanded && <div className={`mt-4 grid gap-3 border-t pt-4 ${compact ? "" : "md:grid-cols-2"}`} dir="rtl"><AnalysisListCard title="Key facts" items={narrative.key_facts} tone="info" /><AnalysisListCard title="Ambiguities" items={narrative.ambiguities_fa} tone="warning" /><AnalysisListCard title="Interpretation risks" items={narrative.risks_to_interpretation_fa} tone="negative" /><AnalysisListCard title="Watch next" items={narrative.watch_next_fa} tone="violet" /></div>}</> : narrativeMismatch ? <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">Saved analysis was hidden because it uses data through {narrativeMismatch.narrativeDate || "an unknown date"}, while this snapshot uses {narrativeMismatch.snapshotDate || "an unknown date"}.</p> : <p className="mt-2 text-sm text-muted-foreground">The deterministic snapshot is ready; no persisted LLM narrative exists for this date yet.</p>}
+        <div className="flex items-center justify-between"><span className="font-semibold">تفسیر هوش مصنوعی</span>{isAdmin && narrative && <Badge variant="outline">coverage {Math.round((narrative.coverage?.ratio || 0) * 100)}%</Badge>}</div>
+        {narrative ? <>
+          <p className="mt-2 leading-7" dir="rtl">{narrative.current_state_fa} {narrative.what_changed_fa}</p>
+          {isAdmin && <p className="mt-2 text-xs text-muted-foreground">Analysis {narrative.analysis_version} · input {narrative.provenance?.input_hash || "unversioned"} · coverage {narrative.coverage?.status || "unknown"}</p>}
+          {!isAdmin && narrative.coverage?.status !== "full" && <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">پوشش داده ناقص است.</p>}
+          <button className="mt-2 inline-flex items-center gap-1 text-xs text-primary" onClick={() => setExpanded(value => !value)}><ChevronDown className={`h-4 w-4 ${expanded ? "rotate-180" : ""}`} />{expanded ? "Less" : "More"}</button>
+          {expanded && <div className={`mt-4 grid gap-3 border-t pt-4 ${compact ? "" : "md:grid-cols-2"}`} dir="rtl"><AnalysisListCard title="Key facts" items={narrative.key_facts} tone="info" /><AnalysisListCard title="Ambiguities" items={narrative.ambiguities_fa} tone="warning" /><AnalysisListCard title="Interpretation risks" items={narrative.risks_to_interpretation_fa} tone="negative" /><AnalysisListCard title="Watch next" items={narrative.watch_next_fa} tone="violet" /></div>}
+        </> : narrativeMismatch ? <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">تاریخ تحلیل با دادهٔ فعلی هماهنگ نیست؛ تحلیل به‌روز در دسترس نیست.</p> : <p className="mt-2 text-sm text-muted-foreground">تحلیل هنوز تولید نشده است.</p>}
       </div>
     </CardContent>
   </Card>

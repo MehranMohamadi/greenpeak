@@ -1,8 +1,7 @@
 from datetime import UTC, date, datetime
-from hmac import compare_digest
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
@@ -15,8 +14,10 @@ from ....services.llm_engine.schemas import DomainNarrative, IndicatorNarrative,
 from ....services.llm_engine.routing import create_llm_provider, llm_is_configured
 from ....services.persisted_analysis import run_persisted_analysis
 from ....utils.telegram import build_telegram_market_report, send_telegram_market_report
+from ....services.presentation import public_narrative
+from .auth import no_store, require_admin, require_debug_access
 
-router = APIRouter(tags=["Persisted GreenPeak Analysis"])
+router = APIRouter(tags=["Persisted GreenPeak Analysis"], dependencies=[Depends(no_store)])
 
 
 def _validated_response(document: dict, model, storage: str):
@@ -79,35 +80,27 @@ def _latest(level: str, subject_id: str, model):
 
 
 @router.get("/indicators/{indicator_id}/analysis/latest")
-def latest_indicator_analysis(indicator_id: str):
+def latest_indicator_analysis(indicator_id: str, debug: bool = Depends(require_debug_access)):
     if indicator_id not in load_registry()[2]:
         raise HTTPException(status_code=404, detail={"code": "INDICATOR_NOT_FOUND", "message": "Unknown indicator."})
-    return _latest("indicator", indicator_id, IndicatorNarrative)
+    response = _latest("indicator", indicator_id, IndicatorNarrative)
+    return response if debug else public_narrative(response)
 
 
 @router.get("/domains/{domain_id}/analysis/latest")
-def latest_domain_analysis(domain_id: str):
+def latest_domain_analysis(domain_id: str, debug: bool = Depends(require_debug_access)):
     if domain_id not in {item.id for item in load_registry()[0].domains}:
         raise HTTPException(status_code=404, detail={"code": "DOMAIN_NOT_FOUND", "message": "Unknown domain."})
-    return _latest("domain", domain_id, DomainNarrative)
+    response = _latest("domain", domain_id, DomainNarrative)
+    return response if debug else public_narrative(response)
 
 
 @router.get("/market/analysis/latest")
-def latest_market_analysis():
+def latest_market_analysis(debug: bool = Depends(require_debug_access)):
     response = _latest("market", "sp500", MarketNarrative)
     next_analysis_at = next_scheduled_analysis_at()
     response.setdefault("metadata", {})["next_analysis_at"] = next_analysis_at.isoformat() if next_analysis_at else None
-    return response
-
-
-def _authorize_manual_run(authorization: str | None) -> None:
-    settings = get_settings()
-    if settings.environment != "production":
-        return
-    expected = settings.greenpeak_analysis_admin_token
-    supplied = authorization.removeprefix("Bearer ").strip() if authorization else ""
-    if not expected or not supplied or not compare_digest(supplied, expected):
-        raise HTTPException(status_code=403, detail={"code": "MANUAL_ANALYSIS_FORBIDDEN", "message": "A valid analysis admin token is required."})
+    return response if debug else public_narrative(response)
 
 
 def _execute_manual_analysis(run_id: str, force_llm: bool) -> None:
@@ -149,10 +142,9 @@ def _execute_manual_analysis(run_id: str, force_llm: bool) -> None:
         client.close()
 
 
-@router.post("/admin/analysis/run", status_code=202)
-def run_manual_analysis(background_tasks: BackgroundTasks, force_llm: bool = True, authorization: str | None = Header(default=None)):
+@router.post("/admin/analysis/run", status_code=202, dependencies=[Depends(require_admin)])
+def run_manual_analysis(background_tasks: BackgroundTasks, force_llm: bool = True):
     """Queue an explicit operator action; normal page reads never execute analysis."""
-    _authorize_manual_run(authorization)
     settings = get_settings()
     if not llm_is_configured(settings):
         raise HTTPException(status_code=503, detail={"code": "LLM_NOT_CONFIGURED", "message": "The LLM provider credentials are incomplete."})
@@ -168,9 +160,8 @@ def run_manual_analysis(background_tasks: BackgroundTasks, force_llm: bool = Tru
     return {"ok": True, "data": {"run_id": run_id, "status": "queued"}}
 
 
-@router.get("/admin/analysis/runs/{run_id}")
-def manual_analysis_status(run_id: str, authorization: str | None = Header(default=None)):
-    _authorize_manual_run(authorization)
+@router.get("/admin/analysis/runs/{run_id}", dependencies=[Depends(require_admin)])
+def manual_analysis_status(run_id: str):
     settings = get_settings(); client = MongoClient(settings.mongodb_url, serverSelectionTimeoutMS=3000)
     try:
         value = client[settings.mongodb_database].gp_manual_analysis_runs.find_one({"run_id": run_id}, {"_id": False})

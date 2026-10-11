@@ -63,9 +63,9 @@ The browser must not calculate z-scores, percentiles, slopes, volatility, histor
 - `backend2/src/api/v1/endpoints/features.py`: latest snapshot, raw pipeline inspection, and API-backed preview endpoints.
 - `backend2/tests/test_rate_features.py`: unit and offline vertical-slice tests.
 - `front2/components/analytics/rate-feature-card.jsx`: stored feature card shown for the two rate charts.
-- `front2/components/analytics/feature-pipeline-debug.jsx`: public stage-by-stage JSON viewer.
+- `front2/components/analytics/feature-pipeline-debug.jsx`: admin-only stage-by-stage JSON viewer.
 - `front2/app/analytics/feature-pipeline-debug/page.jsx`: route `/analytics/feature-pipeline-debug`.
-- `front2/app/settings/page.jsx`: contains the navigation button to the pipeline JSON viewer.
+- `front2/app/settings/page.jsx`: contains an admin-only link to `/admin/settings`, which lists admins and links to inspection tools.
 
 The earlier generic `/analytics/analysis-pipeline`, `/api/v1/analysis/prepare`, and `backend2/src/services/analysis/` architecture was removed. Do not restore or build new work on that deleted path unless the user explicitly requests a separate generic pipeline.
 
@@ -131,13 +131,14 @@ FastAPI endpoints under `/api/v1` are:
 
 ```text
 GET  /indicators/{indicator_id}/features/latest
+POST /indicators/features/preview
 GET  /indicators/{indicator_id}/features/pipeline-debug
 POST /indicators/features/pipeline-preview
 ```
 
-`latest` reads stored snapshots. `pipeline-debug` inspects Mongo-backed intermediate stages. `pipeline-preview` accepts observations already returned by the existing monetary endpoints and runs the same Python adapter/builder without persisting them. The public frontend viewer uses `pipeline-preview` so it still works when local MongoDB is unavailable. The monetary-policy rate card tries `latest` first and automatically falls back to `pipeline-preview` on any unavailable/missing stored snapshot; do not show users an instruction to start MongoDB when the API-backed preview can succeed. Both inspection endpoints are intentionally public in production per product-owner decision; keep raw samples sanitized and never include secrets, arbitrary collections, stack traces, or MongoDB connection details.
+`latest` reads stored snapshots. The public `preview` endpoint runs the same Python builder without persisting and returns financial fields without internal stages. Rate cards fall back to `preview` when stored snapshots are unavailable; do not instruct users to start MongoDB when preview can succeed. `pipeline-debug` and `pipeline-preview` require a verified current admin role. Admin viewers use `pipeline-preview` for offline inspection. `?mode=debug` also requires admin authentication. Keep raw samples sanitized and never include secrets, arbitrary collections, stack traces, or MongoDB connection details. New accounts have role `user`; the explicit one-time existing-account migration is documented in `docs/ADMIN_ACCESS.md`.
 
-The public viewer is `/analytics/feature-pipeline-debug` and shows sampled JSON for:
+The admin-only viewer is `/analytics/feature-pipeline-debug` and shows sampled JSON for:
 
 ```text
 raw_input -> canonical_adapter -> cleaned_series

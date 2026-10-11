@@ -235,7 +235,7 @@ def test_latest_snapshot_endpoint(monkeypatch):
     assert TestClient(app).get("/api/v1/indicators/not-valid/features/latest").status_code == 404
 
 
-def test_pipeline_debug_endpoint_returns_ordered_stages(monkeypatch):
+def test_pipeline_debug_endpoint_returns_ordered_stages(monkeypatch, admin_client):
     from src.core.config import get_settings
     monkeypatch.setattr(get_settings(), "greenpeak_enable_pipeline_preview", True)
     documents = [
@@ -245,7 +245,7 @@ def test_pipeline_debug_endpoint_returns_ordered_stages(monkeypatch):
         for index in range(1, 11)
     ]
     monkeypatch.setattr(MongoFeatureRepository, "load_raw_documents", lambda self, definition, as_of_date: documents)
-    response = TestClient(app).get("/api/v1/indicators/federal_funds_rate/features/pipeline-debug?as_of=2024-01-10")
+    response = admin_client.get("/api/v1/indicators/federal_funds_rate/features/pipeline-debug?as_of=2024-01-10")
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["pipeline"] == ["raw_input", "canonical_adapter", "cleaned_series", "calculated_features", "validated_snapshot"]
@@ -254,11 +254,11 @@ def test_pipeline_debug_endpoint_returns_ordered_stages(monkeypatch):
     assert data["stages"]["validated_snapshot"]["snapshot"]["source"]["series_id"] == "DFF"
 
 
-def test_pipeline_preview_accepts_existing_api_shape(monkeypatch):
+def test_pipeline_preview_accepts_existing_api_shape(monkeypatch, admin_client):
     from src.core.config import get_settings
     monkeypatch.setattr(get_settings(), "greenpeak_enable_pipeline_preview", True)
     observations = [{"date": (date(2024, 1, 1) + timedelta(days=index)).isoformat(), "value": 5.25} for index in range(120)]
-    response = TestClient(app).post(
+    response = admin_client.post(
         "/api/v1/indicators/features/pipeline-preview?as_of=2024-04-29",
         json={"indicator_id": "federal_funds_rate", "source_series_id": "DFF", "observations": observations},
     )
@@ -268,19 +268,19 @@ def test_pipeline_preview_accepts_existing_api_shape(monkeypatch):
     assert data["stages"]["raw_input"]["total_count"] == 120
     assert data["stages"]["calculated_features"]["features"]["current_value_pct"] == 5.25
 
-    mismatch = TestClient(app).post(
+    mismatch = admin_client.post(
         "/api/v1/indicators/features/pipeline-preview",
         json={"indicator_id": "federal_funds_rate", "source_series_id": "FEDFUNDS", "observations": observations[:1]},
     )
     assert mismatch.status_code == 422
 
 
-def test_pipeline_preview_builds_unit_aware_non_rate_snapshot(monkeypatch):
+def test_pipeline_preview_builds_unit_aware_non_rate_snapshot(monkeypatch, admin_client):
     observations = [
         {"date": (date(2015, 1, 1) + timedelta(days=index * 30)).isoformat(), "value": 1000 + index * 10}
         for index in range(120)
     ]
-    response = TestClient(app).post(
+    response = admin_client.post(
         f"/api/v1/indicators/features/pipeline-preview?as_of={observations[-1]['date']}",
         json={"indicator_id": "money_supply_m2", "source_series_id": "M2SL", "observations": observations},
     )
@@ -292,13 +292,24 @@ def test_pipeline_preview_builds_unit_aware_non_rate_snapshot(monkeypatch):
     assert snapshot["features"]["delta_365d_pct"] is not None
 
 
-def test_pipeline_preview_remains_public_when_debug_inspection_is_disabled(monkeypatch):
+def test_financial_preview_remains_public_when_debug_inspection_is_disabled(monkeypatch):
     from src.core.config import get_settings
     monkeypatch.setattr(get_settings(), "greenpeak_enable_pipeline_preview", False)
     observations = [{"date": (date(2024, 1, 1) + timedelta(days=index)).isoformat(), "value": 5.25} for index in range(120)]
     response = TestClient(app).post(
-        "/api/v1/indicators/features/pipeline-preview?as_of=2024-04-29",
+        "/api/v1/indicators/features/preview?as_of=2024-04-29",
         json={"indicator_id": "federal_funds_rate", "source_series_id": "DFF", "observations": observations},
     )
     assert response.status_code == 200
-    assert response.json()["data"]["source_stage"] == "existing_api_fallback"
+    assert response.json()["data"]["current"]["value_pct"] == 5.25
+    assert "stages" not in response.json()["data"]
+
+
+@pytest.fixture
+def admin_client():
+    from src.api.v1.endpoints.auth import require_admin
+    app.dependency_overrides[require_admin] = lambda: {"id": "admin", "role": "admin"}
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.pop(require_admin, None)

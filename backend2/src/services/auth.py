@@ -118,6 +118,17 @@ class LocalUserCollection:
             raise AuthStorageError("Local authentication database is unavailable.") from exc
         return None
 
+    def find(self, query, projection=None):
+        try:
+            with self._connect() as connection:
+                documents = [self._document(row) for row in connection.execute("SELECT * FROM gp_users")]
+            matches = [document for document in documents if self._matches(document, query)]
+            if projection:
+                matches = [{key: document[key] for key, included in projection.items() if included and key in document} for document in matches]
+            return matches
+        except sqlite3.Error as exc:
+            raise AuthStorageError("Local authentication database is unavailable.") from exc
+
     @staticmethod
     def _document(row):
         document = dict(row)
@@ -217,6 +228,17 @@ class AuthService:
         self.collection.create_index([("username_normalized", ASCENDING)], unique=True)
         for field in ("email_normalized",):
             self.collection.create_index([(field, ASCENDING)], unique=True, partialFilterExpression={field: {"$type": "string"}})
+
+    def list_admins(self):
+        return self.list_users(role="admin")
+
+    def list_users(self, role=None):
+        projection = {"_id": 1, "username": 1, "role": 1, "is_active": 1, "created_at": 1}
+        return sorted([
+            {"id": str(row["_id"]), "username": row["username"], "role": row.get("role", "user"),
+             "is_active": row.get("is_active", True), "created_at": row.get("created_at")}
+            for row in self.collection.find({"role": role} if role else {}, projection)
+        ], key=lambda row: row["username"].casefold())
 
     def signup(self, username: str, password: str) -> tuple[dict[str, Any], str]:
         username = username.strip()

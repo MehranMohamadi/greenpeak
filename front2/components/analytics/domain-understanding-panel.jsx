@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { ChevronDown, Loader2, RefreshCw } from "lucide-react"
 
 import { endpoints } from "@/api/api"
+import { useAuth } from "@/components/auth/auth-context"
 import AnalysisListCard from "@/components/analytics/analysis-list-card"
 import { Badge } from "@/components/ui/badge"
 import { PolicyAnalysisSkeleton } from "@/components/analytics/monetary-policy-loading"
@@ -24,6 +25,7 @@ function insightText(item) {
 }
 
 export default function DomainUnderstandingPanel({ domainId, simple = false, onUpdated }) {
+  const { isAdmin, accessToken } = useAuth()
   const [analysis, setAnalysis] = useState(null)
   const [expanded, setExpanded] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -33,13 +35,13 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
   const mounted = useRef(true)
 
   const loadPersisted = useCallback(async () => {
-    const analysisResponse = await fetch(endpoints.analysis.domainLatest(domainId), { cache: "no-store" })
+    const analysisResponse = await fetch(`${endpoints.analysis.domainLatest(domainId)}${isAdmin ? "?mode=debug" : ""}`, { cache: "no-store", headers: isAdmin ? { Authorization: `Bearer ${accessToken}` } : {} })
     const analysisBody = await analysisResponse.json()
     if (!mounted.current) return
     setAnalysis(analysisResponse.ok ? analysisBody.data : null)
     setLoadError(!analysisResponse.ok && analysisResponse.status !== 404)
     setLoading(false)
-  }, [domainId])
+  }, [domainId, isAdmin, accessToken])
 
   useEffect(() => {
     mounted.current = true
@@ -50,26 +52,18 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
   }, [loadPersisted])
 
   const runAnalysis = async () => {
-    if (running) return
+    if (running || !isAdmin || !accessToken) return
     setRunning(true)
     setRunMessage("در حال به‌روزرسانی تحلیل؛ این فرایند ممکن است چند دقیقه طول بکشد…")
     try {
-      let token = sessionStorage.getItem("greenpeak_analysis_admin_token") || ""
-      let response = await fetch(endpoints.analysis.runManual, {
+      const token = accessToken
+      const response = await fetch(endpoints.analysis.runManual, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
-      if (response.status === 403) {
-        token = window.prompt("کد دسترسی خود را وارد کنید:") || ""
-        if (token) sessionStorage.setItem("greenpeak_analysis_admin_token", token)
-        response = await fetch(endpoints.analysis.runManual, {
-          method: "POST",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        })
-      }
 
       const body = await response.json()
-      if (!response.ok) throw new Error(response.status === 403 ? "کد دسترسی معتبر نیست. لطفاً کد نسخهٔ پولی خود را بررسی کنید." : "ثبت درخواست به‌روزرسانی تحلیل ممکن نشد. لطفاً دوباره تلاش کنید.")
+      if (!response.ok) throw new Error(response.status === 403 ? "دسترسی مدیریت لازم است." : "ثبت درخواست به‌روزرسانی تحلیل ممکن نشد. لطفاً دوباره تلاش کنید.")
       const runId = body?.data?.run_id
       if (!runId) throw new Error("شناسهٔ اجرای تحلیل دریافت نشد.")
 
@@ -80,7 +74,7 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
           cache: "no-store",
         })
         const statusBody = await statusResponse.json()
-        if (!statusResponse.ok) throw new Error(statusResponse.status === 403 ? "کد دسترسی معتبر نیست. لطفاً کد نسخهٔ پولی خود را بررسی کنید." : "دریافت وضعیت تحلیل ممکن نشد. لطفاً دوباره تلاش کنید.")
+        if (!statusResponse.ok) throw new Error(statusResponse.status === 403 ? "دسترسی مدیریت لازم است." : "دریافت وضعیت تحلیل ممکن نشد. لطفاً دوباره تلاش کنید.")
         const status = statusBody.data?.status
         if (mounted.current) {
           setRunMessage(status === "queued"
@@ -117,9 +111,9 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
       <div className="mb-4 flex flex-row flex-wrap items-center gap-3">
         <h3 className="me-auto text-lg font-semibold">تحلیل گروه</h3>
         {analysisDate && <time dateTime={analysisDate} dir="ltr" className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">{analysisDate}</time>}
-        <div className="w-full sm:w-1/5 sm:min-w-[10rem]">
+        {isAdmin && <div className="w-full sm:w-1/5 sm:min-w-[10rem]">
           <RunButton running={running} onClick={runAnalysis} simple />
-        </div>
+        </div>}
       </div>
       <div className="max-h-[14rem] space-y-4 overflow-y-auto pe-1">
         {loading ? <p role="status" className="text-sm">در حال دریافت تحلیل…</p> : !analysis ? <p className="text-sm">{loadError ? "دریافت تحلیل گروه ممکن نشد." : "هنوز تحلیلی برای این گروه ثبت نشده است."}</p> : <>
@@ -146,7 +140,7 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
     return (
       <div className="space-y-3 rounded-lg border border-dashed p-3 text-sm">
         <p className="text-muted-foreground">No saved monetary-policy AI analysis is available yet.</p>
-        <RunButton running={running} onClick={runAnalysis} />
+          {isAdmin && <RunButton running={running} onClick={runAnalysis} />}
         {runMessage && <p className="text-xs text-muted-foreground" aria-live="polite">{runMessage}</p>}
       </div>
     )
@@ -174,12 +168,11 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
               <span className="truncate">{stance}</span>
             </Badge>
             <div className="mt-3 text-[11px] text-muted-foreground">
-              Coverage {analysis.coverage.status} · {Math.round(analysis.coverage.ratio * 100)}%
+              {isAdmin ? <>Coverage {analysis.coverage.status} · {Math.round(analysis.coverage.ratio * 100)}%</> : analysis.coverage.status !== "full" ? "پوشش داده ناقص است" : ""}
             </div>
           </div>
           <div className="flex flex-wrap justify-center gap-1.5">
-            <Badge variant="outline">Analysis {analysis.analysis_version}</Badge>
-            <Badge variant="outline">Saved AI analysis</Badge>
+            {isAdmin && <><Badge variant="outline">Analysis {analysis.analysis_version}</Badge><Badge variant="outline">Saved AI analysis</Badge></>}
           </div>
         </section>
 
@@ -211,7 +204,7 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
         </section>
       </div>
 
-      <RunButton running={running} onClick={runAnalysis} />
+      {isAdmin && <RunButton running={running} onClick={runAnalysis} />}
       {runMessage && <p className="text-right text-xs text-muted-foreground" dir="rtl" aria-live="polite">{runMessage}</p>}
       <button type="button" onClick={() => setExpanded((value) => !value)} className="inline-flex items-center gap-1 text-xs font-medium text-primary">
         <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
@@ -232,7 +225,7 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
       )}
       <p className="text-[11px] text-muted-foreground" dir="ltr">
         Data through {analysis.data_as_of || "—"} · Generated {new Date(analysis.analysis_generated_at).toLocaleString()}
-        {analysis.provenance?.input_hash ? ` · Input ${analysis.provenance.input_hash}` : ""}
+        {isAdmin && analysis.provenance?.input_hash ? ` · Input ${analysis.provenance.input_hash}` : ""}
       </p>
     </div>
   )

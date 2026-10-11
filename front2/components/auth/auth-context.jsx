@@ -88,7 +88,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated: Boolean(user), user, accessToken, isLoading, login, signup, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated: Boolean(user), isAdmin: user?.role === "admin", user, accessToken, isLoading, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   )

@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Activity, Clock3, Loader2, RefreshCw, Sparkles, TrendingUp } from "lucide-react"
 import { endpoints } from "@/api/api"
+import { useAuth } from "@/components/auth/auth-context"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import AnalysisListCard from "@/components/analytics/analysis-list-card"
@@ -21,31 +22,28 @@ const domains = [
 ]
 
 export default function DailyMarketReport() {
+  const { isAdmin, accessToken } = useAuth()
   const [market, setMarket] = useState(null)
   const [domainData, setDomainData] = useState({})
   const [unavailable, setUnavailable] = useState(false)
   const [running, setRunning] = useState(false)
   const [runMessage, setRunMessage] = useState("")
   const loadPersisted = async () => {
-    const read = async url => { const response = await fetch(url, { cache: "no-store" }); return response.ok ? (await response.json()).data : null }
+    const read = async url => { const response = await fetch(`${url}${isAdmin ? "?mode=debug" : ""}`, { cache: "no-store", headers: isAdmin ? { Authorization: `Bearer ${accessToken}` } : {} }); return response.ok ? (await response.json()).data : null }
     const [marketValue, ...domainValues] = await Promise.all([read(endpoints.analysis.marketLatest), ...domains.map(([id]) => read(endpoints.analysis.domainLatest(id)))])
     setMarket(marketValue); setDomainData(Object.fromEntries(domains.map(([id], index) => [id, domainValues[index]]))); setUnavailable(!marketValue)
   }
   useEffect(() => {
     loadPersisted().catch(() => setUnavailable(true))
-  }, [])
+  }, [isAdmin, accessToken])
   const runAnalysis = async () => {
+    if (!isAdmin || !accessToken || running) return
     setRunning(true); setRunMessage("در حال تولید تحلیل؛ این فرایند ممکن است چند دقیقه طول بکشد…")
     try {
-      let token = typeof window !== "undefined" ? sessionStorage.getItem("greenpeak_analysis_admin_token") : ""
-      let response = await fetch(endpoints.analysis.runManual, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {} })
-      if (response.status === 403 && typeof window !== "undefined") {
-        token = window.prompt("کد دسترسی خود را وارد کنید:") || ""
-        if (token) sessionStorage.setItem("greenpeak_analysis_admin_token", token)
-        response = await fetch(endpoints.analysis.runManual, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {} })
-      }
+      const token = accessToken
+      const response = await fetch(endpoints.analysis.runManual, { method: "POST", headers: { Authorization: `Bearer ${token}` } })
       const body = await response.json()
-      if (!response.ok) throw new Error(response.status === 403 ? "کد دسترسی معتبر نیست. لطفاً کد نسخهٔ پولی خود را بررسی کنید." : "تولید تحلیل ناموفق بود. لطفاً دوباره تلاش کنید.")
+      if (!response.ok) throw new Error(response.status === 403 ? "دسترسی مدیریت لازم است." : "تولید تحلیل ناموفق بود. لطفاً دوباره تلاش کنید.")
       const runId = body?.data?.run_id
       if (!runId) throw new Error("شناسه اجرای تحلیل دریافت نشد.")
       let completed = false
@@ -53,7 +51,7 @@ export default function DailyMarketReport() {
         await new Promise(resolve => setTimeout(resolve, 2500))
         const statusResponse = await fetch(endpoints.analysis.manualRunStatus(runId), { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: "no-store" })
         const statusBody = await statusResponse.json()
-        if (!statusResponse.ok) throw new Error(statusResponse.status === 403 ? "کد دسترسی معتبر نیست. لطفاً کد نسخهٔ پولی خود را بررسی کنید." : "دریافت وضعیت تحلیل ناموفق بود.")
+        if (!statusResponse.ok) throw new Error(statusResponse.status === 403 ? "دسترسی مدیریت لازم است." : "دریافت وضعیت تحلیل ناموفق بود.")
         const status = statusBody.data?.status
         setRunMessage(status === "queued" ? "تحلیل در صف اجراست…" : status === "running" ? "مدل در حال تحلیل داده‌هاست…" : "در حال نهایی‌سازی خروجی…")
         if (["success", "partial", "failed"].includes(status)) {
@@ -70,7 +68,7 @@ export default function DailyMarketReport() {
     } finally { setRunning(false) }
   }
   if (!market && !unavailable) return <Card className="mb-8"><CardContent className="p-6 text-sm text-muted-foreground">Loading persisted daily market report…</CardContent></Card>
-  if (!market) return <Card className="mb-8 border-dashed"><CardContent className="space-y-4 p-6 text-right" dir="rtl"><div><p className="font-medium">گزارش روزانه بازار هنوز تولید نشده است.</p><p className="mt-1 text-sm text-muted-foreground">این صفحه فقط نتایج ذخیره‌شده را می‌خواند و با بازشدن صفحه تحلیلی اجرا نمی‌شود.</p></div><button type="button" disabled={running} onClick={runAnalysis} className="inline-flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-xs font-medium shadow-sm disabled:opacity-60">{running ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}{running ? "در حال تحلیل…" : "تولید تحلیل جدید"}</button>{runMessage && <p className="text-xs text-muted-foreground">{runMessage}</p>}</CardContent></Card>
+  if (!market) return <Card className="mb-8 border-dashed"><CardContent className="space-y-4 p-6 text-right" dir="rtl"><div><p className="font-medium">گزارش روزانه بازار هنوز تولید نشده است.</p><p className="mt-1 text-sm text-muted-foreground">این صفحه فقط نتایج ذخیره‌شده را می‌خواند و با بازشدن صفحه تحلیلی اجرا نمی‌شود.</p></div>{isAdmin && <button type="button" disabled={running} onClick={runAnalysis} className="inline-flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-xs font-medium shadow-sm disabled:opacity-60">{running ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}{running ? "در حال تحلیل…" : "تولید تحلیل جدید"}</button>}{runMessage && <p className="text-xs text-muted-foreground">{runMessage}</p>}</CardContent></Card>
   return (
     <Card className="relative mb-8 overflow-hidden border-cyan-500/25 shadow-[0_22px_70px_-45px_rgba(6,182,212,0.65)]">
       <CardHeader
@@ -119,12 +117,12 @@ export default function DailyMarketReport() {
                 <Clock3 className="h-3.5 w-3.5 text-cyan-500" />
                 زمان تحلیل: {new Date(market.analysis_generated_at).toLocaleString("fa-IR")}
               </span>
-              <span>پوشش داده: {Math.round(market.coverage.ratio * 100)}٪</span>
+              {isAdmin && Number.isFinite(market.coverage.ratio) ? <span>پوشش داده: {Math.round(market.coverage.ratio * 100)}٪</span> : market.coverage.status !== "full" && <span>پوشش داده ناقص است</span>}
             </div>
           </div>
 
           <div className="flex flex-col items-start gap-3 lg:items-end">
-            <button
+            {isAdmin && <button
               type="button"
               disabled={running}
               onClick={runAnalysis}
@@ -136,12 +134,12 @@ export default function DailyMarketReport() {
                 <RefreshCw className="h-4 w-4" />
               )}
               {running ? "در حال تحلیل…" : "تولید تحلیل جدید"}
-            </button>
+            </button>}
 
             <div className="flex max-w-sm flex-wrap gap-2 lg:justify-end">
-              <Badge variant="outline">تحلیل {market.analysis_version}</Badge>
+              {isAdmin && market.analysis_version && <Badge variant="outline">تحلیل {market.analysis_version}</Badge>}
               <Badge variant="outline">{market.coverage.status}</Badge>
-              {market.provenance?.input_hash && <Badge variant="outline">ورودی نسخه‌دار</Badge>}
+              {isAdmin && market.provenance?.input_hash && <Badge variant="outline">ورودی نسخه‌دار</Badge>}
             </div>
           </div>
         </div>
@@ -190,8 +188,8 @@ export default function DailyMarketReport() {
                         {analysis.dominant_story_fa}
                       </p>
                       <div className="mt-2 flex gap-1">
-                        <Badge variant="outline">پوشش {Math.round((analysis.coverage?.ratio || 0) * 100)}٪</Badge>
-                        <Badge variant="outline">نسخه {analysis.analysis_version}</Badge>
+                        {isAdmin && Number.isFinite(analysis.coverage?.ratio) && <Badge variant="outline">پوشش {Math.round(analysis.coverage.ratio * 100)}٪</Badge>}
+                        {isAdmin && analysis.analysis_version && <Badge variant="outline">نسخه {analysis.analysis_version}</Badge>}
                       </div>
                     </>
                   ) : (

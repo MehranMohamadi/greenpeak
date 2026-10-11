@@ -5,21 +5,14 @@ from fastapi import HTTPException
 
 os.environ["DEBUG"] = "false"
 
-from src.api.v1.endpoints.analysis import _authorize_manual_run
-from src.core.config import get_settings
+from src.api.v1.endpoints.auth import require_admin
 
 
-def test_manual_analysis_is_open_only_outside_production(monkeypatch):
-    settings = get_settings()
-    monkeypatch.setattr(settings, "environment", "development")
-    _authorize_manual_run(None)
+def test_admin_access_accepts_database_role():
+    assert require_admin({"id": "admin", "role": "admin"})["id"] == "admin"
 
 
-def test_manual_analysis_requires_production_admin_token(monkeypatch):
-    settings = get_settings()
-    monkeypatch.setattr(settings, "environment", "production")
-    monkeypatch.setattr(settings, "greenpeak_analysis_admin_token", "secret-token")
+def test_admin_access_rejects_users_in_every_environment():
     with pytest.raises(HTTPException) as error:
-        _authorize_manual_run(None)
+        require_admin({"id": "member", "role": "user"})
     assert error.value.status_code == 403
-    _authorize_manual_run("Bearer secret-token")

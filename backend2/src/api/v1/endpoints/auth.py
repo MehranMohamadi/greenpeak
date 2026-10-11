@@ -22,7 +22,7 @@ bearer = HTTPBearer(auto_error=False)
 
 class Credentials(BaseModel):
     username: str = Field(min_length=3, max_length=254)
-    password: str = Field(min_length=6, max_length=128)
+    password: str = Field(min_length=1, max_length=128)
 
 
 class UserResponse(BaseModel):
@@ -166,6 +166,47 @@ def require_user(
     try:
         return service.user_from_token(credentials.credentials)
     except (AuthError, AuthStorageError, PyMongoError) as exc:
+        raise auth_failure(exc) from exc
+
+
+def require_admin(user: Annotated[dict, Depends(require_user)]) -> dict:
+    if user.get("role") != "admin":
+        raise HTTPException(403, detail="Administrator access required.")
+    return user
+
+
+def no_store(response: Response):
+    response.headers["Cache-Control"] = "no-store"
+
+
+def require_debug_access(
+    mode: str | None = None,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)] = None,
+) -> bool:
+    """Public financial responses; full diagnostics require a verified admin."""
+    if mode != "debug":
+        return False
+    if not credentials:
+        raise HTTPException(401, detail="Authentication required.")
+    require_admin(require_user(credentials, get_auth_service()))
+    return True
+
+
+@router.get("/admins", dependencies=[Depends(require_admin)])
+def list_admins(response: Response, service: Annotated[AuthService, Depends(get_auth_service)]):
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return {"admins": service.list_admins()}
+    except (AuthStorageError, PyMongoError) as exc:
+        raise auth_failure(exc) from exc
+
+
+@router.get("/users", dependencies=[Depends(require_admin)])
+def list_users(response: Response, service: Annotated[AuthService, Depends(get_auth_service)]):
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return {"users": service.list_users()}
+    except (AuthStorageError, PyMongoError) as exc:
         raise auth_failure(exc) from exc
 
 

@@ -163,8 +163,9 @@ def test_delete_removes_every_owned_account_and_history_but_preserves_others(cli
         ("user-1", "Other Broker"), ("user-2", "Test Broker"),
     }
     assert len(database.collections[CONNECTION_COLLECTION].documents) == 3
-    # All dashboard consumers and the complete JSON history lose the deleted data.
-    for path in ("/snapshots", "/snapshots/latest-by-account"):
+    # Ordinary dashboard reads remain available; raw history is admin-only.
+    assert client.get("/api/v1/mt5/snapshots").status_code == 403
+    for path in ("/snapshots/latest-by-account",):
         result = client.get("/api/v1/mt5" + path)
         assert result.status_code == 200
         assert [item["source"]["broker_company"] for item in result.json()] == ["Other Broker"]
@@ -186,7 +187,8 @@ def test_deletion_is_idempotent_and_unknown_broker_is_safe(client, database):
 def test_broker_deletion_leaves_no_dashboard_data_when_it_was_last_account(client, database):
     client.request("DELETE", "/api/v1/mt5/brokers", json={"broker_company": "Test Broker"})
     client.request("DELETE", "/api/v1/mt5/brokers", json={"broker_company": "Other Broker"})
-    assert client.get("/api/v1/mt5/snapshots").json() == []
+    assert client.get("/api/v1/mt5/snapshots").status_code == 403
+    assert client.get("/api/v1/mt5/snapshots/latest-by-account").json() == []
     assert client.get("/api/v1/mt5/snapshots/latest-by-account").json() == []
     assert client.get("/api/v1/mt5/snapshots/latest").status_code == 404
     assert len(database.collections[COLLECTION].documents) == 1  # Another user's data.

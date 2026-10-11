@@ -5,7 +5,7 @@ import json
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
@@ -18,8 +18,10 @@ from ....services.rate_features.config import get_definition
 from ....services.rate_features.job import code_version
 from ....services.rate_features.repository import MongoFeatureRepository
 from ....services.rate_features.schemas import IndicatorFeatureSnapshot
+from ....services.presentation import public_feature_snapshot
+from .auth import no_store, require_admin, require_debug_access
 
-router = APIRouter(prefix="/indicators", tags=["Indicator Features"])
+router = APIRouter(prefix="/indicators", tags=["Indicator Features"], dependencies=[Depends(no_store)])
 
 
 def _require_preview_enabled() -> None:
@@ -92,7 +94,7 @@ def _build_pipeline_stages(indicator_id: str, definition: dict, raw_documents: l
 
 
 @router.get("/{indicator_id}/features/latest")
-def latest_indicator_features(indicator_id: str, mode: str | None = Query(None, pattern="^(debug)?$")):
+def latest_indicator_features(indicator_id: str, debug: bool = Depends(require_debug_access)):
     if indicator_id not in DEFINITIONS:
         raise HTTPException(status_code=404, detail={"code": "INDICATOR_NOT_FOUND", "message": "Unknown feature indicator."})
     settings = get_settings()
@@ -103,8 +105,8 @@ def latest_indicator_features(indicator_id: str, mode: str | None = Query(None, 
             raise HTTPException(status_code=404, detail={"code": "FEATURE_SNAPSHOT_NOT_FOUND", "message": "No feature snapshot is available for this indicator."})
         snapshot = IndicatorFeatureSnapshot.model_validate(document)
         payload = snapshot.model_dump(mode="json")
-        if mode != "debug":
-            payload = {key: payload[key] for key in ("indicator_id", "as_of_date", "source", "current", "features", "feature_reasons", "derived_features", "state", "quality", "semantics", "llm_context")}
+        if not debug:
+            payload = public_feature_snapshot(payload)
         return {"ok": True, "data": payload}
     except HTTPException:
         raise
@@ -114,9 +116,9 @@ def latest_indicator_features(indicator_id: str, mode: str | None = Query(None, 
         client.close()
 
 
-@router.get("/{indicator_id}/features/pipeline-debug")
+@router.get("/{indicator_id}/features/pipeline-debug", dependencies=[Depends(require_admin)])
 def indicator_feature_pipeline_debug(indicator_id: str, as_of: date | None = None):
-    """Return sampled intermediate stages; available only outside production."""
+    """Return sampled intermediate stages to administrators."""
     _require_preview_enabled()
     settings = get_settings()
     if indicator_id not in DEFINITIONS:
@@ -138,10 +140,8 @@ def indicator_feature_pipeline_debug(indicator_id: str, as_of: date | None = Non
         client.close()
 
 
-@router.post("/features/pipeline-preview")
-def indicator_feature_pipeline_preview(request: PipelinePreviewRequest, as_of: date | None = None):
-    """Build development stages from existing API observations without persisting them."""
-    settings = get_settings()
+def _preview_pipeline(request: PipelinePreviewRequest, as_of: date | None = None):
+    """Build stages from existing API observations without persisting them."""
     if request.indicator_id not in DEFINITIONS:
         raise HTTPException(status_code=404, detail={"code": "INDICATOR_NOT_FOUND", "message": "Unknown feature indicator."})
     definition = get_definition(request.indicator_id)
@@ -162,3 +162,16 @@ def indicator_feature_pipeline_preview(request: PipelinePreviewRequest, as_of: d
         for item in request.observations
     ]
     return {"ok": True, "data": _build_pipeline_stages(request.indicator_id, definition, raw_documents, target_date, "existing_api_fallback")}
+
+
+@router.post("/features/pipeline-preview", dependencies=[Depends(require_admin)])
+def indicator_feature_pipeline_preview(request: PipelinePreviewRequest, as_of: date | None = None):
+    return _preview_pipeline(request, as_of)
+
+
+@router.post("/features/preview")
+def indicator_feature_preview(request: PipelinePreviewRequest, as_of: date | None = None):
+    """Keep API-backed financial cards available without exposing pipeline stages."""
+    result = _preview_pipeline(request, as_of)
+    snapshot = result["data"]["stages"]["validated_snapshot"]["snapshot"]
+    return {"ok": True, "data": public_feature_snapshot(snapshot)}

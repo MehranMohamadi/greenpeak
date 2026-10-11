@@ -7,14 +7,15 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, 
 from pydantic import BaseModel, Field
 from pymongo.errors import PyMongoError
 
-from ....models.mt5_schemas import BrokerComparisonResponse, BrokerDeleteRequest, BrokerDeleteResponse, MT5Snapshot, MT5SnapshotReceipt
+from ....models.mt5_schemas import BrokerComparisonResponse, BrokerComparisonDisplayResponse, BrokerDeleteRequest, BrokerDeleteResponse, MT5DisplaySnapshot, MT5Snapshot, MT5SnapshotReceipt
 from ....services.broker_comparison_service import BrokerComparisonService
 from ....services.mt5_connection_service import MT5ConnectionService
 from ....services.mt5_snapshot_service import MT5ConnectionUnavailableError, MT5SnapshotService
-from .auth import require_user
+from .auth import no_store, require_admin, require_user
+from ....services.presentation import public_broker_comparison, public_mt5_snapshot
 
 
-router = APIRouter(prefix="/mt5", tags=["mt5"])
+router = APIRouter(prefix="/mt5", tags=["mt5"], dependencies=[Depends(no_store)])
 
 
 class ConnectionCreate(BaseModel):
@@ -115,7 +116,7 @@ def ingest_snapshot(
 
 @router.get("/snapshots", response_model=list[MT5Snapshot])
 def all_snapshots(
-    user: Annotated[dict, Depends(require_user)],
+    user: Annotated[dict, Depends(require_admin)],
     service: Annotated[MT5SnapshotService, Depends(snapshot_service)],
 ) -> list[MT5Snapshot]:
     try:
@@ -125,44 +126,53 @@ def all_snapshots(
     return [MT5Snapshot.model_validate(item) for item in items]
 
 
-@router.get("/snapshots/latest", response_model=MT5Snapshot)
+@router.get("/snapshots/latest", response_model=MT5Snapshot | MT5DisplaySnapshot)
 def latest_snapshot(
     user: Annotated[dict, Depends(require_user)],
     service: Annotated[MT5SnapshotService, Depends(snapshot_service)],
     account_identifier: str | None = Query(default=None, max_length=128),
-) -> MT5Snapshot:
+) -> MT5Snapshot | MT5DisplaySnapshot:
     try:
         snapshot = service.latest(user["id"], account_identifier)
     except PyMongoError as exc:
         raise HTTPException(status_code=503, detail="Snapshot storage unavailable") from exc
     if snapshot is None:
         raise HTTPException(status_code=404, detail="No MT5 snapshot found")
-    return MT5Snapshot.model_validate(snapshot)
+    validated = MT5Snapshot.model_validate(snapshot)
+    if user.get("role") != "admin":
+        return MT5DisplaySnapshot.model_validate(public_mt5_snapshot(validated.model_dump(mode="json")))
+    return validated
 
 
-@router.get("/snapshots/latest-by-account", response_model=list[MT5Snapshot])
+@router.get("/snapshots/latest-by-account", response_model=list[MT5Snapshot | MT5DisplaySnapshot])
 def latest_snapshots_by_account(
     user: Annotated[dict, Depends(require_user)],
     service: Annotated[MT5SnapshotService, Depends(snapshot_service)],
-) -> list[MT5Snapshot]:
+) -> list[MT5Snapshot | MT5DisplaySnapshot]:
     try:
         items = service.latest_by_account(user["id"])
     except PyMongoError as exc:
         raise HTTPException(status_code=503, detail="Snapshot storage unavailable") from exc
-    return [MT5Snapshot.model_validate(item) for item in items]
+    validated = [MT5Snapshot.model_validate(item) for item in items]
+    if user.get("role") != "admin":
+        return [MT5DisplaySnapshot.model_validate(public_mt5_snapshot(item.model_dump(mode="json"))) for item in validated]
+    return validated
 
 
-@router.get("/broker-comparison", response_model=BrokerComparisonResponse)
+@router.get("/broker-comparison", response_model=BrokerComparisonResponse | BrokerComparisonDisplayResponse)
 def broker_comparison(
     _user: Annotated[dict, Depends(require_user)],
     service: Annotated[BrokerComparisonService, Depends(broker_comparison_service)],
-) -> BrokerComparisonResponse:
+) -> BrokerComparisonResponse | BrokerComparisonDisplayResponse:
     """Compare anonymized aggregate broker costs across distinct site users."""
     try:
         result = service.comparison()
     except PyMongoError as exc:
         raise HTTPException(status_code=503, detail="Broker comparison is unavailable") from exc
-    return BrokerComparisonResponse.model_validate(result)
+    validated = BrokerComparisonResponse.model_validate(result)
+    if _user.get("role") != "admin":
+        return BrokerComparisonDisplayResponse.model_validate(public_broker_comparison(validated.model_dump(mode="json")))
+    return validated
 
 
 @router.delete("/brokers", response_model=BrokerDeleteResponse)
