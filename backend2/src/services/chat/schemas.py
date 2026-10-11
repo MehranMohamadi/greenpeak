@@ -25,6 +25,7 @@ class ConversationCreate(StrictModel):
 class MessageRequest(StrictModel):
     content: str = Field(min_length=1, max_length=2000)
     request_id: UUID
+    connection_id: str | None = Field(default=None, pattern=r"^[a-fA-F0-9]{24}$")
     page_path: str = Field(default="/dashboard", max_length=180, pattern=r"^/[a-zA-Z0-9/_-]*$")
 
 

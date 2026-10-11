@@ -124,7 +124,8 @@ class ChatStore:
             previous = db.execute("SELECT request_json,response_json FROM chat_turns WHERE conversation_id=? AND request_id=?",
                                   (conversation_id, str(request.request_id))).fetchone()
             if previous:
-                if json.loads(previous[0])["content"] != request.content:
+                previous_request = json.loads(previous[0])
+                if previous_request["content"] != request.content or previous_request.get("connection_id") != request.connection_id:
                     raise ChatError("CHAT_REQUEST_CONFLICT", "شناسهٔ پیام قبلاً برای پیام دیگری استفاده شده است.", 409)
                 return row, None, json.loads(previous[1]), []
             current = time.time()

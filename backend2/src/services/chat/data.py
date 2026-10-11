@@ -295,7 +295,7 @@ class ChatData:
     def retrieve(self, request, user_id, conversation):
         if request.kind in {"account", "positions"}:
             if conversation["scope"] != "account":
-                return {"status": "account_not_selected", "limitation": "Ask the user to select an account in the chat selector. No private data was retrieved."}
+                return {"status": "account_not_selected", "limitation": "Ask the user to connect MetaTrader in their profile. No private data was retrieved."}
             try:
                 return self.account(user_id, conversation["connection_id"], request.kind == "positions", request.symbol, request.order)
             except PyMongoError as exc:

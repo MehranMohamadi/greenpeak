@@ -30,8 +30,6 @@ function ChatWidget({ accessToken }) {
   const [conversations, setConversations] = useState([])
   const [historyOpen, setHistoryOpen] = useState(false)
   const [conversation, setConversation] = useState(null)
-  const [scope, setScope] = useState("site")
-  const [consent, setConsent] = useState(false)
   const [messages, setMessages] = useState([])
   const [draft, setDraft] = useState("")
   const [error, setError] = useState("")
@@ -98,16 +96,14 @@ function ChatWidget({ accessToken }) {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
   }, [messages, sending, open])
 
-  function newConversation(nextScope = scope) {
+  function newConversation() {
     if (busyRef.current) return
-    setScope(nextScope)
     setConversation(null)
     setMessages([])
     setDraft("")
     setError("")
     setFailed(null)
     setHistoryOpen(false)
-    setConsent(false)
     inputRef.current?.focus()
   }
 
@@ -119,8 +115,6 @@ function ChatWidget({ accessToken }) {
     try {
       const data = await request(endpoints.chat.conversation(id))
       setConversation(data)
-      setScope(data.scope === "site" ? "site" : data.connection_id)
-      setConsent(data.scope === "account")
       setMessages(data.messages)
       setDraft("")
       setFailed(null)
@@ -148,7 +142,7 @@ function ChatWidget({ accessToken }) {
 
   async function send(text = draft, retry = null) {
     const content = text.trim()
-    if (!content || content.length > 2000 || busyRef.current || loading || configured !== true || (scope !== "site" && !consent)) return
+    if (!content || content.length > 2000 || busyRef.current || loading || configured !== true) return
     busyRef.current = true
     setSending(true)
     setError("")
@@ -156,6 +150,7 @@ function ChatWidget({ accessToken }) {
     const abort = new AbortController()
     controller.current = abort
     const requestId = retry?.requestId || crypto.randomUUID()
+    const connectionId = retry ? retry.connectionId : selectedAccount?.id || null
     const pending = { id: requestId + ":user", role: "user", content, created_at: new Date().toISOString() }
     if (!retry) setMessages(previous => [...previous.filter(item => item.id !== failed?.requestId + ":user"), pending])
     setFailed(null)
@@ -165,13 +160,13 @@ function ChatWidget({ accessToken }) {
       if (!active) {
         active = await request(endpoints.chat.conversations, {
           method: "POST", signal: abort.signal,
-          body: { scope: scope === "site" ? "site" : "account", connection_id: scope === "site" ? null : scope, account_data_consent: consent },
+          body: { scope: "site" },
         })
         setConversation(active)
       }
       const answer = await request(endpoints.chat.messages(active.id), {
         method: "POST", signal: abort.signal,
-        body: { content, request_id: requestId, page_path: /^\/[a-zA-Z0-9/_-]*$/.test(pathname) ? pathname.slice(0, 180) : "/dashboard" },
+        body: { content, request_id: requestId, connection_id: connectionId, page_path: /^\/[a-zA-Z0-9/_-]*$/.test(pathname) ? pathname.slice(0, 180) : "/dashboard" },
       })
       setMessages(previous => [...previous, answer])
       // History refresh is independent: a successful answer must not become a failed send.
@@ -180,7 +175,7 @@ function ChatWidget({ accessToken }) {
     } catch (err) {
       if (err.name !== "AbortError") {
         setError(err.message || "ارتباط با دستیار قطع شد؛ دوباره تلاش کنید.")
-        setFailed({ content, requestId })
+        setFailed({ content, requestId, connectionId })
         setDraft(content)
       }
     } finally {
@@ -189,9 +184,11 @@ function ChatWidget({ accessToken }) {
     }
   }
 
-  const selectedAccount = accounts.find(account => account.id === scope)
-  const prompts = scope === "site" ? SITE_PROMPTS : ACCOUNT_PROMPTS
-  const blocked = loading || sending || configured !== true || (scope !== "site" && !consent)
+  const selectedAccount = conversation?.scope === "account"
+    ? accounts.find(account => account.id === conversation.connection_id)
+    : accounts.reduce((latest, account) => !latest || (Date.parse(account.last_seen_at) || 0) > (Date.parse(latest.last_seen_at) || 0) ? account : latest, null)
+  const prompts = selectedAccount ? [...SITE_PROMPTS, ...ACCOUNT_PROMPTS] : SITE_PROMPTS
+  const blocked = loading || sending || configured !== true
 
   return <Dialog.Root open={open} onOpenChange={setOpen} modal={false}>
     <Dialog.Trigger asChild>
@@ -214,15 +211,8 @@ function ChatWidget({ accessToken }) {
         </header>
 
         <div className="shrink-0 space-y-2 border-b px-4 py-2.5">
-          <label className="flex items-center gap-2 text-xs"><span className="shrink-0 text-muted-foreground">موضوع:</span>
-            <select aria-label="انتخاب داده‌های سایت یا حساب متاتریدر" value={scope} disabled={sending || loading} onChange={event => newConversation(event.target.value)} className="min-w-0 flex-1 rounded-xl border bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary/40">
-              <option value="site">داده‌های سایت</option>
-              {accounts.map(account => <option key={account.id} value={account.id}>{account.label} · {account.broker} · {account.account_label} · {account.server}</option>)}
-              {scope !== "site" && !selectedAccount && <option value={scope}>حساب قبلی — اتصال در دسترس نیست</option>}
-            </select></label>
-          {scope !== "site" && !conversation && <label className="flex items-start gap-2 text-[11px] leading-5 text-muted-foreground"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} className="mt-1 accent-primary" />برای پاسخ‌گویی، اطلاعات لازم این حساب توسط ارائه‌دهندهٔ مدل پردازش شود.</label>}
-          {selectedAccount && <p className="text-[10px] text-muted-foreground">آخرین دریافت اتصال: {formatTime(selectedAccount.last_seen_at)}</p>}
-          {accountError && scope === "site" && <p className="text-[10px] text-muted-foreground">{accountError} پرسش از سایت در دسترس است.</p>}
+          {selectedAccount && <p className="text-[10px] leading-5 text-muted-foreground">داده‌های سایت و متاتریدر {selectedAccount.label} · {selectedAccount.account_label} در دسترس دستیار است. اطلاعات لازم برای پاسخ توسط ارائه‌دهندهٔ مدل پردازش می‌شود. آخرین دریافت: {formatTime(selectedAccount.last_seen_at)}</p>}
+          {accountError && <p className="text-[10px] text-muted-foreground">{accountError} پرسش از سایت در دسترس است.</p>}
           {!loading && !accountError && !accounts.length && <a href="/profile" className="group flex items-start gap-2.5 rounded-2xl border border-primary/15 bg-primary/5 p-3 transition hover:border-primary/30 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Link2 className="h-4 w-4" /></span>
             <span className="min-w-0 flex-1"><span className="block text-xs font-medium">حسابتان را به گفت‌وگو اضافه کنید</span><span className="mt-1 block text-[11px] leading-5 text-muted-foreground">متاتریدر را در پروفایل متصل کنید و دربارهٔ حساب و پوزیشن‌هایتان بپرسید.</span><span className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-primary">اتصال متاتریدر<ChevronLeft className="h-3 w-3 transition-transform group-hover:-translate-x-0.5 motion-reduce:transform-none" /></span></span>
@@ -242,7 +232,7 @@ function ChatWidget({ accessToken }) {
           {!messages.length && <div className="flex min-h-full flex-col justify-center py-2">
             <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Sparkles className="h-6 w-6" /></span>
             <h2 className="text-base font-semibold">چه چیزی را بررسی کنیم؟</h2>
-            <p className="mb-5 mt-2 text-xs leading-6 text-muted-foreground">{scope === "site" ? "دربارهٔ شاخص‌ها، تحلیل بازار و رویدادهای سایت بپرسید." : "دربارهٔ آخرین وضعیت حساب و پوزیشن‌های بازتان بپرسید."}</p>
+            <p className="mb-5 mt-2 text-xs leading-6 text-muted-foreground">{selectedAccount ? "دربارهٔ بازار، رویدادهای سایت و وضعیت حساب و پوزیشن‌هایتان بپرسید." : "دربارهٔ شاخص‌ها، تحلیل بازار و رویدادهای سایت بپرسید."}</p>
             <div className="space-y-2">{prompts.map(prompt => <button type="button" key={prompt} disabled={blocked} onClick={() => send(prompt)} className="group flex w-full items-center justify-between gap-3 rounded-2xl border bg-background/50 px-3.5 py-3 text-right text-xs transition hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"><span>{prompt}</span><ChevronLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition group-hover:-translate-x-0.5 group-hover:text-primary motion-reduce:transform-none" /></button>)}</div>
           </div>}
           {messages.map(message => <ChatMessage key={message.id} message={message} />)}

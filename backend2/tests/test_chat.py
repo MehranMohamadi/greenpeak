@@ -181,6 +181,54 @@ def test_consent_scope_and_revoked_account(harness):
     assert not provider.inputs
 
 
+def test_site_conversation_can_use_connected_account_and_site_data(harness):
+    client, store, data, provider, app = harness
+    conversation_id = store.create("alice", "site", None)["id"]
+    provider.requests = [{"kind": "prices"}, {"kind": "account"}]
+    payload = {"content": "بازار و حسابم", "request_id": str(uuid4()), "connection_id": CONNECTION_ID}
+    url = f"/api/v1/chat/conversations/{conversation_id}/messages"
+    assert client.post(url, json=payload).status_code == 200
+    assert provider.inputs[0]["scope"] == "account"
+    assert len(provider.inputs[1]["evidence"]) == 2
+    assert data.calls == [("alice", CONNECTION_ID), ("alice", CONNECTION_ID)]
+    assert store.get("alice", conversation_id)["scope"] == "site"
+    assert client.post(url, json=payload).status_code == 200
+    assert len(provider.inputs) == 2
+    assert client.post(url, json={**payload, "connection_id": None}).status_code == 409
+    data.active = False
+    assert client.post(url, json=payload).status_code == 404
+
+
+def test_message_cannot_attach_another_users_account(harness):
+    client, store, data, provider, app = harness
+    conversation_id = store.create("alice", "site", None)["id"]
+    result = client.post(f"/api/v1/chat/conversations/{conversation_id}/messages", json={
+        "content": "حسابم", "request_id": str(uuid4()), "connection_id": "b" * 24,
+    })
+    assert result.status_code == 404
+    assert not provider.inputs
+    assert not store.get("alice", conversation_id)["messages"]
+
+
+def test_attached_account_revocation_prevents_persistence(harness, monkeypatch):
+    client, store, data, provider, app = harness
+    conversation_id = store.create("alice", "site", None)["id"]
+    original = provider.generate_json
+
+    def revoke_on_answer(prompt, evidence):
+        result = original(prompt, evidence)
+        if len(provider.inputs) == 2:
+            data.active = False
+        return result
+
+    monkeypatch.setattr(provider, "generate_json", revoke_on_answer)
+    result = client.post(f"/api/v1/chat/conversations/{conversation_id}/messages", json={
+        "content": "حسابم", "request_id": str(uuid4()), "connection_id": CONNECTION_ID,
+    })
+    assert result.status_code == 404
+    assert not store.get("alice", conversation_id)["messages"]
+
+
 def test_provider_failure_preserves_history_and_releases_lease(harness):
     client, store, data, provider, app = harness
     conversation_id = store.create("alice", "site", None)["id"]

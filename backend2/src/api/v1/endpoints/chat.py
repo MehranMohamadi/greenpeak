@@ -108,10 +108,14 @@ def send_message(conversation_id: UUID, body: MessageRequest, user: User, store:
         conversation = store.get(user["id"], str(conversation_id))
         if conversation["scope"] == "account":
             data.connection(user["id"], conversation["connection_id"])
+        elif body.connection_id:
+            data.connection(user["id"], body.connection_id)
         row, lease, cached, history = store.acquire(user["id"], str(conversation_id), body)
         if cached is not None:
             return cached
         provider = chat_provider()
+        if row["scope"] == "site" and body.connection_id:
+            row = {**row, "scope": "account", "connection_id": body.connection_id}
         answer = generate_reply(provider, data, user["id"], row, body, history)
         # Recheck revocation before persisting or returning account-derived content.
         if row["scope"] == "account":
