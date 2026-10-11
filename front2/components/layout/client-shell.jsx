@@ -5,6 +5,7 @@ import { AuthProvider } from "../../components/auth/auth-context";
 import AuthWrapper from "../../components/auth/auth-wrapper";
 import { SidebarHoverProvider } from "../../app/context/sidebar-hover-context";
 import dynamic from "next/dynamic";
+import { ChatProvider } from "@/components/chat/chat-context";
 
 const FloatingChat = dynamic(() => import("@/components/chat/floating-chat"), { ssr: false });
 
@@ -18,7 +19,7 @@ export function ClientShell({ children }) {
     >
       <AuthProvider>
         <AuthWrapper>
-          <SidebarHoverProvider>{children}<FloatingChat /></SidebarHoverProvider>
+          <SidebarHoverProvider><ChatProvider>{children}<FloatingChat /></ChatProvider></SidebarHoverProvider>
         </AuthWrapper>
       </AuthProvider>
     </ThemeProvider>

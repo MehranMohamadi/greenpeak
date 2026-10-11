@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation"
 import * as Dialog from "@radix-ui/react-dialog"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { ArrowUp, Bot, ChevronLeft, History, Link2, Loader2, MessageCircle, Plus, RefreshCw, Sparkles, Trash2, X } from "lucide-react"
+import { ArrowUp, Bot, ChevronLeft, History, Link2, Loader2, Plus, RefreshCw, Sparkles, Trash2, X } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
+import { useChat } from "@/components/chat/chat-context"
 import { endpoints } from "@/api/api"
 
 const SITE_PROMPTS = ["وضعیت بازار را توضیح بده", "نرخ بهره در سه ماه گذشته چه تغییری کرده؟", "رویدادهای اقتصادی پیش رو چیست؟"]
@@ -20,7 +21,7 @@ export default function FloatingChat() {
 
 function ChatWidget({ accessToken }) {
   const pathname = usePathname()
-  const [open, setOpen] = useState(false)
+  const { open, setOpen, triggerRef } = useChat()
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [configured, setConfigured] = useState(null)
@@ -93,8 +94,18 @@ function ChatWidget({ accessToken }) {
   }, [open, accessToken])
 
   useEffect(() => {
-    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
-  }, [messages, sending, open])
+    if (!open || historyOpen) return
+    const frame = requestAnimationFrame(() => {
+      const list = listRef.current
+      if (!list) return
+      const latest = list.querySelector("[data-chat-message]:last-of-type")
+      const top = latest && messages.at(-1)?.role === "assistant"
+        ? list.scrollTop + latest.getBoundingClientRect().top - list.getBoundingClientRect().top - 12
+        : list.scrollHeight
+      list.scrollTo({ top, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [messages, open, historyOpen])
 
   function newConversation() {
     if (busyRef.current) return
@@ -171,7 +182,7 @@ function ChatWidget({ accessToken }) {
       setMessages(previous => [...previous, answer])
       // History refresh is independent: a successful answer must not become a failed send.
       try { await refreshHistory(abort.signal) } catch { /* refresh on next panel open */ }
-      inputRef.current?.focus()
+      inputRef.current?.focus({ preventScroll: true })
     } catch (err) {
       if (err.name !== "AbortError") {
         setError(err.message || "ارتباط با دستیار قطع شد؛ دوباره تلاش کنید.")
@@ -191,17 +202,12 @@ function ChatWidget({ accessToken }) {
   const blocked = loading || sending || configured !== true
 
   return <Dialog.Root open={open} onOpenChange={setOpen} modal={false}>
-    <Dialog.Trigger asChild>
-      <button type="button" aria-label={open ? "بستن دستیار GreenPeak" : "گفت‌وگو با دستیار GreenPeak"}
-        className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-6 z-[70] flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 ring-1 ring-primary/20 transition duration-200 hover:scale-105 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 motion-reduce:transform-none lg:right-24">
-        {!open && <span aria-hidden="true" className="pointer-events-none absolute inset-0 animate-ping rounded-full bg-primary/20 [animation-duration:2.5s] motion-reduce:hidden" />}
-        {open ? <X className="relative h-6 w-6" /> : <MessageCircle className="relative h-7 w-7" />}
-      </button>
-    </Dialog.Trigger>
     <Dialog.Portal>
       <Dialog.Content dir="rtl" aria-describedby={undefined} onInteractOutside={event => event.preventDefault()}
+        id="greenpeak-chat-dialog"
         onOpenAutoFocus={event => { event.preventDefault(); inputRef.current?.focus() }}
-        className="fixed bottom-[calc(max(1.5rem,env(safe-area-inset-bottom))+4.5rem)] right-3 z-[70] flex h-[min(640px,calc(100dvh-120px))] w-[calc(100vw-1.5rem)] max-w-[420px] flex-col overflow-hidden rounded-3xl border border-primary/15 bg-card text-card-foreground shadow-2xl shadow-foreground/10 outline-none sm:right-6 lg:right-24">
+        onCloseAutoFocus={event => { event.preventDefault(); triggerRef.current?.focus({ preventScroll: true }) }}
+        className="fixed bottom-3 right-3 z-[70] flex h-[min(640px,calc(100dvh-1.5rem))] w-[calc(100vw-1.5rem)] max-w-[420px] flex-col overflow-hidden rounded-3xl border border-primary/15 bg-card text-card-foreground shadow-2xl shadow-foreground/10 outline-none sm:bottom-6 sm:right-6 lg:right-20">
         <header className="flex shrink-0 items-center gap-3 border-b border-primary/10 bg-gradient-to-l from-primary/10 to-card px-4 py-3.5">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm shadow-primary/20"><Bot className="h-6 w-6" /></span>
           <div className="min-w-0 flex-1"><Dialog.Title className="text-sm font-semibold">دستیار GreenPeak</Dialog.Title></div>
@@ -213,9 +219,8 @@ function ChatWidget({ accessToken }) {
         <div className="shrink-0 space-y-2 border-b px-4 py-2.5">
           {selectedAccount && <p className="text-[10px] leading-5 text-muted-foreground">داده‌های سایت و متاتریدر {selectedAccount.label} · {selectedAccount.account_label} در دسترس دستیار است. اطلاعات لازم برای پاسخ توسط ارائه‌دهندهٔ مدل پردازش می‌شود. آخرین دریافت: {formatTime(selectedAccount.last_seen_at)}</p>}
           {accountError && <p className="text-[10px] text-muted-foreground">{accountError} پرسش از سایت در دسترس است.</p>}
-          {!loading && !accountError && !accounts.length && <a href="/profile" className="group flex items-start gap-2.5 rounded-2xl border border-primary/15 bg-primary/5 p-3 transition hover:border-primary/30 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Link2 className="h-4 w-4" /></span>
-            <span className="min-w-0 flex-1"><span className="block text-xs font-medium">حسابتان را به گفت‌وگو اضافه کنید</span><span className="mt-1 block text-[11px] leading-5 text-muted-foreground">متاتریدر را در پروفایل متصل کنید و دربارهٔ حساب و پوزیشن‌هایتان بپرسید.</span><span className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-primary">اتصال متاتریدر<ChevronLeft className="h-3 w-3 transition-transform group-hover:-translate-x-0.5 motion-reduce:transform-none" /></span></span>
+          {!loading && !accountError && !accounts.length && <a href="/profile" className="inline-flex items-center gap-1.5 rounded-lg border border-primary/15 bg-primary/5 px-2.5 py-1.5 text-[11px] font-medium text-primary transition hover:border-primary/30 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            <Link2 className="h-3.5 w-3.5" />اتصال متاتریدر<ChevronLeft className="h-3 w-3" />
           </a>}
         </div>
 
@@ -245,10 +250,9 @@ function ChatWidget({ accessToken }) {
           <div className="flex items-end gap-2 rounded-2xl border bg-background p-2 transition focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/15">
             <textarea ref={inputRef} value={draft} onChange={event => setDraft(event.target.value)} maxLength={2000} rows={2} disabled={sending} aria-label="پیام شما به دستیار" placeholder="سؤالتان را بنویسید…"
               onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send(draft, failed?.content === draft.trim() ? failed : null) } }}
-              className="max-h-28 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1 py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground" />
+              className="max-h-28 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1 py-1 text-[13px] leading-6 outline-none placeholder:text-muted-foreground" />
             <button type="submit" aria-label="ارسال پیام" disabled={blocked || !draft.trim()} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90 disabled:opacity-40">{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}</button>
           </div>
-          <p className="mt-1.5 text-center text-[10px] text-muted-foreground">زمان داده و منابع هر پاسخ را بررسی کنید.</p>
         </form>
       </Dialog.Content>
     </Dialog.Portal>
@@ -268,14 +272,14 @@ function number(value) {
 
 function ChatMessage({ message }) {
   const isUser = message.role === "user"
-  return <article className={`mb-4 min-w-0 ${isUser ? "mr-6" : "ml-1"}`} aria-label={isUser ? "پیام شما" : "پاسخ دستیار"}>
-    <div className={`rounded-2xl px-3 py-2.5 text-sm leading-7 ${isUser ? "rounded-tr-sm bg-primary text-primary-foreground" : "rounded-tl-sm bg-muted/60"}`}>
-      {isUser ? <p className="whitespace-pre-wrap break-words">{message.content}</p> : <div className="break-words [overflow-wrap:anywhere] [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pr-4 [&_ol]:list-decimal [&_ol]:pr-4 [&_th]:border [&_th]:p-1 [&_td]:border [&_td]:p-1 [&_pre]:overflow-x-auto [&_pre]:text-xs">
+  return <article data-chat-message className={`mb-4 flex min-w-0 flex-col ${isUser ? "items-start pl-8" : "items-end pr-3"}`} aria-label={isUser ? "پیام شما" : "پاسخ دستیار"}>
+    <div className={`min-w-0 max-w-full rounded-2xl px-3.5 py-2.5 text-[13px] leading-6 shadow-sm ${isUser ? "rounded-tr-md bg-primary text-primary-foreground shadow-primary/10" : "w-full rounded-tl-md border border-border/60 bg-muted/40"}`}>
+      {isUser ? <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</p> : <div className="break-words [overflow-wrap:anywhere] [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:mb-2 [&_ul]:list-disc [&_ul]:pr-4 [&_ol]:mb-2 [&_ol]:list-decimal [&_ol]:pr-4 [&_li]:my-1 [&_h1]:mb-2 [&_h1]:font-semibold [&_h2]:mb-2 [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:font-semibold [&_blockquote]:border-r-2 [&_blockquote]:border-primary/30 [&_blockquote]:pr-3 [&_blockquote]:text-muted-foreground [&_th]:border [&_th]:bg-background/60 [&_th]:p-1.5 [&_td]:border [&_td]:p-1.5 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-background/70 [&_pre]:p-2 [&_pre]:text-xs">
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({ children }) => <span>{children}</span>, img: () => null, table: ({ children }) => <div className="overflow-x-auto"><table className="w-full text-xs">{children}</table></div> }}>{message.content}</ReactMarkdown>
       </div>}
       {!isUser && <Attachments attachments={message.attachments} />}
     </div>
-    {!!message.sources?.length && <details className="mt-2 rounded-lg border px-2.5 py-1 text-[10px] text-muted-foreground">
+    {!!message.sources?.length && <details className="mt-1.5 w-full rounded-xl border border-border/50 bg-background/40 px-2.5 py-1 text-[10px] text-muted-foreground">
       <summary className="cursor-pointer py-1">منابع و زمان داده ({message.sources.length})</summary>
       <div className="space-y-2 py-2">{message.sources.map(source => <div key={source.id}><a href={source.href} className="font-medium text-primary underline underline-offset-2">{source.id} · {source.title}</a><p className="mt-0.5">تاریخ داده: {source.observed_at ? formatTime(source.observed_at) : "در منبع مشخص نشده"}</p>{source.status !== "available" && <p className="mt-0.5 text-amber-700 dark:text-amber-400">{({ stale: "داده قدیمی است", unavailable: "داده در دسترس نیست", dated_analysis: "تحلیل ذخیره‌شده؛ تاریخ داده را بررسی کنید", historical_dataset: "دادهٔ تاریخی؛ قیمت زنده نیست", invalid_timestamp: "زمان داده معتبر نیست", insufficient_history: "تاریخچه ناکافی است" })[source.status] || source.status}</p>}</div>)}</div>
     </details>}

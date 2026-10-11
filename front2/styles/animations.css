@@ -68,6 +68,17 @@
 }
 
 /* Loading animations */
+@keyframes chat-icon-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.04);
+  }
+}
+
 @keyframes pulse {
   0%, 100% {
     opacity: 1;

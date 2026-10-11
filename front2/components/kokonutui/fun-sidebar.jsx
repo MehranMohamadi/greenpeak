@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Dices, Flower2, GraduationCap, HelpCircle, Landmark, Menu, Mic2, Smile, UsersRound, X } from "lucide-react";
+import { BookOpen, Dices, Flower2, GraduationCap, HelpCircle, Landmark, Menu, MessageCircle, Mic2, Smile, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -9,6 +9,8 @@ import { useSidebarHover } from "@/app/context/sidebar-hover-context";
 import { getActiveNavHref } from "@/lib/navigation-state";
 import { ThemeToggle } from "@/components/theme-toggle";
 import ProfileDropdown from "./profile-01";
+import { useAuth } from "@/components/auth/auth-context";
+import { useChat } from "@/components/chat/chat-context";
 
 const funNavigation = [
   {
@@ -43,6 +45,8 @@ const neutralItem = "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:te
 const itemFocus = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 motion-reduce:transition-none";
 
 export default function FunSidebar() {
+  const { isAuthenticated, accessToken } = useAuth();
+  const { open: chatOpen, setOpen: setChatOpen, triggerRef: chatTriggerRef } = useChat();
   const pathname = usePathname();
   const submenuId = useId();
   const navId = useId();
@@ -146,6 +150,11 @@ export default function FunSidebar() {
             </div>
           </div>
           <div className="shrink-0 border-t border-gray-200 bg-white px-2 py-2 dark:border-[#1F1F23] dark:bg-[#0F0F12]">
+            {isAuthenticated && accessToken && <button ref={chatTriggerRef} type="button" aria-label="دستیار GreenPeak" aria-expanded={chatOpen} aria-controls={chatOpen ? "greenpeak-chat-dialog" : undefined} aria-haspopup="dialog" title="دستیار GreenPeak" onClick={() => setChatOpen((open) => !open)} className={`relative flex h-9 w-full min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors ${itemFocus} ${chatOpen ? "bg-primary/10 font-medium text-primary" : neutralItem}`}>
+              {chatOpen && <span aria-hidden="true" className="absolute inset-y-2 right-0 w-[3px] rounded-full bg-primary" />}
+              <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center text-primary"><MessageCircle className="h-5 w-5 animate-[chat-icon-pulse_3s_ease-in-out_infinite] motion-reduce:animate-none" /></span>
+              {showLabels && <span className="truncate">دستیار GreenPeak</span>}
+            </button>}
             <Link href="/help" aria-label="راهنما" aria-current={isHelpActive ? "page" : undefined} title="راهنما" onClick={() => setIsMobileMenuOpen(false)} className={`relative flex h-9 min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors ${itemFocus} ${isHelpActive ? "bg-primary/10 font-medium text-primary" : neutralItem}`}>
               {isHelpActive && <span aria-hidden="true" className="absolute inset-y-2 right-0 w-[3px] rounded-full bg-primary" />}
               <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><HelpCircle className="h-5 w-5" /></span>
