@@ -8,7 +8,7 @@ from pymongo import MongoClient
 
 from ..core.config import get_settings
 from .llm_engine.job import run_llm_pipeline
-from .llm_engine.provider import DisabledProvider, OpenAICompatibleProvider
+from .llm_engine.routing import create_llm_provider
 from .llm_engine.repository import MongoNarrativeRepository
 from .market_analysis_context import build_market_analysis_context
 from .rate_features.config import DEFINITIONS
@@ -20,9 +20,7 @@ from .rule_engine.repository import MongoRuleRepository
 
 
 def _provider(settings):
-    if settings.greenpeak_llm_provider == "openai-compatible":
-        return OpenAICompatibleProvider(settings.greenpeak_llm_api_key, settings.greenpeak_llm_model, settings.greenpeak_llm_base_url)
-    return DisabledProvider()
+    return create_llm_provider(settings)
 
 
 def main() -> int:

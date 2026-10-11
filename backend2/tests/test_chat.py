@@ -108,6 +108,43 @@ def test_requires_authentication():
     assert TestClient(app).get("/chat/status").status_code == 401
 
 
+def test_chat_uses_direct_fallback_for_planning_and_answer(harness, tmp_path, monkeypatch):
+    import json
+    from src.core.config import Settings
+    from src.services.llm_engine.routing import create_llm_provider
+
+    client, store, data, fake, app = harness
+    settings = Settings(_env_file=None, greenpeak_llm_api_key="", greenpeak_llm_providers=[
+        {"provider_id": "gemini", "model": "test-gemini", "api_key": "gemini-key"},
+        {"provider_id": "mistral", "model": "test-mistral", "api_key": "mistral-key"},
+    ], greenpeak_llm_router_db_path=tmp_path / "router.db")
+    monkeypatch.setattr(chat, "get_settings", lambda: settings)
+    monkeypatch.setattr(chat, "chat_provider", lambda: create_llm_provider(settings))
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(url)
+        request = httpx.Request("POST", url)
+        if "googleapis" in url:
+            return httpx.Response(429, json={"error": {"code": "RESOURCE_EXHAUSTED"}},
+                                  headers={"Retry-After": "120"}, request=request)
+        messages = kwargs["json"]["messages"]
+        result = fake.generate_json(messages[0]["content"], json.loads(messages[1]["content"]))
+        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(result)}}]}, request=request)
+
+    monkeypatch.setattr(httpx, "post", post)
+    status = client.get("/api/v1/chat/status")
+    assert status.status_code == 200 and status.json()["configured"] is True
+    assert "key" not in status.text
+    conversation_id = store.create("alice", "site", None)["id"]
+    result = client.post(f"/api/v1/chat/conversations/{conversation_id}/messages",
+                         json={"content": "بازار", "request_id": str(uuid4())})
+    assert result.status_code == 200
+    assert len(calls) == 3 and "googleapis" in calls[0]
+    assert all("mistral" in url for url in calls[1:])
+    assert len(store.get("alice", conversation_id)["messages"]) == 2
+
+
 def test_round_trip_idempotency_and_private_history(harness):
     client, store, data, provider, app = harness
     created = client.post("/api/v1/chat/conversations", json={"scope": "site"})

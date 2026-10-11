@@ -4,7 +4,7 @@ from datetime import date
 os.environ["DEBUG"] = "false"
 
 from src.services.greenpeak_config import load_registry
-from src.services.llm_engine.job import _analyze, domain_indicator_ids
+from src.services.llm_engine.job import _analyze, domain_indicator_ids, input_hash
 from src.services.llm_engine.prompts import load_prompt
 from src.services.llm_engine.provider import decode_json_content
 from src.services.llm_engine.schemas import DomainNarrative, MarketNarrative
@@ -27,6 +27,27 @@ class MemoryRepository:
     def find_reusable(self, level, input_hash, model):
         return next((item for item in self.values if item["provenance"]["input_hash"] == input_hash and item["provenance"]["model"] == model), None)
     def save(self, level, document): self.values.append(document)
+
+
+def test_failover_persists_actual_provider_and_cache_identity():
+    class SwitchingProvider(FakeProvider):
+        def generate_json(self, prompt, evidence):
+            result = super().generate_json(prompt, evidence)
+            self.provider_id = "fallback"
+            self.model_id = "fallback-model"
+            return result
+
+    provider = SwitchingProvider()
+    repository = MemoryRepository()
+    day = date(2026, 8, 16)
+    evidence = {"versions": {}}
+    coverage = {"status": "full", "ratio": 1, "configured_count": 1, "available_count": 1, "missing_inputs": []}
+    value, _ = _analyze(repository, provider, "indicator", "federal_funds_rate", day, evidence, coverage, day, False)
+    stored = repository.values[0]["provenance"]
+    assert stored["provider"] == "fallback" and stored["model"] == "fallback-model"
+    assert stored["input_hash"] == input_hash("indicator", "federal_funds_rate", day, evidence, load_prompt("indicator").hash, provider, {})
+    _, status = _analyze(repository, provider, "indicator", "federal_funds_rate", day, evidence, coverage, day, False)
+    assert status == "reused" and provider.calls == 1
 
 
 class InvalidThenValidProvider(FakeProvider):

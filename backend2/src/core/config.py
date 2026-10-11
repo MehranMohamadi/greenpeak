@@ -2,8 +2,17 @@
 
 from pathlib import Path
 from typing import List
-from pydantic import field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings
+
+
+class LLMEndpointSettings(BaseModel):
+    provider_id: str = Field(min_length=1)
+    model: str = Field(min_length=1)
+    api_key: SecretStr
+    base_url: str | None = None
+
+    model_config = {"extra": "forbid"}
 
 
 class Settings(BaseSettings):
@@ -19,6 +28,9 @@ class Settings(BaseSettings):
     greenpeak_llm_model: str = "gpt-6-luna"
     greenpeak_llm_api_key: str = ""
     greenpeak_llm_base_url: str = "https://api.gapgpt.app/v1"
+    # Ordered direct providers; when set, the legacy single provider is unused.
+    greenpeak_llm_providers: list[LLMEndpointSettings] = []
+    greenpeak_llm_router_db_path: Path = Path(__file__).parent.parent.parent / "instance" / "llm_router.db"
     greenpeak_chat_db_path: Path = Path(__file__).parent.parent.parent / "instance" / "chat" / "chat.db"
     greenpeak_chat_retention_days: int = 30
     greenpeak_chat_daily_limit: int = 100

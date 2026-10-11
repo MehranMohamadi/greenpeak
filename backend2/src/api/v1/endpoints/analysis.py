@@ -12,7 +12,7 @@ from ....services.daily_analysis import market_analysis_completed, next_schedule
 from ....services.llm_engine.local_cache import LocalNarrativeCache, NarrativeCacheError
 from ....services.llm_engine.repository import MongoNarrativeRepository
 from ....services.llm_engine.schemas import DomainNarrative, IndicatorNarrative, MarketNarrative
-from ....services.llm_engine.provider import OpenAICompatibleProvider
+from ....services.llm_engine.routing import create_llm_provider, llm_is_configured
 from ....services.persisted_analysis import run_persisted_analysis
 from ....utils.telegram import build_telegram_market_report, send_telegram_market_report
 
@@ -117,7 +117,7 @@ def _execute_manual_analysis(run_id: str, force_llm: bool) -> None:
         client[settings.mongodb_database].gp_manual_analysis_runs.update_one(
             {"run_id": run_id}, {"$set": {"status": "running", "started_at": datetime.now(UTC)}}
         )
-        provider = OpenAICompatibleProvider(settings.greenpeak_llm_api_key, settings.greenpeak_llm_model, settings.greenpeak_llm_base_url, timeout=180)
+        provider = create_llm_provider(settings, timeout=180)
         result = run_persisted_analysis(
             client,
             settings.mongodb_database,
@@ -154,7 +154,7 @@ def run_manual_analysis(background_tasks: BackgroundTasks, force_llm: bool = Tru
     """Queue an explicit operator action; normal page reads never execute analysis."""
     _authorize_manual_run(authorization)
     settings = get_settings()
-    if settings.greenpeak_llm_provider != "openai-compatible" or not settings.greenpeak_llm_api_key or not settings.greenpeak_llm_model:
+    if not llm_is_configured(settings):
         raise HTTPException(status_code=503, detail={"code": "LLM_NOT_CONFIGURED", "message": "The LLM provider credentials are incomplete."})
     client = MongoClient(settings.mongodb_url, serverSelectionTimeoutMS=5000)
     run_id = str(uuid4())

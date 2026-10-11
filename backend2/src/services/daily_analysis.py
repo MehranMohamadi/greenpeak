@@ -10,7 +10,7 @@ from pymongo import MongoClient, ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from ..core.config import get_settings
-from .llm_engine.provider import OpenAICompatibleProvider
+from .llm_engine.routing import create_llm_provider, llm_is_configured
 from .persisted_analysis import run_persisted_analysis
 from ..utils.telegram import build_telegram_market_report, send_telegram_market_report
 
@@ -33,7 +33,7 @@ def next_scheduled_analysis_at(now: datetime | None = None) -> datetime | None:
     settings = get_settings()
     if not settings.greenpeak_daily_analysis_enabled:
         return None
-    if settings.greenpeak_llm_provider != "openai-compatible" or not settings.greenpeak_llm_api_key or not settings.greenpeak_llm_model:
+    if not llm_is_configured(settings):
         return None
     try:
         timezone = ZoneInfo(settings.greenpeak_daily_analysis_timezone)
@@ -191,12 +191,7 @@ def run_daily_analysis(*, retry_failed: bool = False) -> None:
         if not _claim_daily_run(runs, run_key, local_day, retry_failed):
             return
 
-        provider = OpenAICompatibleProvider(
-            settings.greenpeak_llm_api_key,
-            settings.greenpeak_llm_model,
-            settings.greenpeak_llm_base_url,
-            timeout=180,
-        )
+        provider = create_llm_provider(settings, timeout=180)
         result = run_persisted_analysis(
             client,
             settings.mongodb_database,
@@ -253,7 +248,7 @@ def create_daily_analysis_scheduler() -> BackgroundScheduler | None:
     settings = get_settings()
     if not settings.greenpeak_daily_analysis_enabled:
         return None
-    if settings.greenpeak_llm_provider != "openai-compatible" or not settings.greenpeak_llm_api_key or not settings.greenpeak_llm_model:
+    if not llm_is_configured(settings):
         logger.warning("Daily analysis scheduler is disabled because the LLM provider is not configured")
         return None
 

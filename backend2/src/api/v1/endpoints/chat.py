@@ -11,7 +11,7 @@ from ....services.chat.data import ChatData
 from ....services.chat.engine import generate_reply
 from ....services.chat.schemas import ConversationCreate, MessageRequest
 from ....services.chat.store import ChatError, ChatStore
-from ....services.llm_engine.provider import OpenAICompatibleProvider
+from ....services.llm_engine.routing import create_llm_provider, llm_is_configured
 from .auth import require_user
 
 
@@ -46,15 +46,15 @@ def failure(exc):
 
 def chat_provider():
     settings = get_settings()
-    if settings.greenpeak_llm_provider != "openai-compatible" or not settings.greenpeak_llm_api_key or not settings.greenpeak_llm_model:
+    if not llm_is_configured(settings):
         raise HTTPException(503, detail={"code": "CHAT_NOT_CONFIGURED", "message": "دستیار هنوز فعال نشده است؛ تنظیمات مدل باید توسط مدیر سایت تکمیل شود."})
-    return OpenAICompatibleProvider(settings.greenpeak_llm_api_key, settings.greenpeak_llm_model, settings.greenpeak_llm_base_url, timeout=60)
+    return create_llm_provider(settings, timeout=60)
 
 
 @router.get("/status")
 def chat_status(user: User):
     settings = get_settings()
-    return {"configured": bool(settings.greenpeak_llm_provider == "openai-compatible" and settings.greenpeak_llm_api_key and settings.greenpeak_llm_model),
+    return {"configured": llm_is_configured(settings),
             "retention_days": settings.greenpeak_chat_retention_days}
 
 

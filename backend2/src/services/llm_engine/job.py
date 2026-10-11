@@ -55,6 +55,9 @@ def _analyze(repository, provider, level: str, subject_id: str, as_of: date, evi
     validation_error = None
     for attempt in range(2):
         generated = provider.generate_json(prompt.content, request)
+        # Failover may have changed the actual provider/model after the cache lookup.
+        digest = input_hash(level, subject_id, as_of, evidence, prompt.hash, provider, versions)
+        metadata["provenance"].update(model=provider.model_id, provider=provider.provider_id, input_hash=digest)
         allowed_fields = MODELS[level].model_fields
         generated = {key: value for key, value in generated.items() if key in allowed_fields}
         try:

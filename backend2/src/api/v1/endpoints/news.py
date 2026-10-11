@@ -8,7 +8,7 @@ from pymongo.errors import PyMongoError
 
 from ....core.config import get_settings
 from ....services.economic_calendar import TRADAYS_BASE_URL, fetch_recent_us_events, fetch_upcoming_us_events
-from ....services.llm_engine.provider import OpenAICompatibleProvider
+from ....services.llm_engine.routing import create_llm_provider, llm_is_configured
 from ....services.news.article_analysis import NEWS_ANALYSIS_VERSION, analyze_news_document
 from ....services.news.feed import SEARCH_TOPICS, SOURCE_IDS, build_source_feed
 from ....services.news.repository import MongoNewsRepository
@@ -71,18 +71,9 @@ def news_item_analysis(item_id: str = Path(pattern=r"^[a-zA-Z0-9_-]{1,80}$")):
         document = repository.item_by_id(item_id)
         if not document:
             raise HTTPException(404, detail={"code": "NEWS_ITEM_NOT_FOUND", "message": "News item was not found."})
-        if (
-            settings.greenpeak_llm_provider != "openai-compatible"
-            or not settings.greenpeak_llm_api_key
-            or not settings.greenpeak_llm_model
-        ):
+        if not llm_is_configured(settings):
             raise HTTPException(503, detail={"code": "LLM_NOT_CONFIGURED", "message": "News analysis is not configured."})
-        provider = OpenAICompatibleProvider(
-            settings.greenpeak_llm_api_key,
-            settings.greenpeak_llm_model,
-            settings.greenpeak_llm_base_url,
-            timeout=120,
-        )
+        provider = create_llm_provider(settings, timeout=120)
         analysis = analyze_news_document(document, provider)
         repository.save_article_analysis(analysis)
         return {"ok": True, "data": analysis}
