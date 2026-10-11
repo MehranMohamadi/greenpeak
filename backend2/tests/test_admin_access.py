@@ -33,7 +33,8 @@ def harness(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("path,method", [
-    ("/auth/admins", "get"), ("/auth/users", "get"), ("/auth/users/2/promote", "post"), ("/admin/analysis/run", "post"),
+    ("/auth/admins", "get"), ("/auth/users", "get"), ("/auth/users/2/promote", "post"),
+    ("/auth/users/1/demote", "post"), ("/auth/users/1", "delete"), ("/admin/analysis/run", "post"),
     ("/admin/analysis/runs/test", "get"), ("/mt5/snapshots", "get"),
     ("/indicators/federal_funds_rate/features/pipeline-debug", "get"),
     ("/indicators/features/pipeline-preview", "post"),
@@ -115,6 +116,124 @@ def test_promotion_uses_mongo_object_ids():
     assert service.promote_user_to_admin(str(identifier), "operator")["role"] == "admin"
     assert document["role_promoted_by"] == "operator"
     assert service.promote_user_to_admin("invalid", "operator") is None
+
+
+def test_admin_can_demote_other_admin_and_old_session_loses_privileges(harness):
+    client, service, headers, _ = harness
+    service.promote_user_to_admin("2", "1")
+    response = client.post("/api/v1/auth/users/2/demote", headers=headers["admin"])
+    assert response.status_code == 200
+    assert response.json()["role"] == "user"
+    assert client.get("/api/v1/auth/users", headers=headers["user"]).status_code == 403
+    assert service.collection.find_one({"_id": 2})["role_changed_by"] == "1"
+    assert client.get("/api/v1/auth/me", headers=headers["user"]).status_code == 200
+
+
+@pytest.mark.parametrize("action", ["demote", "delete"])
+def test_admin_cannot_remove_self_or_last_admin(harness, action):
+    client, service, headers, _ = harness
+    if action == "demote":
+        response = client.post("/api/v1/auth/users/1/demote", headers=headers["admin"])
+    else:
+        response = client.request("DELETE", "/api/v1/auth/users/1", headers=headers["admin"], json={"confirmation_username": "operator"})
+    assert response.status_code == 409
+    assert service.collection.find_one({"_id": 1})["role"] == "admin"
+
+
+def test_delete_requires_exact_confirmation_and_revokes_session_without_erasing_record(harness):
+    client, service, headers, _ = harness
+    url = "/api/v1/auth/users/2"
+    wrong = client.request("DELETE", url, headers=headers["admin"], json={"confirmation_username": "other"})
+    assert wrong.status_code == 400
+    assert service.collection.find_one({"_id": 2})["is_active"]
+    response = client.request("DELETE", url, headers=headers["admin"], json={"confirmation_username": "member"})
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    row = service.collection.find_one({"_id": 2})
+    assert row["deleted_at"] and row["deleted_by"] == "1"
+    assert not row["is_active"] and row["session_version"] == 1
+    assert row["password_hash"] == "private-hash"
+    assert client.get("/api/v1/auth/me", headers=headers["user"]).status_code == 401
+    assert [row["username"] for row in client.get("/api/v1/auth/users", headers=headers["admin"]).json()["users"]] == ["operator"]
+    assert client.post(url + "/promote", headers=headers["admin"]).status_code == 404
+    assert client.post(url + "/demote", headers=headers["admin"]).status_code == 404
+    assert client.request("DELETE", url, headers=headers["admin"], json={"confirmation_username": "member"}).status_code == 404
+
+
+def test_concurrent_admin_demotions_preserve_one_active_admin(harness):
+    from concurrent.futures import ThreadPoolExecutor
+    from src.services.auth_admin import AccountManagementError, manage_account
+    _, service, _, _ = harness
+    service.promote_user_to_admin("2", "1")
+
+    def demote(target, actor):
+        try:
+            manage_account(service, target, actor, "demote")
+            return 200
+        except AccountManagementError as exc:
+            return exc.status_code
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(demote, "2", "1")
+        second = pool.submit(demote, "1", "2")
+        assert sorted([first.result(), second.result()]) == [200, 403]
+    assert len(service.list_admins()) == 1
+
+
+@pytest.mark.parametrize("action", ["demote", "delete"])
+def test_mongo_management_revokes_connections_only_on_delete_and_releases_lock(action):
+    from bson import ObjectId
+    from src.services.auth_admin import manage_account
+    actor_id, target_id = ObjectId(), ObjectId()
+    documents = [
+        {"_id": actor_id, "username": "operator", "role": "admin", "is_active": True},
+        {"_id": target_id, "username": "member", "role": "admin", "is_active": True},
+    ]
+    revoked = []
+    released = []
+
+    class Locks:
+        def find_one_and_update(self, query, update, **kwargs):
+            assert query["_id"] == "users" and kwargs["upsert"]
+            return update["$set"]
+
+        def delete_one(self, query):
+            released.append(query)
+
+    class Collection:
+        database = SimpleNamespace(gp_auth_management_locks=Locks(),
+            gp_mt5_connections=SimpleNamespace(update_many=lambda query, update: revoked.append((query, update))))
+
+        def find(self, query, projection):
+            assert query["deleted_at"] is None
+            return deepcopy(documents)
+
+        def update_one(self, query, update):
+            assert query == {"_id": target_id}
+            documents[1].update(update["$set"])
+
+    result = manage_account(AuthService(Collection(), "test-secret"), str(target_id), str(actor_id), action, "member")
+    assert result["role"] == "user"
+    assert len(released) == 1 and released[0]["_id"] == "users"
+    if action == "delete":
+        assert revoked[0][0] == {"user_id": str(target_id), "revoked_at": None}
+        assert not documents[1]["is_active"] and documents[1]["deleted_at"]
+    else:
+        assert revoked == [] and documents[1]["is_active"]
+
+
+def test_busy_mongo_management_lock_rejects_changes():
+    from bson import ObjectId
+    from pymongo.errors import DuplicateKeyError
+    from src.services.auth_admin import AccountManagementError, manage_account
+
+    def busy(*args, **kwargs):
+        raise DuplicateKeyError("locked")
+
+    collection = SimpleNamespace(database=SimpleNamespace(gp_auth_management_locks=SimpleNamespace(find_one_and_update=busy)))
+    with pytest.raises(AccountManagementError) as error:
+        manage_account(AuthService(collection, "test-secret"), str(ObjectId()), str(ObjectId()), "delete", "member")
+    assert error.value.status_code == 409
 
 
 def test_public_preview_works_without_revealing_pipeline(harness):

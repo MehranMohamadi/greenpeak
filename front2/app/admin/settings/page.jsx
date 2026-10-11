@@ -8,10 +8,12 @@ import { useAuth } from "@/components/auth/auth-context"
 import { endpoints } from "@/api/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function AdminSettingsPage() {
-  const { isAdmin, accessToken } = useAuth()
+  const { isAdmin, accessToken, user: currentUser } = useAuth()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -19,6 +21,8 @@ export default function AdminSettingsPage() {
   const [promotingId, setPromotingId] = useState(null)
   const [promotionMessage, setPromotionMessage] = useState("")
   const [promotionError, setPromotionError] = useState("")
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteConfirmation, setDeleteConfirmation] = useState("")
 
   useEffect(() => {
     if (!isAdmin || !accessToken) return
@@ -55,6 +59,36 @@ export default function AdminSettingsPage() {
     }
   }
 
+  const manageUser = async (target, action) => {
+    if (!isAdmin || !accessToken || promotingId) return
+    setPromotingId(target.id)
+    setPromotionMessage("")
+    setPromotionError("")
+    try {
+      const response = await fetch(action === "delete" ? endpoints.auth.deleteUser(target.id) : endpoints.auth.demoteUser(target.id), {
+        method: action === "delete" ? "DELETE" : "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        ...(action === "delete" ? { body: JSON.stringify({ confirmation_username: deleteConfirmation }) } : {}),
+        cache: "no-store",
+      })
+      if (!response.ok) throw new Error(response.status === 409 ? "حذف یا تنزل حساب خودتان و آخرین ادمین فعال مجاز نیست؛ تغییر هم‌زمان را نیز دوباره امتحان کنید." : response.status === 403 ? "دسترسی مدیریت لازم است." : response.status === 400 ? "نام کاربری را دقیق وارد کنید." : "تغییر حساب ممکن نشد؛ فهرست را تازه‌سازی کنید.")
+      if (action === "delete") {
+        setUsers(current => current.filter(item => item.id !== target.id))
+        setDeleteTarget(null)
+        setDeleteConfirmation("")
+        setPromotionMessage(`${target.username} حذف شد و دسترسی ورودش قطع شد.`)
+      } else {
+        const updated = await response.json()
+        setUsers(current => current.map(item => item.id === updated.id ? { ...item, role: updated.role } : item))
+        setPromotionMessage(`${target.username} به کاربر تبدیل شد.`)
+      }
+    } catch (reason) {
+      setPromotionError(reason instanceof Error ? reason.message : "تغییر حساب ممکن نشد.")
+    } finally {
+      setPromotingId(null)
+    }
+  }
+
   if (!isAdmin) return null
   const admins = users.filter(user => user.role === "admin")
   return <Layout><div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6" dir="rtl">
@@ -67,7 +101,11 @@ export default function AdminSettingsPage() {
       {promotionError && <p role="alert" className="mb-4 text-sm text-destructive">{promotionError}</p>}
       {loading ? <p role="status" className="text-sm text-muted-foreground">در حال دریافت فهرست…</p> : error ? <p role="alert" className="text-sm text-destructive">{error}</p> : !users.length ? <p className="text-sm text-muted-foreground">کاربری ثبت نشده است.</p> : <div className="overflow-x-auto">
         <table className="w-full text-right text-sm"><thead><tr className="border-b text-muted-foreground"><th className="p-3">نام کاربری</th><th className="p-3">نقش</th><th className="p-3">وضعیت</th><th className="p-3">تاریخ ثبت‌نام</th><th className="p-3">عملیات</th></tr></thead><tbody>
-          {users.map(user => <tr key={user.id} className="border-b last:border-0"><td className="p-3" dir="auto">{user.username}</td><td className="p-3"><Badge variant={user.role === "admin" ? "default" : "secondary"}>{user.role === "admin" ? "Admin" : "User"}</Badge></td><td className="p-3">{user.is_active ? "فعال" : "غیرفعال"}</td><td className="p-3">{user.created_at && !Number.isNaN(Date.parse(user.created_at)) ? new Date(user.created_at).toLocaleDateString("fa-IR", { timeZone: "Asia/Tehran" }) : "نامشخص"}</td><td className="p-3">{user.role === "user" ? <Button size="sm" variant="outline" disabled={loading || Boolean(promotingId)} onClick={() => promoteUser(user)} aria-label={`ارتقای ${user.username} به ادمین`}>{promotingId === user.id ? "در حال ارتقا…" : "ارتقا به ادمین"}</Button> : <span className="text-muted-foreground">—</span>}</td></tr>)}
+          {users.map(user => <tr key={user.id} className="border-b last:border-0"><td className="p-3" dir="auto">{user.username}</td><td className="p-3"><Badge variant={user.role === "admin" ? "default" : "secondary"}>{user.role === "admin" ? "Admin" : "User"}</Badge></td><td className="p-3">{user.is_active ? "فعال" : "غیرفعال"}</td><td className="p-3">{user.created_at && !Number.isNaN(Date.parse(user.created_at)) ? new Date(user.created_at).toLocaleDateString("fa-IR", { timeZone: "Asia/Tehran" }) : "نامشخص"}</td><td className="p-3"><div className="flex flex-wrap gap-2">
+            {user.role === "user" ? <Button size="sm" variant="outline" disabled={loading || Boolean(promotingId)} onClick={() => promoteUser(user)}>ارتقا به ادمین</Button> : <Button size="sm" variant="outline" disabled={loading || Boolean(promotingId) || user.id === currentUser?.id} onClick={() => manageUser(user, "demote")}>تبدیل به کاربر</Button>}
+            <Button size="sm" variant="destructive" disabled={loading || Boolean(promotingId) || user.id === currentUser?.id} onClick={() => { setDeleteTarget(user); setDeleteConfirmation(""); setPromotionError("") }}>حذف کاربر</Button>
+            {promotingId === user.id && <span role="status" className="text-xs text-muted-foreground">در حال ذخیره…</span>}
+          </div></td></tr>)}
         </tbody></table>
       </div>}
     </CardContent></Card>
@@ -76,5 +114,6 @@ export default function AdminSettingsPage() {
       { href: "/analytics/mt5-snapshots", title: "JSON متاتریدر", description: "خروجی فنی حساب‌های متصل خودتان", icon: FileJson2 },
       { href: "/architecture/ai-market-analysis", title: "معماری تحلیل", description: "مستندات داخلی سیستم تحلیل", icon: ShieldCheck },
     ].map(({ href, title, description, icon: Icon }) => <Card key={href}><CardHeader><CardTitle className="flex items-center gap-2 text-base"><Icon className="h-4 w-4 text-primary" />{title}</CardTitle><CardDescription>{description}</CardDescription></CardHeader><CardContent><Button asChild variant="outline"><Link href={href}>مشاهده</Link></Button></CardContent></Card>)}</div>
+    <Dialog open={Boolean(deleteTarget)} onOpenChange={open => { if (!open && !promotingId) { setDeleteTarget(null); setDeleteConfirmation("") } }}><DialogContent dir="rtl"><DialogHeader><DialogTitle>حذف کاربر</DialogTitle><DialogDescription>حساب از فهرست حذف می‌شود و ورود، نشست‌ها و اتصال متاتریدر آن قطع می‌شوند. سوابق مالی و مکالمات نگهداری می‌شوند. برای تأیید، نام کاربری {deleteTarget?.username} را دقیق وارد کنید.</DialogDescription></DialogHeader><Input aria-label="نام کاربری برای تأیید حذف" dir="ltr" autoComplete="off" value={deleteConfirmation} onChange={event => setDeleteConfirmation(event.target.value)} disabled={Boolean(promotingId)} />{promotionError && <p role="alert" className="text-sm text-destructive">{promotionError}</p>}<DialogFooter><Button variant="outline" disabled={Boolean(promotingId)} onClick={() => setDeleteTarget(null)}>انصراف</Button><Button variant="destructive" disabled={Boolean(promotingId) || !deleteTarget || deleteConfirmation !== deleteTarget.username} onClick={() => manageUser(deleteTarget, "delete")}>{promotingId ? "در حال حذف…" : "تأیید حذف کاربر"}</Button></DialogFooter></DialogContent></Dialog>
   </div></Layout>
 }

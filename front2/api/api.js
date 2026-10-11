@@ -19,6 +19,8 @@ export const endpoints = {
         admins: `${API_BASE}/auth/admins`,
         users: `${API_BASE}/auth/users`,
         promoteUser: (userId) => `${API_BASE}/auth/users/${encodeURIComponent(userId)}/promote`,
+        demoteUser: (userId) => `${API_BASE}/auth/users/${encodeURIComponent(userId)}/demote`,
+        deleteUser: (userId) => `${API_BASE}/auth/users/${encodeURIComponent(userId)}`,
         signup: `${API_BASE}/auth/signup`,
         login: `${API_BASE}/auth/login`,
         me: `${API_BASE}/auth/me`,

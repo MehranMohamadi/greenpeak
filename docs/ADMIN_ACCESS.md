@@ -10,8 +10,15 @@ and personal settings for admins. It lists account usernames, IDs,
 roles, activation state and registration dates, never credentials. Both the
 administrator list and the complete user list require administrator access.
 Admins can promote a user with the user-list action or
-`POST /api/v1/auth/users/{user_id}/promote`. This endpoint only promotes; it does
-not allow demotion, deactivation or deletion. The timestamp and acting admin ID
+`POST /api/v1/auth/users/{user_id}/promote`. Admins can also demote another admin
+via `POST /api/v1/auth/users/{user_id}/demote`, or delete an account via
+`DELETE /api/v1/auth/users/{user_id}` with an exact `confirmation_username` body.
+Self-demotion and self-deletion are rejected. Destructive account changes are
+serialized and recheck the acting admin's live role to preserve an active admin.
+Deletion is logical: the account disappears from lists, becomes inactive and
+has sessions invalidated; Mongo-backed MT5 connections are revoked. Financial
+snapshots and chat history are retained. The identity remains reserved, so it
+cannot be registered again or revived through promotion. The timestamp and acting admin ID
 are recorded on the target account. Existing signed sessions use the new role on
 their next API request; refreshing the browser restores the updated UI role.
 

@@ -14,6 +14,7 @@ from pymongo.errors import PyMongoError
 from ....core.config import get_settings
 from ....services.auth import AuthError, AuthService, AuthStorageError
 from ....services.auth_email import EmailAuthService
+from ....services.auth_admin import AccountManagementError, manage_account
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -63,6 +64,10 @@ class ChangePasswordRequest(BaseModel):
 class MessageResponse(BaseModel):
     message: str
     verification_required: bool = False
+
+
+class DeleteUserRequest(BaseModel):
+    confirmation_username: str = Field(min_length=3, max_length=32)
 
 
 @lru_cache(maxsize=1)
@@ -221,6 +226,29 @@ def promote_user(
         if not user:
             raise HTTPException(404, detail="User not found.")
         return user
+    except (AuthStorageError, PyMongoError) as exc:
+        raise auth_failure(exc) from exc
+
+
+@router.post("/users/{user_id}/demote", response_model=UserResponse, dependencies=[Depends(no_store)])
+def demote_user(user_id: str, actor: Annotated[dict, Depends(require_admin)],
+                service: Annotated[AuthService, Depends(get_auth_service)]):
+    try:
+        return manage_account(service, user_id, actor["id"], "demote")
+    except AccountManagementError as exc:
+        raise HTTPException(exc.status_code, detail=str(exc)) from exc
+    except (AuthStorageError, PyMongoError) as exc:
+        raise auth_failure(exc) from exc
+
+
+@router.delete("/users/{user_id}", response_model=MessageResponse, dependencies=[Depends(no_store)])
+def delete_user(user_id: str, body: DeleteUserRequest, actor: Annotated[dict, Depends(require_admin)],
+                service: Annotated[AuthService, Depends(get_auth_service)]):
+    try:
+        manage_account(service, user_id, actor["id"], "delete", body.confirmation_username)
+        return MessageResponse(message="User deleted; sign-in access has been revoked.")
+    except AccountManagementError as exc:
+        raise HTTPException(exc.status_code, detail=str(exc)) from exc
     except (AuthStorageError, PyMongoError) as exc:
         raise auth_failure(exc) from exc
 

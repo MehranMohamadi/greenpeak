@@ -239,7 +239,7 @@ class AuthService:
         return sorted([
             {"id": str(row["_id"]), "username": row["username"], "role": row.get("role", "user"),
              "is_active": row.get("is_active", True), "created_at": row.get("created_at")}
-            for row in self.collection.find({"role": role} if role else {}, projection)
+            for row in self.collection.find({"role": role, "deleted_at": None} if role else {"deleted_at": None}, projection)
         ], key=lambda row: row["username"].casefold())
 
     def promote_user_to_admin(self, user_id: str, actor_id: str):
@@ -248,7 +248,7 @@ class AuthService:
         except (ValueError, InvalidId):
             return None
         document = self.collection.find_one({"_id": identifier})
-        if not document:
+        if not document or document.get("deleted_at"):
             return None
         if document.get("role") != "admin":
             now = datetime.now(timezone.utc)
