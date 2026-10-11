@@ -210,6 +210,21 @@ def list_users(response: Response, service: Annotated[AuthService, Depends(get_a
         raise auth_failure(exc) from exc
 
 
+@router.post("/users/{user_id}/promote", response_model=UserResponse, dependencies=[Depends(no_store)])
+def promote_user(
+    user_id: str,
+    actor: Annotated[dict, Depends(require_admin)],
+    service: Annotated[AuthService, Depends(get_auth_service)],
+):
+    try:
+        user = service.promote_user_to_admin(user_id, actor["id"])
+        if not user:
+            raise HTTPException(404, detail="User not found.")
+        return user
+    except (AuthStorageError, PyMongoError) as exc:
+        raise auth_failure(exc) from exc
+
+
 @router.post("/change-password", response_model=MessageResponse, dependencies=[Depends(limit_auth_requests)])
 def change_password(
     body: ChangePasswordRequest,

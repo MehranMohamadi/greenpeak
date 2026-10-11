@@ -33,7 +33,7 @@ def harness(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("path,method", [
-    ("/auth/admins", "get"), ("/auth/users", "get"), ("/admin/analysis/run", "post"),
+    ("/auth/admins", "get"), ("/auth/users", "get"), ("/auth/users/2/promote", "post"), ("/admin/analysis/run", "post"),
     ("/admin/analysis/runs/test", "get"), ("/mt5/snapshots", "get"),
     ("/indicators/federal_funds_rate/features/pipeline-debug", "get"),
     ("/indicators/features/pipeline-preview", "post"),
@@ -68,6 +68,53 @@ def test_user_list_contains_all_accounts_and_only_safe_fields(harness):
     assert "private-hash" not in response.text
     service.collection.update_one({"username_normalized": "operator"}, {"$set": {"role": "user"}})
     assert client.get("/api/v1/auth/users", headers=headers["admin"]).status_code == 403
+
+
+def test_admin_can_promote_user_and_existing_session_gains_admin_role(harness):
+    client, service, headers, _ = harness
+    before = service.collection.find_one({"username_normalized": "member"})
+    response = client.post("/api/v1/auth/users/2/promote", headers=headers["admin"])
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json() == {"id": "2", "username": "member", "role": "admin"}
+    after = service.collection.find_one({"_id": 2})
+    assert after["password_hash"] == before["password_hash"]
+    assert after["is_active"] == before["is_active"]
+    assert after["role_promoted_by"] == "1"
+    assert after["role_promoted_at"]
+    with service.collection._connect() as connection:
+        assert connection.execute("SELECT role FROM gp_users WHERE id = 2").fetchone()[0] == "admin"
+    assert client.get("/api/v1/auth/admins", headers=headers["user"]).status_code == 200
+    assert [row["username"] for row in client.get("/api/v1/auth/admins", headers=headers["admin"]).json()["admins"]] == ["member", "operator"]
+    again = client.post("/api/v1/auth/users/2/promote", headers=headers["admin"])
+    assert again.json() == response.json()
+    assert service.collection.find_one({"_id": 2})["role_promoted_at"] == after["role_promoted_at"]
+
+
+@pytest.mark.parametrize("user_id", ["999", "invalid", "-1"])
+def test_promoting_missing_user_returns_not_found(harness, user_id):
+    client, service, headers, _ = harness
+    assert client.post(f"/api/v1/auth/users/{user_id}/promote", headers=headers["admin"]).status_code == 404
+    assert service.collection.find_one({"_id": 2})["role"] == "user"
+
+
+def test_promotion_uses_mongo_object_ids():
+    from bson import ObjectId
+    identifier = ObjectId()
+    document = {"_id": identifier, "username": "member", "role": "user"}
+
+    class Collection:
+        def find_one(self, query):
+            return document.copy() if query["_id"] == identifier else None
+
+        def update_one(self, query, update):
+            assert query == {"_id": identifier}
+            document.update(update["$set"])
+
+    service = AuthService(Collection(), "test-secret")
+    assert service.promote_user_to_admin(str(identifier), "operator")["role"] == "admin"
+    assert document["role_promoted_by"] == "operator"
+    assert service.promote_user_to_admin("invalid", "operator") is None
 
 
 def test_public_preview_works_without_revealing_pipeline(harness):

@@ -15,6 +15,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from bson import ObjectId
+from bson.errors import InvalidId
 from pymongo import ASCENDING, MongoClient
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
@@ -156,8 +158,8 @@ class LocalUserCollection:
                     for key, amount in update.get("$inc", {}).items():
                         document[key] = document.get(key, 0) + amount
                     connection.execute(
-                        "UPDATE gp_users SET password_hash = ?, extra_json = ? WHERE id = ?",
-                        (document["password_hash"], json.dumps(document, default=str), document["_id"]),
+                        "UPDATE gp_users SET password_hash = ?, role = ?, extra_json = ? WHERE id = ?",
+                        (document["password_hash"], document["role"], json.dumps(document, default=str), document["_id"]),
                     )
                     return SimpleNamespace(modified_count=1)
                 return SimpleNamespace(modified_count=0)
@@ -239,6 +241,26 @@ class AuthService:
              "is_active": row.get("is_active", True), "created_at": row.get("created_at")}
             for row in self.collection.find({"role": role} if role else {}, projection)
         ], key=lambda row: row["username"].casefold())
+
+    def promote_user_to_admin(self, user_id: str, actor_id: str):
+        try:
+            identifier = int(user_id) if isinstance(self.collection, LocalUserCollection) else ObjectId(user_id)
+        except (ValueError, InvalidId):
+            return None
+        document = self.collection.find_one({"_id": identifier})
+        if not document:
+            return None
+        if document.get("role") != "admin":
+            now = datetime.now(timezone.utc)
+            self.collection.update_one({"_id": identifier}, {"$set": {
+                "role": "admin", "updated_at": now,
+                "role_promoted_at": now, "role_promoted_by": actor_id,
+            }})
+        # Re-read so a concurrent deletion cannot report a successful promotion.
+        document = self.collection.find_one({"_id": identifier})
+        if not document:
+            return None
+        return {"id": str(document["_id"]), "username": document["username"], "role": document["role"]}
 
     def signup(self, username: str, password: str) -> tuple[dict[str, Any], str]:
         username = username.strip()

@@ -9,6 +9,11 @@ The administrator entry is `/admin/settings`, also linked from the profile menu
 and personal settings for admins. It lists account usernames, IDs,
 roles, activation state and registration dates, never credentials. Both the
 administrator list and the complete user list require administrator access.
+Admins can promote a user with the user-list action or
+`POST /api/v1/auth/users/{user_id}/promote`. This endpoint only promotes; it does
+not allow demotion, deactivation or deletion. The timestamp and acting admin ID
+are recorded on the target account. Existing signed sessions use the new role on
+their next API request; refreshing the browser restores the updated UI role.
 
 Admin-only capabilities:
 
