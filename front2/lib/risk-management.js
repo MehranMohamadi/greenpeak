@@ -119,6 +119,99 @@ export function brokerSpecFor(snapshot, symbol) {
   ) || null
 }
 
+export function tradePriceStep(spec) {
+  const tick = positiveRule(spec?.tick_size) ?? positiveRule(spec?.point)
+  if (tick != null) return tick
+  const digits = finiteNumber(spec?.digits)
+  return digits != null && Number.isInteger(digits) && digits >= 0 && digits <= 10
+    ? 10 ** -digits : 0.01
+}
+
+export function stepTradePrice(value, basePrice, step, direction) {
+  const base = positiveRule(value) ?? positiveRule(basePrice)
+  const increment = positiveRule(step)
+  if (base == null || increment == null || ![1, -1].includes(direction)) return null
+  const next = Number((base + direction * increment).toPrecision(15))
+  return Number.isFinite(next) && next > 0 ? next : null
+}
+
+export function parseTradePlans(raw) {
+  try {
+    const plans = JSON.parse(raw || "[]")
+    return Array.isArray(plans) ? plans.filter((plan) =>
+      plan && typeof plan === "object" && typeof plan.id === "string" && plan.id.trim()
+      && plan.draft && typeof plan.draft === "object" && !Array.isArray(plan.draft),
+    ) : []
+  } catch { return [] }
+}
+
+export function normalizePositionIdentifier(value) {
+  if (!["string", "number"].includes(typeof value)) return ""
+  if (typeof value === "number" && !Number.isSafeInteger(value)) return ""
+  return String(value ?? "").trim().replace(/^#\s*/, "").replace(/[۰-۹٠-٩]/g, (digit) => {
+    const code = digit.charCodeAt(0)
+    return String(code >= 0x06f0 ? code - 0x06f0 : code - 0x0660)
+  })
+}
+
+export function positionIdentifier(position) {
+  return normalizePositionIdentifier(position?.position_identifier ?? position?.position_id ?? position?.ticket)
+}
+
+function matchingTradeSymbol(first, second) {
+  const firstMarket = tradeMarketRequest(first)
+  const secondMarket = tradeMarketRequest(second)
+  return normalizeSymbol(first) === normalizeSymbol(second)
+    || Boolean(firstMarket && secondMarket && firstMarket.url === secondMarket.url)
+}
+
+export function assessPlannedTrade(plan, snapshot) {
+  const id = normalizePositionIdentifier(plan?.positionId)
+  if (!id) return { status: "unassigned", scorePct: null, summary: "برای ارزیابی، شماره پوزیشن را وارد کنید.", checks: [] }
+  const position = (snapshot?.positions || []).find((item) => positionIdentifier(item) === id)
+  if (!position) return { status: "unavailable", scorePct: null, summary: "این شماره در پوزیشن‌های باز حساب یافت نشد.", checks: [] }
+  const draft = plan?.draft || {}
+  const numeric = (value) => ["number", "string"].includes(typeof value) ? finiteNumber(value) : null
+  const spec = brokerSpecFor(snapshot, position.symbol)
+  const tick = positiveRule(spec?.tick_size) ?? positiveRule(spec?.point) ?? 0
+  const actualDirection = normalizeSymbol(position?.direction)
+  const direction = ["BUY", "LONG", "0"].includes(actualDirection) ? "BUY"
+    : ["SELL", "SHORT", "1"].includes(actualDirection) ? "SELL" : ""
+  const checks = [
+    { label: "نماد", status: typeof draft.symbol !== "string" || typeof position.symbol !== "string" || !normalizeSymbol(draft.symbol) || !normalizeSymbol(position.symbol) ? "unknown"
+      : matchingTradeSymbol(draft.symbol, position.symbol) ? "pass" : "fail" },
+    { label: "جهت", status: !["BUY", "SELL"].includes(draft.direction) || !direction ? "unknown"
+      : draft.direction === direction ? "pass" : "fail" },
+  ]
+  for (const [label, plannedValue, actualValue, isPrice, isProtection] of [
+    ["حجم لات", draft.volume, position.volume, false, false],
+    ["قیمت ورود", draft.entryPrice, position.open_price, true, false],
+    ["SL", draft.stopLoss, position.stop_loss, true, true],
+    ["TP", draft.takeProfit, position.take_profit, true, true],
+  ]) {
+    const planned = numeric(plannedValue)
+    const actual = numeric(actualValue)
+    let status = "unknown"
+    if (planned != null && planned > 0 && actual != null && actual >= 0) {
+      if (isProtection && actual === 0) status = "fail"
+      else if (actual > 0) {
+        const tolerance = (isPrice ? tick : 0) + Number.EPSILON * 16 * Math.max(1, planned, actual)
+        status = Math.abs(planned - actual) <= tolerance ? "pass" : "fail"
+      }
+    }
+    checks.push({ label, status })
+  }
+  const comparable = checks.filter((check) => check.status !== "unknown")
+  const matched = comparable.filter((check) => check.status === "pass").length
+  const mismatches = comparable.filter((check) => check.status === "fail").map((check) => check.label)
+  const missing = checks.length - comparable.length
+  const scorePct = comparable.length ? matched / comparable.length * 100 : null
+  const summary = comparable.length
+    ? `${Math.round(scorePct)}٪ انطباق در ${comparable.length} معیار؛ ${mismatches.length ? `اختلاف در ${mismatches.join("، ")}` : "معیارهای قابل بررسی مطابق‌اند"}${missing ? `؛ ${missing} معیار فاقد داده` : ""}.`
+    : "داده کافی برای مقایسه این برنامه و پوزیشن موجود نیست."
+  return { status: mismatches.length ? "mismatch" : missing ? "partial" : "matched", scorePct, summary, checks }
+}
+
 function currentPositionPrice(position) {
   const direct = finiteNumber(position?.current_valuation_price)
   if (direct != null && direct > 0) return direct

@@ -3,15 +3,20 @@ import { readFile } from "node:fs/promises"
 const source = await readFile(new URL("../lib/risk-management.js", import.meta.url), "utf8")
 const {
   analyzeOpenRisk,
+  assessPlannedTrade,
   availableSymbols,
   buildTradeReview,
   EMPTY_TRADE_DRAFT,
   latestSiteQuote,
+  normalizePositionIdentifier,
+  parseTradePlans,
   previewTrade,
   scenarioEstimate,
+  stepTradePrice,
   tradeAssetVolume,
   tradeInputErrors,
   tradeMarketRequest,
+  tradePriceStep,
 } = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`)
 
 function assert(condition, message) {
@@ -112,5 +117,45 @@ assert(latestSiteQuote([], "ohlc") === null && latestSiteQuote({ data: [{ date: 
 const scenario = scenarioEstimate(baseSnapshot, "XAUUSD", -5)
 assert(scenario.pnl === -500, "Scenario P/L is incorrect")
 assert(scenario.equityAfter === 9_500, "Scenario equity is incorrect")
+
+assert(stepTradePrice("", 3000, 0.01, -1) === 2999.99, "An empty SL must step from the price, not zero")
+assert(stepTradePrice("", 3000, 0.01, 1) === 3000.01, "An empty TP must step from the price, not zero")
+assert(stepTradePrice("2990", 3000, 0.01, 1) === 2990.01, "An entered price must remain the stepping base")
+assert(stepTradePrice("", null, 0.01, 1) === null, "A missing reference price must not fabricate a starting price")
+assert(stepTradePrice("0.01", 3000, 0.01, -1) === null, "Price controls must not create zero or negative prices")
+assert(tradePriceStep({ tick_size: 0.25, point: 0.01 }) === 0.25, "Price controls must use the broker tick step")
+assert(tradePriceStep({ digits: 5 }) === 0.00001, "Price digits must support small currency price steps")
+
+const positionId = "12345678901234567890"
+assert(normalizePositionIdentifier(" #۱۲۳۴۵۶۷۸۹۰۱۲۳۴۵۶۷۸۹۰ ") === positionId, "Pasted position IDs must preserve all digits and support Persian numerals")
+assert(normalizePositionIdentifier("١٢٣") === "123", "Arabic numerals must be normalized for matching")
+assert(normalizePositionIdentifier(Number(positionId)) === "", "An unsafe numeric ID must not produce a false match")
+const assignedPlan = { id: "test-plan", draft: tradeDraft, positionId }
+const matchingSnapshot = { ...baseSnapshot, positions: [{
+  ...baseSnapshot.positions[0], position_identifier: positionId, open_price: 3000, take_profit: 3020,
+}] }
+const matching = assessPlannedTrade(assignedPlan, matchingSnapshot)
+assert(matching.status === "matched" && matching.scorePct === 100 && matching.checks.length === 6, "A fully matching assigned position must pass all six criteria")
+const changed = assessPlannedTrade(assignedPlan, { ...matchingSnapshot, positions: [{
+  ...matchingSnapshot.positions[0], volume: 0.2, stop_loss: 0,
+}] })
+assert(changed.status === "mismatch" && changed.checks.filter((check) => check.status === "fail").length === 2, "A changed lot size and removed SL must count as discrepancies")
+const partial = assessPlannedTrade(assignedPlan, { ...matchingSnapshot, positions: [{
+  ...matchingSnapshot.positions[0], open_price: null,
+}] })
+assert(partial.status === "partial" && partial.summary.includes("فاقد داده"), "Missing position data must not claim full conformance")
+const malformed = assessPlannedTrade(assignedPlan, { ...matchingSnapshot, positions: [{
+  ...matchingSnapshot.positions[0], volume: true,
+}] })
+assert(malformed.status === "partial", "Malformed numeric position data must remain unknown")
+const tickMatch = assessPlannedTrade(assignedPlan, { ...matchingSnapshot, positions: [{
+  ...matchingSnapshot.positions[0], open_price: 3000.01,
+}] })
+assert(tickMatch.status === "matched", "A one-tick price difference must respect the displayed tolerance")
+assert(assessPlannedTrade({ ...assignedPlan, positionId: "" }, matchingSnapshot).status === "unassigned", "A plan must not be automatically assigned to a position")
+assert(assessPlannedTrade(assignedPlan, { positions: [] }).status === "unavailable", "Positions from another or unavailable account must not be assumed present")
+const restored = parseTradePlans(JSON.stringify([assignedPlan, null, {}, { id: "invalid", draft: [] }]))
+assert(restored.length === 1 && restored[0].positionId === positionId, "Saved associations must survive JSON round trips without ID truncation")
+assert(parseTradePlans("broken").length === 0 && parseTradePlans('{}').length === 0, "Malformed stored plans must have a safe empty state")
 
 console.log("Risk management checks passed")

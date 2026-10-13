@@ -3,15 +3,18 @@
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
+  ArrowRight,
   BrainCircuit,
   CheckCircle2,
   ChevronDown,
+  ChevronUp,
   CircleHelp,
   ClipboardCheck,
   Gauge,
   Info,
   Landmark,
   ListChecks,
+  Link2,
   Loader2,
   PieChart,
   RefreshCw,
@@ -37,6 +40,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import {
   Select,
   SelectContent,
@@ -52,6 +56,7 @@ import { createRiskDemoSnapshot } from "@/lib/mt5-demo-snapshot"
 import {
   analyzeOpenRisk,
   analyzeTradeHistory,
+  assessPlannedTrade,
   availableSymbols,
   brokerSpecFor,
   buildTradeReview,
@@ -61,12 +66,16 @@ import {
   finiteNumber,
   freshnessSummary,
   latestSiteQuote,
+  parseTradePlans,
+  positionIdentifier,
   positiveRule,
   previewTrade,
   scenarioEstimate,
+  stepTradePrice,
   tradeAssetVolume,
   tradeInputErrors,
   tradeMarketRequest,
+  tradePriceStep,
 } from "@/lib/risk-management"
 
 const surfaceClass = "border-gray-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]"
@@ -283,6 +292,33 @@ function PositionRiskTable({ analysis, snapshot, maxTradeRiskPct }) {
   </div>
 }
 
+function TradePriceInput({ value, basePrice, priceStep, onValueChange, className = "", ...props }) {
+  const adjust = (direction) => {
+    const price = stepTradePrice(value, basePrice, priceStep, direction)
+    if (price != null) onValueChange(String(price))
+  }
+  return <div className="relative">
+    <Input {...props} dir="ltr" type="number" inputMode="decimal" min="0" step={priceStep}
+      value={value} onChange={(event) => onValueChange(event.target.value)}
+      onKeyDown={(event) => {
+        if (["ArrowUp", "ArrowDown"].includes(event.key)) {
+          event.preventDefault()
+          adjust(event.key === "ArrowUp" ? 1 : -1)
+        }
+      }}
+      placeholder={positiveRule(basePrice)?.toString() || "قیمت"}
+      className={`${className} pr-7 [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`} />
+    <div className="absolute inset-y-1 right-1 flex w-5 flex-col border-l border-border">
+      {[1, -1].map((direction) => <button key={direction} type="button"
+        aria-label={`${direction === 1 ? "افزایش" : "کاهش"} ${props["aria-label"]}`}
+        onClick={() => adjust(direction)} disabled={stepTradePrice(value, basePrice, priceStep, direction) == null}
+        className="flex flex-1 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-30">
+        {direction === 1 ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+      </button>)}
+    </div>
+  </div>
+}
+
 function TradeReviewField({ id, label, required = false, info, error, children }) {
   return <div className="min-w-0 space-y-1.5">
     <div className="flex min-h-8 flex-wrap items-center gap-1 sm:min-h-5">
@@ -305,13 +341,16 @@ function TradeReviewField({ id, label, required = false, info, error, children }
   </div>
 }
 
-function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft, setDraft, onSavePlan, saved }) {
+function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft, setDraft, onSavePlan, saved, storageError }) {
   const symbols = availableSymbols(snapshot)
   const [review, setReview] = useState(null)
   const [inputErrors, setInputErrors] = useState({})
   const [quote, setQuote] = useState(null)
   const [quoteLoading, setQuoteLoading] = useState(false)
+  const formRef = useRef(null)
   const assetVolume = tradeAssetVolume(draft)
+  const priceStep = tradePriceStep(brokerSpecFor(snapshot, draft.symbol))
+  const protectionBase = positiveRule(draft.entryPrice) ?? positiveRule(quote?.price)
   const currency = snapshot?.account?.currency || "USD"
   const update = (key, value) => {
     setReview(null)
@@ -402,7 +441,7 @@ function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft
       </DialogHeader>
 
       <div className="mt-5 space-y-5">
-        <form onSubmit={runReview} noValidate className="space-y-4">
+        <form ref={formRef} onSubmit={runReview} noValidate className="space-y-4">
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           <TradeReviewField id="trade-symbol" label="نماد" required error={inputErrors.symbol}>
             <Select required value={draft.symbol || undefined} onValueChange={selectSymbol}>
@@ -432,13 +471,13 @@ function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft
             <Input id="trade-assetVolume" dir="ltr" readOnly value={assetVolume == null ? "" : number(assetVolume, 8)} placeholder="محاسبه خودکار" className="h-9 min-w-0 bg-muted/40 px-2 text-xs tabular-nums" />
           </TradeReviewField>
           <TradeReviewField id="trade-entryPrice" label="قیمت ورود" required error={inputErrors.entryPrice}>
-            <Input required {...fieldProps("entryPrice")} dir="ltr" type="number" inputMode="decimal" min="0" step="any" value={draft.entryPrice} onChange={(event) => update("entryPrice", event.target.value)} />
+            <TradePriceInput required {...fieldProps("entryPrice")} aria-label="قیمت ورود" value={draft.entryPrice} basePrice={quote?.price} priceStep={priceStep} onValueChange={(value) => update("entryPrice", value)} />
           </TradeReviewField>
           <TradeReviewField id="trade-stopLoss" label="حد ضرر SL" required error={inputErrors.stopLoss}>
-            <Input required {...fieldProps("stopLoss")} dir="ltr" type="number" inputMode="decimal" min="0" step="any" value={draft.stopLoss} onChange={(event) => update("stopLoss", event.target.value)} />
+            <TradePriceInput required {...fieldProps("stopLoss")} aria-label="قیمت حد ضرر" value={draft.stopLoss} basePrice={protectionBase} priceStep={priceStep} onValueChange={(value) => update("stopLoss", value)} />
           </TradeReviewField>
           <TradeReviewField id="trade-takeProfit" label="حد سود TP" required error={inputErrors.takeProfit}>
-            <Input required {...fieldProps("takeProfit")} dir="ltr" type="number" inputMode="decimal" min="0" step="any" value={draft.takeProfit} onChange={(event) => update("takeProfit", event.target.value)} />
+            <TradePriceInput required {...fieldProps("takeProfit")} aria-label="قیمت حد سود" value={draft.takeProfit} basePrice={protectionBase} priceStep={priceStep} onValueChange={(value) => update("takeProfit", value)} />
           </TradeReviewField>
           <TradeReviewField id="trade-currentPrice" label="قیمت فعلی">
             <Input id="trade-currentPrice" dir="ltr" type="number" step="any" readOnly value={quote?.price ?? ""} placeholder={!draft.symbol ? "انتخاب نماد" : quoteLoading ? "در حال دریافت…" : "در دسترس نیست"} className="h-9 min-w-0 bg-muted/40 px-2 text-xs tabular-nums" />
@@ -448,6 +487,7 @@ function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft
               : <p>{!draft.symbol ? "پس از انتخاب نماد، آخرین قیمت موجود به‌صورت خودکار وارد می‌شود." : quoteLoading ? "در حال دریافت آخرین قیمت موجود در سایت…" : "قیمت معتبر در منابع موجود یافت نشد."}</p>}
           </div>
         </div>
+        <p className="text-[10px] leading-5 text-muted-foreground">ورود، SL و TP قیمت کامل نماد هستند. کلیدهای بالا و پایین از قیمت ورود یا قیمت فعلی شروع می‌کنند.</p>
         <div className="space-y-3">
           <div className="space-y-1.5"><Label>منطق ورود</Label><Textarea value={draft.rationale} onChange={(event) => update("rationale", event.target.value)} placeholder="چه شواهدی ورود را توجیه می‌کند؟" /></div>
           <div className="space-y-1.5"><Label>شرط ابطال سناریو</Label><Textarea value={draft.invalidation} onChange={(event) => update("invalidation", event.target.value)} placeholder="چه اتفاقی تحلیل را باطل می‌کند؟" /></div>
@@ -491,9 +531,72 @@ function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft
           </CardContent>
         </Card>
 
-        <Button className="w-full" onClick={onSavePlan} disabled={!draft.symbol || !review}><Save className="ml-2 h-4 w-4" />ثبت برنامه معامله</Button>
+        <div className="grid grid-cols-2 gap-2">
+          <Button className="min-w-0 px-2 text-xs sm:text-sm" onClick={onSavePlan} disabled={!draft.symbol || !review || saved}><Save className="ml-1.5 h-3.5 w-3.5" />ذخیره برنامه</Button>
+          <Button className="min-w-0 px-2 text-xs sm:text-sm" variant="outline" disabled={!review} onClick={() => {
+            setReview(null)
+            setInputErrors({})
+            formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+            document.getElementById("trade-entryPrice")?.focus({ preventScroll: true })
+          }}><ArrowRight className="ml-1.5 h-3.5 w-3.5" />بازگشت و ویرایش</Button>
+        </div>
         {saved && <p className="text-center text-xs text-emerald-600 dark:text-emerald-400">برنامه در همین مرورگر ذخیره شد؛ سفارشی ارسال نشد.</p>}
+        {storageError && <p role="alert" className="text-xs text-rose-600 dark:text-rose-400">{storageError}</p>}
       </div>
+    </DialogContent>
+  </Dialog>
+}
+
+function tradeLine(draft) {
+  return `${String(draft?.symbol || "—")} · ${draft?.direction === "BUY" ? "خرید" : draft?.direction === "SELL" ? "فروش" : "—"} · ${number(draft?.volume)} Lot · ورود ${number(draft?.entryPrice)} · SL ${positiveRule(draft?.stopLoss) == null ? "—" : number(draft.stopLoss)} · TP ${positiveRule(draft?.takeProfit) == null ? "—" : number(draft.takeProfit)}`
+}
+
+function TradeAllocationDialog({ open, onOpenChange, snapshot, plans, openRisk, onAssignPosition, storageError }) {
+  const currency = snapshot?.account?.currency || "USD"
+  return <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent dir="rtl" className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-4xl overflow-y-auto">
+      <DialogHeader className="pl-8 text-right sm:text-right">
+        <DialogTitle>تخصیص و ارزیابی</DialogTitle>
+        <DialogDescription>شمارهٔ پوزیشن را از معاملات باز کپی و مقابل برنامه وارد کنید. برنامه‌ها و تخصیص‌ها در همین مرورگر برای حساب انتخاب‌شده ذخیره می‌شوند.</DialogDescription>
+      </DialogHeader>
+      <section className="min-w-0 space-y-2" aria-labelledby="planned-trades-title">
+        <div className="flex items-center justify-between gap-2"><h3 id="planned-trades-title" className="text-sm font-semibold">معاملات برنامه‌ریزی‌شده</h3><Badge variant="secondary">{plans.length} برنامه</Badge></div>
+        <ScrollArea dir="rtl" className="h-60 w-full min-w-0 rounded-lg border">
+          {!plans.length ? <p className="p-6 text-center text-xs leading-6 text-muted-foreground">هنوز برنامه‌ای برای این حساب ذخیره نشده است. در «بررسی معامله جدید» برنامه را بررسی و ذخیره کنید.</p>
+            : <div className="min-w-max divide-y">{plans.map((plan) => {
+              const assessment = assessPlannedTrade(plan, snapshot)
+              const tone = assessment.status === "matched" ? "success" : assessment.status === "mismatch" ? "danger" : "warning"
+              return <div key={plan.id} className="space-y-2 p-3">
+                <div className="flex items-center justify-between gap-4 whitespace-nowrap">
+                  <p className="text-[11px] tabular-nums" dir="auto">{tradeLine(plan.draft)}</p>
+                  <Input dir="ltr" type="text" inputMode="numeric" value={plan.positionId || ""}
+                    onChange={(event) => onAssignPosition(plan.id, event.target.value)} placeholder="شماره پوزیشن"
+                    aria-label={`شماره پوزیشن برنامه ${plan.id}`} className="h-8 w-40 shrink-0 px-2 text-xs tabular-nums" />
+                </div>
+                <p className={`whitespace-nowrap text-[11px] ${tone === "success" ? "text-emerald-600 dark:text-emerald-400" : tone === "danger" ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-300"}`}><span className="font-medium">انطباق با برنامه: </span>{assessment.summary}</p>
+                <p className="text-[10px] text-muted-foreground">ذخیره: <span dir="ltr">{formatTehranTimestamp(new Date(plan.createdAt)) || "زمان موجود نیست"}</span></p>
+              </div>
+            })}</div>}
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+        <p className="text-[10px] leading-5 text-muted-foreground">مقایسهٔ نماد، جهت، لات، قیمت اجرای ورود، SL و TP؛ تلورانس قیمت یک Tick بروکر است. معیار فاقد داده در درصد انطباق محاسبه نمی‌شود.</p>
+      </section>
+      <section className="min-w-0 space-y-2" aria-labelledby="allocation-open-trades-title">
+        <div className="flex items-center justify-between gap-2"><h3 id="allocation-open-trades-title" className="text-sm font-semibold">معاملات باز</h3><Badge variant="secondary">{openRisk.positions.length} پوزیشن</Badge></div>
+        <ScrollArea dir="rtl" className="h-52 w-full min-w-0 rounded-lg border">
+          {!openRisk.positions.length ? <p className="p-6 text-center text-xs text-muted-foreground">در آخرین دادهٔ حساب، پوزیشن بازی گزارش نشده است.</p>
+            : <div className="min-w-max divide-y">{openRisk.positions.map((position, index) => <div key={positionIdentifier(position) || index} className="flex items-center gap-4 whitespace-nowrap p-3 text-[11px] tabular-nums">
+              <span className="select-all font-semibold" dir="ltr">#{positionIdentifier(position) || "—"}</span>
+              <span dir="auto">{tradeLine({ symbol: position.symbol, direction: position.direction, volume: position.volume, entryPrice: position.open_price, stopLoss: position.stop_loss, takeProfit: position.take_profit })}</span>
+              <span>فعلی: {number(position.current_valuation_price)}</span>
+              <span>سود/زیان: {money(position.current_profit_loss, currency)}</span>
+              <span>ریسک تا SL: {money(position.risk.amount, currency)}</span>
+            </div>)}</div>}
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      </section>
+      {storageError && <p role="alert" className="text-xs text-rose-600 dark:text-rose-400">{storageError}</p>}
+      <Button variant="outline" onClick={() => onOpenChange(false)}>بستن</Button>
     </DialogContent>
   </Dialog>
 }
@@ -550,6 +653,9 @@ export default function RiskManagementCenter() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [allocationOpen, setAllocationOpen] = useState(false)
+  const [planCollection, setPlanCollection] = useState({ accountKey: "", plans: [] })
+  const [planStorageError, setPlanStorageError] = useState("")
   const [rules, setRules] = useState(EMPTY_RISK_RULES)
   const [draft, setDraft] = useState(EMPTY_TRADE_DRAFT)
   const [savedPlan, setSavedPlan] = useState(false)
@@ -628,6 +734,7 @@ export default function RiskManagementCenter() {
 
   const snapshot = useMemo(() => snapshots.find((item) => accountKey(item) === selectedAccount) || snapshots[0] || null, [snapshots, selectedAccount])
   const storageKey = snapshot ? accountKey(snapshot) : ""
+  const tradePlans = planCollection.accountKey === storageKey ? planCollection.plans : []
 
   useEffect(() => {
     const handleDelete = (event) => {
@@ -636,6 +743,7 @@ export default function RiskManagementCenter() {
       if (snapshot?.source?.broker_company === broker) {
         setSelectedAccount("")
         setReviewOpen(false)
+        setAllocationOpen(false)
         setDailyPlanOpen(false)
         setScenarioOpen(false)
         setScenarioSymbol("")
@@ -659,6 +767,18 @@ export default function RiskManagementCenter() {
     }
     setSavedPlan(false)
     setRulesSaved(false)
+  }, [storageKey])
+
+  useEffect(() => {
+    setPlanStorageError("")
+    try {
+      setPlanCollection({ accountKey: storageKey, plans: storageKey ? parseTradePlans(window.localStorage.getItem(`greenpeak:risk-plans:${storageKey}`)) : [] })
+    } catch { setPlanCollection({ accountKey: storageKey, plans: [] }) }
+    const syncPlans = (event) => {
+      if (storageKey && event.key === `greenpeak:risk-plans:${storageKey}`) setPlanCollection({ accountKey: storageKey, plans: parseTradePlans(event.newValue) })
+    }
+    window.addEventListener("storage", syncPlans)
+    return () => window.removeEventListener("storage", syncPlans)
   }, [storageKey])
 
   const openRisk = useMemo(() => analyzeOpenRisk(snapshot), [snapshot])
@@ -770,17 +890,30 @@ export default function RiskManagementCenter() {
     setLoading(false)
   }
 
+  const storeTradePlans = (plans) => {
+    if (!storageKey) return false
+    setPlanCollection({ accountKey: storageKey, plans })
+    try {
+      window.localStorage.setItem(`greenpeak:risk-plans:${storageKey}`, JSON.stringify(plans))
+      setPlanStorageError("")
+      return true
+    } catch {
+      setPlanStorageError("ذخیره در مرورگر انجام نشد؛ فضای ذخیره‌سازی یا دسترسی مرورگر را بررسی کنید.")
+      return false
+    }
+  }
+
   const savePlan = () => {
-    if (!storageKey || !draft.symbol) return
-    const key = `greenpeak:risk-plans:${storageKey}`
-    let plans = []
-    try { plans = JSON.parse(window.localStorage.getItem(key) || "[]") } catch { plans = [] }
+    if (!storageKey || Object.keys(tradeInputErrors(draft)).length) return
     const preview = previewTrade(snapshot, draft, rules, openRisk)
     const planId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
-    plans.unshift({ id: planId, createdAt: new Date().toISOString(), draft, previewStatus: preview.status })
-    window.localStorage.setItem(key, JSON.stringify(plans.slice(0, 20)))
-    setSavedPlan(true)
+    const plan = { id: planId, createdAt: new Date().toISOString(), draft: { ...draft }, previewStatus: preview.status, positionId: "" }
+    setSavedPlan(storeTradePlans([plan, ...tradePlans]))
   }
+
+  const assignPosition = (planId, positionId) => storeTradePlans(tradePlans.map((plan) =>
+    plan.id === planId ? { ...plan, positionId } : plan,
+  ))
 
   const updateDraft = (updater) => {
     setDraft((current) => {
@@ -806,8 +939,8 @@ export default function RiskManagementCenter() {
           <div className="grid gap-2 lg:justify-items-end">
             <div className="flex flex-wrap items-stretch gap-2 lg:justify-end">
               {snapshots.length > 0 && <Select value={selectedAccount || accountKey(snapshots[0])} onValueChange={setSelectedAccount}>
-                <SelectTrigger className="h-9 w-auto min-w-[220px] max-w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>{snapshots.map((item) => <SelectItem key={accountKey(item)} value={accountKey(item)}>{accountName(item)}</SelectItem>)}</SelectContent>
+                <SelectTrigger className="h-9 w-56 min-w-0 max-w-full [&>span]:min-w-0 [&>span]:truncate"><SelectValue><span className="block truncate">{accountName(snapshot || snapshots[0])}</span></SelectValue></SelectTrigger>
+                <SelectContent dir="rtl" className="w-[min(90vw,32rem)] max-w-[calc(100vw-2rem)]">{snapshots.map((item) => <SelectItem key={accountKey(item)} value={accountKey(item)}><span className="whitespace-normal break-words">{accountName(item)}</span></SelectItem>)}</SelectContent>
               </Select>}
               <div className={`flex h-9 w-auto items-center gap-2 whitespace-nowrap rounded-lg border px-3 text-xs ${snapshot && !freshness.stale ? toneClass("success") : toneClass("warning")}`}>
                 {snapshot && !freshness.stale ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
@@ -815,11 +948,12 @@ export default function RiskManagementCenter() {
                 {freshness.timestamp && <time className="tabular-nums opacity-80" title="آخرین بروزرسانی به وقت تهران" dir="ltr">{formatTehranTimestamp(freshness.timestamp)}</time>}
               </div>
               <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={load} disabled={loading} aria-label="به‌روزرسانی داده" title="به‌روزرسانی داده"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
+              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setScenarioOpen(true)} disabled={!snapshot}><Gauge className="ml-2 h-4 w-4" />سناریو</Button>
             </div>
             <div className="flex flex-wrap items-stretch gap-2 lg:justify-end">
               <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setDailyPlanOpen(true)} disabled={!snapshot}><ListChecks className="ml-2 h-4 w-4" />برنامه</Button>
-              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setScenarioOpen(true)} disabled={!snapshot}><Gauge className="ml-2 h-4 w-4" />سناریو</Button>
               <Button size="sm" className="h-9 w-auto" onClick={() => setReviewOpen(true)} disabled={!snapshot}><ClipboardCheck className="ml-2 h-4 w-4" />بررسی معامله جدید</Button>
+              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setAllocationOpen(true)} disabled={!snapshot}><Link2 className="ml-2 h-4 w-4" />تخصیص و ارزیابی</Button>
             </div>
           </div>
         </div>
@@ -860,7 +994,8 @@ export default function RiskManagementCenter() {
     {snapshot && <>
       <DailyPlanDialog open={dailyPlanOpen} onOpenChange={setDailyPlanOpen} rules={rules} setRules={setRules} rulesSaved={rulesSaved} onSaveRules={saveRules} history={history} maxTrades={maxTrades} />
       <ScenarioDialog open={scenarioOpen} onOpenChange={setScenarioOpen} scenarioSymbols={scenarioSymbols} selectedScenarioSymbol={selectedScenarioSymbol} onSymbolChange={setScenarioSymbol} shockPct={shockPct} onShockChange={setShockPct} scenario={scenario} />
-      <TradeReviewPanel open={reviewOpen} onOpenChange={setReviewOpen} snapshot={snapshot} rules={rules} openRisk={openRisk} draft={draft} setDraft={updateDraft} onSavePlan={savePlan} saved={savedPlan} />
+      <TradeReviewPanel open={reviewOpen} onOpenChange={setReviewOpen} snapshot={snapshot} rules={rules} openRisk={openRisk} draft={draft} setDraft={updateDraft} onSavePlan={savePlan} saved={savedPlan} storageError={planStorageError} />
+      <TradeAllocationDialog open={allocationOpen} onOpenChange={setAllocationOpen} snapshot={snapshot} plans={tradePlans} openRisk={openRisk} onAssignPosition={assignPosition} storageError={planStorageError} />
     </>}
   </>
 }
