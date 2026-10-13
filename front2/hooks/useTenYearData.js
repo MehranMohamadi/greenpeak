@@ -1,57 +1,38 @@
-import { normalizeChartData } from "@/lib/chart-data";
-import { useEffect, useState } from 'react';
-import { endpoints } from '../api/api';
+"use client"
 
-export default function useTenYearData() {
-    const [data, setData] = useState([]);
-    const [metadata, setMetadata] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+import { useEffect, useState } from "react"
+import { endpoints } from "@/api/api"
 
-    useEffect(() => {
-        setLoading(true);
-        fetch(endpoints.monetaryPolicy.tenYear)
-            .then(res => {
-                if (!res.ok) {
-                    throw new Error(`HTTP error! status: ${res.status}`);
-                }
-                return res.json();
-            })
-            .then(json => {
-                // Handle both old array format and new object format with metadata
-                let arr, meta;
-                if (Array.isArray(json)) {
-                    arr = json;
-                    meta = null;
-                } else if (json.data && json.metadata) {
-                    arr = json.data;
-                    meta = json.metadata;
-                } else {
-                    arr = json.data || [];
-                    meta = json.metadata || null;
-                }
-                
-                const cleaned = normalizeChartData(arr, ["rate", "yield", "value"]).map(point => ({
-                        time: Date.parse(point.time + 'T00:00:00Z') / 1000,
-                        date: point.time,
-                        value: point.value,
-                        rate: point.value,
-                        yield: point.value,
-                    }));
-                    
-                setData(cleaned);
-                setMetadata(meta);
-                setError(null);
-            })
-            .catch(err => {
-                setError(err.message);
-                setData([]);
-                setMetadata(null);
-            })
-            .finally(() => {
-                setLoading(false);
-            });
-    }, []);
+export default function useTenYearData(period = "1M") {
+  const [data, setData] = useState([])
+  const [metadata, setMetadata] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-    return { data, metadata, loading, error };
+  useEffect(() => {
+    setData([]); setMetadata(null); setLoading(true); setError(null)
+    let controller
+    const load = async () => {
+      controller?.abort()
+      const request = new AbortController()
+      controller = request
+      try {
+        const response = await fetch(`${endpoints.monetaryPolicy.tenYear}?period=${encodeURIComponent(period)}`, { cache: "no-store", signal: request.signal })
+        const body = await response.json()
+        if (!response.ok || !Array.isArray(body.data) || body.metadata?.source_series_id !== "^TNX") {
+          throw new Error(body.error || "Yahoo Finance Treasury data is unavailable")
+        }
+        if (!request.signal.aborted) { setData(body.data); setMetadata(body.metadata); setError(null) }
+      } catch (reason) {
+        if (!request.signal.aborted) setError(reason instanceof Error ? reason.message : "Treasury data unavailable")
+      } finally {
+        if (!request.signal.aborted) setLoading(false)
+      }
+    }
+    load()
+    const timer = window.setInterval(load, 60000)
+    return () => { controller?.abort(); window.clearInterval(timer) }
+  }, [period])
+
+  return { data, metadata, loading, error }
 }

@@ -24,7 +24,7 @@ const marketSeries = [
   {
     id: "treasury-10y",
     symbol: "نرخ ۱۰ ساله اوراق خزانه",
-    url: withLimit(endpoints.monetaryPolicy.tenYear),
+    url: `${endpoints.monetaryPolicy.tenYear}?period=5D`,
     suffix: "%",
     decimals: 2,
   },

@@ -36,7 +36,7 @@ const funNavigation = [
 ];
 
 const funHrefs = funNavigation.flatMap((item) => [item.href, ...item.children.map((child) => child.href)]).filter(Boolean);
-let categoryExpansionState = { mashhad: true, yard: true };
+let categoryExpansionState = { mashhad: false, yard: false };
 const makeTrail = (...labels) => [
   { label: "حال خوب", href: "/fun" },
   ...labels.map((label) => ({ label })),
@@ -70,14 +70,6 @@ export default function FunSidebar() {
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
-    const activeCategory = funNavigation.find((item) => item.children.some((child) => child.href && getActiveNavHref(pathname, [child.href])));
-    if (activeCategory) {
-      setOpenCategories((current) => {
-        if (current[activeCategory.id]) return current;
-        categoryExpansionState = { ...current, [activeCategory.id]: true };
-        return categoryExpansionState;
-      });
-    }
   }, [pathname]);
 
   const preview = (label, trail, href) => setHoveredItem({ label, href, side: "right", trail });
@@ -95,7 +87,7 @@ export default function FunSidebar() {
   const toggleCategory = (item) => {
     selectItem(item.label, makeTrail(item.label));
     setOpenCategories((current) => {
-      categoryExpansionState = { ...current, [item.id]: !current[item.id] };
+      categoryExpansionState = Object.fromEntries(funNavigation.map(({ id }) => [id, id === item.id && !current[id]]));
       return categoryExpansionState;
     });
   };

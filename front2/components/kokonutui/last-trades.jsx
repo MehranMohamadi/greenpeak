@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import { Activity, ChevronDown } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { orderIdentifier } from "@/lib/risk-management"
 import {
   buildTradeLifecycles,
   formatHoldingDuration,
@@ -27,7 +28,7 @@ const filters = [
   { id: "closed", label: "معاملات بسته‌شده" },
 ]
 
-const tradeGridClass = "grid-cols-[minmax(0,1.15fr)_minmax(0,.72fr)_minmax(0,.48fr)_minmax(0,1.15fr)_minmax(0,.76fr)_minmax(0,.76fr)_minmax(0,.64fr)_minmax(0,.64fr)_minmax(0,.95fr)]"
+const tradeGridClass = "grid-cols-[minmax(10rem,.95fr)_minmax(0,1.15fr)_minmax(0,.72fr)_minmax(0,.48fr)_minmax(0,1.15fr)_minmax(0,.76fr)_minmax(0,.76fr)_minmax(0,.64fr)_minmax(0,.64fr)_minmax(0,.95fr)]"
 
 const orderTypes = {
   0: { label: "Buy", direction: "long" },
@@ -117,7 +118,7 @@ function buildPendingOrders(snapshots) {
     const snapshotTimestamp = timestamp(snapshot?.timestamp_utc)
     const stopLoss = protectivePrice(valueOf(order, ["stop_loss", "sl"]))
     const takeProfit = protectivePrice(valueOf(order, ["take_profit", "tp"]))
-    const ticket = valueOf(order, ["ticket", "order_identifier", "order_id"])
+    const ticket = orderIdentifier(order)
     const rawExpirationTime = valueOf(order, ["expiration_utc", "expiration_time_utc"])
     const expirationTime = timestamp(rawExpirationTime) > 0 ? rawExpirationTime : null
 
@@ -204,6 +205,7 @@ function LifecycleRow({ lifecycle }) {
     <summary className="relative cursor-pointer list-none p-3 pl-9 [&::-webkit-details-marker]:hidden">
       <ChevronDown aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform group-open:rotate-180" />
       <div className={`grid ${tradeGridClass} items-center gap-2 whitespace-nowrap text-center text-[11px]`}>
+        <span className="select-all truncate font-medium tabular-nums" dir="ltr" title={lifecycle.ticket || undefined}>{lifecycle.ticket || "—"}</span>
         <p className="min-w-0 truncate text-right"><span className="font-semibold text-foreground">{lifecycle.symbol}</span><span className="text-[10px] text-muted-foreground"> · {lifecycle.accountLabel}</span></p>
         <Badge variant="outline" className={`mx-auto max-w-full truncate ${directionTone(lifecycle.direction)}`} title={lifecycle.directionLabel}>{lifecycle.directionLabel}</Badge>
         <span className="tabular-nums" dir="ltr">{formatTradeNumber(lifecycle.volume, 2, 2)}</span>
@@ -237,6 +239,7 @@ function PendingRow({ order }) {
     <summary className="relative cursor-pointer list-none p-3 pl-9 [&::-webkit-details-marker]:hidden">
       <ChevronDown aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform group-open:rotate-180" />
       <div className={`grid ${tradeGridClass} items-center gap-2 whitespace-nowrap text-center text-[11px]`}>
+        <span className="select-all truncate font-medium tabular-nums" dir="ltr" title={order.ticket || undefined}>{order.ticket || "—"}</span>
         <p className="min-w-0 truncate text-right"><span className="font-semibold text-foreground">{order.symbol}</span><span className="text-[10px] text-muted-foreground"> · {order.accountLabel}</span></p>
         <Badge variant="outline" className={`mx-auto max-w-full truncate ${directionTone(order.direction)}`} title={order.orderTypeLabel}>{order.orderTypeLabel}</Badge>
         <span className="tabular-nums" dir="ltr">{formatTradeNumber(order.volume, 2, 2)}</span>
@@ -283,9 +286,9 @@ export default function LastTrades({ snapshots = [] }) {
       </div>
     </CardHeader>
     <CardContent className={`${tradingCardContentClass} !overflow-auto`}>
-      <div className="min-w-[960px]">
+      <div className="min-w-[1120px]">
         <div className={`sticky top-0 z-10 grid ${tradeGridClass} gap-2 border-b bg-white py-2 pl-9 pr-3 text-center text-[9px] font-medium text-muted-foreground dark:bg-[#1F1F23]`}>
-          <span className="text-right">نماد / حساب</span><span>جهت / نوع</span><span>حجم</span><span>زمان ورود / ثبت</span><span>قیمت ورود</span><span>خروج / فعلی</span><span>SL</span><span>TP</span><span>سود/زیان خالص</span>
+          <span>تیکت</span><span className="text-right">نماد / حساب</span><span>جهت / نوع</span><span>حجم</span><span>زمان ورود / ثبت</span><span>قیمت ورود</span><span>خروج / فعلی</span><span>SL</span><span>TP</span><span>سود/زیان خالص</span>
         </div>
         {!visible.length && <EmptyCollection>{emptyMessages[filter]}</EmptyCollection>}
         {filter === "pending"

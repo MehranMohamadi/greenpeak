@@ -22,6 +22,8 @@ import {
   ShieldAlert,
   ShieldCheck,
   Target,
+  Trash2,
+  Triangle,
   Wifi,
   WifiOff,
   XCircle,
@@ -57,21 +59,25 @@ import { buildTradeLifecycles } from "@/lib/mt5-trade-lifecycles"
 import {
   analyzeOpenRisk,
   analyzeTradeHistory,
-  assessPlannedTrade,
+  assessAllocatedTrade,
   availableSymbols,
+  brokerContractSize,
   brokerSpecFor,
   buildBehaviorAnalysis,
   buildTradeReview,
+  confirmTradePlanTicket,
   concentrationSummary,
+  createTradePlan,
   EMPTY_RISK_RULES,
   EMPTY_TRADE_DRAFT,
   finiteNumber,
   freshnessSummary,
   latestSiteQuote,
+  normalizePositionIdentifier,
+  orderIdentifier,
   parseTradePlans,
   positionIdentifier,
   positiveRule,
-  previewTrade,
   scenarioEstimate,
   stepTradePrice,
   tradeAssetVolume,
@@ -115,13 +121,39 @@ function toneClass(tone) {
   return "border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
 }
 
+function SnapshotFreshnessIndicator({ snapshot, loading, error }) {
+  const [open, setOpen] = useState(false)
+  const freshness = freshnessSummary(snapshot)
+  const status = snapshot ? freshness.stale ? "نیازمند به‌روزرسانی" : "داده متصل" : "بدون داده"
+  return <Popover open={open} onOpenChange={setOpen}>
+    <PopoverTrigger asChild>
+      <Button variant="outline" size="icon" className={`h-9 w-9 shrink-0 ${snapshot && !freshness.stale ? toneClass("success") : toneClass("warning")}`}
+        aria-label={`نمایش وضعیت به‌روزرسانی: ${status}`} title="وضعیت به‌روزرسانی">
+        {snapshot && !freshness.stale ? <Wifi className="h-4 w-4" aria-hidden="true" /> : <WifiOff className="h-4 w-4" aria-hidden="true" />}
+      </Button>
+    </PopoverTrigger>
+    <PopoverContent dir="rtl" align="end" className="w-80 max-w-[calc(100vw-2rem)] space-y-3 text-xs leading-6">
+      <h3 className="text-sm font-semibold">وضعیت به‌روزرسانی داده</h3>
+      <dl className="space-y-2">
+        <div><dt className="text-muted-foreground">حساب معاملاتی</dt><dd className="break-words font-medium">{snapshot ? accountName(snapshot) : "حسابی انتخاب نشده است"}</dd></div>
+        <div><dt className="text-muted-foreground">وضعیت داده</dt><dd className="font-medium">{status}</dd></div>
+        <div><dt className="text-muted-foreground">آخرین دادهٔ حساب · به وقت تهران</dt><dd className="font-medium tabular-nums" dir="ltr">{freshness.timestamp ? formatTehranTimestamp(freshness.timestamp) : "زمان موجود نیست"}</dd></div>
+        <div><dt className="text-muted-foreground">مدت گذشته از آخرین داده</dt><dd className="font-medium">{freshness.ageMinutes == null ? "قابل محاسبه نیست" : freshness.ageMinutes < 1 ? "کمتر از یک دقیقه" : `${number(freshness.ageMinutes, 1)} دقیقه`}</dd></div>
+        <div><dt className="text-muted-foreground">دریافت اطلاعات از سایت</dt><dd>{loading ? "در حال دریافت…" : "بررسی خودکار هر یک دقیقه"}</dd></div>
+      </dl>
+      <p className="border-t pt-2 text-muted-foreground">دادهٔ بیش از ۱۵ دقیقه قدیمی، نیازمند به‌روزرسانی محسوب می‌شود.</p>
+      {error && <p role="alert" className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-amber-800 dark:text-amber-200">دریافت تازه انجام نشد: {error}</p>}
+    </PopoverContent>
+  </Popover>
+}
+
 function RiskOverviewList({ metrics }) {
   return <ul className="divide-y divide-border" aria-label="شش شاخص نمای کلی ریسک">
     {metrics.map(({ key, label, icon: Icon, tone, value, detail, note }) => <li key={key} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 text-xs">
       <Icon className={`h-4 w-4 shrink-0 ${tone === "danger" ? "text-rose-600 dark:text-rose-400" : tone === "warning" ? "text-amber-600 dark:text-amber-400" : tone === "success" ? "text-emerald-600 dark:text-emerald-400" : "text-primary"}`} />
       <span className="w-36 shrink-0 font-medium">{label}</span>
       <span className="min-w-[7rem] font-semibold tabular-nums" dir="ltr">{value}</span>
-      <span className="min-w-0 flex-1 text-[11px] leading-5 text-muted-foreground">{detail}{note && ` · ${note}`}</span>
+      <span className="min-w-0 flex-1 text-sm leading-6 text-foreground">{detail}{note && ` · ${note}`}</span>
     </li>)}
   </ul>
 }
@@ -167,41 +199,6 @@ function EmptyState({ loading, error, onRefresh, demoAvailable, onUseDemo }) {
   </div>
 }
 
-function PositionRiskTable({ analysis, snapshot, maxTradeRiskPct }) {
-  const currency = snapshot?.account?.currency || "USD"
-  const equity = finiteNumber(snapshot?.account?.equity)
-  if (!analysis.positions.length) {
-    return <div className={`${insetClass} border-dashed p-5 text-center text-sm text-muted-foreground`}>در Snapshot فعلی پوزیشن بازی گزارش نشده است.</div>
-  }
-
-  return <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-[#2B2B30]">
-    <div className="min-w-[850px]">
-      <div className="grid grid-cols-[1fr_.7fr_.65fr_1fr_1fr_1.1fr_1fr_.5fr] gap-3 border-b bg-muted/30 px-3 py-2 text-[10px] font-medium text-muted-foreground">
-        <span>نماد</span><span>جهت</span><span>حجم</span><span>سود/زیان شناور</span><span>حد ضرر</span><span>ریسک تا حد ضرر</span><span>انطباق با برنامه</span><span>جزئیات</span>
-      </div>
-      {analysis.positions.map((position) => {
-        const riskPct = position.risk.amount != null && equity != null && equity > 0 ? position.risk.amount / equity * 100 : null
-        const compliant = maxTradeRiskPct == null || riskPct == null ? "unknown" : riskPct <= maxTradeRiskPct ? "pass" : "fail"
-        return <div key={position.position_identifier || `${position.symbol}-${position.open_time_utc}`} className="grid grid-cols-[1fr_.7fr_.65fr_1fr_1fr_1.1fr_1fr_.5fr] items-center gap-3 border-b px-3 py-3 text-xs last:border-b-0">
-          <div><p className="font-semibold text-foreground">{position.symbol || "—"}</p><p className="mt-0.5 text-[10px] text-muted-foreground">#{position.position_identifier || "—"}</p></div>
-          <Badge variant="outline" className={position.direction === "BUY" ? toneClass("success") : toneClass("danger")}>{position.direction === "BUY" ? "خرید" : "فروش"}</Badge>
-          <span className="tabular-nums" dir="ltr">{number(position.volume, 2, 2)}</span>
-          <span className={`font-medium tabular-nums ${Number(position.current_profit_loss) < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`} dir="ltr">{money(position.current_profit_loss, currency)}</span>
-          <span className="tabular-nums" dir="ltr">{finiteNumber(position.stop_loss) > 0 ? number(position.stop_loss) : "ثبت نشده"}</span>
-          <div><p className="font-medium tabular-nums" dir="ltr">{position.risk.amount == null ? "قابل محاسبه نیست" : money(position.risk.amount, currency)}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{riskPct == null ? position.risk.reason : `${number(riskPct, 2, 2)}٪ Equity`}</p></div>
-          <CheckBadge status={compliant} />
-          <details className="group relative">
-            <summary className="cursor-pointer list-none rounded-md p-2 hover:bg-muted [&::-webkit-details-marker]:hidden" title="جزئیات محاسبه"><ChevronDown className="h-4 w-4 transition group-open:rotate-180" /></summary>
-            <div className="absolute left-0 top-9 z-20 w-64 rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg">
-              <p className="font-medium">مبنای محاسبه</p>
-              <p className="mt-1 leading-5 text-muted-foreground">فاصله قیمت ارزش‌گذاری تا Stop × ارزش Tick × حجم. کمیسیون خروج و لغزش آتی در این برآورد نیست.</p>
-            </div>
-          </details>
-        </div>
-      })}
-    </div>
-  </div>
-}
 
 function TradePriceInput({ value, basePrice, priceStep, onValueChange, className = "", ...props }) {
   const adjust = (direction) => {
@@ -252,7 +249,27 @@ function TradeReviewField({ id, label, required = false, info, error, children }
   </div>
 }
 
-function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft, setDraft, onSavePlan, saved, storageError }) {
+function TradeTextAnalysis({ analysis }) {
+  if (typeof analysis?.summary !== "string") {
+    return <p className={`${insetClass} p-4 text-xs leading-6 text-muted-foreground`}>تحلیل متنی هنگام ذخیرهٔ این برنامه ثبت نشده است.</p>
+  }
+  const groups = [
+    { key: "risks", label: "نکات ریسکی تکمیلی", tone: "text-rose-700 dark:text-rose-300" },
+    { key: "strengths", label: "نقاط ثبت‌شده مناسب", tone: "text-emerald-700 dark:text-emerald-300" },
+    { key: "limitations", label: "محدودیت‌ها و داده‌های بررسی‌نشده", tone: "text-amber-700 dark:text-amber-300" },
+  ]
+  return <div className={`${insetClass} space-y-3 p-4`}>
+    <div className="flex items-center gap-2"><BrainCircuit className="h-4 w-4 text-primary" /><p className="text-sm font-semibold">تحلیل متنی معامله</p></div>
+    <p className="text-xs leading-6 text-foreground">{analysis.summary}</p>
+    {groups.map(({ key, label, tone }) => {
+      const items = Array.isArray(analysis[key]) ? analysis[key].filter((item) => typeof item === "string") : []
+      return items.length > 0 && <div key={key}><p className={`text-[11px] font-medium ${tone}`}>{label}</p><ul className="mt-1 list-disc space-y-1 pr-4 text-[11px] leading-5 text-muted-foreground">{items.map((item, index) => <li key={index}>{item}</li>)}</ul></div>
+    })}
+    <p className="border-t pt-2 text-[10px] leading-5 text-muted-foreground">تحلیل متنی قاعده‌محور است و کیفیت واقعی تحلیل بازار یا احتمال موفقیت معامله را تضمین نمی‌کند.</p>
+  </div>
+}
+
+function TradeReviewPanel({ open, onOpenChange, snapshots, onAccountChange, snapshot, rules, openRisk, draft, setDraft, onSavePlan, saved, storageError }) {
   const symbols = availableSymbols(snapshot)
   const [review, setReview] = useState(null)
   const [inputErrors, setInputErrors] = useState({})
@@ -275,8 +292,7 @@ function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft
   }
   const selectSymbol = (symbol) => {
     if (symbol === draft.symbol) return
-    const spec = brokerSpecFor(snapshot, symbol)
-    const contractSize = positiveRule(spec?.contract_size ?? spec?.trade_contract_size)
+    const contractSize = brokerContractSize(snapshot, symbol)
     setReview(null)
     setInputErrors({})
     setQuote(null)
@@ -354,32 +370,36 @@ function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft
       <div className="mt-5 space-y-5">
         <form ref={formRef} onSubmit={runReview} noValidate className="space-y-4">
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <TradeReviewField id="trade-broker" label="بروکر" required>
+            <Select required value={accountKey(snapshot)} onValueChange={onAccountChange}>
+              <SelectTrigger id="trade-broker" aria-required="true" className="h-9 min-w-0 px-2 text-xs [&>span]:min-w-0 [&>span]:truncate">
+                <SelectValue><span className="block truncate">{accountName(snapshot)}</span></SelectValue>
+              </SelectTrigger>
+              <SelectContent dir="rtl" className="w-[min(90vw,32rem)] max-w-[calc(100vw-2rem)]">
+                {snapshots.map((item) => <SelectItem key={accountKey(item)} value={accountKey(item)}><span className="whitespace-normal break-words">{accountName(item)}</span></SelectItem>)}
+              </SelectContent>
+            </Select>
+          </TradeReviewField>
           <TradeReviewField id="trade-symbol" label="نماد" required error={inputErrors.symbol}>
             <Select required value={draft.symbol || undefined} onValueChange={selectSymbol}>
-              <SelectTrigger {...fieldProps("symbol")} aria-required="true"><SelectValue placeholder="انتخاب نماد" /></SelectTrigger>
+              <SelectTrigger {...fieldProps("symbol")}><SelectValue placeholder="انتخاب نماد" /></SelectTrigger>
               <SelectContent>{symbols.map((symbol) => <SelectItem key={symbol} value={symbol}>{symbol}</SelectItem>)}</SelectContent>
             </Select>
           </TradeReviewField>
           <TradeReviewField id="trade-direction" label="جهت" required error={inputErrors.direction}>
             <Select required value={draft.direction} onValueChange={(value) => update("direction", value)}>
-              <SelectTrigger {...fieldProps("direction")} aria-required="true"><SelectValue /></SelectTrigger>
+              <SelectTrigger {...fieldProps("direction")}><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="BUY">خرید</SelectItem><SelectItem value="SELL">فروش</SelectItem></SelectContent>
             </Select>
           </TradeReviewField>
           <TradeReviewField id="trade-orderType" label="نوع سفارش" required error={inputErrors.orderType} info="بازار: ورود با قیمت موجود بازار. در انتظار: ورود در قیمت تعیین‌شده، پس از رسیدن بازار به شرایط سفارش.">
             <Select required value={draft.orderType} onValueChange={(value) => update("orderType", value)}>
-              <SelectTrigger {...fieldProps("orderType")} aria-required="true"><SelectValue /></SelectTrigger>
+              <SelectTrigger {...fieldProps("orderType")}><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="MARKET">بازار</SelectItem><SelectItem value="PENDING">در انتظار</SelectItem></SelectContent>
             </Select>
           </TradeReviewField>
-          <TradeReviewField id="trade-volume" label="حجم (Lot)" required error={inputErrors.volume} info="حجم سفارش بر حسب لات است. هر لات به اندازهٔ قرارداد همان نماد وابسته است؛ مقدار لات را مطابق مشخصات بروکر وارد کنید.">
-            <Input required {...fieldProps("volume")} dir="ltr" type="number" inputMode="decimal" min="0" step="any" value={draft.volume} onChange={(event) => update("volume", event.target.value)} />
-          </TradeReviewField>
-          <TradeReviewField id="trade-contractSize" label="اندازه قرارداد" required error={inputErrors.contractSize} info="تعداد واحد دارایی در یک لات. این عدد را از مشخصات نماد در بروکر بگیرید؛ اندازهٔ قرارداد نمادها و بروکرهای مختلف می‌تواند متفاوت باشد.">
-            <Input required {...fieldProps("contractSize")} dir="ltr" type="number" inputMode="decimal" min="0" step="any" value={draft.contractSize} onChange={(event) => update("contractSize", event.target.value)} />
-          </TradeReviewField>
-          <TradeReviewField id="trade-assetVolume" label="حجم معادل (واحد)" info="حجم لات × اندازهٔ قرارداد. این عدد مقدار دارایی معامله را نشان می‌دهد؛ ارزش پولی معامله نیست و به‌صورت خودکار محاسبه می‌شود.">
-            <Input id="trade-assetVolume" dir="ltr" readOnly value={assetVolume == null ? "" : number(assetVolume, 8)} placeholder="محاسبه خودکار" className="h-9 min-w-0 bg-muted/40 px-2 text-xs tabular-nums" />
+          <TradeReviewField id="trade-currentPrice" label="قیمت فعلی">
+            <Input id="trade-currentPrice" dir="ltr" type="number" step="any" readOnly value={quote?.price ?? ""} placeholder={!draft.symbol ? "انتخاب نماد" : quoteLoading ? "در حال دریافت…" : "در دسترس نیست"} className="h-9 min-w-0 bg-muted/40 px-2 text-xs tabular-nums" />
           </TradeReviewField>
           <TradeReviewField id="trade-entryPrice" label="قیمت ورود" required error={inputErrors.entryPrice}>
             <TradePriceInput required {...fieldProps("entryPrice")} aria-label="قیمت ورود" value={draft.entryPrice} basePrice={quote?.price} priceStep={priceStep} onValueChange={(value) => update("entryPrice", value)} />
@@ -390,13 +410,21 @@ function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft
           <TradeReviewField id="trade-takeProfit" label="حد سود TP" required error={inputErrors.takeProfit}>
             <TradePriceInput required {...fieldProps("takeProfit")} aria-label="قیمت حد سود" value={draft.takeProfit} basePrice={protectionBase} priceStep={priceStep} onValueChange={(value) => update("takeProfit", value)} />
           </TradeReviewField>
-          <TradeReviewField id="trade-currentPrice" label="قیمت فعلی">
-            <Input id="trade-currentPrice" dir="ltr" type="number" step="any" readOnly value={quote?.price ?? ""} placeholder={!draft.symbol ? "انتخاب نماد" : quoteLoading ? "در حال دریافت…" : "در دسترس نیست"} className="h-9 min-w-0 bg-muted/40 px-2 text-xs tabular-nums" />
+          <div aria-hidden="true" />
+          <TradeReviewField id="trade-volume" label="حجم (Lot)" required error={inputErrors.volume} info="حجم سفارش بر حسب لات است. هر لات به اندازهٔ قرارداد همان نماد در بروکر انتخاب‌شده وابسته است.">
+            <Input required {...fieldProps("volume")} dir="ltr" type="number" inputMode="decimal" min="0" step="any" value={draft.volume} onChange={(event) => update("volume", event.target.value)} />
           </TradeReviewField>
-          <div className="col-span-2 flex min-w-0 flex-col justify-end gap-1 pb-1 text-[10px] leading-5 text-muted-foreground" aria-live="polite">
-            {quote ? <><p dir="auto">{quote.source}</p><p>آخرین مشاهده: <span dir="ltr">{formatTehranTimestamp(new Date(quote.observedAt)) || "زمان موجود نیست"}</span></p><p>قیمت مرجع سایت ممکن است با قیمت اجرای بروکر متفاوت باشد.</p></>
-              : <p>{!draft.symbol ? "پس از انتخاب نماد، آخرین قیمت موجود به‌صورت خودکار وارد می‌شود." : quoteLoading ? "در حال دریافت آخرین قیمت موجود در سایت…" : "قیمت معتبر در منابع موجود یافت نشد."}</p>}
-          </div>
+          <TradeReviewField id="trade-contractSize" label="اندازه قرارداد" required error={inputErrors.contractSize} info="تعداد واحد دارایی در یک لات؛ به‌صورت خودکار از مشخصات نماد در متاتریدر بروکر انتخاب‌شده خوانده می‌شود و میان نمادها و بروکرها متفاوت است.">
+            <Input required {...fieldProps("contractSize")} dir="ltr" type="number" step="any" readOnly value={draft.contractSize} placeholder="دریافت خودکار" className="h-9 min-w-0 bg-muted/40 px-2 text-xs tabular-nums" />
+            {draft.symbol && <p className="text-[10px] leading-4 text-muted-foreground">{draft.contractSize ? `متاتریدر · ${brokerSpecFor(snapshot, draft.symbol)?.symbol || draft.symbol}` : "اندازه قرارداد در دیتای متاتریدر این حساب موجود نیست."}</p>}
+          </TradeReviewField>
+          <TradeReviewField id="trade-assetVolume" label="حجم معادل (واحد)" info="حجم لات × اندازهٔ قرارداد. این عدد مقدار دارایی معامله را نشان می‌دهد؛ ارزش پولی معامله نیست و به‌صورت خودکار محاسبه می‌شود.">
+            <Input id="trade-assetVolume" dir="ltr" readOnly value={assetVolume == null ? "" : number(assetVolume, 8)} placeholder="محاسبه خودکار" className="h-9 min-w-0 bg-muted/40 px-2 text-xs tabular-nums" />
+          </TradeReviewField>
+        </div>
+        <div className="min-w-0 space-y-1 text-[10px] leading-5 text-muted-foreground" aria-live="polite">
+          {quote ? <><p dir="auto">{quote.source}</p><p>آخرین مشاهده: <span dir="ltr">{formatTehranTimestamp(new Date(quote.observedAt)) || "زمان موجود نیست"}</span></p><p>قیمت مرجع سایت ممکن است با قیمت اجرای بروکر متفاوت باشد.</p></>
+            : <p>{!draft.symbol ? "پس از انتخاب نماد، آخرین قیمت موجود به‌صورت خودکار وارد می‌شود." : quoteLoading ? "در حال دریافت آخرین قیمت موجود در سایت…" : "قیمت معتبر در منابع موجود یافت نشد."}</p>}
         </div>
         <p className="text-[10px] leading-5 text-muted-foreground">ورود، SL و TP قیمت کامل نماد هستند. کلیدهای بالا و پایین از قیمت ورود یا قیمت فعلی شروع می‌کنند.</p>
         <div className="space-y-3">
@@ -428,14 +456,7 @@ function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft
               </dl>
               <div className="space-y-2">{review.checks.map((check) => <div key={check.key} className="flex items-start justify-between gap-3 rounded-md border p-2.5"><div><p className="text-xs font-medium">{check.label}</p><p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">{check.detail}</p></div><CheckBadge status={check.status} /></div>)}</div>
 
-              <div className={`${insetClass} space-y-3 p-4`}>
-                <div className="flex items-center gap-2"><BrainCircuit className="h-4 w-4 text-primary" /><p className="text-sm font-semibold">تحلیل متنی معامله</p></div>
-                <p className="text-xs leading-6 text-foreground">{review.analysis.summary}</p>
-                {review.analysis.risks.length > 0 && <div><p className="text-[11px] font-medium text-rose-700 dark:text-rose-300">نکات ریسکی تکمیلی</p><ul className="mt-1 list-disc space-y-1 pr-4 text-[11px] leading-5 text-muted-foreground">{review.analysis.risks.map((item) => <li key={item}>{item}</li>)}</ul></div>}
-                {review.analysis.strengths.length > 0 && <div><p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">نقاط ثبت‌شده مناسب</p><ul className="mt-1 list-disc space-y-1 pr-4 text-[11px] leading-5 text-muted-foreground">{review.analysis.strengths.map((item) => <li key={item}>{item}</li>)}</ul></div>}
-                {review.analysis.limitations.length > 0 && <div><p className="text-[11px] font-medium text-amber-700 dark:text-amber-300">محدودیت‌ها و داده‌های بررسی‌نشده</p><ul className="mt-1 list-disc space-y-1 pr-4 text-[11px] leading-5 text-muted-foreground">{review.analysis.limitations.map((item) => <li key={item}>{item}</li>)}</ul></div>}
-                <p className="border-t pt-2 text-[10px] leading-5 text-muted-foreground">تحلیل متنی قاعده‌محور است و کیفیت واقعی تحلیل بازار یا احتمال موفقیت معامله را تضمین نمی‌کند.</p>
-              </div>
+              <TradeTextAnalysis analysis={review.analysis} />
 
               <p className="text-[10px] leading-5 text-muted-foreground">برآورد ریسک بر پایه Tick Value فعلی بروکر است؛ لغزش، گپ و کمیسیون ناشناخته می‌تواند نتیجه واقعی را تغییر دهد.</p>
             </>}
@@ -443,7 +464,7 @@ function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft
         </Card>
 
         <div className="grid grid-cols-2 gap-2">
-          <Button className="min-w-0 px-2 text-xs sm:text-sm" onClick={onSavePlan} disabled={!draft.symbol || !review || saved}><Save className="ml-1.5 h-3.5 w-3.5" />ذخیره برنامه</Button>
+          <Button className="min-w-0 px-2 text-xs sm:text-sm" onClick={() => onSavePlan(review)} disabled={!draft.symbol || !review || saved}><Save className="ml-1.5 h-3.5 w-3.5" />ذخیره برنامه</Button>
           <Button className="min-w-0 px-2 text-xs sm:text-sm" variant="outline" disabled={!review} onClick={() => {
             setReview(null)
             setInputErrors({})
@@ -462,68 +483,119 @@ function tradeLine(draft) {
   return `${String(draft?.symbol || "—")} · ${draft?.direction === "BUY" ? "خرید" : draft?.direction === "SELL" ? "فروش" : "—"} · ${number(draft?.volume)} Lot · ورود ${number(draft?.entryPrice)} · SL ${positiveRule(draft?.stopLoss) == null ? "—" : number(draft.stopLoss)} · TP ${positiveRule(draft?.takeProfit) == null ? "—" : number(draft.takeProfit)}`
 }
 
-function TradeAllocationDialog({ open, onOpenChange, snapshot, plans, openRisk, onAssignPosition, storageError }) {
+function ConformanceSummary({ assessment }) {
+  const tone = assessment.status === "matched" ? "text-emerald-600 dark:text-emerald-400"
+    : assessment.status === "mismatch" ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-300"
+  return <p className={`whitespace-nowrap text-[11px] ${tone}`}><span className="font-medium">انطباق با برنامه: </span>{assessment.summary}</p>
+}
+
+function PlannedTradeRow({ plan, onConfirmTicket, onDeletePlan }) {
+  const [ticketInput, setTicketInput] = useState(plan.ticketId ?? plan.positionId ?? "")
+  const [ticketEdited, setTicketEdited] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const detailsId = `trade-plan-details-${plan.id}`
+  const assessment = !ticketEdited && typeof plan.ticketAssessment?.summary === "string" ? plan.ticketAssessment : null
+
+  useEffect(() => {
+    setTicketInput(plan.ticketId ?? plan.positionId ?? "")
+    setTicketEdited(false)
+  }, [plan.ticketId, plan.positionId, plan.ticketAssessment])
+
+  return <div className="space-y-2 p-3">
+    <form className="flex items-center justify-between gap-3 whitespace-nowrap" onSubmit={(event) => {
+      event.preventDefault()
+      if (normalizePositionIdentifier(ticketInput)) onConfirmTicket(plan.id, ticketInput)
+    }}>
+      <p className="text-[11px] tabular-nums" dir="auto">{tradeLine(plan.draft)}</p>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <Input dir="ltr" type="text" inputMode="numeric" value={ticketInput}
+          onChange={(event) => { setTicketInput(event.target.value); setTicketEdited(true) }} placeholder="شماره تیکت"
+          aria-label={`شماره تیکت برنامه ${plan.id}`} className="h-8 w-36 px-2 text-xs tabular-nums" />
+        <Button type="submit" size="sm" className="h-8 px-3 text-xs" disabled={!normalizePositionIdentifier(ticketInput)}>تأیید</Button>
+        <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-rose-600 hover:text-rose-700 dark:text-rose-400"
+          title="حذف برنامه" aria-label={`حذف برنامه ${plan.draft?.symbol || plan.id}`} onClick={() => onDeletePlan(plan.id)}>
+          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+        </Button>
+        <Button type="button" size="icon" variant="ghost" className="h-8 w-8" aria-expanded={detailsOpen} aria-controls={detailsId}
+          title={detailsOpen ? "بستن جزئیات" : "نمایش جزئیات"} aria-label={`جزئیات برنامه ${plan.draft?.symbol || plan.id}`}
+          onClick={() => setDetailsOpen((current) => !current)}>
+          <Triangle className={`h-3 w-3 fill-current transition-transform ${detailsOpen ? "" : "rotate-180"}`} aria-hidden="true" />
+        </Button>
+      </div>
+    </form>
+    <div className="min-h-5" aria-live="polite">{assessment && <ConformanceSummary assessment={assessment} />}</div>
+    <p className="text-[10px] text-muted-foreground">ذخیره: <span dir="ltr">{formatTehranTimestamp(new Date(plan.createdAt)) || "زمان موجود نیست"}</span>{plan.ticketConfirmedAt && <> · آخرین تأیید: <span dir="ltr">{formatTehranTimestamp(new Date(plan.ticketConfirmedAt)) || "زمان موجود نیست"}</span></>}</p>
+    <div id={detailsId} hidden={!detailsOpen} className="max-w-[calc(100vw-5rem)] whitespace-normal sm:max-w-2xl">
+      {detailsOpen && <TradeTextAnalysis analysis={plan.analysis} />}
+    </div>
+  </div>
+}
+
+function TradeAllocationDialog({ open, onOpenChange, snapshot, plans, openRisk, onConfirmTicket, onDeletePlan, analysis, focusSection, storageError }) {
   const currency = snapshot?.account?.currency || "USD"
+  const liveTrades = [
+    ...openRisk.positions.map((trade) => ({ trade, kind: "position" })),
+    ...openRisk.pendingOrders.map((trade) => ({ trade, kind: "order" })),
+  ]
+  useEffect(() => {
+    if (!open || !focusSection) return undefined
+    const frame = window.requestAnimationFrame(() => {
+      const section = document.getElementById(focusSection === "behavior" ? "allocation-behavior" : "allocation-live-trades")
+      section?.focus({ preventScroll: true })
+      section?.scrollIntoView({ behavior: "smooth", block: "start" })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [open, focusSection])
+
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent dir="rtl" className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-4xl overflow-y-auto">
       <DialogHeader className="pl-8 text-right sm:text-right">
         <DialogTitle>تخصیص و ارزیابی</DialogTitle>
-        <DialogDescription>شمارهٔ پوزیشن را از معاملات باز کپی و مقابل برنامه وارد کنید. برنامه‌ها و تخصیص‌ها در همین مرورگر برای حساب انتخاب‌شده ذخیره می‌شوند.</DialogDescription>
+        <DialogDescription>شمارهٔ تیکت را از معاملات باز یا سفارش‌های در انتظار کپی و مقابل برنامه وارد کنید؛ سپس «تأیید» را بزنید تا تخصیص و انطباق ثبت شود. برنامه‌ها و تخصیص‌ها در همین مرورگر برای حساب انتخاب‌شده ذخیره می‌شوند.</DialogDescription>
+        <p className="break-words text-xs text-foreground">{accountName(snapshot)}</p>
       </DialogHeader>
       <section className="min-w-0 space-y-2" aria-labelledby="planned-trades-title">
         <div className="flex items-center justify-between gap-2"><h3 id="planned-trades-title" className="text-sm font-semibold">معاملات برنامه‌ریزی‌شده</h3><Badge variant="secondary">{plans.length} برنامه</Badge></div>
         <ScrollArea dir="rtl" className="h-60 w-full min-w-0 rounded-lg border">
           {!plans.length ? <p className="p-6 text-center text-xs leading-6 text-muted-foreground">هنوز برنامه‌ای برای این حساب ذخیره نشده است. در «بررسی معامله جدید» برنامه را بررسی و ذخیره کنید.</p>
-            : <div className="min-w-max divide-y">{plans.map((plan) => {
-              const assessment = assessPlannedTrade(plan, snapshot)
-              const tone = assessment.status === "matched" ? "success" : assessment.status === "mismatch" ? "danger" : "warning"
-              return <div key={plan.id} className="space-y-2 p-3">
-                <div className="flex items-center justify-between gap-4 whitespace-nowrap">
-                  <p className="text-[11px] tabular-nums" dir="auto">{tradeLine(plan.draft)}</p>
-                  <Input dir="ltr" type="text" inputMode="numeric" value={plan.positionId || ""}
-                    onChange={(event) => onAssignPosition(plan.id, event.target.value)} placeholder="شماره پوزیشن"
-                    aria-label={`شماره پوزیشن برنامه ${plan.id}`} className="h-8 w-40 shrink-0 px-2 text-xs tabular-nums" />
+            : <div className="min-w-max divide-y">{plans.map((plan) => <PlannedTradeRow key={`${accountKey(snapshot)}:${plan.id}`} plan={plan} onConfirmTicket={onConfirmTicket} onDeletePlan={onDeletePlan} />)}</div>}
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+        <p className="text-[10px] leading-5 text-muted-foreground">مقایسهٔ نماد، جهت، لات، قیمت ورود یا قیمت سفارش، SL و TP؛ تلورانس قیمت یک Tick بروکر است. معیار فاقد داده در درصد انطباق محاسبه نمی‌شود. تیکت معامله، شناسهٔ پوزیشن و تیکت سفارش در انتظار، شمارهٔ سفارش است.</p>
+      </section>
+      <section id="allocation-live-trades" tabIndex={-1} className="min-w-0 space-y-2 scroll-mt-4 focus:outline-none" aria-labelledby="allocation-open-trades-title">
+        <div className="flex flex-wrap items-center justify-between gap-2"><h3 id="allocation-open-trades-title" className="text-sm font-semibold">معاملات باز و سفارش های در انتظار</h3><Badge variant="secondary">{openRisk.positions.length} معامله · {openRisk.pendingOrders.length} سفارش</Badge></div>
+        <ScrollArea dir="rtl" className="h-52 w-full min-w-0 rounded-lg border">
+          {!liveTrades.length ? <p className="p-6 text-center text-xs text-muted-foreground">در آخرین دادهٔ حساب، معاملهٔ باز یا سفارش در انتظاری گزارش نشده است.</p>
+            : <div className="min-w-max divide-y">{liveTrades.map(({ trade, kind }, index) => {
+              const pending = kind === "order"
+              const ticket = pending ? orderIdentifier(trade) : positionIdentifier(trade)
+              const spec = brokerSpecFor(snapshot, trade.symbol)
+              const currentPrice = pending ? positiveRule(trade.current_price) ?? positiveRule(trade.direction === "BUY" ? spec?.ask : spec?.bid) : trade.current_valuation_price
+              return <div key={`${kind}:${ticket || index}`} className="space-y-2 p-3">
+                <div className="flex items-center gap-4 whitespace-nowrap text-[11px] tabular-nums">
+                  <span className="select-all font-semibold" dir="ltr" aria-label="شماره تیکت">{ticket || "—"}</span>
+                  <Badge variant="outline" className="text-[10px]">{pending ? "سفارش در انتظار" : "معامله باز"}</Badge>
+                  <span dir="auto">{tradeLine({ symbol: trade.symbol, direction: trade.direction, volume: trade.volume, entryPrice: pending ? trade.requested_price : trade.open_price, stopLoss: trade.stop_loss, takeProfit: trade.take_profit })}</span>
+                  <span>فعلی: {number(currentPrice)}</span>
+                  {!pending && <span>سود/زیان: {money(trade.current_profit_loss, currency)}</span>}
+                  <span>ریسک تا SL: {money(trade.risk.amount, currency)}</span>
                 </div>
-                <p className={`whitespace-nowrap text-[11px] ${tone === "success" ? "text-emerald-600 dark:text-emerald-400" : tone === "danger" ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-300"}`}><span className="font-medium">انطباق با برنامه: </span>{assessment.summary}</p>
-                <p className="text-[10px] text-muted-foreground">ذخیره: <span dir="ltr">{formatTehranTimestamp(new Date(plan.createdAt)) || "زمان موجود نیست"}</span></p>
+                <ConformanceSummary assessment={assessAllocatedTrade(plans, snapshot, trade, kind)} />
               </div>
             })}</div>}
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
-        <p className="text-[10px] leading-5 text-muted-foreground">مقایسهٔ نماد، جهت، لات، قیمت اجرای ورود، SL و TP؛ تلورانس قیمت یک Tick بروکر است. معیار فاقد داده در درصد انطباق محاسبه نمی‌شود.</p>
       </section>
-      <section className="min-w-0 space-y-2" aria-labelledby="allocation-open-trades-title">
-        <div className="flex items-center justify-between gap-2"><h3 id="allocation-open-trades-title" className="text-sm font-semibold">معاملات باز</h3><Badge variant="secondary">{openRisk.positions.length} پوزیشن</Badge></div>
-        <ScrollArea dir="rtl" className="h-52 w-full min-w-0 rounded-lg border">
-          {!openRisk.positions.length ? <p className="p-6 text-center text-xs text-muted-foreground">در آخرین دادهٔ حساب، پوزیشن بازی گزارش نشده است.</p>
-            : <div className="min-w-max divide-y">{openRisk.positions.map((position, index) => <div key={positionIdentifier(position) || index} className="flex items-center gap-4 whitespace-nowrap p-3 text-[11px] tabular-nums">
-              <span className="select-all font-semibold" dir="ltr">#{positionIdentifier(position) || "—"}</span>
-              <span dir="auto">{tradeLine({ symbol: position.symbol, direction: position.direction, volume: position.volume, entryPrice: position.open_price, stopLoss: position.stop_loss, takeProfit: position.take_profit })}</span>
-              <span>فعلی: {number(position.current_valuation_price)}</span>
-              <span>سود/زیان: {money(position.current_profit_loss, currency)}</span>
-              <span>ریسک تا SL: {money(position.risk.amount, currency)}</span>
-            </div>)}</div>}
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+      <section id="allocation-behavior" tabIndex={-1} className="min-w-0 space-y-2 scroll-mt-4 focus:outline-none" aria-labelledby="allocation-behavior-title">
+        <h3 id="allocation-behavior-title" className="flex items-center gap-2 text-sm font-semibold"><BrainCircuit className="h-4 w-4 text-primary" />تحلیل رفتار (معاملات بسته شده)</h3>
+        <div className="rounded-lg border bg-muted/20 p-4">
+          <ul className="list-disc space-y-3 pr-4 text-xs leading-6" aria-label="خلاصه تحلیل رفتار معاملاتی">
+            {analysis.lines.map((line) => <li key={line.key} className={line.tone === "danger" ? "text-rose-700 dark:text-rose-300" : line.tone === "warning" ? "text-amber-700 dark:text-amber-300" : line.tone === "success" ? "text-emerald-700 dark:text-emerald-300" : "text-foreground"}>{line.text}</li>)}
+          </ul>
+        </div>
       </section>
       {storageError && <p role="alert" className="text-xs text-rose-600 dark:text-rose-400">{storageError}</p>}
-      <Button variant="outline" onClick={() => onOpenChange(false)}>بستن</Button>
-    </DialogContent>
-  </Dialog>
-}
-
-function BehaviorAnalysisDialog({ open, onOpenChange, analysis }) {
-  return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent dir="rtl" className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-2xl overflow-y-auto">
-      <DialogHeader className="pl-8 text-right sm:text-right">
-        <DialogTitle>تحلیل رفتار</DialogTitle>
-        <DialogDescription>نکات مهم نتیجهٔ معاملات، نظم و پایبندی به برنامهٔ حساب در دادهٔ موجود.</DialogDescription>
-      </DialogHeader>
-      <div className="rounded-lg border bg-muted/20 p-4">
-        <ul className="list-disc space-y-3 pr-4 text-xs leading-6" aria-label="خلاصه تحلیل رفتار معاملاتی">
-          {analysis.lines.map((line) => <li key={line.key} className={line.tone === "danger" ? "text-rose-700 dark:text-rose-300" : line.tone === "warning" ? "text-amber-700 dark:text-amber-300" : line.tone === "success" ? "text-emerald-700 dark:text-emerald-300" : "text-foreground"}>{line.text}</li>)}
-        </ul>
-      </div>
       <Button variant="outline" onClick={() => onOpenChange(false)}>بستن</Button>
     </DialogContent>
   </Dialog>
@@ -582,7 +654,7 @@ export default function RiskManagementCenter() {
   const [error, setError] = useState("")
   const [reviewOpen, setReviewOpen] = useState(false)
   const [allocationOpen, setAllocationOpen] = useState(false)
-  const [behaviorOpen, setBehaviorOpen] = useState(false)
+  const [allocationFocus, setAllocationFocus] = useState("")
   const [planCollection, setPlanCollection] = useState({ accountKey: "", plans: [] })
   const [planStorageError, setPlanStorageError] = useState("")
   const [rules, setRules] = useState(EMPTY_RISK_RULES)
@@ -611,11 +683,16 @@ export default function RiskManagementCenter() {
         return
       }
       if (["analysis-behavior", "warnings"].includes(event.detail)) {
-        setBehaviorOpen(true)
+        setAllocationFocus("behavior")
+        setAllocationOpen(true)
+        return
+      }
+      if (event.detail === "positions") {
+        setAllocationFocus("trades")
+        setAllocationOpen(true)
         return
       }
       const targetId = {
-        positions: "risk-open-positions",
         "overview-structure": "risk-overview",
       }[event.detail]
       if (targetId) document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" })
@@ -675,7 +752,6 @@ export default function RiskManagementCenter() {
         setSelectedAccount("")
         setReviewOpen(false)
         setAllocationOpen(false)
-        setBehaviorOpen(false)
         setDailyPlanOpen(false)
         setScenarioOpen(false)
         setScenarioSymbol("")
@@ -714,11 +790,11 @@ export default function RiskManagementCenter() {
   }, [storageKey])
 
   const openRisk = useMemo(() => analyzeOpenRisk(snapshot), [snapshot])
+  const currentDraft = useMemo(() => ({ ...draft, contractSize: brokerContractSize(snapshot, draft.symbol)?.toString() || "" }), [draft, snapshot])
   const history = useMemo(() => analyzeTradeHistory(snapshot), [snapshot])
   const concentration = useMemo(() => concentrationSummary(snapshot), [snapshot])
-  const freshness = useMemo(() => freshnessSummary(snapshot), [snapshot])
   const lifecycles = useMemo(() => buildTradeLifecycles(snapshot ? [snapshot] : []), [snapshot])
-  const behaviorAnalysis = useMemo(() => buildBehaviorAnalysis({ snapshot, rules, plans: tradePlans, lifecycles }), [snapshot, rules, tradePlans, lifecycles, behaviorOpen, loading])
+  const behaviorAnalysis = useMemo(() => buildBehaviorAnalysis({ snapshot, rules, plans: tradePlans, lifecycles }), [snapshot, rules, tradePlans, lifecycles, allocationOpen, loading])
   const currency = snapshot?.account?.currency || "USD"
   const equity = finiteNumber(snapshot?.account?.equity)
   const grossLeverage = finiteNumber(snapshot?.portfolio_metrics?.gross_portfolio_leverage)
@@ -727,7 +803,6 @@ export default function RiskManagementCenter() {
   const dailyLimitPct = positiveRule(rules.dailyLossLimitPct)
   const dailyLimitAmount = dailyLimitPct != null && equity != null ? equity * dailyLimitPct / 100 : null
   const dailyRemaining = dailyLimitAmount != null ? dailyLimitAmount - history.realizedLossUsed : null
-  const maxTradeRiskPct = positiveRule(rules.maxTradeRiskPct)
   const maxOpenRiskPct = positiveRule(rules.maxOpenRiskPct)
   const maxLeverage = positiveRule(rules.maxGrossLeverage)
   const minMargin = positiveRule(rules.minMarginLevelPct)
@@ -820,23 +895,28 @@ export default function RiskManagementCenter() {
     }
   }
 
-  const savePlan = () => {
-    if (!storageKey || Object.keys(tradeInputErrors(draft)).length) return
-    const preview = previewTrade(snapshot, draft, rules, openRisk)
+  const savePlan = (review) => {
+    if (!storageKey || !review?.analysis || Object.keys(tradeInputErrors(currentDraft)).length) return
     const planId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
-    const plan = { id: planId, createdAt: new Date().toISOString(), draft: { ...draft }, previewStatus: preview.status, positionId: "" }
+    const plan = createTradePlan({ id: planId, createdAt: new Date().toISOString(), draft: currentDraft, review })
     setSavedPlan(storeTradePlans([plan, ...tradePlans]))
   }
 
-  const assignPosition = (planId, positionId) => storeTradePlans(tradePlans.map((plan) =>
-    plan.id === planId ? { ...plan, positionId } : plan,
-  ))
+  const confirmTicket = (planId, ticketInput) => {
+    const plan = tradePlans.find((item) => item.id === planId)
+    if (!plan) return
+    const confirmed = confirmTradePlanTicket(plan, ticketInput, snapshot, new Date().toISOString())
+    if (confirmed) storeTradePlans(tradePlans.map((item) => item.id === planId ? confirmed : item))
+  }
+
+  const deletePlan = (planId) => storeTradePlans(tradePlans.filter((plan) => plan.id !== planId))
 
   const updateDraft = (updater) => {
     setDraft((current) => {
       const next = typeof updater === "function" ? updater(current) : updater
-      if (storageKey) window.localStorage.setItem(`greenpeak:trade-draft:${storageKey}`, JSON.stringify(next))
-      return next
+      const brokerDraft = { ...next, contractSize: brokerContractSize(snapshot, next.symbol)?.toString() || "" }
+      if (storageKey) window.localStorage.setItem(`greenpeak:trade-draft:${storageKey}`, JSON.stringify(brokerDraft))
+      return brokerDraft
     })
     setSavedPlan(false)
   }
@@ -854,24 +934,19 @@ export default function RiskManagementCenter() {
             <p className="mt-1 text-xs leading-5 text-muted-foreground">برنامه روزانه، تنش‌سنجی و تحلیل یکپارچه ریسک حساب</p>
           </div>
           <div className="grid gap-2 lg:justify-items-end">
-            <div className="flex flex-wrap items-stretch gap-2 lg:justify-end">
+            <div className="grid w-full grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2 lg:w-auto">
+              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setScenarioOpen(true)} disabled={!snapshot}><Gauge className="ml-2 h-4 w-4" />سناریو</Button>
+              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={load} disabled={loading} aria-label="به‌روزرسانی داده" title="به‌روزرسانی داده"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
               {snapshots.length > 0 && <Select value={selectedAccount || accountKey(snapshots[0])} onValueChange={setSelectedAccount}>
                 <SelectTrigger className="h-9 w-56 min-w-0 max-w-full [&>span]:min-w-0 [&>span]:truncate"><SelectValue><span className="block truncate">{accountName(snapshot || snapshots[0])}</span></SelectValue></SelectTrigger>
                 <SelectContent dir="rtl" className="w-[min(90vw,32rem)] max-w-[calc(100vw-2rem)]">{snapshots.map((item) => <SelectItem key={accountKey(item)} value={accountKey(item)}><span className="whitespace-normal break-words">{accountName(item)}</span></SelectItem>)}</SelectContent>
               </Select>}
-              <div className={`flex h-9 w-auto items-center gap-2 whitespace-nowrap rounded-lg border px-3 text-xs ${snapshot && !freshness.stale ? toneClass("success") : toneClass("warning")}`}>
-                {snapshot && !freshness.stale ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
-                <span>{snapshot ? freshness.stale ? "نیازمند بروزرسانی" : "داده متصل" : "بدون داده"}</span>
-                {freshness.timestamp && <time className="tabular-nums opacity-80" title="آخرین بروزرسانی به وقت تهران" dir="ltr">{formatTehranTimestamp(freshness.timestamp)}</time>}
-              </div>
-              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={load} disabled={loading} aria-label="به‌روزرسانی داده" title="به‌روزرسانی داده"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
-              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setScenarioOpen(true)} disabled={!snapshot}><Gauge className="ml-2 h-4 w-4" />سناریو</Button>
+              <SnapshotFreshnessIndicator snapshot={snapshot} loading={loading} error={error} />
             </div>
             <div className="flex flex-wrap items-stretch gap-2 lg:justify-end">
               <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setDailyPlanOpen(true)} disabled={!snapshot}><ListChecks className="ml-2 h-4 w-4" />برنامه</Button>
               <Button size="sm" className="h-9 w-auto" onClick={() => setReviewOpen(true)} disabled={!snapshot}><ClipboardCheck className="ml-2 h-4 w-4" />بررسی معامله جدید</Button>
-              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setAllocationOpen(true)} disabled={!snapshot}><Link2 className="ml-2 h-4 w-4" />تخصیص و ارزیابی</Button>
-              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setBehaviorOpen(true)} disabled={!snapshot}><BrainCircuit className="ml-2 h-4 w-4" />تحلیل رفتار</Button>
+              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => { setAllocationFocus(""); setAllocationOpen(true) }} disabled={!snapshot}><Link2 className="ml-2 h-4 w-4" />تخصیص و ارزیابی</Button>
             </div>
           </div>
         </div>
@@ -890,11 +965,6 @@ export default function RiskManagementCenter() {
                 <RiskOverviewList metrics={overviewMetrics} />
               </section>
 
-              <section id="risk-open-positions" className="scroll-mt-16 space-y-3 border-t pt-6" aria-labelledby="risk-open-positions-title">
-                <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 id="risk-open-positions-title" className="text-sm font-semibold">پوزیشن‌های باز</h3><p className="mt-1 text-xs text-muted-foreground">ریسک هر پوزیشن تا حد ضرر و انطباق آن با برنامه</p></div><div className="flex flex-wrap gap-2"><Badge variant="secondary">{openRisk.positions.length} پوزیشن</Badge><Badge variant="outline">Pending risk: {openRisk.pendingTotal == null ? "ناقص" : money(openRisk.pendingTotal, currency)}</Badge></div></div>
-                <PositionRiskTable analysis={openRisk} snapshot={snapshot} maxTradeRiskPct={maxTradeRiskPct} />
-              </section>
-
           </div>
         </>}
       </CardContent>
@@ -903,9 +973,8 @@ export default function RiskManagementCenter() {
     {snapshot && <>
       <DailyPlanDialog open={dailyPlanOpen} onOpenChange={setDailyPlanOpen} rules={rules} setRules={setRules} rulesSaved={rulesSaved} onSaveRules={saveRules} history={history} maxTrades={maxTrades} />
       <ScenarioDialog open={scenarioOpen} onOpenChange={setScenarioOpen} scenarioSymbols={scenarioSymbols} selectedScenarioSymbol={selectedScenarioSymbol} onSymbolChange={setScenarioSymbol} shockPct={shockPct} onShockChange={setShockPct} scenario={scenario} />
-      <TradeReviewPanel open={reviewOpen} onOpenChange={setReviewOpen} snapshot={snapshot} rules={rules} openRisk={openRisk} draft={draft} setDraft={updateDraft} onSavePlan={savePlan} saved={savedPlan} storageError={planStorageError} />
-      <TradeAllocationDialog open={allocationOpen} onOpenChange={setAllocationOpen} snapshot={snapshot} plans={tradePlans} openRisk={openRisk} onAssignPosition={assignPosition} storageError={planStorageError} />
-      <BehaviorAnalysisDialog open={behaviorOpen} onOpenChange={setBehaviorOpen} analysis={behaviorAnalysis} />
+      <TradeReviewPanel key={storageKey} open={reviewOpen} onOpenChange={setReviewOpen} snapshots={snapshots} onAccountChange={setSelectedAccount} snapshot={snapshot} rules={rules} openRisk={openRisk} draft={currentDraft} setDraft={updateDraft} onSavePlan={savePlan} saved={savedPlan} storageError={planStorageError} />
+      <TradeAllocationDialog open={allocationOpen} onOpenChange={setAllocationOpen} snapshot={snapshot} plans={tradePlans} openRisk={openRisk} onConfirmTicket={confirmTicket} onDeletePlan={deletePlan} analysis={behaviorAnalysis} focusSection={allocationFocus} storageError={planStorageError} />
     </>}
   </>
 }

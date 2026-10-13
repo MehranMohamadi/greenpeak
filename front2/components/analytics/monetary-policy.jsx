@@ -6,6 +6,8 @@ import { useMemo, useRef, useState } from "react"
 import { Activity, Banknote, Landmark, Maximize2, Percent, Scale, WalletCards, Waves } from "lucide-react"
 
 import { sliceChartPeriod } from "@/lib/chart-data"
+import { TREASURY_PERIODS } from "@/lib/treasury-yield"
+import { formatGregorianTehranDateTime } from "@/lib/date-format"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -33,8 +35,8 @@ const INLINE_CHART_HEIGHT = 200
 const PERIODS = ["1M", "6M", "1Y", "5Y", "10Y", "25Y", "MAX"]
 const MONETARY_CHART_COLOR = "#06B6D4"
 
-function PeriodControls({ period, onChange }) {
-  return <div className="flex flex-wrap gap-1">{PERIODS.map((item) => {
+function PeriodControls({ period, onChange, periods = PERIODS }) {
+  return <div className="flex flex-wrap gap-1">{periods.map((item) => {
     const selected = period === item
     return <Button
       key={item}
@@ -73,16 +75,16 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
   const [selectedId, setSelectedId] = useState(initialFactorId)
   const chartSectionRef = useRef(null)
   const [isFullScreen, setIsFullScreen] = useState(false)
-  const [period, setPeriod] = useState("5Y")
+  const [period, setPeriod] = useState(initialFactorId === "ten-year-treasury" ? "1M" : "5Y")
   const dff = useDFFData()
-  const tenYear = useTenYearData()
+  const tenYear = useTenYearData(period)
   const walcl = useWALCLData()
   const sofr = useSOFRData()
   const realRate = useRealInterestRateData()
   const liquidity = useLiquidityData()
 
   const factors = [
-    { id: "ten-year-treasury", title: "10-Year Treasury Yield", group: "Market rates", icon: Activity, format: "rate", changeUnit: "bp", data: processTenYearData(tenYear.data || []), metadata: tenYear.metadata, loading: tenYear.loading, error: tenYear.error },
+    { id: "ten-year-treasury", title: "10-Year Treasury Yield · ^TNX", group: "Market rates", icon: Activity, format: "rate", changeUnit: "bp", data: processTenYearData(tenYear.data || [], tenYear.metadata?.interval === "1h"), metadata: tenYear.metadata, loading: tenYear.loading, error: tenYear.error },
     { id: "fed-funds-rate", title: "Effective Federal Funds Rate", group: "Policy & expectations", icon: Landmark, format: "rate", changeUnit: "bp", data: processDFFData(dff.data || [], true, period), metadata: dff.metadata, loading: dff.loading, error: dff.error },
     { id: "sofr-rate", title: "Secured Overnight Financing Rate", group: "Policy & expectations", icon: Percent, format: "rate", changeUnit: "bp", data: processSOFRData(sofr.data || []), metadata: sofr.metadata, loading: sofr.loading, error: sofr.error },
     { id: "real-interest-rate", title: "10-Year Real Interest Rate", group: "Market rates", icon: Scale, format: "rate", changeUnit: "bp", data: processRealInterestRateData(realRate.data || []), metadata: realRate.metadata, loading: realRate.loading, error: realRate.error },
@@ -94,6 +96,9 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
   const selected = factors.find((factor) => factor.id === selectedId) || factors[0]
   const selectedData = useMemo(() => sliceChartPeriod(selected.data, period), [selected.data, period])
   const selectedDate = selected.metadata?.observation_date || selected.metadata?.latest_date || selectedData.at(-1)?.time || "N/A"
+  const selectedIntraday = selected.id === "ten-year-treasury" && selected.metadata?.interval === "1h"
+  const chartDateLabel = selectedIntraday ? `${formatGregorianTehranDateTime(selectedDate)} Tehran` : selectedDate
+  const chartPeriods = selected.id === "ten-year-treasury" ? TREASURY_PERIODS : PERIODS
 
   return (
     <AnalysisPageShell>
@@ -109,11 +114,13 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
 
       <div dir="ltr" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
         <Card ref={chartSectionRef} className="min-w-0 lg:col-start-1 lg:row-start-1">
-          <CardHeader className="!pt-2.5"><div className="flex flex-col gap-4"><div><CardTitle className="flex items-start justify-between gap-3 text-base"><span className="min-w-0 break-words">{selected.title}</span><Button variant="outline" size="icon" title="Expand chart" aria-label="Expand chart" onClick={() => setIsFullScreen(true)} disabled={!selectedData.length}><Maximize2 className="h-4 w-4" /></Button></CardTitle><CardDescription className="mt-2 text-xs">{selected.metadata?.source || "Source unavailable"} &middot; {selectedDate} &middot; {selected.format === "rate" ? "%" : selected.format === "trillions" ? "USD trillions" : "USD billions"}{selected.metadata?.quality_status === "stale" && <span className="ml-2 text-amber-700 dark:text-amber-400">Data is outdated</span>}</CardDescription></div><PeriodControls period={period} onChange={setPeriod} /></div></CardHeader>
+          <CardHeader className="!pt-2.5"><div className="flex flex-col gap-4"><div><CardTitle className="flex items-start justify-between gap-3 text-base"><span className="min-w-0 break-words">{selected.title}</span><Button variant="outline" size="icon" title="Expand chart" aria-label="Expand chart" onClick={() => setIsFullScreen(true)} disabled={!selectedData.length}><Maximize2 className="h-4 w-4" /></Button></CardTitle><CardDescription className="mt-2 text-xs">{selected.metadata?.source || "Source unavailable"} &middot; {chartDateLabel} &middot; {selected.metadata?.frequency && <span> · {selected.metadata.frequency}</span>} &middot; {selected.format === "rate" ? "%" : selected.format === "trillions" ? "USD trillions" : "USD billions"}{selected.metadata?.quality_status === "stale" && <span className="ml-2 text-amber-700 dark:text-amber-400">Data is outdated</span>}</CardDescription></div><PeriodControls period={period} onChange={setPeriod} periods={chartPeriods} /></div></CardHeader>
           <CardContent>
+            {selected.id === "ten-year-treasury" && <p className="mb-3 text-xs leading-5 text-muted-foreground">Cboe benchmark yield via Yahoo Finance; quotes may be delayed. Short periods use hourly observations; long periods use daily closes.</p>}
+            {selected.error && selectedData.length > 0 && <p role="status" className="mb-3 text-xs text-amber-700 dark:text-amber-400">Refresh failed; showing the last received observations.</p>}
             {selected.loading && <AnalysisState tone="neutral" title="Loading observations" />}
             {!selected.loading && selectedData.length === 0 && <AnalysisState tone="neutral" title="Chart data unavailable" description={selected.error === "Failed to fetch" ? "Unable to reach the data API. Check that the local backend is running on port 8000, then reload this page." : selected.error?.message || selected.error || "No observations were returned for this indicator."} />}
-            {!selected.loading && selectedData.length > 0 && <div className="h-[200px] w-full overflow-hidden"><MultiLineChart textColor={chartTextColor} dataSets={[selectedData]} height={INLINE_CHART_HEIGHT} seriesColors={[MONETARY_CHART_COLOR]} /></div>}
+            {!selected.loading && selectedData.length > 0 && <div className="h-[200px] w-full overflow-hidden"><MultiLineChart textColor={chartTextColor} dataSets={[selectedData]} height={INLINE_CHART_HEIGHT} seriesColors={[MONETARY_CHART_COLOR]} intraday={selectedIntraday} /></div>}
           </CardContent>
         </Card>
         <div className="min-w-0 [overflow-wrap:anywhere] relative min-h-0 lg:col-start-2 lg:row-start-1">
@@ -127,13 +134,13 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
             {factors.map((factor) => {
               const view = sliceChartPeriod(factor.data, period)
               const latest = view.at(-1)?.value
-              const change = changeFor(view, factor.changeUnit)
+              const change = factor.id === "ten-year-treasury" ? null : changeFor(view, factor.changeUnit)
               const quality = factor.metadata?.quality_status
               const unavailable = Boolean(factor.error) || quality === "unavailable" || quality === "invalid" || (!factor.loading && view.length === 0)
               const trend = unavailable || !Number.isFinite(change) ? "neutral" : change > 0 ? "up" : change < 0 ? "down" : "neutral"
               const Icon = factor.icon
               return (
-                <button key={factor.id} type="button" className="h-full min-w-0 text-left" aria-pressed={selectedId === factor.id} onClick={() => { setSelectedId(factor.id); chartSectionRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" }) }}>
+                <button key={factor.id} type="button" className="h-full min-w-0 text-left" aria-pressed={selectedId === factor.id} onClick={() => { setSelectedId(factor.id); if (factor.id !== "ten-year-treasury" && !PERIODS.includes(period)) setPeriod("1M"); chartSectionRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" }) }}>
                   <AnalysisFactorCard
                     selected={selectedId === factor.id}
                     className={selectedId === factor.id
@@ -157,10 +164,10 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
         <DialogContent className="w-[95vw] max-w-6xl">
           <DialogHeader>
             <DialogTitle>{selected.title}</DialogTitle>
-            <DialogDescription>Observation {selectedDate} · {selected.metadata?.source || "Source unavailable"}</DialogDescription>
+            <DialogDescription>Observation {chartDateLabel} · {selected.metadata?.source || "Source unavailable"}</DialogDescription>
           </DialogHeader>
-          <PeriodControls period={period} onChange={setPeriod} />
-          {isFullScreen && <MultiLineChart textColor={chartTextColor} dataSets={[selectedData]} height={440} seriesColors={[MONETARY_CHART_COLOR]} />}
+          <PeriodControls period={period} onChange={setPeriod} periods={chartPeriods} />
+          {isFullScreen && <MultiLineChart textColor={chartTextColor} dataSets={[selectedData]} height={440} seriesColors={[MONETARY_CHART_COLOR]} intraday={selectedIntraday} />}
         </DialogContent>
       </Dialog>
     </AnalysisPageShell>

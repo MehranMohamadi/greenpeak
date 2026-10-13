@@ -25,14 +25,31 @@ export function normalizeChartData(data, valueKeys = ["value", "rate"]) {
   return Array.from(byDate.values()).sort((a, b) => a.time.localeCompare(b.time))
 }
 
+export function normalizeIntradayChartData(data, valueKeys = ["value", "rate"]) {
+  const byTime = new Map()
+  for (const point of Array.isArray(data) ? data : []) {
+    if (!point || typeof point !== "object") continue
+    const time = typeof point.time === "number" ? point.time
+      : typeof point.date === "string" ? Date.parse(point.date) / 1000 : NaN
+    const value = valueKeys.map((key) => point[key]).find((item) =>
+      (typeof item === "number" || typeof item === "string") && String(item).trim() !== "" && Number.isFinite(Number(item)),
+    )
+    if (Number.isSafeInteger(time) && Number.isFinite(new Date(time * 1000).getTime()) && value !== undefined) {
+      byTime.set(time, { time, value: Number(value) })
+    }
+  }
+  return [...byTime.values()].sort((a, b) => a.time - b.time)
+}
+
 export function sliceChartPeriod(data, period) {
   if (!data.length || period === "MAX") return data
-  if (!/^\d+[MY]$/.test(period)) return data
+  if (!/^\d+[DMY]$/.test(period)) return data
   const end = chartDate(data.at(-1).time ?? data.at(-1).date)
   if (!end) return []
   const start = new Date(`${end}T00:00:00Z`)
   const amount = Number.parseInt(period, 10)
-  if (period.endsWith("M")) start.setUTCMonth(start.getUTCMonth() - amount)
+  if (period.endsWith("D")) start.setUTCDate(start.getUTCDate() - amount)
+  else if (period.endsWith("M")) start.setUTCMonth(start.getUTCMonth() - amount)
   else start.setUTCFullYear(start.getUTCFullYear() - amount)
   const startDay = start.toISOString().slice(0, 10)
   return data.filter((point) => {

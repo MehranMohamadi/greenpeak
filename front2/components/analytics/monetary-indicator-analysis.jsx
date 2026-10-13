@@ -5,8 +5,10 @@ import { endpoints } from "@/api/api"
 import { matchingNarrative, monetaryNarrativeIds } from "@/lib/monetary-narrative"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { NarrativeList } from "./narrative-text"
+import TreasuryYieldAnalysis from "./treasury-yield-analysis"
 
 export default function MonetaryIndicatorAnalysis({ factorId, title, observationDate, revision = 0 }) {
+  if (factorId === "ten-year-treasury") return <TreasuryYieldAnalysis revision={revision} />
   return <IndicatorNarrativeAnalysis indicatorId={monetaryNarrativeIds[factorId]} title={title} observationDate={observationDate} revision={revision} compact />
 }
 

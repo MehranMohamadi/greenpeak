@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 const configs = {
-  "monetary-policy:ten-year-treasury": ["us_10y_treasury_yield", "DGS10", endpoints.monetaryPolicy.tenYear],
+  "monetary-policy:ten-year-treasury": ["us_10y_treasury_yield", "DGS10", endpoints.monetaryPolicy.tenYearFred],
   "monetary-policy:fed-funds-rate": ["federal_funds_rate", "DFF", endpoints.monetaryPolicy.dff],
 }
 

@@ -443,11 +443,11 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
   }, [tab, accessToken, comparison, comparisonLoading, comparisonError, loadComparison])
 
   const tabs = [
-    { id: "accounts", label: "حساب‌های من", count: isAdmin ? snapshots.length : undefined },
+    { id: "accounts", label: "حساب‌های من", count: snapshots.length },
     {
       id: "comparison",
       label: "مقایسه بروکرها",
-      count: isAdmin ? comparison?.eligible_broker_count ?? (comparisonLoading || (accessToken && !comparisonError) ? "…" : "—") : undefined,
+      count: comparison?.brokers?.length ?? (comparisonLoading || (accessToken && !comparisonError) ? "…" : "—"),
     },
   ]
 

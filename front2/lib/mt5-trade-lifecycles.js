@@ -18,7 +18,7 @@ const numeric = (value) => {
 
 const identifier = (source) => {
   const value = valueOf(source, ["position_id", "position_identifier", "deal_position_id"])
-  if (value === null || String(value) === "0") return null
+  if (!["string", "number"].includes(typeof value) || (typeof value === "number" && !Number.isSafeInteger(value)) || !String(value).trim() || String(value) === "0") return null
   return String(value)
 }
 
@@ -172,6 +172,7 @@ function buildLifecycle(snapshot, positionId, position, deals) {
   return {
     key: `${accountIdentity(snapshot)}::${positionId}`,
     positionId,
+    ticket: identifier(position) || identifier(firstOpeningDeal) || identifier(lastClosingDeal),
     symbol: valueOf(positionSource, ["symbol"]) || valueOf(firstOpeningDeal, ["symbol"]) || valueOf(lastClosingDeal, ["symbol"]) || "نماد نامشخص",
     direction,
     directionLabel: direction === "long" ? "Long" : direction === "short" ? "Short" : "نامشخص",

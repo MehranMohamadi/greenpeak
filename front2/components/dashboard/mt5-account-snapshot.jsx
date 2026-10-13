@@ -98,7 +98,7 @@ export default function MT5AccountSnapshot() {
         <h2 id="trading-accounts-title" className="text-lg font-semibold text-gray-900 dark:text-white">حساب‌های معاملاتی متصل</h2>
         <Badge variant="secondary">{snapshots.length}</Badge>
       </div>
-      <Button variant="outline" size="sm" onClick={load} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />به‌روزرسانی</Button>
+      <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={load} disabled={loading} aria-label="به‌روزرسانی حساب‌ها" title="به‌روزرسانی حساب‌ها"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
     </div>
     {snapshots.length === 0 && <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-amber-800 dark:text-amber-200">
       <div className="flex items-center gap-3">

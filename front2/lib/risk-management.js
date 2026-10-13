@@ -114,9 +114,21 @@ export function latestSiteQuote(payload, responseType) {
 
 export function brokerSpecFor(snapshot, symbol) {
   const wanted = normalizeSymbol(symbol)
-  return (snapshot?.broker_symbol_data || []).find(
+  const specs = snapshot?.broker_symbol_data || []
+  const exact = specs.find(
     (item) => normalizeSymbol(item?.symbol) === wanted,
-  ) || null
+  )
+  if (exact) return exact
+  // Default dashboard symbols can use one unambiguous broker alias.
+  if (!["US500", "XAUUSD"].includes(wanted)) return null
+  const aliases = specs.filter((item) => matchingTradeSymbol(wanted, item?.symbol))
+  return aliases.length === 1 ? aliases[0] : null
+}
+
+export function brokerContractSize(snapshot, symbol) {
+  const spec = brokerSpecFor(snapshot, symbol)
+  const positiveSize = (value) => ["number", "string"].includes(typeof value) ? positiveRule(value) : null
+  return positiveSize(spec?.contract_size) ?? positiveSize(spec?.trade_contract_size)
 }
 
 export function tradePriceStep(spec) {
@@ -145,6 +157,25 @@ export function parseTradePlans(raw) {
   } catch { return [] }
 }
 
+export function createTradePlan({ id, createdAt, draft, review }) {
+  return {
+    id, createdAt, draft: { ...draft }, previewStatus: review.status, ticketId: "",
+    analysis: {
+      summary: review.analysis.summary,
+      risks: [...review.analysis.risks],
+      strengths: [...review.analysis.strengths],
+      limitations: [...review.analysis.limitations],
+    },
+  }
+}
+
+export function confirmTradePlanTicket(plan, ticket, snapshot, confirmedAt) {
+  const ticketId = normalizePositionIdentifier(ticket)
+  if (!ticketId) return null
+  const confirmed = { ...plan, ticketId, ticketConfirmedAt: confirmedAt }
+  return { ...confirmed, ticketAssessment: assessPlannedTrade(confirmed, snapshot) }
+}
+
 export function normalizePositionIdentifier(value) {
   if (!["string", "number"].includes(typeof value)) return ""
   if (typeof value === "number" && !Number.isSafeInteger(value)) return ""
@@ -158,6 +189,21 @@ export function positionIdentifier(position) {
   return normalizePositionIdentifier(position?.position_identifier ?? position?.position_id ?? position?.ticket)
 }
 
+export function orderIdentifier(order) {
+  return normalizePositionIdentifier(order?.ticket ?? order?.order_number ?? order?.order_identifier ?? order?.order_id)
+}
+
+export function planTicketIdentifier(plan) {
+  return normalizePositionIdentifier(plan?.ticketId ?? plan?.positionId)
+}
+
+function orderDirection(order) {
+  const raw = normalizeSymbol(order?.order_type ?? order?.type).replace(/^ORDER_TYPE_/, "").replaceAll(" ", "_")
+  if (["0", "2", "4", "6", "BUY", "BUY_LIMIT", "BUY_STOP", "BUY_STOP_LIMIT"].includes(raw)) return "BUY"
+  if (["1", "3", "5", "7", "SELL", "SELL_LIMIT", "SELL_STOP", "SELL_STOP_LIMIT"].includes(raw)) return "SELL"
+  return ""
+}
+
 function matchingTradeSymbol(first, second) {
   const firstMarket = tradeMarketRequest(first)
   const secondMarket = tradeMarketRequest(second)
@@ -166,16 +212,21 @@ function matchingTradeSymbol(first, second) {
 }
 
 export function assessPlannedTrade(plan, snapshot) {
-  const id = normalizePositionIdentifier(plan?.positionId)
-  if (!id) return { status: "unassigned", scorePct: null, summary: "برای ارزیابی، شماره پوزیشن را وارد کنید.", checks: [] }
-  const position = (snapshot?.positions || []).find((item) => positionIdentifier(item) === id)
-  if (!position) return { status: "unavailable", scorePct: null, summary: "این شماره در پوزیشن‌های باز حساب یافت نشد.", checks: [] }
+  const id = planTicketIdentifier(plan)
+  if (!id) return { status: "unassigned", scorePct: null, summary: "برای ارزیابی، شماره تیکت را وارد کنید.", checks: [] }
+  const targets = [
+    ...(snapshot?.positions || []).filter((item) => positionIdentifier(item) === id).map((item) => ({ item, kind: "position" })),
+    ...(snapshot?.pending_orders || []).filter((item) => orderIdentifier(item) === id).map((item) => ({ item, kind: "order" })),
+  ]
+  if (!targets.length) return { status: "unavailable", scorePct: null, summary: "این تیکت در معاملات باز یا سفارش‌های در انتظار حساب یافت نشد.", checks: [] }
+  if (targets.length !== 1) return { status: "ambiguous", scorePct: null, summary: "این تیکت در چند ردیف گزارش شده؛ تخصیص قابل تشخیص نیست.", checks: [] }
+  const { item: position, kind } = targets[0]
   const draft = plan?.draft || {}
   const numeric = (value) => ["number", "string"].includes(typeof value) ? finiteNumber(value) : null
   const spec = brokerSpecFor(snapshot, position.symbol)
   const tick = positiveRule(spec?.tick_size) ?? positiveRule(spec?.point) ?? 0
   const actualDirection = normalizeSymbol(position?.direction)
-  const direction = ["BUY", "LONG", "0"].includes(actualDirection) ? "BUY"
+  const direction = kind === "order" ? orderDirection(position) : ["BUY", "LONG", "0"].includes(actualDirection) ? "BUY"
     : ["SELL", "SHORT", "1"].includes(actualDirection) ? "SELL" : ""
   const checks = [
     { label: "نماد", status: typeof draft.symbol !== "string" || typeof position.symbol !== "string" || !normalizeSymbol(draft.symbol) || !normalizeSymbol(position.symbol) ? "unknown"
@@ -185,7 +236,7 @@ export function assessPlannedTrade(plan, snapshot) {
   ]
   for (const [label, plannedValue, actualValue, isPrice, isProtection] of [
     ["حجم لات", draft.volume, position.volume, false, false],
-    ["قیمت ورود", draft.entryPrice, position.open_price, true, false],
+    ["قیمت ورود", draft.entryPrice, kind === "order" ? position.requested_price ?? position.order_price ?? position.open_price : position.open_price, true, false],
     ["SL", draft.stopLoss, position.stop_loss, true, true],
     ["TP", draft.takeProfit, position.take_profit, true, true],
   ]) {
@@ -208,8 +259,16 @@ export function assessPlannedTrade(plan, snapshot) {
   const scorePct = comparable.length ? matched / comparable.length * 100 : null
   const summary = comparable.length
     ? `${Math.round(scorePct)}٪ انطباق در ${comparable.length} معیار؛ ${mismatches.length ? `اختلاف در ${mismatches.join("، ")}` : "معیارهای قابل بررسی مطابق‌اند"}${missing ? `؛ ${missing} معیار فاقد داده` : ""}.`
-    : "داده کافی برای مقایسه این برنامه و پوزیشن موجود نیست."
-  return { status: mismatches.length ? "mismatch" : missing ? "partial" : "matched", scorePct, summary, checks }
+    : "داده کافی برای مقایسه این برنامه و معامله یا سفارش موجود نیست."
+  return { status: mismatches.length ? "mismatch" : missing ? "partial" : "matched", scorePct, summary, checks, targetKind: kind }
+}
+
+export function assessAllocatedTrade(plans, snapshot, trade, kind) {
+  const ticket = kind === "order" ? orderIdentifier(trade) : positionIdentifier(trade)
+  const assigned = ticket ? plans.filter((plan) => planTicketIdentifier(plan) === ticket) : []
+  if (!assigned.length) return { status: "unassigned", scorePct: null, summary: "برنامه‌ای به این تیکت تخصیص داده نشده است.", checks: [] }
+  if (assigned.length !== 1) return { status: "ambiguous", scorePct: null, summary: "چند برنامه به این تیکت متصل است؛ تخصیص را اصلاح کنید.", checks: [] }
+  return assessPlannedTrade(assigned[0], snapshot)
 }
 
 function currentPositionPrice(position) {
@@ -262,8 +321,7 @@ export function analyzeOpenRisk(snapshot) {
   })
 
   const pendingOrders = (snapshot?.pending_orders || []).map((order) => {
-    const orderType = Number(order?.order_type)
-    const direction = [0, 2, 4, 6].includes(orderType) ? "BUY" : [1, 3, 5, 7].includes(orderType) ? "SELL" : ""
+    const direction = orderDirection(order)
     const risk = stopRisk({
       direction,
       entryPrice: order?.requested_price,
@@ -455,8 +513,8 @@ export function buildBehaviorAnalysis({ snapshot, rules = {}, plans = [], lifecy
   const matched = evaluated.filter((assessment) => assessment.status === "matched").length
   lines.push({ key: "plans", tone: evaluated.some((assessment) => assessment.status === "mismatch") ? "warning" : "neutral",
     text: evaluated.length
-      ? `پایبندی به برنامه: ${matched} از ${evaluated.length} برنامهٔ مرتبط و قابل مقایسه مطابق است${assessments.length > evaluated.length ? `؛ ${assessments.length - evaluated.length} برنامه بدون پوزیشن قابل ارزیابی یا با دادهٔ ناقص` : ""}.`
-      : plans.length ? "پایبندی به برنامه: برنامه‌ها هنوز به پوزیشن قابل ارزیابی مرتبط نشده‌اند یا دادهٔ مقایسه ناقص است."
+      ? `پایبندی به برنامه: ${matched} از ${evaluated.length} برنامهٔ مرتبط و قابل مقایسه مطابق است${assessments.length > evaluated.length ? `؛ ${assessments.length - evaluated.length} برنامه بدون تیکت قابل ارزیابی یا با دادهٔ ناقص` : ""}.`
+      : plans.length ? "پایبندی به برنامه: برنامه‌ها هنوز به تیکت قابل ارزیابی مرتبط نشده‌اند یا دادهٔ مقایسه ناقص است."
         : "پایبندی به برنامه: برنامهٔ ذخیره‌شده‌ای برای این حساب موجود نیست.",
   })
   const attention = []

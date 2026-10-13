@@ -1,4 +1,4 @@
-import { normalizeChartData, sliceChartPeriod } from "@/lib/chart-data"
+import { normalizeChartData, normalizeIntradayChartData, sliceChartPeriod } from "@/lib/chart-data"
 
 // Utility functions for processing monetary policy data
 
@@ -92,8 +92,8 @@ export const processDFFData = (data, useDaily = true, period = 'MAX') => {
  * @param {Array} data - Raw 10-Year Treasury data array
  * @returns {Array} Processed data for chart
  */
-export const processTenYearData = (data) => {
-  return normalizeChartData(data, ["value", "rate", "yield"]);
+export const processTenYearData = (data, intraday = false) => {
+  return (intraday ? normalizeIntradayChartData : normalizeChartData)(data, ["value", "rate", "yield"]);
 };
 
 /**

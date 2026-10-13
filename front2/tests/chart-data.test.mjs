@@ -5,7 +5,7 @@ import test from "node:test"
 // Load the same browser modules without a Next.js alias loader or new dependency.
 const source = await readFile(new URL("../lib/chart-data.js", import.meta.url), "utf8")
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`
-const { chartDate, normalizeChartData, sliceChartPeriod } = await import(moduleUrl)
+const { chartDate, normalizeChartData, normalizeIntradayChartData, sliceChartPeriod } = await import(moduleUrl)
 const monetarySource = (await readFile(new URL("../hooks/monetaryDataUtils.js", import.meta.url), "utf8"))
   .replace('"@/lib/chart-data"', JSON.stringify(moduleUrl))
 const monetary = await import(`data:text/javascript;base64,${Buffer.from(monetarySource).toString("base64")}`)
@@ -70,4 +70,13 @@ test("DFF short-period display retains daily resolution before downsampling long
   const month = monetary.processDFFData(rows, true, "1M")
   assert.ok(month.length >= 29 && month.length <= 32)
   assert.equal(month.at(-1).time, chartDate(rows.at(-1).time))
+})
+
+test("Treasury hourly points preserve their time through the chart adapter and period slicing", () => {
+  const rows = [{ time: 1735862400, value: 5.24 }, { time: 1735866000, value: 5.25 }, { time: 1735866000, value: 5.26 }, { time: 1735869600, value: null }]
+  const expected = [{ time: 1735862400, value: 5.24 }, { time: 1735866000, value: 5.26 }]
+  assert.deepEqual(normalizeIntradayChartData(rows), expected)
+  assert.deepEqual(monetary.processTenYearData(rows, true), expected)
+  assert.deepEqual(normalizeIntradayChartData(expected), expected)
+  assert.deepEqual(sliceChartPeriod(expected, "1D"), expected)
 })

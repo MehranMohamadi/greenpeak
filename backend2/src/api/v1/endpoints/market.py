@@ -4,9 +4,21 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from ....models.schemas import DataResponse
 from ....services.data_service import DataService
+from ....models.treasury_yield import YahooTreasuryPreviewRequest, YahooTreasuryPreviewResponse
+from ....services.treasury_yield import preview_yahoo_treasury
 
 router = APIRouter(prefix="/market", tags=["Market Data"])
 data_service = DataService()
+
+
+@router.post("/treasury-10y/features/preview", response_model=YahooTreasuryPreviewResponse)
+def yahoo_treasury_features(request: YahooTreasuryPreviewRequest):
+    """Calculate daily ^TNX features without changing stored DGS10 data or snapshots."""
+    try:
+        snapshot = preview_yahoo_treasury(request)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="No valid daily Yahoo Treasury observations")
+    return {"ok": True, "data": snapshot.model_dump(mode="json")}
 
 
 @router.get("/sp500/performance", response_model=DataResponse)

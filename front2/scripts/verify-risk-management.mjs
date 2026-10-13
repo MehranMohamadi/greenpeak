@@ -3,14 +3,21 @@ import { readFile } from "node:fs/promises"
 const source = await readFile(new URL("../lib/risk-management.js", import.meta.url), "utf8")
 const {
   analyzeOpenRisk,
+  assessAllocatedTrade,
   assessPlannedTrade,
   availableSymbols,
+  brokerContractSize,
+  brokerSpecFor,
   buildBehaviorAnalysis,
   buildTradeReview,
+  confirmTradePlanTicket,
+  createTradePlan,
   EMPTY_TRADE_DRAFT,
   latestSiteQuote,
   normalizePositionIdentifier,
+  orderIdentifier,
   parseTradePlans,
+  planTicketIdentifier,
   previewTrade,
   scenarioEstimate,
   stepTradePrice,
@@ -105,6 +112,16 @@ assert(tradeMarketRequest("US500")?.responseType === "ohlc", "US500 must use the
 assert(tradeMarketRequest("XAUUSD")?.url.includes("GOLDAMGBD228NLBM"), "XAUUSD must use the site's existing gold source")
 assert(tradeMarketRequest("EURUSD") === null, "Unsupported market symbols must not be sent to another asset's source")
 
+const brokerA = { broker_symbol_data: [{ symbol: "XAUUSD", contract_size: 100 }, { symbol: "US500.cash", contract_size: 1 }] }
+const brokerB = { broker_symbol_data: [{ symbol: "XAUUSD", contract_size: 10 }] }
+assert(brokerContractSize(brokerA, "XAUUSD") === 100 && brokerContractSize(brokerB, "XAUUSD") === 10, "Contract size must come from the selected broker, without carrying values between accounts")
+assert(brokerContractSize(brokerA, "US500") === 1, "A default symbol must resolve an unambiguous broker alias")
+assert(brokerSpecFor(brokerA, "US500")?.symbol === "US500.cash", "The actual broker symbol must remain available for source attribution")
+assert(brokerContractSize(brokerB, "US500") === null && brokerContractSize(null, "XAUUSD") === null, "Missing broker specs must not use another account or an invented default size")
+assert(brokerContractSize({ broker_symbol_data: [{ symbol: "US500.cash", contract_size: 1 }, { symbol: "SPX500.pro", contract_size: 10 }] }, "US500") === null, "Multiple broker aliases must require explicit symbol selection")
+assert(brokerContractSize({ broker_symbol_data: [{ symbol: "XAUUSD", contract_size: true }] }, "XAUUSD") === null, "Malformed broker contract sizes must remain unavailable")
+assert(brokerContractSize({ broker_symbol_data: [{ symbol: "XAUUSD", trade_contract_size: "100" }] }, "XAUUSD") === 100, "Alternate MT5 contract size fields must be supported")
+
 const indexQuote = latestSiteQuote([
   { time: 200, close: 6001 }, { time: 100, close: 5999 },
   { time: 300, close: null }, { time: 400, close: "invalid" }, { time: "bad", close: 6003 },
@@ -161,6 +178,47 @@ const restored = parseTradePlans(JSON.stringify([assignedPlan, null, {}, { id: "
 assert(restored.length === 1 && restored[0].positionId === positionId, "Saved associations must survive JSON round trips without ID truncation")
 assert(parseTradePlans("broken").length === 0 && parseTradePlans('{}').length === 0, "Malformed stored plans must have a safe empty state")
 
+const pendingTicket = "22345678901234567890"
+const pendingOrder = { ticket: pendingTicket, symbol: "XAUUSD", order_type: 2, volume: 0.1, requested_price: 3000, stop_loss: 2990, take_profit: 3020 }
+const pendingSnapshot = { ...matchingSnapshot, pending_orders: [pendingOrder] }
+const pendingPlan = { id: "pending-plan", ticketId: pendingTicket, draft: { ...tradeDraft, orderType: "PENDING" } }
+const pendingAssessment = assessPlannedTrade(pendingPlan, pendingSnapshot)
+assert(pendingAssessment.status === "matched" && pendingAssessment.targetKind === "order" && pendingAssessment.scorePct === 100, "A pending ticket must compare all six plan fields using its requested price and order direction")
+assert(assessPlannedTrade(pendingPlan, { ...pendingSnapshot, pending_orders: [{ ...pendingOrder, requested_price: 3010 }] }).status === "mismatch", "A changed pending entry price must be reported as a discrepancy")
+assert(assessPlannedTrade(pendingPlan, { ...pendingSnapshot, pending_orders: [{ ...pendingOrder, requested_price: null }] }).status === "partial", "Missing order prices must remain unknown")
+assert(assessPlannedTrade(pendingPlan, { ...pendingSnapshot, pending_orders: [{ ...pendingOrder, order_type: null }] }).status === "partial", "A missing pending type must not imply a buy direction")
+const sellPlan = { ...pendingPlan, draft: { ...pendingPlan.draft, direction: "SELL", stopLoss: "3010", takeProfit: "2980" } }
+assert(assessPlannedTrade(sellPlan, { ...pendingSnapshot, pending_orders: [{ ...pendingOrder, order_type: "ORDER_TYPE_SELL_STOP", stop_loss: 3010, take_profit: 2980 }] }).status === "matched", "Named sell order types must produce the correct direction")
+assert(orderIdentifier({ order_number: pendingTicket }) === pendingTicket && orderIdentifier({ ticket: Number(pendingTicket) }) === "", "Order numbers must preserve long string IDs and reject truncated numeric IDs")
+assert(planTicketIdentifier(assignedPlan) === positionId, "Legacy saved position assignments must continue to work")
+assert(assessPlannedTrade({ ...assignedPlan, ticketId: "" }, matchingSnapshot).status === "unassigned", "Clearing a migrated ticket must not resurrect a legacy position assignment")
+assert(assessAllocatedTrade([assignedPlan, pendingPlan], pendingSnapshot, matchingSnapshot.positions[0], "position").status === "matched", "Live position rows must report their linked plan's conformance")
+assert(assessAllocatedTrade([assignedPlan, pendingPlan], pendingSnapshot, pendingOrder, "order").status === "matched", "Pending rows must report their linked plan's conformance")
+assert(assessAllocatedTrade([], pendingSnapshot, pendingOrder, "order").status === "unassigned", "Unlinked rows must not be matched by similar symbol or values")
+assert(assessAllocatedTrade([pendingPlan, { ...pendingPlan, id: "duplicate" }], pendingSnapshot, pendingOrder, "order").status === "ambiguous", "Duplicate plan assignments must be explicit")
+assert(assessPlannedTrade(assignedPlan, { ...matchingSnapshot, pending_orders: [{ ...pendingOrder, ticket: positionId }] }).status === "ambiguous", "A ticket collision between positions and orders must not choose an arbitrary target")
+assert(parseTradePlans(JSON.stringify([pendingPlan]))[0].ticketId === pendingTicket, "Pending ticket assignments must survive storage without precision loss")
+
+const savedReview = buildTradeReview(matchingSnapshot, tradeDraft, {}, analyzeOpenRisk(matchingSnapshot))
+const savedPlan = createTradePlan({ id: "saved-review", createdAt: "2026-10-13T12:00:00Z", draft: tradeDraft, review: savedReview })
+const originalAnalysis = JSON.stringify(savedReview.analysis)
+assert(JSON.stringify(savedPlan.analysis) === originalAnalysis, "A saved plan must preserve the exact text generated by the completed review")
+assert(savedPlan.ticketId === "" && savedPlan.ticketAssessment === undefined, "A new plan must have no ticket evaluation before explicit confirmation")
+savedReview.analysis.risks.push("Changed after saving")
+assert(JSON.stringify(savedPlan.analysis) === originalAnalysis, "Later review changes must not alter the saved analysis")
+const confirmedAt = "2026-10-13T12:05:00Z"
+const confirmedPlan = confirmTradePlanTicket(savedPlan, " #۱۲۳۴۵۶۷۸۹۰۱۲۳۴۵۶۷۸۹۰ ", matchingSnapshot, confirmedAt)
+assert(confirmedPlan.ticketId === positionId && confirmedPlan.ticketAssessment.status === "matched", "Confirming a pasted ticket must normalize its digits and evaluate that exact trade")
+assert(confirmedPlan.ticketConfirmedAt === confirmedAt && savedPlan.ticketId === "", "Confirmation must be timestamped without changing the unconfirmed plan")
+assert(confirmTradePlanTicket(savedPlan, "   ", matchingSnapshot, confirmedAt) === null, "An empty ticket must not create an evaluation or assignment")
+const confirmedPending = confirmTradePlanTicket(confirmedPlan, pendingTicket, pendingSnapshot, confirmedAt)
+assert(confirmedPending.ticketAssessment.targetKind === "order" && confirmedPending.ticketAssessment.status === "matched", "Reconfirming another ticket must evaluate the new pending order")
+assert(JSON.stringify(confirmedPending.analysis) === originalAnalysis, "Ticket reassignment must preserve the original trade review")
+const confirmedMissing = confirmTradePlanTicket(savedPlan, "999", matchingSnapshot, confirmedAt)
+assert(confirmedMissing.ticketAssessment.status === "unavailable", "Confirmation of an unknown ticket must give feedback without assuming conformance")
+const restoredConfirmed = parseTradePlans(JSON.stringify([confirmedPlan]))[0]
+assert(restoredConfirmed.ticketId === positionId && restoredConfirmed.ticketAssessment.status === "matched" && JSON.stringify(restoredConfirmed.analysis) === originalAnalysis, "Saved analysis and confirmed evaluation must survive a browser storage round trip")
+
 const behaviorNow = new Date("2026-10-13T12:00:00Z")
 const behaviorDeal = (id, clock, entryType, volume, profit) => ({
   position_identifier: id, deal_identifier: `${id}-${clock}`, symbol: "XAUUSD", direction: "BUY",
@@ -186,6 +244,9 @@ const behaviorSnapshot = {
 }
 const behaviorRules = { maxTradeRiskPct: "2", maxOpenRiskPct: "5", dailyLossLimitPct: "2", maxGrossLeverage: "3", minMarginLevelPct: "100", maxTradesPerDay: "3" }
 const lifecycles = buildTradeLifecycles([behaviorSnapshot])
+assert(lifecycles.find((trade) => trade.status !== "closed").ticket === positionId, "Open trade tickets must use the source position ID without truncation")
+assert(lifecycles.find((trade) => trade.positionId === "closed-a").ticket === "closed-a", "Closed trade tickets must use the position ID rather than the deal or order ID")
+assert(buildTradeLifecycles([{ positions: [{ symbol: "XAUUSD", direction: "BUY", volume: 0.1 }] }])[0].ticket === null, "A generated row key must not appear as a real ticket")
 const behavior = buildBehaviorAnalysis({ snapshot: behaviorSnapshot, rules: behaviorRules, plans: [assignedPlan], lifecycles, now: behaviorNow })
 assert(behavior.lines.length === 6, "Behavior analysis must stay a short six-point list")
 assert(behavior.completeTradeCount === 2 && behavior.winRatePct === 50, "Multiple exits must count as one complete trade and open partial trades must not count as closed wins")

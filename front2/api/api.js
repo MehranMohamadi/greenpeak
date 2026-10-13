@@ -78,7 +78,9 @@ export const endpoints = {
     },
     monetaryPolicy: {
         dff: `${API_BASE}/monetary/dff`,
-        tenYear: `${API_BASE}/monetary/10year`,
+        tenYear: "/market-data/treasury-10y",
+        tenYearFred: `${API_BASE}/monetary/10year`,
+        tenYearFeatures: `${API_BASE}/market/treasury-10y/features/preview`,
         fedBalanceSheet: `${API_BASE}/monetary/fed-balance-sheet`,
         sofr: `${API_BASE}/monetary/sofr`,
         realInterestRate: `${API_BASE}/monetary/real-interest-rate`,

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 const indicatorConfigs = {
-  "ten-year-treasury": { id: "us_10y_treasury_yield", seriesId: "DGS10", rawUrl: endpoints.monetaryPolicy.tenYear },
+  "ten-year-treasury": { id: "us_10y_treasury_yield", seriesId: "DGS10", rawUrl: endpoints.monetaryPolicy.tenYearFred },
   "fed-funds-rate": { id: "federal_funds_rate", seriesId: "DFF", rawUrl: endpoints.monetaryPolicy.dff },
 }
 const value = (number, suffix = "") => number == null ? "—" : `${number > 0 && suffix === " bp" ? "+" : ""}${Number(number).toFixed(2)}${suffix}`
