@@ -375,6 +375,104 @@ export function freshnessSummary(snapshot, now = new Date(), staleMinutes = 15) 
   return { available: true, stale: ageMinutes > staleMinutes, ageMinutes, timestamp }
 }
 
+export function buildBehaviorAnalysis({ snapshot, rules = {}, plans = [], lifecycles = [], now = new Date() }) {
+  const openRisk = analyzeOpenRisk(snapshot)
+  const history = analyzeTradeHistory(snapshot, now)
+  const freshness = freshnessSummary(snapshot, now)
+  const concentration = concentrationSummary(snapshot)
+  const equity = positiveRule(snapshot?.account?.equity)
+  const currency = snapshot?.account?.currency || "USD"
+  const format = (value, digits = 1) => Number(value).toLocaleString("fa-IR", { maximumFractionDigits: digits })
+  const amount = (value) => `${format(value, 2)} ${currency}`
+  const closed = lifecycles.filter((trade) => trade.status === "closed")
+  const complete = closed.filter((trade) => {
+    const executions = trade.executions || []
+    const entries = executions.filter((item) => item.entryLabel === "ورود")
+    const exits = executions.filter((item) => ["خروج", "خروج متقابل"].includes(item.entryLabel))
+    if (!entries.length || !exits.length || executions.some((item) =>
+      !["ورود", "خروج", "خروج متقابل"].includes(item.entryLabel)
+      || positiveRule(item.volume) == null || finiteNumber(item.profit) == null,
+    ) || finiteNumber(trade.netProfit) == null) return false
+    const entered = entries.reduce((total, item) => total + Number(item.volume), 0)
+    const exited = exits.reduce((total, item) => total + Number(item.volume), 0)
+    return Math.abs(entered - exited) <= Number.EPSILON * 16 * Math.max(1, entered, exited)
+  })
+  const wins = complete.filter((trade) => trade.netProfit > 0).length
+  const netResult = complete.reduce((total, trade) => total + Number(trade.netProfit), 0)
+  const lines = [{
+    key: "performance", tone: complete.length && netResult < 0 ? "warning" : "neutral",
+    text: complete.length
+      ? `نتیجه ثبت‌شده: ${format(wins / complete.length * 100)}٪ سوددهی در ${complete.length} معامله کامل؛ خالص گزارش‌شده ${amount(netResult)}${complete.length < 10 ? "؛ نمونه برای نتیجه‌گیری پایدار کوچک است" : ""}.`
+      : "نتیجه معاملات: سابقهٔ کامل ورود و خروج برای سنجش نرخ سوددهی موجود نیست.",
+  }]
+
+  const perTradeLimit = positiveRule(rules.maxTradeRiskPct)
+  const hasReportedHistory = Array.isArray(snapshot?.trade_history_delta)
+    && positiveRule(history.historyWindowDays) != null
+    && history.deals.length === snapshot.trade_history_delta.length
+    && history.deals.filter((deal) => [1, 2, 3].includes(Number(deal.entry_type)))
+      .every((deal) => finiteNumber(deal.profit) != null)
+  const positionRisks = openRisk.positions.filter((position) => position.risk.amount != null)
+  const oversized = perTradeLimit != null && equity != null
+    ? positionRisks.filter((position) => position.risk.amount / equity * 100 > perTradeLimit).length : 0
+  const riskChecks = [{
+    label: "ریسک هر معامله", status: perTradeLimit == null || equity == null ? "unknown"
+      : oversized ? "fail" : positionRisks.length === openRisk.positions.length ? "pass" : "unknown",
+  }]
+  for (const [label, limitValue, observed, minimum] of [
+    ["ریسک کل باز", rules.maxOpenRiskPct, openRisk.riskPct, false],
+    ["زیان روزانه", rules.dailyLossLimitPct, equity == null || !hasReportedHistory ? null : history.realizedLossUsed / equity * 100, false],
+    ["لورج", rules.maxGrossLeverage, snapshot?.portfolio_metrics?.gross_portfolio_leverage, false],
+    ["مارجین", rules.minMarginLevelPct, snapshot?.account?.margin_level_pct, true],
+  ]) {
+    const limit = positiveRule(limitValue)
+    const value = finiteNumber(observed)
+    riskChecks.push({ label, status: limit == null || value == null ? "unknown"
+      : (minimum ? value >= limit : value <= limit) ? "pass" : "fail" })
+  }
+  const violations = riskChecks.filter((check) => check.status === "fail")
+  const checked = riskChecks.filter((check) => check.status !== "unknown").length
+  lines.push({ key: "risk", tone: violations.length ? "danger" : checked < riskChecks.length ? "warning" : "success",
+    text: violations.length
+      ? `رعایت ریسک: ${violations.map((check) => check.label).join("، ")} خارج از حدود ثبت‌شده است${oversized ? `؛ ${oversized} پوزیشن بالاتر از سقف ریسک هر معامله` : ""}.`
+      : checked ? `رعایت ریسک: ${checked} کنترل قابل محاسبه داخل حدود ثبت‌شده است${checked < riskChecks.length ? `؛ ${riskChecks.length - checked} کنترل فاقد داده یا حد شخصی` : ""}.`
+        : "رعایت ریسک: حدود شخصی یا دادهٔ لازم برای ارزیابی کافی نیست.",
+  })
+  const maxTrades = positiveRule(rules.maxTradesPerDay)
+  lines.push({ key: "discipline", tone: maxTrades != null && history.todayEntryCount > maxTrades ? "warning" : "neutral",
+    text: hasReportedHistory
+      ? `نظم ورودها: ${history.todayEntryCount} ورود ثبت‌شده امروز${maxTrades == null ? "؛ سقف تعداد ورود تعیین نشده" : ` در برابر سقف ${format(maxTrades, 0)}${history.todayEntryCount > maxTrades ? "؛ سقف رعایت نشده" : history.todayEntryCount === maxTrades ? "؛ ظرفیت امروز پر شده" : "؛ داخل سقف برنامه"}`}.`
+      : "نظم ورودها: بازهٔ تاریخچه یا دادهٔ معتبر ورود و خروج برای بررسی کافی نیست.",
+  })
+  lines.push({ key: "after-loss", tone: history.raisedVolumeAfterLoss ? "warning" : "neutral",
+    text: history.raisedVolumeAfterLoss
+      ? `رفتار پس از زیان: ${history.raisedVolumeAfterLoss} ورود با افزایش حجم تا ۳۰ دقیقه پس از خروج زیان‌ده دیده شد${!history.behaviorSampleSufficient ? "؛ سابقه محدود است" : ""}.`
+      : history.behaviorSampleSufficient ? "رفتار پس از زیان: در سابقهٔ موجود، افزایش حجم پس از خروج زیان‌ده دیده نشد."
+        : "رفتار پس از زیان: سابقه برای ارزیابی قابل اتکا کافی نیست.",
+  })
+  const assessments = plans.map((plan) => assessPlannedTrade(plan, snapshot))
+  const evaluated = assessments.filter((assessment) => ["matched", "mismatch"].includes(assessment.status))
+  const matched = evaluated.filter((assessment) => assessment.status === "matched").length
+  lines.push({ key: "plans", tone: evaluated.some((assessment) => assessment.status === "mismatch") ? "warning" : "neutral",
+    text: evaluated.length
+      ? `پایبندی به برنامه: ${matched} از ${evaluated.length} برنامهٔ مرتبط و قابل مقایسه مطابق است${assessments.length > evaluated.length ? `؛ ${assessments.length - evaluated.length} برنامه بدون پوزیشن قابل ارزیابی یا با دادهٔ ناقص` : ""}.`
+      : plans.length ? "پایبندی به برنامه: برنامه‌ها هنوز به پوزیشن قابل ارزیابی مرتبط نشده‌اند یا دادهٔ مقایسه ناقص است."
+        : "پایبندی به برنامه: برنامهٔ ذخیره‌شده‌ای برای این حساب موجود نیست.",
+  })
+  const attention = []
+  if (freshness.stale) attention.push("دادهٔ حساب قدیمی یا زمان آن نامعتبر است")
+  if (openRisk.missingStopCount) attention.push(`${openRisk.missingStopCount} پوزیشن بدون SL`)
+  else if (!openRisk.complete) attention.push("محاسبهٔ ریسک باز ناقص است")
+  if (concentration.sharePct > 50) attention.push(`${format(concentration.sharePct)}٪ مواجهه روی ${String(concentration.symbol)}`)
+  if (closed.length > complete.length) attention.push(`${closed.length - complete.length} معامله با سابقهٔ ناقص از نرخ سوددهی کنار گذاشته شد`)
+  const windowDays = positiveRule(history.historyWindowDays)
+  lines.push({ key: "attention", tone: attention.length ? "warning" : "neutral",
+    text: attention.length ? `نیازمند توجه: ${attention.slice(0, 3).join("؛ ")}${attention.length > 3 ? `؛ ${attention.length - 3} مورد دیگر` : ""}.`
+      : `دامنهٔ بررسی: دادهٔ حساب و تاریخچهٔ ارسال‌شده${windowDays == null ? "؛ بازهٔ تاریخچه مشخص نیست" : ` در بازهٔ ${format(windowDays, 0)} روزه`}.`,
+  })
+  return { lines, completeTradeCount: complete.length, winRatePct: complete.length ? wins / complete.length * 100 : null, netResult: complete.length ? netResult : null }
+}
+
 export function previewTrade(snapshot, draft, rules, openRisk) {
   const entry = finiteNumber(draft?.entryPrice)
   const stop = finiteNumber(draft?.stopLoss)

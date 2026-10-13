@@ -5,6 +5,7 @@ const {
   analyzeOpenRisk,
   assessPlannedTrade,
   availableSymbols,
+  buildBehaviorAnalysis,
   buildTradeReview,
   EMPTY_TRADE_DRAFT,
   latestSiteQuote,
@@ -18,6 +19,8 @@ const {
   tradeMarketRequest,
   tradePriceStep,
 } = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`)
+const lifecycleSource = await readFile(new URL("../lib/mt5-trade-lifecycles.js", import.meta.url), "utf8")
+const { buildTradeLifecycles } = await import(`data:text/javascript;base64,${Buffer.from(lifecycleSource).toString("base64")}`)
 
 function assert(condition, message) {
   if (!condition) throw new Error(message)
@@ -157,5 +160,49 @@ assert(assessPlannedTrade(assignedPlan, { positions: [] }).status === "unavailab
 const restored = parseTradePlans(JSON.stringify([assignedPlan, null, {}, { id: "invalid", draft: [] }]))
 assert(restored.length === 1 && restored[0].positionId === positionId, "Saved associations must survive JSON round trips without ID truncation")
 assert(parseTradePlans("broken").length === 0 && parseTradePlans('{}').length === 0, "Malformed stored plans must have a safe empty state")
+
+const behaviorNow = new Date("2026-10-13T12:00:00Z")
+const behaviorDeal = (id, clock, entryType, volume, profit) => ({
+  position_identifier: id, deal_identifier: `${id}-${clock}`, symbol: "XAUUSD", direction: "BUY",
+  entry_type: entryType, volume, profit, commission: -1, swap: 0,
+  executed_price: entryType === 0 ? 3000 : 3020,
+  timestamp_utc: `2026-10-13T${clock}:00Z`,
+})
+const behaviorSnapshot = {
+  ...matchingSnapshot,
+  timestamp_utc: behaviorNow.toISOString(),
+  account: { ...baseSnapshot.account, margin_level_pct: 500 },
+  positions: [{ ...matchingSnapshot.positions[0], open_time_utc: "2026-10-13T09:45:00Z" }],
+  trade_history_delta: [
+    behaviorDeal("closed-a", "07:00", 0, 0.2, 0),
+    behaviorDeal("closed-a", "08:00", 1, 0.1, 11),
+    behaviorDeal("closed-a", "08:10", 1, 0.1, 11),
+    behaviorDeal("closed-b", "09:00", 0, 0.1, 0),
+    behaviorDeal("closed-b", "09:30", 1, 0.1, -9),
+    behaviorDeal("incomplete", "10:00", 1, 0.1, 10),
+    behaviorDeal(positionId, "09:45", 0, 0.15, 0),
+    behaviorDeal(positionId, "10:30", 1, 0.05, 5),
+  ],
+}
+const behaviorRules = { maxTradeRiskPct: "2", maxOpenRiskPct: "5", dailyLossLimitPct: "2", maxGrossLeverage: "3", minMarginLevelPct: "100", maxTradesPerDay: "3" }
+const lifecycles = buildTradeLifecycles([behaviorSnapshot])
+const behavior = buildBehaviorAnalysis({ snapshot: behaviorSnapshot, rules: behaviorRules, plans: [assignedPlan], lifecycles, now: behaviorNow })
+assert(behavior.lines.length === 6, "Behavior analysis must stay a short six-point list")
+assert(behavior.completeTradeCount === 2 && behavior.winRatePct === 50, "Multiple exits must count as one complete trade and open partial trades must not count as closed wins")
+assert(behavior.netResult === 8, "Reported net results must include entry and exit commissions")
+assert(behavior.lines.find((line) => line.key === "risk").tone === "success", "Known positions inside all recorded risk limits must be identified correctly")
+assert(behavior.lines.find((line) => line.key === "after-loss").tone === "warning", "Observed volume increases after a loss must appear in the short behavior list")
+assert(behavior.lines.find((line) => line.key === "attention").text.includes("ناقص"), "Excluded incomplete histories must remain visible")
+const breachedBehavior = buildBehaviorAnalysis({
+  snapshot: { ...behaviorSnapshot, timestamp_utc: "2026-10-12T12:00:00Z", portfolio_metrics: { ...baseSnapshot.portfolio_metrics, gross_portfolio_leverage: 10 }, positions: [{ ...behaviorSnapshot.positions[0], stop_loss: 0 }] },
+  rules: { ...behaviorRules, maxTradesPerDay: "2" }, plans: [assignedPlan], lifecycles, now: behaviorNow,
+})
+assert(breachedBehavior.lines.find((line) => line.key === "risk").tone === "danger", "A leverage rule breach must not be described as compliant")
+assert(breachedBehavior.lines.find((line) => line.key === "discipline").tone === "warning", "Exceeding the daily entry cap must be flagged")
+assert(breachedBehavior.lines.find((line) => line.key === "attention").text.includes("بدون SL"), "A missing stop must be highlighted")
+assert(breachedBehavior.lines.find((line) => line.key === "attention").text.includes("قدیمی"), "Stale account data must remain visible")
+const emptyBehavior = buildBehaviorAnalysis({ snapshot: null, now: behaviorNow })
+assert(emptyBehavior.winRatePct === null && emptyBehavior.netResult === null, "Missing performance history must remain unknown, not zero")
+assert(emptyBehavior.lines.every((line) => !line.text.includes("NaN") && !line.text.includes("Infinity")), "Empty data must not produce invalid numeric summaries")
 
 console.log("Risk management checks passed")

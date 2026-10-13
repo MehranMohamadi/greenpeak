@@ -53,12 +53,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { accountKey, money, number } from "@/components/kokonutui/mt5-data-view"
 import { MT5_BROKER_DELETED_EVENT, withoutBroker } from "@/lib/mt5-account-changes"
 import { createRiskDemoSnapshot } from "@/lib/mt5-demo-snapshot"
+import { buildTradeLifecycles } from "@/lib/mt5-trade-lifecycles"
 import {
   analyzeOpenRisk,
   analyzeTradeHistory,
   assessPlannedTrade,
   availableSymbols,
   brokerSpecFor,
+  buildBehaviorAnalysis,
   buildTradeReview,
   concentrationSummary,
   EMPTY_RISK_RULES,
@@ -113,18 +115,15 @@ function toneClass(tone) {
   return "border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
 }
 
-function RiskOverviewGrid({ metrics }) {
-  return <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3" aria-label="شش شاخص نمای کلی ریسک">
-    {metrics.map(({ key, label, icon: Icon, tone, value, detail, note }) => <div key={key} className="min-w-0 rounded-md border bg-background/70 p-3 dark:border-[#2B2B30]">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] font-medium leading-4 text-muted-foreground">{label}</p>
-        <span className={`shrink-0 rounded-md border p-1.5 ${toneClass(tone)}`}><Icon className="h-3.5 w-3.5" /></span>
-      </div>
-      <p className="mt-2 text-base font-semibold tabular-nums text-foreground" dir="ltr">{value}</p>
-      <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{detail}</p>
-      {note && <p className="mt-2 border-t pt-2 text-[10px] leading-4 text-muted-foreground dark:border-[#2B2B30]">{note}</p>}
-    </div>)}
-  </div>
+function RiskOverviewList({ metrics }) {
+  return <ul className="divide-y divide-border" aria-label="شش شاخص نمای کلی ریسک">
+    {metrics.map(({ key, label, icon: Icon, tone, value, detail, note }) => <li key={key} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 text-xs">
+      <Icon className={`h-4 w-4 shrink-0 ${tone === "danger" ? "text-rose-600 dark:text-rose-400" : tone === "warning" ? "text-amber-600 dark:text-amber-400" : tone === "success" ? "text-emerald-600 dark:text-emerald-400" : "text-primary"}`} />
+      <span className="w-36 shrink-0 font-medium">{label}</span>
+      <span className="min-w-[7rem] font-semibold tabular-nums" dir="ltr">{value}</span>
+      <span className="min-w-0 flex-1 text-[11px] leading-5 text-muted-foreground">{detail}{note && ` · ${note}`}</span>
+    </li>)}
+  </ul>
 }
 
 function RuleField({ label, value, suffix, onChange }) {
@@ -166,94 +165,6 @@ function EmptyState({ loading, error, onRefresh, demoAvailable, onUseDemo }) {
         {demoAvailable && <Button size="sm" onClick={onUseDemo}><ClipboardCheck className="ml-2 h-4 w-4" />نمایش با داده نمونه</Button>}
       </div>}
   </div>
-}
-
-function buildRiskSummary({
-  concentration,
-  dailyLimitPct,
-  dailyRemaining,
-  equity,
-  freshness,
-  grossLeverage,
-  history,
-  marginLevel,
-  maxLeverage,
-  maxOpenRiskPct,
-  maxTradeRiskPct,
-  maxTrades,
-  minMargin,
-  openRisk,
-}) {
-  const attention = []
-  const actions = []
-  const addAction = (text) => {
-    if (!actions.includes(text)) actions.push(text)
-  }
-
-  if (freshness.stale) {
-    attention.push(freshness.ageMinutes == null ? "زمان Snapshot معتبر نیست." : `Snapshot حدود ${number(freshness.ageMinutes, 0)} دقیقه قدیمی است و تصمیم جدید باید با داده تازه کنترل شود.`)
-    addAction("پیش از معامله جدید، Snapshot تازه دریافت کنید.")
-  }
-  if (!openRisk.complete) {
-    attention.push(openRisk.missingStopCount
-      ? `${openRisk.missingStopCount} پوزیشن بدون حد ضرر، محاسبه ریسک کل باز را ناقص کرده است.`
-      : `${openRisk.unavailableCount} پوزیشن به دلیل نبود قیمت یا مشخصات Tick ریسک قابل محاسبه ندارد.`)
-    addAction("داده ناقص پوزیشن‌ها را تکمیل کنید و سپس ریسک کل را دوباره بسنجید.")
-  }
-  if (maxOpenRiskPct != null && openRisk.riskPct != null && openRisk.riskPct > maxOpenRiskPct) {
-    attention.push(`ریسک باز ${number(openRisk.riskPct, 2, 2)}٪ است و از سقف ${maxOpenRiskPct}٪ عبور کرده است.`)
-    addAction("پیش از افزودن ریسک جدید، حجم یا تعداد پوزیشن‌های باز را کاهش دهید.")
-  }
-  if (maxTradeRiskPct != null && equity != null && equity > 0) {
-    const oversizedPositions = openRisk.positions.filter((position) => position.risk.amount != null && position.risk.amount / equity * 100 > maxTradeRiskPct)
-    if (oversizedPositions.length) {
-      attention.push(`${oversizedPositions.length} پوزیشن از سقف ریسک هر معامله عبور کرده‌اند.`)
-      addAction("حد ضرر و حجم پوزیشن‌های ناسازگار با برنامه را بازبینی کنید.")
-    }
-  }
-  if (dailyRemaining != null && dailyRemaining < 0) {
-    attention.push("بودجه زیان روزانه مصرف شده و از سقف ثبت‌شده عبور کرده است.")
-    addAction("ورود جدید را متوقف کنید و نتیجه معاملات امروز را مرور کنید.")
-  }
-  if (maxLeverage != null && grossLeverage != null && grossLeverage > maxLeverage) {
-    attention.push(`لورج کل ${number(grossLeverage, 2, 2)}× است و از سقف ${maxLeverage}× بالاتر است.`)
-    addAction("Exposure ناخالص را تا محدوده برنامه کاهش دهید.")
-  }
-  if (minMargin != null && marginLevel != null && marginLevel < minMargin) {
-    attention.push(`Margin Level به ${number(marginLevel, 0)}٪ رسیده و از حداقل شخصی ${minMargin}٪ پایین‌تر است.`)
-    addAction("حاشیه آزاد و ریسک لیکوییدشدن را پیش از هر اقدام جدید بررسی کنید.")
-  }
-  if (maxTrades != null && history.todayEntryCount >= maxTrades) {
-    attention.push(`تعداد ورودهای امروز (${history.todayEntryCount}) به سقف ${maxTrades} رسیده است.`)
-    addAction("تا جلسه معاملاتی بعدی ورود تازه ثبت نکنید.")
-  }
-  if (history.behaviorSampleSufficient && history.raisedVolumeAfterLoss > 0) {
-    attention.push(`${history.raisedVolumeAfterLoss} نشانه افزایش حجم تا ۳۰ دقیقه پس از خروج زیان‌ده دیده شده است.`)
-    addAction("ورودهای پس از زیان را جداگانه مرور و علت افزایش حجم را ثبت کنید.")
-  }
-  if (concentration.sharePct != null && concentration.sharePct > 50) {
-    attention.push(`${number(concentration.sharePct, 1, 1)}٪ از Gross Exposure روی ${concentration.symbol} متمرکز است.`)
-    addAction("اثر هم‌جهتی پوزیشن‌ها و تمرکز روی نماد غالب را بررسی کنید.")
-  }
-
-  const missingRules = [
-    [maxTradeRiskPct, "ریسک هر معامله"],
-    [maxOpenRiskPct, "ریسک کل باز"],
-    [dailyLimitPct, "زیان روزانه"],
-    [maxLeverage, "لورج کل"],
-    [maxTrades, "تعداد ورود روزانه"],
-    [minMargin, "Margin Level"],
-  ].filter(([value]) => value == null).map(([, label]) => label)
-  if (missingRules.length) {
-    attention.push(`برای ${missingRules.join("، ")} هنوز حد شخصی تعیین نشده است.`)
-    addAction("حدهای ناقص را در بخش برنامه تعیین و ذخیره کنید.")
-  }
-
-  const hasAttention = attention.length > 0
-  if (!hasAttention) attention.push("بر اساس داده و قواعد فعلی، مورد فوری تازه‌ای شناسایی نشد.")
-  if (!actions.length) actions.push("پیش از ورود بعدی، منطق معامله و شرط ابطال را در «بررسی معامله جدید» ثبت کنید.")
-
-  return { attention, actions, hasAttention }
 }
 
 function PositionRiskTable({ analysis, snapshot, maxTradeRiskPct }) {
@@ -601,6 +512,23 @@ function TradeAllocationDialog({ open, onOpenChange, snapshot, plans, openRisk, 
   </Dialog>
 }
 
+function BehaviorAnalysisDialog({ open, onOpenChange, analysis }) {
+  return <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent dir="rtl" className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-2xl overflow-y-auto">
+      <DialogHeader className="pl-8 text-right sm:text-right">
+        <DialogTitle>تحلیل رفتار</DialogTitle>
+        <DialogDescription>نکات مهم نتیجهٔ معاملات، نظم و پایبندی به برنامهٔ حساب در دادهٔ موجود.</DialogDescription>
+      </DialogHeader>
+      <div className="rounded-lg border bg-muted/20 p-4">
+        <ul className="list-disc space-y-3 pr-4 text-xs leading-6" aria-label="خلاصه تحلیل رفتار معاملاتی">
+          {analysis.lines.map((line) => <li key={line.key} className={line.tone === "danger" ? "text-rose-700 dark:text-rose-300" : line.tone === "warning" ? "text-amber-700 dark:text-amber-300" : line.tone === "success" ? "text-emerald-700 dark:text-emerald-300" : "text-foreground"}>{line.text}</li>)}
+        </ul>
+      </div>
+      <Button variant="outline" onClick={() => onOpenChange(false)}>بستن</Button>
+    </DialogContent>
+  </Dialog>
+}
+
 function DailyPlanDialog({ open, onOpenChange, rules, setRules, rulesSaved, onSaveRules, history, maxTrades }) {
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent dir="rtl" className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-xl overflow-y-auto">
@@ -654,6 +582,7 @@ export default function RiskManagementCenter() {
   const [error, setError] = useState("")
   const [reviewOpen, setReviewOpen] = useState(false)
   const [allocationOpen, setAllocationOpen] = useState(false)
+  const [behaviorOpen, setBehaviorOpen] = useState(false)
   const [planCollection, setPlanCollection] = useState({ accountKey: "", plans: [] })
   const [planStorageError, setPlanStorageError] = useState("")
   const [rules, setRules] = useState(EMPTY_RISK_RULES)
@@ -681,11 +610,13 @@ export default function RiskManagementCenter() {
         setScenarioOpen(true)
         return
       }
+      if (["analysis-behavior", "warnings"].includes(event.detail)) {
+        setBehaviorOpen(true)
+        return
+      }
       const targetId = {
         positions: "risk-open-positions",
-        warnings: "risk-summary",
         "overview-structure": "risk-overview",
-        "analysis-behavior": "risk-summary",
       }[event.detail]
       if (targetId) document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" })
     }
@@ -744,6 +675,7 @@ export default function RiskManagementCenter() {
         setSelectedAccount("")
         setReviewOpen(false)
         setAllocationOpen(false)
+        setBehaviorOpen(false)
         setDailyPlanOpen(false)
         setScenarioOpen(false)
         setScenarioSymbol("")
@@ -785,6 +717,8 @@ export default function RiskManagementCenter() {
   const history = useMemo(() => analyzeTradeHistory(snapshot), [snapshot])
   const concentration = useMemo(() => concentrationSummary(snapshot), [snapshot])
   const freshness = useMemo(() => freshnessSummary(snapshot), [snapshot])
+  const lifecycles = useMemo(() => buildTradeLifecycles(snapshot ? [snapshot] : []), [snapshot])
+  const behaviorAnalysis = useMemo(() => buildBehaviorAnalysis({ snapshot, rules, plans: tradePlans, lifecycles }), [snapshot, rules, tradePlans, lifecycles, behaviorOpen, loading])
   const currency = snapshot?.account?.currency || "USD"
   const equity = finiteNumber(snapshot?.account?.equity)
   const grossLeverage = finiteNumber(snapshot?.portfolio_metrics?.gross_portfolio_leverage)
@@ -857,23 +791,6 @@ export default function RiskManagementCenter() {
       tone: concentration.sharePct != null && concentration.sharePct > 50 ? "warning" : "neutral",
     },
   ]
-  const riskSummary = buildRiskSummary({
-    concentration,
-    dailyLimitPct,
-    dailyRemaining,
-    equity,
-    freshness,
-    grossLeverage,
-    history,
-    marginLevel,
-    maxLeverage,
-    maxOpenRiskPct,
-    maxTradeRiskPct,
-    maxTrades,
-    minMargin,
-    openRisk,
-  })
-
   const saveRules = () => {
     if (!storageKey) return
     window.localStorage.setItem(`greenpeak:risk-rules:${storageKey}`, JSON.stringify(rules))
@@ -954,6 +871,7 @@ export default function RiskManagementCenter() {
               <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setDailyPlanOpen(true)} disabled={!snapshot}><ListChecks className="ml-2 h-4 w-4" />برنامه</Button>
               <Button size="sm" className="h-9 w-auto" onClick={() => setReviewOpen(true)} disabled={!snapshot}><ClipboardCheck className="ml-2 h-4 w-4" />بررسی معامله جدید</Button>
               <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setAllocationOpen(true)} disabled={!snapshot}><Link2 className="ml-2 h-4 w-4" />تخصیص و ارزیابی</Button>
+              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setBehaviorOpen(true)} disabled={!snapshot}><BrainCircuit className="ml-2 h-4 w-4" />تحلیل رفتار</Button>
             </div>
           </div>
         </div>
@@ -968,8 +886,8 @@ export default function RiskManagementCenter() {
 
           <div id="risk-analysis" className="scroll-mt-16 space-y-7 p-4 md:p-6">
               <section id="risk-overview" className="scroll-mt-16 space-y-3" aria-labelledby="risk-overview-title">
-                <div><h3 id="risk-overview-title" className="flex items-center gap-2 text-sm font-semibold"><ShieldAlert className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />نمای کلی ریسک</h3><p className="mt-1 text-xs text-muted-foreground">شش شاخص اصلی حساب در باکس‌های جداگانه</p></div>
-                <RiskOverviewGrid metrics={overviewMetrics} />
+                <div><h3 id="risk-overview-title" className="flex items-center gap-2 text-sm font-semibold"><ShieldAlert className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />نمای کلی ریسک</h3><p className="mt-1 text-xs text-muted-foreground">شش شاخص اصلی حساب در یک فهرست شش‌خطی</p></div>
+                <RiskOverviewList metrics={overviewMetrics} />
               </section>
 
               <section id="risk-open-positions" className="scroll-mt-16 space-y-3 border-t pt-6" aria-labelledby="risk-open-positions-title">
@@ -977,15 +895,6 @@ export default function RiskManagementCenter() {
                 <PositionRiskTable analysis={openRisk} snapshot={snapshot} maxTradeRiskPct={maxTradeRiskPct} />
               </section>
 
-              <section id="risk-summary" className="scroll-mt-16 space-y-3 border-t pt-6" aria-labelledby="risk-summary-title">
-                <div><h3 id="risk-summary-title" className="text-sm font-semibold">جمع‌بندی ریسک</h3><p className="mt-1 text-xs text-muted-foreground">مهم‌ترین نتیجه قابل اقدام از داده و قواعد فعلی</p></div>
-                <div className={`rounded-lg border p-4 ${toneClass(riskSummary.hasAttention ? "warning" : "success")}`}>
-                  <p className="text-sm font-medium">{riskSummary.hasAttention ? "جمع‌بندی فعلی نیازمند توجه است" : "ریسک فوری تازه‌ای دیده نشد"}</p>
-                  <p className="mt-2 text-xs leading-6"><span className="font-semibold">نیازمند توجه:</span> {riskSummary.attention.slice(0, 3).join(" ")}{riskSummary.attention.length > 3 ? ` و ${riskSummary.attention.length - 3} مورد دیگر.` : ""}</p>
-                  <p className="mt-2 border-t pt-2 text-xs leading-6"><span className="font-semibold">اقدام:</span> {riskSummary.actions.slice(0, 3).join(" ")}{riskSummary.actions.length > 3 ? ` و ${riskSummary.actions.length - 3} اقدام دیگر.` : ""}</p>
-                </div>
-                <p className="text-[10px] leading-5 text-muted-foreground">جمع‌بندی قاعده‌محور است و به کامل‌بودن داده و حدود ثبت‌شده وابسته است.</p>
-              </section>
           </div>
         </>}
       </CardContent>
@@ -996,6 +905,7 @@ export default function RiskManagementCenter() {
       <ScenarioDialog open={scenarioOpen} onOpenChange={setScenarioOpen} scenarioSymbols={scenarioSymbols} selectedScenarioSymbol={selectedScenarioSymbol} onSymbolChange={setScenarioSymbol} shockPct={shockPct} onShockChange={setShockPct} scenario={scenario} />
       <TradeReviewPanel open={reviewOpen} onOpenChange={setReviewOpen} snapshot={snapshot} rules={rules} openRisk={openRisk} draft={draft} setDraft={updateDraft} onSavePlan={savePlan} saved={savedPlan} storageError={planStorageError} />
       <TradeAllocationDialog open={allocationOpen} onOpenChange={setAllocationOpen} snapshot={snapshot} plans={tradePlans} openRisk={openRisk} onAssignPosition={assignPosition} storageError={planStorageError} />
+      <BehaviorAnalysisDialog open={behaviorOpen} onOpenChange={setBehaviorOpen} analysis={behaviorAnalysis} />
     </>}
   </>
 }
