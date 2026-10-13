@@ -13,9 +13,9 @@ export const EMPTY_TRADE_DRAFT = {
   orderType: "MARKET",
   entryPrice: "",
   volume: "",
+  contractSize: "",
   stopLoss: "",
   takeProfit: "",
-  setup: "",
   rationale: "",
   invalidation: "",
   mentalState: "",
@@ -37,6 +37,7 @@ function normalizeSymbol(value) {
 }
 
 export function availableSymbols(snapshot) {
+  const defaults = ["US500", "XAUUSD"]
   const symbols = new Set()
   for (const collection of [
     snapshot?.broker_symbol_data,
@@ -48,7 +49,67 @@ export function availableSymbols(snapshot) {
       if (item?.symbol) symbols.add(String(item.symbol))
     }
   }
-  return [...symbols].sort((a, b) => a.localeCompare(b))
+  return [...defaults, ...[...symbols]
+    .filter((symbol) => !defaults.includes(normalizeSymbol(symbol)))
+    .sort((a, b) => a.localeCompare(b))]
+}
+
+export function tradeAssetVolume(draft) {
+  const lots = positiveRule(draft?.volume)
+  const contractSize = positiveRule(draft?.contractSize)
+  if (lots == null || contractSize == null) return null
+  const quantity = lots * contractSize
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : null
+}
+
+export function tradeInputErrors(draft) {
+  const errors = {}
+  if (!normalizeSymbol(draft?.symbol)) errors.symbol = "نماد را انتخاب کنید."
+  if (!["BUY", "SELL"].includes(draft?.direction)) errors.direction = "جهت معامله را انتخاب کنید."
+  if (!["MARKET", "PENDING"].includes(draft?.orderType)) errors.orderType = "نوع سفارش را انتخاب کنید."
+  for (const [key, label] of [
+    ["volume", "حجم لات"], ["contractSize", "اندازه قرارداد"],
+    ["entryPrice", "قیمت ورود"], ["stopLoss", "حد ضرر"], ["takeProfit", "حد سود"],
+  ]) {
+    if (positiveRule(draft?.[key]) == null) errors[key] = `${label} باید عددی بزرگ‌تر از صفر باشد.`
+  }
+  if (!errors.volume && !errors.contractSize && tradeAssetVolume(draft) == null) {
+    errors.contractSize = "حاصل حجم و اندازه قرارداد قابل محاسبه نیست."
+  }
+  return errors
+}
+
+export function tradeMarketRequest(symbol) {
+  const normalized = normalizeSymbol(symbol)
+  if (/^(US500|SP500|SPX500|SPX|USA500)([._-].*)?$/.test(normalized)) {
+    return { url: "/api/market/sp500?timeframe=1D", responseType: "ohlc" }
+  }
+  if (/^(XAUUSD|GOLD)([._-].*)?$/.test(normalized)) {
+    return { url: "/api/intermarket?series=GOLDAMGBD228NLBM&range=1mo", responseType: "series" }
+  }
+  return null
+}
+
+export function latestSiteQuote(payload, responseType) {
+  const data = responseType === "ohlc" ? payload : payload?.data
+  if (!Array.isArray(data)) return null
+  let latest = null
+  for (const point of data) {
+    const price = positiveRule(responseType === "ohlc" ? point?.close : point?.value)
+    const timestamp = responseType === "ohlc"
+      ? (typeof point?.time === "number" ? point.time * 1000 : NaN)
+      : Date.parse(point?.date)
+    if (price == null || !Number.isFinite(timestamp) || Number.isNaN(new Date(timestamp).getTime())) continue
+    if (!latest || timestamp > latest.timestamp) latest = { price, timestamp }
+  }
+  if (!latest) return null
+  return {
+    price: latest.price,
+    observedAt: new Date(latest.timestamp).toISOString(),
+    source: responseType === "ohlc" ? "S&P 500 · Yahoo Finance" : [
+      payload?.metadata?.title, payload?.metadata?.source || payload?.metadata?.source_provider,
+    ].filter(Boolean).join(" · ") || "داده طلا در سایت",
+  }
 }
 
 export function brokerSpecFor(snapshot, symbol) {
@@ -225,7 +286,7 @@ export function previewTrade(snapshot, draft, rules, openRisk) {
   const entry = finiteNumber(draft?.entryPrice)
   const stop = finiteNumber(draft?.stopLoss)
   const target = finiteNumber(draft?.takeProfit)
-  const volume = finiteNumber(draft?.volume)
+  const inputErrors = tradeInputErrors(draft)
   const risk = stopRisk({
     direction: draft?.direction,
     entryPrice: entry,
@@ -253,14 +314,10 @@ export function previewTrade(snapshot, draft, rules, openRisk) {
     {
       key: "inputs",
       label: "اطلاعات پایه معامله",
-      status: normalizeSymbol(draft?.symbol) && entry != null && entry > 0 && volume != null && volume > 0 ? "pass" : "fail",
-      detail: !normalizeSymbol(draft?.symbol)
-        ? "نماد انتخاب نشده است"
-        : entry == null || entry <= 0
-          ? "قیمت ورود معتبر نیست"
-          : volume == null || volume <= 0
-            ? "حجم معامله معتبر نیست"
-            : "نماد، قیمت ورود و حجم ثبت شده‌اند",
+      status: Object.keys(inputErrors).length ? "fail" : "pass",
+      detail: Object.keys(inputErrors).length
+        ? Object.values(inputErrors).join(" ")
+        : "اطلاعات اجباری معامله ثبت شده‌اند",
     },
     {
       key: "stop",
@@ -271,13 +328,13 @@ export function previewTrade(snapshot, draft, rules, openRisk) {
   ]
   checks.push({
     key: "target",
-    label: "هدف معتبر",
+    label: "حد سود معتبر",
     status: target == null || target <= 0 ? "unknown" : rewardDistance != null && rewardDistance > 0 ? "pass" : "fail",
     detail: target == null || target <= 0
-      ? "هدف سود ثبت نشده است"
+      ? "حد سود ثبت نشده است"
       : rewardDistance != null && rewardDistance > 0
-        ? "هدف با جهت معامله سازگار است"
-        : "جای هدف با جهت معامله سازگار نیست",
+        ? "حد سود با جهت معامله سازگار است"
+        : "جای حد سود با جهت معامله سازگار نیست",
   })
   const maxTradeRisk = positiveRule(rules?.maxTradeRiskPct)
   checks.push({
@@ -295,6 +352,7 @@ export function previewTrade(snapshot, draft, rules, openRisk) {
   })
 
   return {
+    assetVolume: tradeAssetVolume(draft),
     risk,
     riskPct,
     rewardRisk,
@@ -324,7 +382,6 @@ export function buildTradeReview(snapshot, draft, rules, openRisk) {
   const limitations = []
   const rationale = meaningfulText(draft?.rationale)
   const invalidation = meaningfulText(draft?.invalidation)
-  const setup = meaningfulText(draft?.setup)
   const mentalState = meaningfulText(draft?.mentalState)
   const history = analyzeTradeHistory(snapshot)
   const freshness = freshnessSummary(snapshot)
@@ -347,10 +404,8 @@ export function buildTradeReview(snapshot, draft, rules, openRisk) {
     strengths.push("شرط ابطال سناریو ثبت شده است.")
   }
 
-  if (!setup || setup.length < 3) risks.push("ستاپ معامله مشخص نشده یا بیش از حد کلی است.")
-
   if (review.rewardRisk == null) {
-    risks.push("نسبت سود به زیان قابل محاسبه نیست؛ قیمت ورود، حد ضرر و هدف را بررسی کنید.")
+    risks.push("نسبت سود به زیان قابل محاسبه نیست؛ قیمت ورود، حد ضرر و حد سود را بررسی کنید.")
   } else if (review.rewardRisk < 1) {
     risks.push(`نسبت سود به زیان ${review.rewardRisk.toFixed(2)} است و زیان برنامه‌ریزی‌شده از سود هدف بیشتر است.`)
   } else if (review.rewardRisk < 1.5) {

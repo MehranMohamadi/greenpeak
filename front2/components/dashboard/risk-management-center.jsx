@@ -9,6 +9,7 @@ import {
   CircleHelp,
   ClipboardCheck,
   Gauge,
+  Info,
   Landmark,
   ListChecks,
   Loader2,
@@ -35,6 +36,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Select,
   SelectContent,
@@ -58,9 +60,13 @@ import {
   EMPTY_TRADE_DRAFT,
   finiteNumber,
   freshnessSummary,
+  latestSiteQuote,
   positiveRule,
   previewTrade,
   scenarioEstimate,
+  tradeAssetVolume,
+  tradeInputErrors,
+  tradeMarketRequest,
 } from "@/lib/risk-management"
 
 const surfaceClass = "border-gray-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]"
@@ -277,30 +283,116 @@ function PositionRiskTable({ analysis, snapshot, maxTradeRiskPct }) {
   </div>
 }
 
+function TradeReviewField({ id, label, required = false, info, error, children }) {
+  return <div className="min-w-0 space-y-1.5">
+    <div className="flex min-h-8 flex-wrap items-center gap-1 sm:min-h-5">
+      <Label htmlFor={id} className="text-[11px] leading-4 sm:text-xs">
+        {label}{required && <><span className="mr-1 text-rose-600 dark:text-rose-400" aria-hidden="true">*</span><span className="sr-only"> (الزامی)</span></>}
+      </Label>
+      {info && <Popover>
+        <PopoverTrigger asChild>
+          <button type="button" aria-label={`راهنمای ${label}`} className="rounded-sm text-muted-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Info className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent dir="rtl" align="start" className="w-64 max-w-[calc(100vw-2rem)] text-xs leading-6">
+          <p className="mb-1 font-medium">{label}</p><p className="text-muted-foreground">{info}</p>
+        </PopoverContent>
+      </Popover>}
+    </div>
+    {children}
+    {error && <p id={`${id}-error`} role="alert" className="text-[10px] leading-4 text-rose-600 dark:text-rose-400">{error}</p>}
+  </div>
+}
+
 function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft, setDraft, onSavePlan, saved }) {
   const symbols = availableSymbols(snapshot)
   const [review, setReview] = useState(null)
+  const [inputErrors, setInputErrors] = useState({})
+  const [quote, setQuote] = useState(null)
+  const [quoteLoading, setQuoteLoading] = useState(false)
+  const assetVolume = tradeAssetVolume(draft)
   const currency = snapshot?.account?.currency || "USD"
   const update = (key, value) => {
     setReview(null)
+    setInputErrors((current) => {
+      const next = { ...current }
+      delete next[key]
+      if (key === "volume") delete next.contractSize
+      return next
+    })
     setDraft((current) => ({ ...current, [key]: value }))
   }
   const selectSymbol = (symbol) => {
+    if (symbol === draft.symbol) return
     const spec = brokerSpecFor(snapshot, symbol)
-    const marketPrice = draft.direction === "SELL" ? spec?.bid : spec?.ask
+    const contractSize = positiveRule(spec?.contract_size ?? spec?.trade_contract_size)
     setReview(null)
-    setDraft((current) => ({ ...current, symbol, entryPrice: current.entryPrice || (finiteNumber(marketPrice)?.toString() || "") }))
+    setInputErrors({})
+    setQuote(null)
+    setDraft((current) => current.symbol === symbol ? current : ({
+      ...current, symbol, entryPrice: "", stopLoss: "", takeProfit: "",
+      contractSize: contractSize?.toString() || "",
+    }))
   }
 
   useEffect(() => {
-    if (!open) setReview(null)
+    if (!open) { setReview(null); setInputErrors({}) }
   }, [open])
 
   useEffect(() => {
     setReview(null)
   }, [snapshot])
 
-  const runReview = () => setReview(buildTradeReview(snapshot, draft, rules, openRisk))
+  useEffect(() => {
+    setQuote(null)
+    if (!open || !draft.symbol) { setQuoteLoading(false); return undefined }
+    const market = tradeMarketRequest(draft.symbol)
+    const spec = brokerSpecFor(snapshot, draft.symbol)
+    const price = positiveRule(draft.direction === "SELL" ? spec?.bid : spec?.ask)
+    const brokerQuote = price == null ? null : {
+      price, observedAt: snapshot?.timestamp_utc, source: "Snapshot حساب معاملاتی",
+    }
+    let controller
+    const loadQuote = async () => {
+      controller?.abort()
+      const request = new AbortController()
+      controller = request
+      setQuoteLoading(true)
+      try {
+        if (!market) { setQuote(brokerQuote); return }
+        const response = await fetch(market.url, { cache: "no-store", signal: request.signal })
+        if (!response.ok) throw new Error("Market quote unavailable")
+        const latest = latestSiteQuote(await response.json(), market.responseType)
+        if (!latest) throw new Error("No valid market quote")
+        if (!request.signal.aborted) setQuote(latest)
+      } catch {
+        if (!request.signal.aborted) setQuote(brokerQuote)
+      } finally {
+        if (!request.signal.aborted) setQuoteLoading(false)
+      }
+    }
+    loadQuote()
+    const timer = window.setInterval(loadQuote, 60_000)
+    return () => { controller?.abort(); window.clearInterval(timer) }
+  }, [open, draft.symbol, draft.direction, snapshot])
+
+  const runReview = (event) => {
+    event.preventDefault()
+    const errors = tradeInputErrors(draft)
+    setInputErrors(errors)
+    if (Object.keys(errors).length) {
+      setReview(null)
+      document.getElementById(`trade-${Object.keys(errors)[0]}`)?.focus()
+      return
+    }
+    setReview(buildTradeReview(snapshot, draft, rules, openRisk))
+  }
+  const fieldProps = (key) => ({
+    id: `trade-${key}`, "aria-required": true, "aria-invalid": Boolean(inputErrors[key]),
+    "aria-describedby": inputErrors[key] ? `trade-${key}-error` : undefined,
+    className: "h-9 min-w-0 px-2 text-xs tabular-nums",
+  })
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent dir="rtl" className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-2xl overflow-y-auto">
@@ -310,33 +402,51 @@ function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft
       </DialogHeader>
 
       <div className="mt-5 space-y-5">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label>نماد</Label>
-            <Select value={draft.symbol || undefined} onValueChange={selectSymbol}>
-              <SelectTrigger><SelectValue placeholder="انتخاب نماد" /></SelectTrigger>
+        <form onSubmit={runReview} noValidate className="space-y-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <TradeReviewField id="trade-symbol" label="نماد" required error={inputErrors.symbol}>
+            <Select required value={draft.symbol || undefined} onValueChange={selectSymbol}>
+              <SelectTrigger {...fieldProps("symbol")} aria-required="true"><SelectValue placeholder="انتخاب نماد" /></SelectTrigger>
               <SelectContent>{symbols.map((symbol) => <SelectItem key={symbol} value={symbol}>{symbol}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>جهت</Label>
-            <Select value={draft.direction} onValueChange={(value) => update("direction", value)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+          </TradeReviewField>
+          <TradeReviewField id="trade-direction" label="جهت" required error={inputErrors.direction}>
+            <Select required value={draft.direction} onValueChange={(value) => update("direction", value)}>
+              <SelectTrigger {...fieldProps("direction")} aria-required="true"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="BUY">خرید</SelectItem><SelectItem value="SELL">فروش</SelectItem></SelectContent>
             </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>نوع سفارش</Label>
-            <Select value={draft.orderType} onValueChange={(value) => update("orderType", value)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+          </TradeReviewField>
+          <TradeReviewField id="trade-orderType" label="نوع سفارش" required error={inputErrors.orderType} info="بازار: ورود با قیمت موجود بازار. در انتظار: ورود در قیمت تعیین‌شده، پس از رسیدن بازار به شرایط سفارش.">
+            <Select required value={draft.orderType} onValueChange={(value) => update("orderType", value)}>
+              <SelectTrigger {...fieldProps("orderType")} aria-required="true"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="MARKET">بازار</SelectItem><SelectItem value="PENDING">در انتظار</SelectItem></SelectContent>
             </Select>
+          </TradeReviewField>
+          <TradeReviewField id="trade-volume" label="حجم (Lot)" required error={inputErrors.volume} info="حجم سفارش بر حسب لات است. هر لات به اندازهٔ قرارداد همان نماد وابسته است؛ مقدار لات را مطابق مشخصات بروکر وارد کنید.">
+            <Input required {...fieldProps("volume")} dir="ltr" type="number" inputMode="decimal" min="0" step="any" value={draft.volume} onChange={(event) => update("volume", event.target.value)} />
+          </TradeReviewField>
+          <TradeReviewField id="trade-contractSize" label="اندازه قرارداد" required error={inputErrors.contractSize} info="تعداد واحد دارایی در یک لات. این عدد را از مشخصات نماد در بروکر بگیرید؛ اندازهٔ قرارداد نمادها و بروکرهای مختلف می‌تواند متفاوت باشد.">
+            <Input required {...fieldProps("contractSize")} dir="ltr" type="number" inputMode="decimal" min="0" step="any" value={draft.contractSize} onChange={(event) => update("contractSize", event.target.value)} />
+          </TradeReviewField>
+          <TradeReviewField id="trade-assetVolume" label="حجم معادل (واحد)" info="حجم لات × اندازهٔ قرارداد. این عدد مقدار دارایی معامله را نشان می‌دهد؛ ارزش پولی معامله نیست و به‌صورت خودکار محاسبه می‌شود.">
+            <Input id="trade-assetVolume" dir="ltr" readOnly value={assetVolume == null ? "" : number(assetVolume, 8)} placeholder="محاسبه خودکار" className="h-9 min-w-0 bg-muted/40 px-2 text-xs tabular-nums" />
+          </TradeReviewField>
+          <TradeReviewField id="trade-entryPrice" label="قیمت ورود" required error={inputErrors.entryPrice}>
+            <Input required {...fieldProps("entryPrice")} dir="ltr" type="number" inputMode="decimal" min="0" step="any" value={draft.entryPrice} onChange={(event) => update("entryPrice", event.target.value)} />
+          </TradeReviewField>
+          <TradeReviewField id="trade-stopLoss" label="حد ضرر SL" required error={inputErrors.stopLoss}>
+            <Input required {...fieldProps("stopLoss")} dir="ltr" type="number" inputMode="decimal" min="0" step="any" value={draft.stopLoss} onChange={(event) => update("stopLoss", event.target.value)} />
+          </TradeReviewField>
+          <TradeReviewField id="trade-takeProfit" label="حد سود TP" required error={inputErrors.takeProfit}>
+            <Input required {...fieldProps("takeProfit")} dir="ltr" type="number" inputMode="decimal" min="0" step="any" value={draft.takeProfit} onChange={(event) => update("takeProfit", event.target.value)} />
+          </TradeReviewField>
+          <TradeReviewField id="trade-currentPrice" label="قیمت فعلی">
+            <Input id="trade-currentPrice" dir="ltr" type="number" step="any" readOnly value={quote?.price ?? ""} placeholder={!draft.symbol ? "انتخاب نماد" : quoteLoading ? "در حال دریافت…" : "در دسترس نیست"} className="h-9 min-w-0 bg-muted/40 px-2 text-xs tabular-nums" />
+          </TradeReviewField>
+          <div className="col-span-2 flex min-w-0 flex-col justify-end gap-1 pb-1 text-[10px] leading-5 text-muted-foreground" aria-live="polite">
+            {quote ? <><p dir="auto">{quote.source}</p><p>آخرین مشاهده: <span dir="ltr">{formatTehranTimestamp(new Date(quote.observedAt)) || "زمان موجود نیست"}</span></p><p>قیمت مرجع سایت ممکن است با قیمت اجرای بروکر متفاوت باشد.</p></>
+              : <p>{!draft.symbol ? "پس از انتخاب نماد، آخرین قیمت موجود به‌صورت خودکار وارد می‌شود." : quoteLoading ? "در حال دریافت آخرین قیمت موجود در سایت…" : "قیمت معتبر در منابع موجود یافت نشد."}</p>}
           </div>
-          <div className="space-y-1.5"><Label>حجم (Lot)</Label><Input dir="ltr" type="number" min="0" step="0.01" value={draft.volume} onChange={(event) => update("volume", event.target.value)} /></div>
-          <div className="space-y-1.5"><Label>قیمت ورود / فعلی</Label><Input dir="ltr" type="number" step="any" value={draft.entryPrice} onChange={(event) => update("entryPrice", event.target.value)} /></div>
-          <div className="space-y-1.5"><Label>حد ضرر</Label><Input dir="ltr" type="number" step="any" value={draft.stopLoss} onChange={(event) => update("stopLoss", event.target.value)} /></div>
-          <div className="space-y-1.5"><Label>هدف</Label><Input dir="ltr" type="number" step="any" value={draft.takeProfit} onChange={(event) => update("takeProfit", event.target.value)} /></div>
-          <div className="space-y-1.5"><Label>ستاپ</Label><Input value={draft.setup} onChange={(event) => update("setup", event.target.value)} placeholder="مثلاً شکست و پولبک" /></div>
         </div>
         <div className="space-y-3">
           <div className="space-y-1.5"><Label>منطق ورود</Label><Textarea value={draft.rationale} onChange={(event) => update("rationale", event.target.value)} placeholder="چه شواهدی ورود را توجیه می‌کند؟" /></div>
@@ -345,11 +455,12 @@ function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft
         </div>
 
         <div className="space-y-2">
-          <Button type="button" className="w-full" size="lg" onClick={runReview} disabled={!snapshot}>
+          <Button type="submit" className="w-full" size="lg" disabled={!snapshot}>
             <ClipboardCheck className="ml-2 h-4 w-4" />تأیید اطلاعات و بررسی معامله
           </Button>
           <p className="text-center text-[10px] leading-5 text-muted-foreground">با تغییر هر فیلد، نتیجه قبلی پاک می‌شود و باید بررسی را دوباره اجرا کنید.</p>
         </div>
+        </form>
 
         <Card className={surfaceClass}>
           <CardHeader><CardTitle className="flex items-center justify-between gap-3 text-base"><span>نتیجه بررسی معامله</span>{review
@@ -362,7 +473,7 @@ function TradeReviewPanel({ open, onOpenChange, snapshot, rules, openRisk, draft
             </div> : <>
               <dl className="grid grid-cols-2 gap-2">
                 <div className={`${insetClass} p-3`}><dt className="text-[10px] text-muted-foreground">ریسک معامله</dt><dd className="mt-1 font-semibold tabular-nums" dir="ltr">{review.risk.amount == null ? "—" : money(review.risk.amount, currency)}</dd><p className="text-[10px] text-muted-foreground">{review.riskPct == null ? review.risk.reason : `${number(review.riskPct, 2, 2)}٪ Equity`}</p></div>
-                <div className={`${insetClass} p-3`}><dt className="text-[10px] text-muted-foreground">نسبت سود به زیان</dt><dd className="mt-1 font-semibold tabular-nums" dir="ltr">{review.rewardRisk == null ? "—" : `1 : ${number(review.rewardRisk, 2, 2)}`}</dd><p className="text-[10px] text-muted-foreground">بر اساس ورود، Stop و Target</p></div>
+                <div className={`${insetClass} p-3`}><dt className="text-[10px] text-muted-foreground">نسبت سود به زیان</dt><dd className="mt-1 font-semibold tabular-nums" dir="ltr">{review.rewardRisk == null ? "—" : `1 : ${number(review.rewardRisk, 2, 2)}`}</dd><p className="text-[10px] text-muted-foreground">بر اساس قیمت ورود، SL و TP</p></div>
               </dl>
               <div className="space-y-2">{review.checks.map((check) => <div key={check.key} className="flex items-start justify-between gap-3 rounded-md border p-2.5"><div><p className="text-xs font-medium">{check.label}</p><p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">{check.detail}</p></div><CheckBadge status={check.status} /></div>)}</div>
 
