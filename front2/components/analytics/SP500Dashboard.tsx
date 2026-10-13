@@ -172,12 +172,12 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
                         </CardTitle>
                         <CardDescription className="mt-2 max-w-2xl leading-6">
                           Interactive S&amp;P 500 candlestick chart with selectable
-                          timeframes and automatic five-minute refreshes.
+                          timeframes and automatic one-minute refreshes.
                         </CardDescription>
                         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                           <span>Range: {selectedTimeframe}</span>
                           <span aria-hidden="true">•</span>
-                          <span>Auto-refresh: 5 min</span>
+                          <span>Auto-refresh: 1 min</span>
                           {lastUpdatedLabel && (
                             <>
                               <span aria-hidden="true">•</span>

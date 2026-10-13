@@ -1,5 +1,5 @@
 const YAHOO_SYMBOL = "^GSPC"
-const REFRESH_SECONDS = 5 * 60
+const REFRESH_SECONDS = 60
 const TIMEFRAMES = {
   "1D": { range: "1d", interval: "5m" },
   "5D": { range: "5d", interval: "5m" },

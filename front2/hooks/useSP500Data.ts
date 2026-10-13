@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
-const REFRESH_INTERVAL_MS = 5 * 60 * 1000
+const REFRESH_INTERVAL_MS = 60 * 1000
 
 export default function useSP500Data(timeframe = "5D") {
   const [data, setData] = useState<any[]>([])
