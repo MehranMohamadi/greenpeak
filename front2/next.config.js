@@ -21,6 +21,15 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  async redirects() {
+    return [
+      {
+        source: "/settings",
+        destination: "/profile#dashboard-settings",
+        permanent: false,
+      },
+    ]
+  },
   async rewrites() {
     return [
       {

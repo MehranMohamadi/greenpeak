@@ -16,5 +16,5 @@ export async function requireAdminPage() {
     // Fail closed if the authentication service cannot verify this session.
   }
   if (!user) redirect("/login")
-  if (user.role !== "admin") redirect("/settings")
+  if (user.role !== "admin") redirect("/profile")
 }

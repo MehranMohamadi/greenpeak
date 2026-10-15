@@ -53,7 +53,7 @@ def test_admin_list_contains_only_safe_admin_fields_and_uses_live_role(harness):
     assert response.headers["cache-control"] == "no-store"
     assert [row["username"] for row in response.json()["admins"]] == ["operator"]
     assert "private-hash" not in response.text
-    assert set(response.json()["admins"][0]) == {"id", "username", "role", "is_active", "created_at"}
+    assert set(response.json()["admins"][0]) == {"id", "username", "role", "is_active", "created_at", "can_view_premium_analysis"}
     service.collection.update_one({"username_normalized": "operator"}, {"$set": {"role": "user"}})
     assert client.get("/api/v1/auth/admins", headers=headers["admin"]).status_code == 403
 
@@ -65,7 +65,7 @@ def test_user_list_contains_all_accounts_and_only_safe_fields(harness):
     assert response.headers["cache-control"] == "no-store"
     assert [(row["username"], row["role"]) for row in response.json()["users"]] == [("member", "user"), ("operator", "admin")]
     for row in response.json()["users"]:
-        assert set(row) == {"id", "username", "role", "is_active", "created_at"}
+        assert set(row) == {"id", "username", "role", "is_active", "created_at", "can_view_premium_analysis"}
     assert "private-hash" not in response.text
     service.collection.update_one({"username_normalized": "operator"}, {"$set": {"role": "user"}})
     assert client.get("/api/v1/auth/users", headers=headers["admin"]).status_code == 403
@@ -77,7 +77,7 @@ def test_admin_can_promote_user_and_existing_session_gains_admin_role(harness):
     response = client.post("/api/v1/auth/users/2/promote", headers=headers["admin"])
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
-    assert response.json() == {"id": "2", "username": "member", "role": "admin"}
+    assert response.json() == {"id": "2", "username": "member", "role": "admin", "can_view_premium_analysis": False}
     after = service.collection.find_one({"_id": 2})
     assert after["password_hash"] == before["password_hash"]
     assert after["is_active"] == before["is_active"]

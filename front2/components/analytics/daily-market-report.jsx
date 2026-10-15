@@ -29,7 +29,7 @@ export default function DailyMarketReport() {
   const [running, setRunning] = useState(false)
   const [runMessage, setRunMessage] = useState("")
   const loadPersisted = async () => {
-    const read = async url => { const response = await fetch(`${url}${isAdmin ? "?mode=debug" : ""}`, { cache: "no-store", headers: isAdmin ? { Authorization: `Bearer ${accessToken}` } : {} }); return response.ok ? (await response.json()).data : null }
+    const read = async url => { const response = await fetch(`${url}${isAdmin ? "?mode=debug" : ""}`, { cache: "no-store", headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} }); return response.ok ? (await response.json()).data : null }
     const [marketValue, ...domainValues] = await Promise.all([read(endpoints.analysis.marketLatest), ...domains.map(([id]) => read(endpoints.analysis.domainLatest(id)))])
     setMarket(marketValue); setDomainData(Object.fromEntries(domains.map(([id], index) => [id, domainValues[index]]))); setUnavailable(!marketValue)
   }

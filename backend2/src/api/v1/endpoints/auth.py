@@ -8,7 +8,7 @@ from threading import Lock
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool
 from pymongo.errors import PyMongoError
 
 from ....core.config import get_settings
@@ -30,6 +30,11 @@ class UserResponse(BaseModel):
     id: str
     username: str
     role: str
+    can_view_premium_analysis: bool = False
+
+
+class AnalysisAccessRequest(BaseModel):
+    enabled: StrictBool
 
 
 class AuthResponse(BaseModel):
@@ -182,6 +187,31 @@ def require_admin(user: Annotated[dict, Depends(require_user)]) -> dict:
 
 def no_store(response: Response):
     response.headers["Cache-Control"] = "no-store"
+
+
+def premium_analysis_access(credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)]):
+    from ....services.analysis_access import can_view_premium_analysis
+    if not credentials:
+        return False
+    return can_view_premium_analysis(require_user(credentials, get_auth_service()))
+
+
+def require_premium_analysis(allowed: Annotated[bool, Depends(premium_analysis_access)]):
+    if not allowed:
+        raise HTTPException(403, detail={"code": "PREMIUM_ANALYSIS_REQUIRED", "message": "مخصوص کاربران پرمیوم"})
+
+
+@router.put("/users/{user_id}/analysis-access", response_model=UserResponse, dependencies=[Depends(no_store)])
+def set_analysis_access(user_id: str, body: AnalysisAccessRequest,
+                        actor: Annotated[dict, Depends(require_admin)],
+                        service: Annotated[AuthService, Depends(get_auth_service)]):
+    try:
+        user = service.set_premium_analysis(user_id, body.enabled, actor["id"])
+        if not user:
+            raise HTTPException(404, detail="User not found.")
+        return user
+    except (AuthStorageError, PyMongoError) as exc:
+        raise auth_failure(exc) from exc
 
 
 def require_debug_access(

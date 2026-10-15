@@ -1,4 +1,5 @@
 "use client"
+import PremiumAnalysisGate from "@/components/analytics/premium-analysis-gate"
 
 import { useEffect, useState } from "react"
 import { endpoints } from "@/api/api"
@@ -6,7 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 const valueText = (value, suffix = "") => value == null ? "داده کافی نیست" : `${Number(value).toLocaleString("fa-IR", { maximumFractionDigits: 2 })}${suffix}`
 
-export default function TreasuryYieldAnalysis({ revision = 0 }) {
+export default function TreasuryYieldAnalysis(props) {
+  return <PremiumAnalysisGate><TreasuryYieldAnalysisContent {...props} /></PremiumAnalysisGate>
+}
+
+function TreasuryYieldAnalysisContent({ revision = 0 }) {
   const [snapshot, setSnapshot] = useState(null)
   const [error, setError] = useState("")
   useEffect(() => {

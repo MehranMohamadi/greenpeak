@@ -1,4 +1,6 @@
 ﻿"use client"
+import PremiumAnalysisGate from "@/components/analytics/premium-analysis-gate"
+import { useAuth } from "@/components/auth/auth-context"
 
 import { useEffect, useState } from "react"
 import { endpoints } from "@/api/api"
@@ -12,14 +14,19 @@ export default function MonetaryIndicatorAnalysis({ factorId, title, observation
   return <IndicatorNarrativeAnalysis indicatorId={monetaryNarrativeIds[factorId]} title={title} observationDate={observationDate} revision={revision} compact />
 }
 
-export function IndicatorNarrativeAnalysis({ indicatorId, revision = 0, note, compact = false }) {
+export function IndicatorNarrativeAnalysis(props) {
+  return <PremiumAnalysisGate><IndicatorNarrativeContent {...props} /></PremiumAnalysisGate>
+}
+
+function IndicatorNarrativeContent({ indicatorId, revision = 0, note, compact = false }) {
+  const { accessToken } = useAuth()
   const [result, setResult] = useState(null)
   useEffect(() => {
     const controller = new AbortController()
     setResult(null)
     async function load() {
       try {
-        const response = await fetch(endpoints.analysis.indicatorLatest(indicatorId), { cache: "no-store", signal: controller.signal })
+        const response = await fetch(endpoints.analysis.indicatorLatest(indicatorId), { cache: "no-store", signal: controller.signal, headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} })
         if (response.status === 404) { setResult({ indicatorId, missing: true }); return }
         if (!response.ok) throw new Error("unavailable")
         const analysis = matchingNarrative(await response.json(), indicatorId)
@@ -31,7 +38,7 @@ export function IndicatorNarrativeAnalysis({ indicatorId, revision = 0, note, co
     }
     load()
     return () => controller.abort()
-  }, [indicatorId, revision])
+  }, [indicatorId, revision, accessToken])
   const current = result?.indicatorId === indicatorId ? result : null
   const analysis = current?.analysis
   const analysisDate = analysis?.analysis_generated_at?.slice(0, 10)

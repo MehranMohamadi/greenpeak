@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from hashlib import sha256
 import json
+from copy import deepcopy
 from typing import Any
 from uuid import uuid4
 
@@ -11,7 +12,7 @@ from pydantic import ValidationError
 from ..greenpeak_config import load_registry
 from ..rate_features.job import code_version
 from .prompts import load_prompt
-from .schemas import DomainNarrative, IndicatorNarrative, MarketNarrative
+from .schemas import DomainNarrative, IndicatorNarrative, MarketNarrative, resolve_factor_evidence
 
 ANALYSIS_VERSION = "0.5.0"
 MODELS = {"indicator": IndicatorNarrative, "domain": DomainNarrative, "market": MarketNarrative}
@@ -60,8 +61,15 @@ def _analyze(repository, provider, level: str, subject_id: str, as_of: date, evi
         metadata["provenance"].update(model=provider.model_id, provider=provider.provider_id, input_hash=digest)
         allowed_fields = MODELS[level].model_fields
         generated = {key: value for key, value in generated.items() if key in allowed_fields}
+        if level == "market":
+            # Source excerpts are copied from actual input by Python, never
+            # accepted from the model as purported source material.
+            generated["factor_source_evidence"] = {}
         try:
-            value = MODELS[level].model_validate({**generated, **metadata})
+            value = MODELS[level].model_validate(
+                {**generated, **metadata},
+                context={"validate_market_factors": level == "market", "evidence": evidence},
+            )
             break
         except ValidationError as exc:
             validation_error = exc
@@ -80,8 +88,28 @@ def _analyze(repository, provider, level: str, subject_id: str, as_of: date, evi
                     ],
                 },
             }
+    if level == "market":
+        for item in [*value.market_drivers, *value.market_potentials, *value.risk_monitor]:
+            for reference in item.evidence_refs:
+                source = resolve_factor_evidence(evidence, reference)
+                source_id = sha256(json.dumps(source, sort_keys=True, default=str, ensure_ascii=False).encode("utf-8")).hexdigest()
+                value.factor_source_evidence[source_id] = deepcopy(source)
     repository.save(level, value.model_dump(mode="json"))
     return value, "generated"
+
+
+def previous_market_factors(repository, as_of: date) -> dict | None:
+    """Bounded prior output for reassessment, never independent source evidence."""
+    previous = repository.latest("market", "sp500")
+    if not previous:
+        return None
+    previous_date = date.fromisoformat(str(previous["as_of_date"])[:10])
+    if previous_date > as_of:
+        return None
+    return {"as_of_date": previous_date.isoformat(), "source_evidence": previous.get("factor_source_evidence", {}), **{
+        name: previous.get(name, [])[:12]
+        for name in ("market_drivers", "market_potentials", "risk_monitor", "positive_drivers", "negative_drivers", "key_risks")
+    }}
 
 
 def run_llm_pipeline(
@@ -149,6 +177,8 @@ def run_llm_pipeline(
             "versions": {"domain_config_version": domains.config_version},
         }
         try:
+            evidence["previous_market_factors"] = previous_market_factors(narrative_repository, as_of)
+            evidence["retained_factor_evidence"] = (evidence["previous_market_factors"] or {}).pop("source_evidence", {})
             value, status = _analyze(narrative_repository, provider, "market", "sp500", as_of, evidence, coverage, max((item.data_as_of for item in domain_outputs.values() if item.data_as_of), default=None), force)
             results["market"] = {"subject_id": "sp500", "status": status}
         except Exception as exc:

@@ -3,7 +3,7 @@
 
 def public_narrative(response):
     data = {key: value for key, value in response["data"].items()
-            if key not in {"provenance", "analysis_version", "revision_id"}}
+            if key not in {"provenance", "analysis_version", "revision_id", "factor_source_evidence"}}
     if "coverage" in data:
         data["coverage"] = {"status": data["coverage"]["status"]}
     metadata = {key: value for key, value in response.get("metadata", {}).items() if key != "storage"}

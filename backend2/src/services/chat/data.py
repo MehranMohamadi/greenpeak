@@ -17,6 +17,8 @@ from ..llm_engine.schemas import IndicatorNarrative, DomainNarrative, MarketNarr
 from ..mongodb_service import MongoDBService
 from ..mt5_connection_service import COLLECTION as CONNECTIONS
 from ..mt5_snapshot_service import COLLECTION as SNAPSHOTS
+from ..analysis_access import market_for_access
+from ..presentation import public_narrative
 from ..rate_features.builder import build_snapshot
 from ..rate_features.cleaning import adapt_mongo_documents
 from ..rate_features.config import get_definition
@@ -187,6 +189,9 @@ class ChatData:
         }, status="unavailable")
 
     def analysis(self, subject):
+        allowed = getattr(self, "premium_analysis_allowed", False)
+        if subject != "market" and not allowed:
+            return {"status": "premium_required", "limitation": "مخصوص کاربران پرمیوم"}
         domains, _, indicators = load_registry()
         if subject == "market":
             level, key, model, title = "market", "sp500", MarketNarrative, "تحلیل بازار"
@@ -207,6 +212,9 @@ class ChatData:
         if not row:
             return self.evidence(title, "/analytics", {"limitation": "No saved analysis is available."}, status="unavailable")
         validated = model.model_validate({k: v for k, v in row.items() if k in model.model_fields}).model_dump(mode="json")
+        validated = public_narrative({"data": validated})["data"]
+        if subject == "market":
+            validated = market_for_access(validated, allowed)
         observed = validated.get("data_as_of")
         return self.evidence(title, "/analytics", validated, observed, "dated_analysis")
 

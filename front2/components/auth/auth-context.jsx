@@ -36,6 +36,26 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    if (!accessToken) return
+    const controller = new AbortController()
+    const refresh = async () => {
+      try {
+        const response = await fetch(endpoints.auth.me, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store", signal: controller.signal })
+        if (response.ok) {
+          const nextUser = await response.json()
+          if (!controller.signal.aborted) setUser(nextUser)
+        } else if ([401, 403].includes(response.status)) {
+          if (!controller.signal.aborted) { setUser(null); setAccessToken(null) }
+        }
+      } catch { /* Keep session usable during a temporary network failure. */ }
+    }
+    const onVisibility = () => { if (!document.hidden) refresh() }
+    const timer = window.setInterval(refresh, 60000)
+    document.addEventListener("visibilitychange", onVisibility)
+    return () => { controller.abort(); window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisibility) }
+  }, [accessToken])
+
+  useEffect(() => {
     const restoreSession = async () => {
       // Migrate existing browser sessions once; all new persistent sessions
       // live in an HttpOnly cookie. Bearer tokens remain only in React memory
@@ -88,7 +108,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated: Boolean(user), isAdmin: user?.role === "admin", user, accessToken, isLoading, login, signup, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated: Boolean(user), isAdmin: user?.role === "admin", canViewPremiumAnalysis: Boolean(user && (user.role === "admin" || user.can_view_premium_analysis === true)), user, accessToken, isLoading, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   )

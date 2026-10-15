@@ -40,7 +40,7 @@ const quickLinks = [
   { href: "/", label: "داشبورد", icon: LayoutDashboard },
   { href: "/analytics", label: "گزارش بازار", icon: TrendingUp },
   { href: "/analytics/events", label: "رویدادها و اخبار", icon: CalendarDays },
-  { href: "/settings", label: "تنظیمات", icon: Settings },
+  { href: "/profile#dashboard-settings", label: "پروفایل و تنظیمات", icon: Settings },
 ]
 
 const guideSections = [
@@ -423,16 +423,16 @@ export default function HelpPage() {
         </section>
 
         <section className="space-y-5">
-          <SectionHeading id="settings" icon={Settings} eyebrow="شخصی‌سازی" title="تنظیمات، دیده‌بان و اتصال MT5" />
+          <SectionHeading id="settings" icon={Settings} eyebrow="پروفایل و شخصی‌سازی" title="تنظیمات، دیده‌بان و اتصال MT5" />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[
               ["چیدمان و هشدارها", "اجزای داشبورد و تنظیمات مرتبط با هشدارهای کاربر را مدیریت می‌کند."],
               ["ظاهر داشبورد", "پوسته و حالت نمایش را متناسب با محیط کاری انتخاب می‌کند."],
               ["دیده‌بان شخصی", "نمادها و فهرست‌های موردنیاز کاربر را برای دسترسی سریع نگهداری می‌کند."],
-              ["اتصال MetaTrader", "اطلاعات Pairing لازم برای ارسال Snapshot حساب از ابزار MT5 را ارائه می‌کند."],
+              ["اتصال MetaTrader", "توکن اتصال در پروفایل ساخته می‌شود؛ فایل اکسپرت و ویدئوی آموزش نیز پس از آماده شدن در همین بخش قرار می‌گیرند."],
             ].map(([title, text]) => <Card key={title}><CardHeader className="pb-2"><CardTitle className="text-base">{title}</CardTitle></CardHeader><CardContent><p className="text-sm leading-7 text-muted-foreground">{text}</p></CardContent></Card>)}
           </div>
-          <p className="rounded-xl border bg-muted/20 p-4 text-sm leading-7 text-muted-foreground">تنظیمات شخصی برای تغییر ظاهر و واچ‌لیست است. اتصال متاتریدر و تنظیمات حساب در پروفایل قرار دارند.</p>
+          <p className="rounded-xl border bg-muted/20 p-4 text-sm leading-7 text-muted-foreground">همه این امکانات در پروفایل قرار دارند: <Link href="/profile#broker-connection" className="font-medium text-primary hover:underline">اتصال حساب معاملاتی</Link> شامل توکن و محل فایل اکسپرت و ویدئو است؛ <Link href="/profile#dashboard-settings" className="font-medium text-primary hover:underline">تنظیمات داشبورد</Link> در انتهای همان صفحه قرار دارد.</p>
         </section>
 
         <section className="space-y-5">
@@ -474,7 +474,7 @@ export default function HelpPage() {
               ["چرا دو نمودار تاریخ آخر متفاوت دارند؟", "هر منبع تقویم انتشار و تناوب خودش را دارد. مقایسه باید با توجه به تاریخ مشاهده انجام شود، نه فقط جایگاه آخر خط روی نمودار."],
               ["آیا همه داده‌ها لحظه‌ای هستند؟", "خیر. هر نمودار تناوب خود را دارد. تاریخ زیر عنوان نمودار مرجع دقیق‌تری از واژه‌هایی مثل زنده یا جدید است."],
               ["چرا مقدار سایت با پلتفرم دیگری فرق دارد؟", "تعریف شاخص، زمان بسته‌شدن بازار، نوع تعدیل، جمعیت شرکت‌ها و نسخه داده می‌تواند متفاوت باشد. منبع، واحد و transformation متادیتا را مقایسه کنید."],
-              ["چرا حساب متاتریدر دیده نمی‌شود؟", "ابتدا وارد حساب کاربری شوید، اتصال را در تنظیمات بررسی کنید و یک Snapshot تازه از MT5 ارسال کنید. سایت آخرین Snapshot سالم را نمایش می‌دهد."],
+              ["چرا حساب متاتریدر دیده نمی‌شود؟", "ابتدا وارد حساب کاربری شوید، بخش اتصال حساب معاملاتی در پروفایل را بررسی کنید و یک Snapshot تازه از MT5 ارسال کنید. سایت آخرین Snapshot سالم را نمایش می‌دهد."],
               ["آیا تحلیل متنی سیگنال معامله است؟", "خیر. متن تحلیلی برای خلاصه‌سازی شواهد، تعارض‌ها و ریسک‌هاست و جایگزین برنامه معاملاتی، مدیریت سرمایه یا مشاوره حرفه‌ای نیست."],
               ["از کجا تاریخ و منبع یک عدد را بررسی کنم؟", "روی جزئیات شاخص یا راهنمای همان کارت باز کنید و منبع، تاریخ مشاهده و وضعیت کیفیت داده را بخوانید. دوره انتشار شاخص‌ها یکسان نیست؛ بعضی داده‌ها روزانه و برخی ماهانه یا فصلی به‌روز می‌شوند."],
             ].map(([question, answer]) => <Card key={question}><CardHeader className="pb-2"><CardTitle className="text-base">{question}</CardTitle></CardHeader><CardContent><p className="text-sm leading-7 text-muted-foreground">{answer}</p></CardContent></Card>)}

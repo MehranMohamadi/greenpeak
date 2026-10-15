@@ -10,8 +10,8 @@ import { useTheme } from "next-themes"
 const themes = [
   {
     id: "light",
-    name: "Material Light",
-    description: "GreenPeak surfaces with a light neutral background",
+    name: "روشن",
+    description: "ظاهر گرین پیک با پس‌زمینه روشن",
     icon: Sun,
     category: "Light",
     colors: {
@@ -25,8 +25,8 @@ const themes = [
   },
   {
     id: "dark",
-    name: "Material Dark",
-    description: "Pink-tinted dark surfaces with GreenPeak accents",
+    name: "تیره",
+    description: "ظاهر تیره با رنگ‌های گرین پیک",
     icon: Moon,
     category: "Dark",
     colors: {
@@ -40,8 +40,8 @@ const themes = [
   },
   {
     id: "system",
-    name: "System",
-    description: "Follows your system preference",
+    name: "هماهنگ با دستگاه",
+    description: "هماهنگ با تنظیمات دستگاه شما",
     icon: Monitor,
     category: "Auto",
     colors: {
@@ -56,10 +56,10 @@ const themes = [
 ]
 
 const categories = [
-  { id: "all", name: "All Themes" },
-  { id: "Light", name: "Light" },
-  { id: "Dark", name: "Dark" },
-  { id: "Auto", name: "Auto" }
+  { id: "all", name: "همه پوسته‌ها" },
+  { id: "Light", name: "روشن" },
+  { id: "Dark", name: "تیره" },
+  { id: "Auto", name: "خودکار" }
 ]
 
 export default function DashboardThemes() {
@@ -84,13 +84,13 @@ export default function DashboardThemes() {
 
   if (!mounted) {
     return (
-      <Card className="lg:col-span-1">
+      <Card dir="rtl" className="lg:col-span-1">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Palette className="h-5 w-5" />
-            Dashboard Themes
+            پوسته داشبورد
           </CardTitle>
-          <CardDescription>Loading themes...</CardDescription>
+          <CardDescription>در حال بارگذاری پوسته‌ها…</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-4">
@@ -104,14 +104,14 @@ export default function DashboardThemes() {
   }
 
   return (
-    <Card className="lg:col-span-1 animate-fade-in-up">
+    <Card dir="rtl" className="lg:col-span-1 animate-fade-in-up">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Palette className="h-5 w-5 text-primary" />
-          Dashboard Themes
+          پوسته داشبورد
         </CardTitle>
         <CardDescription>
-          Choose your preferred theme for the best experience
+          پوسته دلخواه خود را انتخاب کنید
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -130,17 +130,17 @@ export default function DashboardThemes() {
           ))}
         </div>
 
-        {/* Current Theme Display */}
+        {/* پوسته فعلی Display */}
         <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="h-3 w-3 animate-pulse rounded-full bg-primary"></div>
-            <span className="text-sm font-medium">Current Theme</span>
+            <span className="text-sm font-medium">پوسته فعلی</span>
           </div>
           <div className="text-lg font-medium">
-            {themes.find(t => t.id === selectedTheme)?.name || "System"}
+            {themes.find(t => t.id === selectedTheme)?.name || "هماهنگ با دستگاه"}
           </div>
           <div className="text-sm text-muted-foreground">
-            {themes.find(t => t.id === selectedTheme)?.description || "Following system preference"}
+            {themes.find(t => t.id === selectedTheme)?.description || "هماهنگ با تنظیمات دستگاه"}
           </div>
         </div>
 
@@ -171,7 +171,7 @@ export default function DashboardThemes() {
                         <div className="flex items-center gap-2 text-sm font-medium">
                           {themeOption.name}
                           <Badge variant="outline" className="text-xs">
-                            {themeOption.category}
+                            {categories.find(category => category.id === themeOption.category)?.name}
                           </Badge>
                         </div>
                         <div className="text-xs text-muted-foreground">
@@ -212,7 +212,7 @@ export default function DashboardThemes() {
             className="flex-1 transition-all duration-200 hover:scale-105"
           >
             <Monitor className="h-4 w-4 mr-2" />
-            Auto
+            خودکار
           </Button>
           <Button 
             variant="outline" 
@@ -221,7 +221,7 @@ export default function DashboardThemes() {
             className="flex-1 transition-all duration-200 hover:scale-105"
           >
             <Sun className="h-4 w-4 mr-2" />
-            Light
+            روشن
           </Button>
           <Button 
             variant="outline" 
@@ -230,7 +230,7 @@ export default function DashboardThemes() {
             className="flex-1 transition-all duration-200 hover:scale-105"
           >
             <Moon className="h-4 w-4 mr-2" />
-            Dark
+            تیره
           </Button>
         </div>
       </CardContent>

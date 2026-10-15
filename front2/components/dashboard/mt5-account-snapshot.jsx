@@ -106,7 +106,7 @@ export default function MT5AccountSnapshot() {
         <div><p className="text-sm font-medium">هنوز Snapshot حساب معاملاتی دریافت نشده است</p><p className="mt-0.5 text-xs opacity-80">{error || "اتصال MT5 را بررسی کنید و یک Snapshot جدید بفرستید؛ باکس‌ها در ادامه قابل مشاهده‌اند."}</p></div>
       </div>
       <div className="flex items-center gap-2">
-        <Button asChild variant="outline" size="sm"><Link href="/settings">تنظیمات اتصال</Link></Button>
+        <Button asChild variant="outline" size="sm"><Link href="/profile#broker-connection">تنظیمات اتصال</Link></Button>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تلاش دوباره</Button>
       </div>
     </div>}

@@ -133,6 +133,13 @@ else
 fi
 "$release_root/backend2/.venv/bin/python" -m compileall -q "$release_root/backend2/src"
 
+# Apply the requested account rename once, before switching the active release.
+# A collision or unavailable MongoDB stops deployment without replacing accounts.
+(
+  cd "$release_root/backend2"
+  DEBUG=false .venv/bin/python -m src.services.username_migration
+)
+
 switched=0
 nginx_switched=0
 

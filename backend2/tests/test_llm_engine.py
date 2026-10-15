@@ -115,7 +115,7 @@ def test_market_contract_and_prompt_include_structured_dashboard_sections():
         "glance_summary",
     } <= set(schema)
     prompt = load_prompt("market")
-    assert prompt.version == "0.3.0+0.9.0"
+    assert prompt.version == "0.3.0+0.11.0"
     assert "market_drivers" in prompt.content
     assert "exactly five concise Persian strings" in prompt.content
     assert "six-to-twelve-month" in prompt.content
@@ -127,6 +127,44 @@ def test_only_primary_owner_indicators_are_included_in_domain_analysis_evidence(
     monetary_ids = domain_indicator_ids("monetary_liquidity", indicators)
     assert "federal_funds_rate" in monetary_ids
     assert "us_10y_treasury_yield" in monetary_ids
+
+
+def test_market_flow_round_trips_existing_snapshot_and_public_api_contract():
+    from src.api.v1.endpoints.analysis import _validated_response
+    from src.services.presentation import public_narrative
+
+    class FlowProvider:
+        provider_id = "fake"
+        model_id = "fake-market"
+
+        def generate_json(self, prompt, request):
+            assert request["evidence"] == evidence
+            return {
+                "market_story_fa": "داستان بازار",
+                "current_market_move_fa": "علت حرکت هنوز روشن نیست\nشاخص در آخرین جلسه مشاهده‌شده افت کرده است.",
+                "current_analysis_fa": "علت این حرکت از شواهد موجود مشخص نیست؛ واکنش هم‌زمان اوراق در دسترس نیست.\n\nرویداد پیش‌رو: انتشار تورم؛ اثر انتظارات آن بر حرکت فعلی تأیید نشده است.",
+                "short_term_outlook_fa": "چشم‌انداز کوتاه‌مدت مستقل",
+                "medium_term_outlook_fa": "چشم‌انداز میان‌مدت مستقل",
+                "summary_points_fa": ["وضعیت", "کوتاه‌مدت", "میان‌مدت", "ریسک", "جمع‌بندی"],
+                "narrative_fa": "روایت بازار",
+                "factor_classification_version": "1.0.0",
+                "factor_empty_reasons": {key: "شواهد کافی برای ثبت عامل در دسترس نیست." for key in ("supportive", "challenging", "potentials", "risks")},
+            }
+
+    evidence = {"horizontal_evidence": {
+        "sp500_session_move": {"direction": "down"},
+        "current_market_context": {"released_us_events": []},
+    }}
+    coverage = {"status": "provisional", "ratio": 0.5, "configured_count": 2, "available_count": 1, "missing_inputs": ["intermarket"]}
+    repository = MemoryRepository()
+    snapshot, status = _analyze(repository, FlowProvider(), "market", "sp500", date(2026, 9, 25), evidence, coverage, date(2026, 9, 24), True)
+    response = public_narrative(_validated_response(repository.values[0], MarketNarrative, "test"))
+    assert status == "generated"
+    assert response["data"]["current_market_move_fa"].splitlines() == snapshot.current_market_move_fa.splitlines()
+    assert "رویداد پیش‌رو:" in response["data"]["current_analysis_fa"]
+    assert response["data"]["short_term_outlook_fa"] == "چشم‌انداز کوتاه‌مدت مستقل"
+    assert response["data"]["medium_term_outlook_fa"] == "چشم‌انداز میان‌مدت مستقل"
+    assert response["data"]["market_drivers"] == []
 
 
 def test_compatible_provider_accepts_fenced_json():

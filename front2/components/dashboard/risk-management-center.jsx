@@ -1,4 +1,5 @@
 "use client"
+import PremiumAnalysisGate from "@/components/analytics/premium-analysis-gate"
 
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -192,7 +193,7 @@ function EmptyState({ loading, error, onRefresh, demoAvailable, onUseDemo }) {
         <p className="mt-1 max-w-xl text-xs leading-5 text-muted-foreground">{error || "پس از اتصال افزونه MT5 و ارسال Snapshot، محاسبات این بخش با داده واقعی حساب فعال می‌شوند."}</p>
       </div>
       {!loading && <div className="flex flex-wrap justify-center gap-2">
-        <Button asChild size="sm" variant="outline"><Link href="/settings">تنظیمات اتصال</Link></Button>
+        <Button asChild size="sm" variant="outline"><Link href="/profile#broker-connection">تنظیمات اتصال</Link></Button>
         <Button size="sm" variant="outline" onClick={onRefresh}><RefreshCw className="ml-2 h-4 w-4" />تلاش دوباره</Button>
         {demoAvailable && <Button size="sm" onClick={onUseDemo}><ClipboardCheck className="ml-2 h-4 w-4" />نمایش با داده نمونه</Button>}
       </div>}
@@ -456,7 +457,7 @@ function TradeReviewPanel({ open, onOpenChange, snapshots, onAccountChange, snap
               </dl>
               <div className="space-y-2">{review.checks.map((check) => <div key={check.key} className="flex items-start justify-between gap-3 rounded-md border p-2.5"><div><p className="text-xs font-medium">{check.label}</p><p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">{check.detail}</p></div><CheckBadge status={check.status} /></div>)}</div>
 
-              <TradeTextAnalysis analysis={review.analysis} />
+              <PremiumAnalysisGate><TradeTextAnalysis analysis={review.analysis} /></PremiumAnalysisGate>
 
               <p className="text-[10px] leading-5 text-muted-foreground">برآورد ریسک بر پایه Tick Value فعلی بروکر است؛ لغزش، گپ و کمیسیون ناشناخته می‌تواند نتیجه واقعی را تغییر دهد.</p>
             </>}
@@ -526,7 +527,7 @@ function PlannedTradeRow({ plan, onConfirmTicket, onDeletePlan }) {
     <div className="min-h-5" aria-live="polite">{assessment && <ConformanceSummary assessment={assessment} />}</div>
     <p className="text-[10px] text-muted-foreground">ذخیره: <span dir="ltr">{formatTehranTimestamp(new Date(plan.createdAt)) || "زمان موجود نیست"}</span>{plan.ticketConfirmedAt && <> · آخرین تأیید: <span dir="ltr">{formatTehranTimestamp(new Date(plan.ticketConfirmedAt)) || "زمان موجود نیست"}</span></>}</p>
     <div id={detailsId} hidden={!detailsOpen} className="max-w-[calc(100vw-5rem)] whitespace-normal sm:max-w-2xl">
-      {detailsOpen && <TradeTextAnalysis analysis={plan.analysis} />}
+      {detailsOpen && <PremiumAnalysisGate><TradeTextAnalysis analysis={plan.analysis} /></PremiumAnalysisGate>}
     </div>
   </div>
 }
@@ -590,9 +591,9 @@ function TradeAllocationDialog({ open, onOpenChange, snapshot, plans, openRisk, 
       <section id="allocation-behavior" tabIndex={-1} className="min-w-0 space-y-2 scroll-mt-4 focus:outline-none" aria-labelledby="allocation-behavior-title">
         <h3 id="allocation-behavior-title" className="flex items-center gap-2 text-sm font-semibold"><BrainCircuit className="h-4 w-4 text-primary" />تحلیل رفتار (معاملات بسته شده)</h3>
         <div className="rounded-lg border bg-muted/20 p-4">
-          <ul className="list-disc space-y-3 pr-4 text-xs leading-6" aria-label="خلاصه تحلیل رفتار معاملاتی">
+          <PremiumAnalysisGate><ul className="list-disc space-y-3 pr-4 text-xs leading-6" aria-label="خلاصه تحلیل رفتار معاملاتی">
             {analysis.lines.map((line) => <li key={line.key} className={line.tone === "danger" ? "text-rose-700 dark:text-rose-300" : line.tone === "warning" ? "text-amber-700 dark:text-amber-300" : line.tone === "success" ? "text-emerald-700 dark:text-emerald-300" : "text-foreground"}>{line.text}</li>)}
-          </ul>
+          </ul></PremiumAnalysisGate>
         </div>
       </section>
       {storageError && <p role="alert" className="text-xs text-rose-600 dark:text-rose-400">{storageError}</p>}

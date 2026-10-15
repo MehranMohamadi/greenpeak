@@ -9,6 +9,7 @@ import { endpoints } from "@/api/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -23,6 +24,26 @@ export default function AdminSettingsPage() {
   const [promotionError, setPromotionError] = useState("")
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteConfirmation, setDeleteConfirmation] = useState("")
+
+  const setAnalysisAccess = async (target, enabled) => {
+    if (!isAdmin || !accessToken || promotingId) return
+    setPromotingId(target.id)
+    setPromotionError("")
+    setPromotionMessage("")
+    try {
+      const response = await fetch(endpoints.auth.analysisAccess(target.id), {
+        method: "PUT", cache: "no-store",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      })
+      if (!response.ok) throw new Error("تغییر دسترسی تحلیل‌ها ممکن نشد؛ دوباره تلاش کنید.")
+      const updated = await response.json()
+      setUsers(current => current.map(item => item.id === target.id ? { ...item, ...updated } : item))
+      setPromotionMessage(`دسترسی تحلیل‌های پرمیوم ${target.username} ${enabled ? "فعال" : "غیرفعال"} شد.`)
+    } catch (reason) {
+      setPromotionError(reason instanceof Error ? reason.message : "تغییر دسترسی ممکن نشد.")
+    } finally { setPromotingId(null) }
+  }
 
   useEffect(() => {
     if (!isAdmin || !accessToken) return
@@ -104,6 +125,10 @@ export default function AdminSettingsPage() {
           {users.map(user => <tr key={user.id} className="border-b last:border-0"><td className="p-3" dir="auto">{user.username}</td><td className="p-3"><Badge variant={user.role === "admin" ? "default" : "secondary"}>{user.role === "admin" ? "Admin" : "User"}</Badge></td><td className="p-3">{user.is_active ? "فعال" : "غیرفعال"}</td><td className="p-3">{user.created_at && !Number.isNaN(Date.parse(user.created_at)) ? new Date(user.created_at).toLocaleDateString("fa-IR", { timeZone: "Asia/Tehran" }) : "نامشخص"}</td><td className="p-3"><div className="flex flex-wrap gap-2">
             {user.role === "user" ? <Button size="sm" variant="outline" disabled={loading || Boolean(promotingId)} onClick={() => promoteUser(user)}>ارتقا به ادمین</Button> : <Button size="sm" variant="outline" disabled={loading || Boolean(promotingId) || user.id === currentUser?.id} onClick={() => manageUser(user, "demote")}>تبدیل به کاربر</Button>}
             <Button size="sm" variant="destructive" disabled={loading || Boolean(promotingId) || user.id === currentUser?.id} onClick={() => { setDeleteTarget(user); setDeleteConfirmation(""); setPromotionError("") }}>حذف کاربر</Button>
+            <label className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs">
+              <Switch aria-label={`دسترسی تحلیل‌های پرمیوم ${user.username}`} checked={user.role === "admin" || user.can_view_premium_analysis === true} disabled={loading || Boolean(promotingId) || user.role === "admin"} onCheckedChange={enabled => setAnalysisAccess(user, enabled)} />
+              {user.role === "admin" ? "تحلیل‌های پرمیوم: دسترسی مدیر" : "تحلیل‌های پرمیوم"}
+            </label>
             {promotingId === user.id && <span role="status" className="text-xs text-muted-foreground">در حال ذخیره…</span>}
           </div></td></tr>)}
         </tbody></table>

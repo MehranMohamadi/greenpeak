@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 
 const ALLOWED_PATHS = new Set([
   "market/analysis/latest",
+  "market/status-summary",
   "news/sources/alpha_vantage",
   "news/calendar/upcoming",
   "news/calendar/released",
@@ -26,7 +27,8 @@ export async function GET(request, { params }) {
   upstream.search = new URL(request.url).search
 
   try {
-    const response = await fetch(upstream, { cache: "no-store" })
+    const authorization = request.headers.get("authorization")
+    const response = await fetch(upstream, { cache: "no-store", headers: authorization ? { Authorization: authorization } : {} })
     return new NextResponse(await response.text(), {
       status: response.status,
       headers: {

@@ -4,6 +4,7 @@ from uuid import uuid4
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
+from pydantic import ValidationError
 
 from ....core.config import get_settings
 from ....services.greenpeak_config import load_registry
@@ -15,7 +16,9 @@ from ....services.llm_engine.routing import create_llm_provider, llm_is_configur
 from ....services.persisted_analysis import run_persisted_analysis
 from ....utils.telegram import build_telegram_market_report, send_telegram_market_report
 from ....services.presentation import public_narrative
-from .auth import no_store, require_admin, require_debug_access
+from ....services.market_status import MarketStatusResponse, current_market_status
+from ....services.analysis_access import market_for_access
+from .auth import no_store, require_admin, require_debug_access, premium_analysis_access, require_premium_analysis
 
 router = APIRouter(tags=["Persisted GreenPeak Analysis"], dependencies=[Depends(no_store)])
 
@@ -79,7 +82,7 @@ def _latest(level: str, subject_id: str, model):
         client.close()
 
 
-@router.get("/indicators/{indicator_id}/analysis/latest")
+@router.get("/indicators/{indicator_id}/analysis/latest", dependencies=[Depends(require_premium_analysis)])
 def latest_indicator_analysis(indicator_id: str, debug: bool = Depends(require_debug_access)):
     if indicator_id not in load_registry()[2]:
         raise HTTPException(status_code=404, detail={"code": "INDICATOR_NOT_FOUND", "message": "Unknown indicator."})
@@ -87,7 +90,7 @@ def latest_indicator_analysis(indicator_id: str, debug: bool = Depends(require_d
     return response if debug else public_narrative(response)
 
 
-@router.get("/domains/{domain_id}/analysis/latest")
+@router.get("/domains/{domain_id}/analysis/latest", dependencies=[Depends(require_premium_analysis)])
 def latest_domain_analysis(domain_id: str, debug: bool = Depends(require_debug_access)):
     if domain_id not in {item.id for item in load_registry()[0].domains}:
         raise HTTPException(status_code=404, detail={"code": "DOMAIN_NOT_FOUND", "message": "Unknown domain."})
@@ -96,11 +99,27 @@ def latest_domain_analysis(domain_id: str, debug: bool = Depends(require_debug_a
 
 
 @router.get("/market/analysis/latest")
-def latest_market_analysis(debug: bool = Depends(require_debug_access)):
+def latest_market_analysis(debug: bool = Depends(require_debug_access), allowed: bool = Depends(premium_analysis_access)):
     response = _latest("market", "sp500", MarketNarrative)
     next_analysis_at = next_scheduled_analysis_at()
     response.setdefault("metadata", {})["next_analysis_at"] = next_analysis_at.isoformat() if next_analysis_at else None
-    return response if debug else public_narrative(response)
+    response = response if debug else public_narrative(response)
+    response["data"] = market_for_access(response["data"], allowed)
+    return response
+
+
+@router.get("/market/status-summary", response_model=MarketStatusResponse)
+def market_status_summary():
+    """Refresh only the five status cards; never generate or persist analysis."""
+    try:
+        snapshot = _latest("market", "sp500", MarketNarrative)["data"]
+    except HTTPException as exc:
+        if exc.status_code not in {404, 503}:
+            raise
+        snapshot = None
+    except ValidationError:
+        snapshot = None
+    return MarketStatusResponse(data=current_market_status(snapshot))
 
 
 def _execute_manual_analysis(run_id: str, force_llm: bool) -> None:

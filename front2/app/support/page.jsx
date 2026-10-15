@@ -27,7 +27,7 @@ export default function SupportPage() {
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button asChild variant="outline" className="gap-2"><Link href="/help"><BookOpen className="h-4 w-4" />راهنمای استفاده از سایت<ArrowLeft className="h-4 w-4" /></Link></Button>
-                <Button asChild variant="outline" className="gap-2"><Link href="/settings"><Settings className="h-4 w-4" />تنظیمات</Link></Button>
+                <Button asChild variant="outline" className="gap-2"><Link href="/profile#dashboard-settings"><Settings className="h-4 w-4" />تنظیمات پروفایل</Link></Button>
               </div>
             </div>
           </div>

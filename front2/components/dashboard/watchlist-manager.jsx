@@ -11,7 +11,7 @@ export default function WatchlistManager() {
   const [watchlists, setWatchlists] = useState([
     {
       id: 1,
-      name: "Tech Stocks",
+      name: "سهام فناوری",
       symbols: [
         { symbol: "AAPL", price: "175.43", change: "+2.34", changePercent: "+1.35%", trend: "up" },
         { symbol: "MSFT", price: "378.85", change: "-1.23", changePercent: "-0.32%", trend: "down" },
@@ -20,7 +20,7 @@ export default function WatchlistManager() {
     },
     {
       id: 2,
-      name: "Crypto",
+      name: "رمزارزها",
       symbols: [
         { symbol: "BTC", price: "43,250", change: "+1,234", changePercent: "+2.94%", trend: "up" },
         { symbol: "ETH", price: "2,587", change: "-45", changePercent: "-1.71%", trend: "down" },
@@ -90,9 +90,9 @@ export default function WatchlistManager() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" dir="rtl">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">My Watchlists</h3>
+        <h3 className="text-lg font-semibold">دیده‌بان‌های من</h3>
         <Button
           variant="outline"
           size="sm"
@@ -100,24 +100,24 @@ export default function WatchlistManager() {
           className="flex items-center gap-2"
         >
           <Plus className="h-4 w-4" />
-          New Watchlist
+          دیده‌بان جدید
         </Button>
       </div>
 
-      {/* Create New Watchlist */}
+      {/* Create دیده‌بان جدید */}
       {isAddingWatchlist && (
         <Card className="border-dashed">
           <CardContent className="p-4">
             <div className="flex gap-2">
               <Input
-                placeholder="Watchlist name"
+                placeholder="نام دیده‌بان"
                 value={newWatchlistName}
                 onChange={(e) => setNewWatchlistName(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && createNewWatchlist()}
               />
-              <Button onClick={createNewWatchlist}>Create</Button>
+              <Button onClick={createNewWatchlist}>ایجاد</Button>
               <Button variant="outline" onClick={() => setIsAddingWatchlist(false)}>
-                Cancel
+                انصراف
               </Button>
             </div>
           </CardContent>
@@ -143,13 +143,13 @@ export default function WatchlistManager() {
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-              <CardDescription>{watchlist.symbols.length} symbols</CardDescription>
+              <CardDescription>{watchlist.symbols.length } نماد</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {/* Add Symbol */}
               <div className="flex gap-2">
                 <Input
-                  placeholder="Add symbol (e.g., AAPL)"
+                  placeholder="افزودن نماد (مثلاً AAPL)"
                   value={newSymbol}
                   onChange={(e) => setNewSymbol(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && addSymbolToWatchlist(watchlist.id)}

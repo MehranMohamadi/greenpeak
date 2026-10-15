@@ -6,7 +6,8 @@ request; changing the role takes effect even for an existing signed session.
 Subscription status is independent of this role.
 
 The administrator entry is `/admin/settings`, also linked from the profile menu
-and personal settings for admins. It lists account usernames, IDs,
+and the dashboard-settings section at `/profile#dashboard-settings` for admins.
+The former `/settings` page redirects there. It lists account usernames, IDs,
 roles, activation state and registration dates, never credentials. Both the
 administrator list and the complete user list require administrator access.
 Admins can promote a user with the user-list action or
@@ -56,3 +57,18 @@ this migration automatically.
 Check the printed per-store status: an unavailable MongoDB has not been migrated.
 The command only updates locally configured stores; it does not deploy or connect
 to a separately configured production server.
+
+## One-time production username rename
+
+`deploy/deploy-production.sh` runs `src.services.username_migration` before
+activating a release. It renames `mreal` to `test` in the configured MongoDB,
+preserving the account ID, password hash, email, role, and associated data.
+The account must sign in again with `test` and its existing password afterward.
+
+Migration `rename-mreal-to-test-v1` in `gp_auth_migrations` captures the account
+ID before writing and records completion. Retries resume against that ID;
+completed migrations do nothing, even if someone later registers `mreal`.
+A missing source account, occupied `test` username, or database failure stops
+deployment before release activation and never overwrites another account.
+SQLite development accounts are not changed. Rolling back the application
+release does not undo this database rename.

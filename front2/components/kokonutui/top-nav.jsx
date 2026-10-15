@@ -9,6 +9,7 @@ import { normalizeNavigationPath, US_MARKET } from "@/lib/navigation-state";
 const routeLabels = {
   "/": "Dashboard",
   "/analytics": US_MARKET.label,
+  "/gold": "طلا",
   "/analytics/monetary-policy": "Monetary Policy & System Liquidity",
   "/analytics/systemic-risk": "Credit & Financial Stability",
   "/analytics/macroeconomic": "Growth, Inflation & Labor",
@@ -20,8 +21,7 @@ const routeLabels = {
   "/analytics/events": "News & Events",
   "/analytics/feature-pipeline-debug": "Feature Pipeline JSON",
   "/analytics/mt5-snapshots": "MetaTrader Snapshot JSON",
-  "/profile": "Profile",
-  "/settings": "Settings",
+  "/profile": "پروفایل و تنظیمات",
   "/help": "Help",
   "/support": "Support",
   "/test-charts": "Test Charts",

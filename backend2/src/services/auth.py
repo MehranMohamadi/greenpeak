@@ -235,10 +235,11 @@ class AuthService:
         return self.list_users(role="admin")
 
     def list_users(self, role=None):
-        projection = {"_id": 1, "username": 1, "role": 1, "is_active": 1, "created_at": 1}
+        projection = {"_id": 1, "username": 1, "role": 1, "is_active": 1, "created_at": 1, "can_view_premium_analysis": 1}
         return sorted([
             {"id": str(row["_id"]), "username": row["username"], "role": row.get("role", "user"),
-             "is_active": row.get("is_active", True), "created_at": row.get("created_at")}
+             "is_active": row.get("is_active", True), "created_at": row.get("created_at"),
+             "can_view_premium_analysis": row.get("can_view_premium_analysis") is True}
             for row in self.collection.find({"role": role, "deleted_at": None} if role else {"deleted_at": None}, projection)
         ], key=lambda row: row["username"].casefold())
 
@@ -284,7 +285,7 @@ class AuthService:
             result = self.collection.insert_one(document)
         except DuplicateKeyError as exc:
             raise AuthError("This username is already registered.") from exc
-        user = {"id": str(result.inserted_id), "username": username, "role": "user"}
+        user = {"id": str(result.inserted_id), "username": username, "role": "user", "can_view_premium_analysis": False}
         return user, self.create_token(user)
 
     def login(self, username: str, password: str) -> tuple[dict[str, Any], str]:
@@ -294,7 +295,8 @@ class AuthService:
             raise AuthError("Invalid username or password.")
         if document.get("email_verified") is False:
             raise AuthError("Please verify your email before signing in.")
-        user = {"id": str(document["_id"]), "username": document["username"], "role": document.get("role", "user")}
+        user = {"id": str(document["_id"]), "username": document["username"], "role": document.get("role", "user"),
+                "can_view_premium_analysis": document.get("can_view_premium_analysis") is True}
         return user, self.create_token({**user, "session_version": document.get("session_version", 0)})
 
     def change_password(self, username: str, current_password: str, new_password: str) -> None:
@@ -369,4 +371,22 @@ class AuthService:
                 or document.get("email_verified") is False
                 or document.get("session_version", 0) != payload.get("ver", 0)):
             raise AuthError("Invalid or expired session.")
-        return {"id": str(document["_id"]), "username": document["username"], "role": document.get("role", "user")}
+        return {"id": str(document["_id"]), "username": document["username"], "role": document.get("role", "user"),
+                "can_view_premium_analysis": document.get("can_view_premium_analysis") is True}
+
+    def set_premium_analysis(self, user_id, enabled, actor_id):
+        try:
+            identifier = int(user_id) if isinstance(self.collection, LocalUserCollection) else ObjectId(user_id)
+        except (ValueError, InvalidId):
+            return None
+        self.collection.update_one({"_id": identifier, "deleted_at": None}, {"$set": {
+            "can_view_premium_analysis": enabled,
+            "analysis_access_changed_at": datetime.now(timezone.utc),
+            "analysis_access_changed_by": actor_id,
+        }})
+        document = self.collection.find_one({"_id": identifier, "deleted_at": None})
+        if not document:
+            return None
+        return {"id": str(document["_id"]), "username": document["username"],
+                "role": document.get("role", "user"),
+                "can_view_premium_analysis": document.get("can_view_premium_analysis") is True}

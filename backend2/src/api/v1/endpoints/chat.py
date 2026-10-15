@@ -13,6 +13,7 @@ from ....services.chat.schemas import ConversationCreate, MessageRequest
 from ....services.chat.store import ChatError, ChatStore
 from ....services.llm_engine.routing import create_llm_provider, llm_is_configured
 from .auth import require_user
+from ....services.analysis_access import can_view_premium_analysis
 
 
 def no_store(response: Response):
@@ -116,6 +117,7 @@ def send_message(conversation_id: UUID, body: MessageRequest, user: User, store:
         provider = chat_provider()
         if row["scope"] == "site" and body.connection_id:
             row = {**row, "scope": "account", "connection_id": body.connection_id}
+        data.premium_analysis_allowed = can_view_premium_analysis(user)
         answer = generate_reply(provider, data, user["id"], row, body, history)
         # Recheck revocation before persisting or returning account-derived content.
         if row["scope"] == "account":

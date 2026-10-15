@@ -21,7 +21,7 @@ function formatTime(value) {
 const formatScore = (value) => typeof value === "number" ? value.toFixed(3) : "—"
 
 export default function AlphaVantageNews({ selectedArticleId, onArticleSelect }) {
-  const [activeSource, setActiveSource] = useState("alpha_vantage")
+  const [activeSource, setActiveSource] = useState("cnbc_rss")
   const [feeds, setFeeds] = useState({})
   const [loadingSource, setLoadingSource] = useState(null)
   const [errors, setErrors] = useState({})

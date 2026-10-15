@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "./auth-context"
-import { TrendingUp, Lock, User, Eye, EyeOff, Shield, ChevronRight } from "lucide-react"
+import { Lock, User, Eye, EyeOff, Shield, ChevronRight } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 
@@ -187,12 +187,26 @@ export default function LoginForm() {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="mx-auto w-16 h-16 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-xl flex items-center justify-center"
             >
-              <TrendingUp className="w-8 h-8 text-white" />
+              <span
+                role="img"
+                aria-label="GreenPeak logo"
+                className="w-12 h-12 bg-white"
+                style={{
+                  maskImage: "url('/favico-raw.svg')",
+                  maskSize: "contain",
+                  maskPosition: "center",
+                  maskRepeat: "no-repeat",
+                  WebkitMaskImage: "url('/favico-raw.svg')",
+                  WebkitMaskSize: "contain",
+                  WebkitMaskPosition: "center",
+                  WebkitMaskRepeat: "no-repeat",
+                }}
+              />
             </motion.div>
             <div>
               <CardTitle className="text-3xl font-bold text-white mb-2">GreenPeak</CardTitle>
-              <CardDescription className="text-slate-300 text-base">
-                Advanced Trading Analytics Platform
+              <CardDescription className="text-slate-300 text-base" dir="rtl" lang="fa">
+                تحلیل بازار، بررسی معاملات، تصمیم‌گیری آگاهانه‌تر
               </CardDescription>
             </div>
           </CardHeader>
@@ -217,7 +231,6 @@ export default function LoginForm() {
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Enter your email or username"
                   autoComplete="username"
                   value={credentials.username}
                   onChange={(e) => setCredentials((prev) => ({ ...prev, username: e.target.value }))}
@@ -235,7 +248,6 @@ export default function LoginForm() {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
                     value={credentials.password}
                     onChange={(e) => setCredentials((prev) => ({ ...prev, password: e.target.value }))}
                     required

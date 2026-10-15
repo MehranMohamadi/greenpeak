@@ -1,4 +1,5 @@
 "use client"
+import PremiumAnalysisGate from "@/components/analytics/premium-analysis-gate"
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ChevronDown, Loader2, RefreshCw } from "lucide-react"
@@ -24,7 +25,11 @@ function insightText(item) {
   return item?.title_fa || item?.detail_fa || ""
 }
 
-export default function DomainUnderstandingPanel({ domainId, simple = false, onUpdated }) {
+export default function DomainUnderstandingPanel(props) {
+  return <PremiumAnalysisGate><DomainUnderstandingPanelContent {...props} /></PremiumAnalysisGate>
+}
+
+function DomainUnderstandingPanelContent({ domainId, simple = false, onUpdated }) {
   const { isAdmin, accessToken } = useAuth()
   const [analysis, setAnalysis] = useState(null)
   const [expanded, setExpanded] = useState(false)
@@ -35,7 +40,7 @@ export default function DomainUnderstandingPanel({ domainId, simple = false, onU
   const mounted = useRef(true)
 
   const loadPersisted = useCallback(async () => {
-    const analysisResponse = await fetch(`${endpoints.analysis.domainLatest(domainId)}${isAdmin ? "?mode=debug" : ""}`, { cache: "no-store", headers: isAdmin ? { Authorization: `Bearer ${accessToken}` } : {} })
+    const analysisResponse = await fetch(`${endpoints.analysis.domainLatest(domainId)}${isAdmin ? "?mode=debug" : ""}`, { cache: "no-store", headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} })
     const analysisBody = await analysisResponse.json()
     if (!mounted.current) return
     setAnalysis(analysisResponse.ok ? analysisBody.data : null)

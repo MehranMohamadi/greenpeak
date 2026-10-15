@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { Headset, LogOut, Settings, ShieldCheck, User } from "lucide-react";
+import { Headset, Link2, LogOut, ShieldCheck, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-context";
@@ -30,7 +30,7 @@ export default function ProfileDropdown({
     ...props
 }) {
     const [isOpen, setIsOpen] = React.useState(false);
-    const { user, logout } = useAuth();
+    const { user, logout, canViewPremiumAnalysis } = useAuth();
     const router = useRouter();
 
     const handleLogout = async () => {
@@ -44,20 +44,20 @@ export default function ProfileDropdown({
         name: user.username,
         role: user.role === 'admin' ? 'System Administrator' : 'User',
     } : data;
-    const isPremium = user?.is_premium === true || ["premium", "pro"].includes(String(user?.subscription ?? user?.plan ?? "").toLowerCase());
+    const isPremium = canViewPremiumAnalysis;
     const subscriptionLabel = isPremium ? "Premium" : "Free";
 
     const menuItems = [
         ...(user?.role === "admin" ? [{ label: "Admin Panel", href: "/admin/settings", icon: <ShieldCheck className="w-4 h-4" /> }] : []),
         {
-            label: "Profile",
+            label: "پروفایل و تنظیمات",
             href: "/profile",
             icon: <User className="w-4 h-4" />,
         },
         {
-            label: "Settings",
-            href: "/settings",
-            icon: <Settings className="w-4 h-4" />,
+            label: "اتصال حساب معاملاتی",
+            href: "/profile#broker-connection",
+            icon: <Link2 className="w-4 h-4" />,
         },
         {
             label: "Support",
@@ -117,7 +117,7 @@ export default function ProfileDropdown({
                             viewBox="0 0 8 16"
                             fill="none"
                             className={cn(
-                                "transition-all duration-200",
+                                "rotate-180 transition-all duration-200",
                                 isOpen
                                     ? "text-cyan-500 dark:text-cyan-400"
                                     : "text-zinc-400 dark:text-zinc-500"

@@ -157,7 +157,7 @@ export function buildDashboardInsights({ snapshots, comparison, articles, snooze
   } else if (accountDataUnavailable) {
     add({ id: "account-summary-unavailable", kind: "summary", priority: 90, title: "داده حساب فعلاً در دسترس نیست؛ موارد عمومی همچنان نمایش داده می‌شوند", detail: "در تازه‌سازی بعدی دوباره برای دریافت Snapshot تلاش می‌کنیم و این وضعیت به‌عنوان هشدار حساب محسوب نمی‌شود.", meta: "موقت" })
   } else if (!activeSnapshots.length) {
-    add({ id: "connect-mt5", kind: "action", priority: 90, title: "پس از اتصال MetaTrader، خلاصه شخصی ریسک و پرتفوی را اینجا خواهید دید", detail: "اتصال فقط برای دریافت Snapshot خواندنی حساب است و سفارشی برای بروکر ارسال نمی‌کند.", meta: "شروع کار", href: "/settings" })
+    add({ id: "connect-mt5", kind: "action", priority: 90, title: "پس از اتصال MetaTrader، خلاصه شخصی ریسک و پرتفوی را اینجا خواهید دید", detail: "اتصال فقط برای دریافت Snapshot خواندنی حساب است و سفارشی برای بروکر ارسال نمی‌کند.", meta: "شروع کار", href: "/profile#broker-connection" })
   } else {
     let totalPositions = 0
     let totalPending = 0
@@ -199,7 +199,7 @@ export function buildDashboardInsights({ snapshots, comparison, articles, snooze
       if (freshness.ageMinutes != null && freshness.ageMinutes >= 180 && openRisk.positions.length > 0) {
         add({ id: `stale:${key}`, kind: "warning", priority: 70, title: `Snapshot ${label} بیش از سه ساعت به‌روزرسانی نشده است`, detail: "با وجود پوزیشن باز، بهتر است پیش از تصمیم جدید Snapshot تازه ارسال شود.", meta: label, href: "#risk-management-title", focus: "warnings", canSnooze: true, snoozeHours: 6 })
       } else if (freshness.ageMinutes != null && freshness.ageMinutes >= 60) {
-        add({ id: `refresh:${key}`, kind: "action", priority: 47, title: `برای تحلیل دقیق‌تر ${label} یک Snapshot تازه ارسال کنید`, detail: `آخرین داده حدود ${formatCount(Math.round(freshness.ageMinutes))} دقیقه قبل ثبت شده است.`, meta: label, href: "/settings" })
+        add({ id: `refresh:${key}`, kind: "action", priority: 47, title: `برای تحلیل دقیق‌تر ${label} یک Snapshot تازه ارسال کنید`, detail: `آخرین داده حدود ${formatCount(Math.round(freshness.ageMinutes))} دقیقه قبل ثبت شده است.`, meta: label, href: "/profile#broker-connection" })
       }
 
       if (concentration.sharePct != null && concentration.sharePct >= 80) {

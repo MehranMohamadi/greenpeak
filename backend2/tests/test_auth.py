@@ -96,7 +96,7 @@ def test_signup_login_and_me_round_trip():
 
     me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert me.status_code == 200
-    assert me.json() == {"id": "1", "username": "New.User", "role": "user"}
+    assert me.json() == {"id": "1", "username": "New.User", "role": "user", "can_view_premium_analysis": False}
     assert client.get("/api/v1/auth/session").status_code == 200
     assert "HttpOnly" in login.headers["set-cookie"]
     assert client.post("/api/v1/auth/logout").status_code == 200

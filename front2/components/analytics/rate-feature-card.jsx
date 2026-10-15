@@ -1,4 +1,5 @@
 "use client"
+import PremiumAnalysisGate from "@/components/analytics/premium-analysis-gate"
 
 import { useEffect, useState } from "react"
 import { AlertTriangle, Beaker, ChevronDown, Database } from "lucide-react"
@@ -49,7 +50,11 @@ async function loadPreviewSnapshot(indicatorConfig, signal, isAdmin, accessToken
   return isAdmin ? previewBody.data?.stages?.validated_snapshot?.snapshot : previewBody.data
 }
 
-export default function RateFeatureCard({ factorId }) {
+export default function RateFeatureCard(props) {
+  return <PremiumAnalysisGate><RateFeatureCardContent {...props} /></PremiumAnalysisGate>
+}
+
+function RateFeatureCardContent({ factorId }) {
   const { isAdmin, accessToken } = useAuth()
   const indicatorConfig = indicatorConfigs[factorId]
   const indicatorId = indicatorConfig?.id
@@ -68,8 +73,8 @@ export default function RateFeatureCard({ factorId }) {
     const load = async () => {
       try {
         const [storedResponse, narrativeResponse] = await Promise.all([
-          fetch(endpoints.indicatorFeatures.latest(indicatorId, isAdmin), { cache: "no-store", signal: controller.signal, headers: isAdmin ? { Authorization: `Bearer ${accessToken}` } : {} }),
-          fetch(`${endpoints.analysis.indicatorLatest(indicatorId)}${isAdmin ? "?mode=debug" : ""}`, { cache: "no-store", signal: controller.signal, headers: isAdmin ? { Authorization: `Bearer ${accessToken}` } : {} }),
+          fetch(endpoints.indicatorFeatures.latest(indicatorId, isAdmin), { cache: "no-store", signal: controller.signal, headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} }),
+          fetch(`${endpoints.analysis.indicatorLatest(indicatorId)}${isAdmin ? "?mode=debug" : ""}`, { cache: "no-store", signal: controller.signal, headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} }),
         ])
         const storedBody = await storedResponse.json()
         const narrativeBody = await narrativeResponse.json()

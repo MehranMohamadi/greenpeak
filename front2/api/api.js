@@ -18,6 +18,7 @@ export const endpoints = {
     auth: {
         admins: `${API_BASE}/auth/admins`,
         users: `${API_BASE}/auth/users`,
+        analysisAccess: (userId) => `${API_BASE}/auth/users/${encodeURIComponent(userId)}/analysis-access`,
         promoteUser: (userId) => `${API_BASE}/auth/users/${encodeURIComponent(userId)}/promote`,
         demoteUser: (userId) => `${API_BASE}/auth/users/${encodeURIComponent(userId)}/demote`,
         deleteUser: (userId) => `${API_BASE}/auth/users/${encodeURIComponent(userId)}`,
@@ -65,6 +66,7 @@ export const endpoints = {
         manualRunStatus: (runId) => `${API_BASE}/admin/analysis/runs/${runId}`,
     },
     market: {
+        statusSummary: `${API_BASE}/market/status-summary`,
         sp500: `${API_BASE}/market/sp500`,
         sp500Performance: `${API_BASE}/market/sp500/performance`,
         vix: `${API_BASE}/market/vix`,

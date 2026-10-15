@@ -1,4 +1,5 @@
 "use client"
+import PremiumAnalysisGate from "@/components/analytics/premium-analysis-gate"
 
 import dynamic from "next/dynamic"
 import { useMemo, useState } from "react"
@@ -41,7 +42,7 @@ export default function GroupAnalysisLayout({ page, title, description, domainId
 
   return <AnalysisPageShell>
     <AnalysisPageHeader page={page} title={title} showDescription={false} />
-    <Card dir="rtl"><CardContent className="px-4 pb-4 !pt-2.5">{domainAnalysis !== undefined ? domainAnalysis : <DomainUnderstandingPanel domainId={domainId} simple onUpdated={() => setRevision((value) => value + 1)} />}</CardContent></Card>
+    <Card dir="rtl"><CardContent className="px-4 pb-4 !pt-2.5"><PremiumAnalysisGate>{domainAnalysis !== undefined ? domainAnalysis : <DomainUnderstandingPanel domainId={domainId} simple onUpdated={() => setRevision((value) => value + 1)} />}</PremiumAnalysisGate></CardContent></Card>
     <div dir="ltr" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
       <Card className="min-w-0 lg:col-start-1 lg:row-start-1"><CardHeader className="space-y-3"><CardTitle className="flex items-start justify-between gap-3 text-base"><span className="min-w-0 break-words">{selected.title}</span><Button variant="outline" size="icon" aria-label="Expand chart" title="Expand chart" disabled={!hasChartData} onClick={() => setFullScreen(true)}><Maximize2 className="h-4 w-4" /></Button></CardTitle><CardDescription className="text-xs">{sourceLine}</CardDescription>{selected.description && <p className="text-xs leading-5 text-muted-foreground">{selected.description}</p>}<div className="flex flex-wrap gap-1">{periods.map((item) => <Button key={item} size="sm" variant={period === item ? "default" : "outline"} onClick={() => setPeriod(item)}>{item}</Button>)}</div></CardHeader><CardContent>{loadingState(result) || error ? <AnalysisState tone="neutral" title={error ? "Series unavailable" : "Loading observations"} description={error?.message || error} /> : !hasChartData ? <AnalysisState tone="neutral" title="No verified observations" description={metadata?.quality_reason || "No observations were returned."} /> : <><ChartLegend series={chartSeries} /><div className="h-[200px] w-full overflow-hidden"><MultiLineChart dataSets={chartDataSets} height={INLINE_CHART_HEIGHT} textColor={chartTextColor} /></div></>}</CardContent></Card>
       <div className="min-w-0 [overflow-wrap:anywhere] relative min-h-0 lg:col-start-2 lg:row-start-1"><IndicatorNarrativeAnalysis key={selected.indicatorId || selected.id} indicatorId={selected.indicatorId} title={selected.title} observationDate={date} revision={revision} note={selectedNote?.(selected)} compact /></div>

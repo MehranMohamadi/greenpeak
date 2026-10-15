@@ -1,4 +1,5 @@
 "use client"
+import PremiumAnalysisGate from "@/components/analytics/premium-analysis-gate"
 
 import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, ChevronDown, Database } from "lucide-react"
@@ -38,7 +39,11 @@ async function loadPreview(config, signal, isAdmin, accessToken) {
   return isAdmin ? resultBody.data?.stages?.validated_snapshot?.snapshot : resultBody.data
 }
 
-export default function IndicatorFeatureCard({ page, factorId, compact = false }) {
+export default function IndicatorFeatureCard(props) {
+  return <PremiumAnalysisGate><IndicatorFeatureCardContent {...props} /></PremiumAnalysisGate>
+}
+
+function IndicatorFeatureCardContent({ page, factorId, compact = false }) {
   const { isAdmin, accessToken } = useAuth()
   const config = useMemo(() => {
     const item = configs[`${page}:${factorId}`]
@@ -56,8 +61,8 @@ export default function IndicatorFeatureCard({ page, factorId, compact = false }
     const controller = new AbortController()
     setSnapshot(null); setNarrative(null); setNarrativeMismatch(null); setError(""); setExpanded(false)
     Promise.all([
-      fetch(endpoints.indicatorFeatures.latest(config.id, isAdmin), { cache: "no-store", signal: controller.signal, headers: isAdmin ? { Authorization: `Bearer ${accessToken}` } : {} }),
-      fetch(`${endpoints.analysis.indicatorLatest(config.id)}${isAdmin ? "?mode=debug" : ""}`, { cache: "no-store", signal: controller.signal, headers: isAdmin ? { Authorization: `Bearer ${accessToken}` } : {} }),
+      fetch(endpoints.indicatorFeatures.latest(config.id, isAdmin), { cache: "no-store", signal: controller.signal, headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} }),
+      fetch(`${endpoints.analysis.indicatorLatest(config.id)}${isAdmin ? "?mode=debug" : ""}`, { cache: "no-store", signal: controller.signal, headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} }),
     ]).then(async ([featureResponse, narrativeResponse]) => {
       const featureBody = await featureResponse.json()
       const narrativeBody = await narrativeResponse.json()

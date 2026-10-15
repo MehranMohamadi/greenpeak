@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from .economic_calendar import fetch_upcoming_us_events
+from .economic_calendar import fetch_recent_us_events, fetch_upcoming_us_events
 from .news.article_analysis import NEWS_ANALYSIS_VERSION
 from .news.feed import build_source_feed
 from .news.repository import MongoNewsRepository
@@ -29,7 +29,7 @@ def _number(value: Any) -> float | None:
 
 
 def parse_sp500_session_move(payload: dict[str, Any], now: datetime) -> dict[str, Any]:
-    """Select today's late-session move or the latest completed prior session."""
+    """Preserve the session benchmark and expose current/completed observations."""
     chart = payload.get("chart") if isinstance(payload, dict) else None
     results = chart.get("result") if isinstance(chart, dict) else None
     if not results or chart.get("error"):
@@ -48,6 +48,8 @@ def parse_sp500_session_move(payload: dict[str, Any], now: datetime) -> dict[str
         if opening is None or closing is None:
             continue
         observed_at = datetime.fromtimestamp(int(timestamp), UTC).astimezone(NEW_YORK)
+        if observed_at > now:
+            continue
         day = observed_at.date().isoformat()
         session = sessions.setdefault(
             day,
@@ -70,13 +72,31 @@ def parse_sp500_session_move(payload: dict[str, Any], now: datetime) -> dict[str
     if selected_index < 1:
         raise ValueError("Previous S&P 500 close is unavailable")
 
-    selected, previous = ordered[selected_index], ordered[selected_index - 1]
+    move = _session_move(ordered, selected_index)
+    move["session_scope"] = "today_late_or_closed" if use_today else "previous_completed_session"
+
+    # Use the same Yahoo response; no additional quote API is needed. Before
+    # 15:00 the legacy benchmark stays on the prior close, but flow analysis
+    # can now see today's observed move as well.
+    move["current_session"] = _session_move(ordered, today_index) if today_index is not None and today_index >= 1 else None
+    completed_index = len(ordered) - 1
+    if ordered[completed_index]["session_date"] == today and local_now.hour < 16:
+        completed_index -= 1
+    move["latest_completed_session"] = _session_move(ordered, completed_index) if completed_index >= 1 else None
+    if move["current_session"]:
+        move["current_session"]["session_status"] = "completed" if local_now.hour >= 16 else "in_progress"
+    if move["latest_completed_session"]:
+        move["latest_completed_session"]["session_status"] = "completed"
+    return move
+
+
+def _session_move(ordered: list[dict[str, Any]], index: int) -> dict[str, Any]:
+    selected, previous = ordered[index], ordered[index - 1]
     change = selected["close"] - previous["close"]
     change_pct = change / previous["close"] * 100 if previous["close"] else None
     direction = "up" if change > 0 else "down" if change < 0 else "flat"
     return {
         "symbol": "^GSPC",
-        "session_scope": "today_late_or_closed" if use_today else "previous_completed_session",
         "session_date": selected["session_date"],
         "previous_session_date": previous["session_date"],
         "open": round(float(selected["open"]), 4),
@@ -121,6 +141,7 @@ def _recent_news(client, database: str, now: datetime) -> list[dict[str, Any]]:
             "summary": item.get("summary"),
             "published_at": item.get("published_at"),
             "topics": item.get("topics") or [],
+            "tickers": item.get("tickers") or [],
             "source_relevance_score": item.get("source_score"),
             "source_sentiment_score": item.get("alpha_sentiment_score"),
             "source_sentiment_label": item.get("alpha_sentiment_label"),
@@ -144,6 +165,7 @@ def build_market_analysis_context(
         "sp500_session_move": None,
         "recent_market_news": [],
         "upcoming_us_events": [],
+        "current_market_context": {"released_us_events": [], "warnings": []},
         "warnings": [],
     }
     if as_of != current.astimezone(TEHRAN).date():
@@ -168,4 +190,14 @@ def build_market_analysis_context(
             context["warnings"].append("upcoming_us_events_unavailable")
     except (httpx.HTTPError, TypeError, ValueError):
         context["warnings"].append("upcoming_us_events_unavailable")
+
+    # Reuse the same calendar service as the existing published-data table.
+    # This extra evidence is for the current-market-flow prompt only.
+    flow_context = context["current_market_context"]
+    try:
+        flow_context["released_us_events"] = fetch_recent_us_events(now=current, days=7, limit=12)
+        if not flow_context["released_us_events"]:
+            flow_context["warnings"].append("released_us_events_unavailable")
+    except (httpx.HTTPError, TypeError, ValueError):
+        flow_context["warnings"].append("released_us_events_unavailable")
     return context
