@@ -480,7 +480,7 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
       <AlertDialogHeader className="text-right sm:text-right">
         <AlertDialogTitle>حذف بروکر «{brokerToDelete}»</AlertDialogTitle>
         <AlertDialogDescription className="leading-7">
-          تمام حساب‌ها، تاریخچه معاملات، سفارش‌ها و داده‌های مدیریت ریسک این بروکر در حساب کاربری شما از GreenPeak پاک می‌شوند. برنامه‌ها و تنظیمات ریسک ذخیره‌شده در این مرورگر هم پاک می‌شوند. اتصال‌های MT5 این بروکر حذف می‌شوند؛ اتصال دوباره به توکن جدید نیاز دارد. این حذف قابل بازگشت نیست.
+          تمام حساب‌ها، تاریخچه معاملات، سفارش‌ها و داده‌های مدیریت ریسک این بروکر در حساب کاربری شما از GreenPeak پاک می‌شوند. برنامه‌ها و تنظیمات ریسک ذخیره‌شده در این مرورگر هم پاک می‌شوند. اتصال‌های MT5 این بروکر حذف می‌شوند؛ اتصال دوباره به کلید جدید نیاز دارد. این حذف قابل بازگشت نیست.
         </AlertDialogDescription>
       </AlertDialogHeader>
       {deleteError && <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">{deleteError}</p>}

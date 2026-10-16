@@ -50,6 +50,7 @@ export const endpoints = {
     mt5: {
         latestSnapshot: `${API_BASE}/mt5/snapshots/latest`,
         connections: `${API_BASE}/mt5/connections`,
+        connectionKey: (connectionId) => `${API_BASE}/mt5/connections/${encodeURIComponent(connectionId)}/reveal-key`,
         brokers: `${API_BASE}/mt5/brokers`,
     },
     indicatorFeatures: {

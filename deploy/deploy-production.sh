@@ -137,6 +137,8 @@ fi
 # A collision or unavailable MongoDB stops deployment without replacing accounts.
 (
   cd "$release_root/backend2"
+  # Verify encrypted connection-key storage before switching the live release.
+  DEBUG=false .venv/bin/python -c 'from src.services.mt5_connection_service import _key_cipher; _key_cipher()'
   DEBUG=false .venv/bin/python -m src.services.username_migration
 )
 

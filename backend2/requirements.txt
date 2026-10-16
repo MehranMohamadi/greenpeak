@@ -20,6 +20,7 @@ yfinance==0.2.46
 curl-cffi>=0.13.0
 fredapi==0.5.2
 pymongo==4.9.1
+cryptography==50.0.2
 motor==3.6.0
 apscheduler==3.10.4
 click==8.1.7

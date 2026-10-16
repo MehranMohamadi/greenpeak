@@ -15,6 +15,7 @@ const Switch = React.forwardRef<
       className
     )}
     {...props}
+    dir="ltr"
     ref={ref}
   >
     <SwitchPrimitives.Thumb

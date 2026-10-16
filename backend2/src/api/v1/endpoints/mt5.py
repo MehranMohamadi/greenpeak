@@ -9,7 +9,7 @@ from pymongo.errors import PyMongoError
 
 from ....models.mt5_schemas import BrokerComparisonResponse, BrokerComparisonDisplayResponse, BrokerDeleteRequest, BrokerDeleteResponse, MT5DisplaySnapshot, MT5Snapshot, MT5SnapshotReceipt
 from ....services.broker_comparison_service import BrokerComparisonService
-from ....services.mt5_connection_service import MT5ConnectionService
+from ....services.mt5_connection_service import ConnectionKeyConfigurationError, ConnectionKeyUnavailableError, MT5ConnectionService
 from ....services.mt5_snapshot_service import MT5ConnectionUnavailableError, MT5SnapshotService
 from .auth import no_store, require_admin, require_user
 from ....services.presentation import public_broker_comparison, public_mt5_snapshot
@@ -33,6 +33,10 @@ class ConnectionResponse(BaseModel):
 
 class PairingResponse(BaseModel):
     connection: ConnectionResponse
+    pairing_token: str
+
+
+class ConnectionKeyResponse(BaseModel):
     pairing_token: str
 
 
@@ -63,6 +67,8 @@ def create_connection(
     try:
         connection, token = service.create(user["id"], body.label)
         return PairingResponse(connection=ConnectionResponse(**connection), pairing_token=token)
+    except ConnectionKeyUnavailableError as exc:
+        raise HTTPException(status_code=503, detail="Secure connection key storage unavailable") from exc
     except PyMongoError as exc:
         raise HTTPException(status_code=503, detail="MT5 connection storage unavailable") from exc
 
@@ -74,6 +80,25 @@ def list_connections(
 ):
     try:
         return [ConnectionResponse(**item) for item in service.list_for_user(user["id"])]
+    except PyMongoError as exc:
+        raise HTTPException(status_code=503, detail="MT5 connection storage unavailable") from exc
+
+
+@router.post("/connections/{connection_id}/reveal-key", response_model=ConnectionKeyResponse)
+def reveal_connection_key(
+    connection_id: str,
+    user: Annotated[dict, Depends(require_user)],
+    service: Annotated[MT5ConnectionService, Depends(connection_service)],
+):
+    try:
+        token = service.reveal_key(user["id"], connection_id)
+        if token is None:
+            raise HTTPException(status_code=404, detail="MT5 connection not found")
+        return ConnectionKeyResponse(pairing_token=token)
+    except ConnectionKeyConfigurationError as exc:
+        raise HTTPException(status_code=503, detail="Secure connection key storage unavailable") from exc
+    except ConnectionKeyUnavailableError as exc:
+        raise HTTPException(status_code=409, detail="connection_key_pending_upload") from exc
     except PyMongoError as exc:
         raise HTTPException(status_code=503, detail="MT5 connection storage unavailable") from exc
 

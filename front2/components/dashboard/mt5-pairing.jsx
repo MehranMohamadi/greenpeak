@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Check, Copy, Link2, Loader2, Trash2 } from "lucide-react"
+import { Check, Copy, Eye, EyeOff, Link2, Loader2, Trash2 } from "lucide-react"
 import { endpoints } from "@/api/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,10 +12,15 @@ import { useAuth } from "@/components/auth/auth-context"
 
 export default function MT5Pairing() {
   const { accessToken } = useAuth()
+  return <MT5PairingContent key={accessToken || "signed-out"} accessToken={accessToken} />
+}
+
+function MT5PairingContent({ accessToken }) {
   const [connections, setConnections] = useState([])
   const [label, setLabel] = useState("حساب متاتریدر من")
-  const [pairingToken, setPairingToken] = useState("")
-  const [copied, setCopied] = useState(false)
+  const [visibleKeys, setVisibleKeys] = useState({})
+  const [revealingId, setRevealingId] = useState("")
+  const [copied, setCopied] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -48,32 +53,67 @@ export default function MT5Pairing() {
         body: JSON.stringify({ label }),
       })
       const body = await response.json()
-      if (!response.ok) throw new Error(body.detail || "ساخت توکن اتصال ممکن نشد.")
-      setPairingToken(body.pairing_token)
+      if (!response.ok) throw new Error("ساخت کلید اتصال ممکن نشد. دوباره تلاش کنید.")
+      setVisibleKeys((current) => ({ ...current, [body.connection.id]: body.pairing_token }))
       setConnections((current) => [body.connection, ...current])
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "ساخت توکن اتصال ممکن نشد.")
+      setError(reason instanceof Error ? reason.message : "ساخت کلید اتصال ممکن نشد.")
     } finally {
       setLoading(false)
     }
   }
 
   const revoke = async (id) => {
-    const response = await fetch(`${endpoints.mt5.connections}/${id}`, { method: "DELETE", headers: headers() })
-    if (response.ok) setConnections((current) => current.filter((item) => item.id !== id))
-    else setError("لغو این اتصال ممکن نشد.")
+    setError("")
+    try {
+      const response = await fetch(`${endpoints.mt5.connections}/${id}`, { method: "DELETE", headers: headers() })
+      if (!response.ok) throw new Error("لغو این اتصال ممکن نشد.")
+      hideKey(id)
+      setConnections((current) => current.filter((item) => item.id !== id))
+    } catch {
+      setError("لغو این اتصال ممکن نشد.")
+    }
   }
 
-  const copyToken = async () => {
-    await navigator.clipboard.writeText(pairingToken)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1500)
+  const hideKey = (id) => {
+    setVisibleKeys((current) => {
+      const next = { ...current }
+      delete next[id]
+      return next
+    })
+    setCopied("")
+  }
+
+  const revealKey = async (id) => {
+    setRevealingId(id)
+    setError("")
+    try {
+      const response = await fetch(endpoints.mt5.connectionKey(id), { method: "POST", headers: headers(), cache: "no-store" })
+      const body = await response.json()
+      if (response.status === 409) throw new Error("برای نمایش دوباره کلید قبلی این اتصال، یک‌بار از متاتریدر اطلاعات حساب را ارسال کنید؛ سپس دوباره «نمایش کلید» را بزنید. نیازی به ساخت کلید جدید نیست.")
+      if (!response.ok || !body.pairing_token) throw new Error("نمایش کلید اتصال ممکن نشد. دوباره تلاش کنید.")
+      setVisibleKeys((current) => ({ ...current, [id]: body.pairing_token }))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "نمایش کلید اتصال ممکن نشد.")
+    } finally {
+      setRevealingId("")
+    }
+  }
+
+  const copyKey = async (id) => {
+    try {
+      await navigator.clipboard.writeText(visibleKeys[id])
+      setCopied(id)
+      window.setTimeout(() => setCopied(""), 1500)
+    } catch {
+      setError("کپی خودکار ممکن نشد؛ کلید را انتخاب و کپی کنید.")
+    }
   }
 
   return <Card className="border-primary/20">
     <CardHeader>
-      <CardTitle className="flex items-center gap-2"><Link2 className="h-5 w-5 text-primary" />توکن اتصال متاتریدر ۵</CardTitle>
-      <CardDescription>برای حساب خود توکن بسازید و آن را در ورودی <span dir="ltr">GreenPeakApiToken</span> تنظیمات اکسپرت گرین‌پیک وارد کنید.</CardDescription>
+      <CardTitle className="flex flex-wrap items-center gap-2"><Link2 className="h-5 w-5 text-primary" />کلید اتصال متاتریدر ۵ <span dir="ltr">(API Key)</span></CardTitle>
+      <CardDescription>برای حساب خود کلید بسازید و آن را در قسمت «کلید اتصال / API Key» تنظیمات اکسپرت وارد کنید. در نسخه‌های قبلی، نام این ورودی <span dir="ltr">GreenPeakApiToken</span> است.</CardDescription>
     </CardHeader>
     <CardContent className="space-y-4">
       <Label htmlFor="mt5-connection-label">نام اتصال</Label>
@@ -84,31 +124,41 @@ export default function MT5Pairing() {
           disabled={loading || !accessToken || !label.trim()}
           className="shrink-0 border border-zinc-950 bg-zinc-950 text-white hover:bg-zinc-800 hover:text-white focus-visible:ring-zinc-950 dark:border-white dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 dark:hover:text-zinc-950 dark:focus-visible:ring-white"
         >
-          {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Link2 className="ml-2 h-4 w-4" />}ساخت توکن اتصال
+          {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Link2 className="ml-2 h-4 w-4" />}ساخت کلید اتصال
         </Button>
       </div>
 
-      {pairingToken && <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-        <p className="font-medium">این توکن را اکنون ذخیره کنید؛ فقط همین یک‌بار نمایش داده می‌شود.</p>
-        <div className="flex gap-2">
-          <code className="min-w-0 flex-1 overflow-x-auto rounded bg-slate-950 p-3 text-xs text-cyan-300" dir="ltr">{pairingToken}</code>
-          <Button variant="outline" size="icon" onClick={copyToken} aria-label="کپی توکن اتصال">{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}</Button>
-        </div>
+      <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
+        <p className="text-sm leading-7">کلید هر اتصال را می‌توانید با دکمه «نمایش کلید» کنار همان بروکر دوباره ببینید و کپی کنید.</p>
         <ol className="list-decimal space-y-1 ps-5 text-sm leading-7 text-muted-foreground">
           <li>تنظیمات اکسپرت گرین‌پیک را در متاتریدر ۵ باز کنید.</li>
-          <li>توکن را در قسمت <span dir="ltr">GreenPeakApiToken</span> وارد کنید.</li>
+          <li>کلید را در قسمت «کلید اتصال / API Key» وارد کنید.</li>
           <li>دسترسی <span dir="ltr">WebRequest</span> را برای آدرس API گرین‌پیک فعال کنید و اولین اطلاعات حساب را ارسال کنید.</li>
         </ol>
-      </div>}
+      </div>
 
       {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
       {connections.length > 0 && <div className="space-y-2">
-        {connections.map((connection) => <div key={connection.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
-          <div>
-            <div className="flex items-center gap-2"><span className="font-medium">{connection.label}</span><Badge variant={connection.status === "connected" ? "default" : "secondary"}>{connection.status === "connected" ? "متصل" : "در انتظار اولین اطلاعات حساب"}</Badge></div>
-            {connection.account_identity && <p className="mt-1 text-xs text-muted-foreground" dir="ltr">{connection.account_identity.broker_company} · {connection.account_identity.trade_server} · {connection.account_identity.account_identifier}</p>}
+        {connections.map((connection) => <div key={connection.id} className="space-y-3 rounded-lg border p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2"><span className="break-words font-medium">{connection.label}</span><Badge variant={connection.status === "connected" ? "default" : "secondary"}>{connection.status === "connected" ? "متصل" : "در انتظار اولین اطلاعات حساب"}</Badge></div>
+              {connection.account_identity && <p className="mt-1 break-words text-xs text-muted-foreground" dir="ltr">{connection.account_identity.broker_company} · {connection.account_identity.trade_server} · {connection.account_identity.account_identifier}</p>}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" disabled={Boolean(revealingId)} aria-expanded={Boolean(visibleKeys[connection.id])} aria-controls={`connection-key-${connection.id}`} onClick={() => visibleKeys[connection.id] ? hideKey(connection.id) : revealKey(connection.id)}>
+                {revealingId === connection.id ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : visibleKeys[connection.id] ? <EyeOff className="ml-2 h-4 w-4" /> : <Eye className="ml-2 h-4 w-4" />}
+                {visibleKeys[connection.id] ? "پنهان‌کردن کلید" : "نمایش کلید"}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => revoke(connection.id)} aria-label={`لغو اتصال ${connection.label}`}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+            </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => revoke(connection.id)} aria-label="لغو اتصال"><Trash2 className="h-4 w-4 text-red-500" /></Button>
+          <div id={`connection-key-${connection.id}`} hidden={!visibleKeys[connection.id]}>
+            {visibleKeys[connection.id] && <div className="flex items-start gap-2">
+              <code className="min-w-0 flex-1 select-all break-all rounded bg-slate-950 p-3 text-left text-xs leading-6 text-cyan-300" dir="ltr">{visibleKeys[connection.id]}</code>
+              <Button variant="outline" size="icon" className="shrink-0" onClick={() => copyKey(connection.id)} aria-label={`کپی کلید اتصال ${connection.label}`}>{copied === connection.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}</Button>
+            </div>}
+          </div>
         </div>)}
       </div>}
     </CardContent>
