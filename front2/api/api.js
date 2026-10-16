@@ -38,6 +38,7 @@ export const endpoints = {
         feedback: `${API_BASE}/support/feedback`,
     },
     news: {
+        cnbcHighlights: `${API_BASE}/news/highlights/cnbc`,
         bootstrap: `${API_BASE}/news/bootstrap`,
         source: (sourceId, limit = 20) => `${API_BASE}/news/sources/${sourceId}?limit=${limit}`,
     },

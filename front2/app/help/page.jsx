@@ -40,7 +40,7 @@ const quickLinks = [
   { href: "/", label: "داشبورد", icon: LayoutDashboard },
   { href: "/analytics", label: "گزارش بازار", icon: TrendingUp },
   { href: "/analytics/events", label: "رویدادها و اخبار", icon: CalendarDays },
-  { href: "/profile#dashboard-settings", label: "پروفایل و تنظیمات", icon: Settings },
+  { href: "/profile#dashboard-settings", label: "پروفایل", icon: Settings },
 ]
 
 const guideSections = [

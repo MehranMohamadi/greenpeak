@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { Headset, Link2, LogOut, ShieldCheck, User } from "lucide-react";
+import { Headset, LogOut, ShieldCheck, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-context";
@@ -50,17 +50,12 @@ export default function ProfileDropdown({
     const menuItems = [
         ...(user?.role === "admin" ? [{ label: "Admin Panel", href: "/admin/settings", icon: <ShieldCheck className="w-4 h-4" /> }] : []),
         {
-            label: "پروفایل و تنظیمات",
+            label: "پروفایل",
             href: "/profile",
             icon: <User className="w-4 h-4" />,
         },
         {
-            label: "اتصال حساب معاملاتی",
-            href: "/profile#broker-connection",
-            icon: <Link2 className="w-4 h-4" />,
-        },
-        {
-            label: "Support",
+            label: "پشتیبانی",
             href: "/support",
             icon: <Headset className="w-4 h-4" />,
         },
@@ -83,16 +78,38 @@ export default function ProfileDropdown({
                                 triggerClassName
                             )}
                         >
-                            <div className="w-7 h-7 shrink-0 rounded-full bg-gradient-to-br from-cyan-400 via-cyan-500 to-cyan-600 p-0.5 hover:scale-105 transition-transform duration-200">
-                                <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-zinc-900">
-                                    <Image
-                                        src={profileData.avatar}
-                                        alt={profileData.name}
-                                        width={28}
-                                        height={28}
-                                        className="w-full h-full object-cover rounded-full"
-                                    />
+                            <div className="relative shrink-0">
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-400 via-cyan-500 to-cyan-600 p-0.5 hover:scale-105 transition-transform duration-200">
+                                    <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-zinc-900">
+                                        <Image
+                                            src={profileData.avatar}
+                                            alt={profileData.name}
+                                            width={28}
+                                            height={28}
+                                            className="w-full h-full object-cover rounded-full"
+                                        />
+                                    </div>
                                 </div>
+                                <span
+                                    aria-hidden="true"
+                                    className={cn(
+                                        "pointer-events-none absolute -left-2 top-1/2 -translate-y-1/2 transition-all duration-200",
+                                        isOpen ? "opacity-100" : "opacity-0 group-hover:opacity-60"
+                                    )}
+                                >
+                                    <svg
+                                        width="8"
+                                        height="16"
+                                        viewBox="0 0 8 16"
+                                        fill="none"
+                                        className={cn(
+                                            "rotate-180 transition-all duration-200",
+                                            isOpen ? "text-cyan-500 dark:text-cyan-400" : "text-zinc-400 dark:text-zinc-500"
+                                        )}
+                                    >
+                                        <path d="M1 3C4 6 4 10 1 13" stroke="currentColor" strokeWidth="1" strokeLinecap="round" fill="none" />
+                                    </svg>
+                                </span>
                             </div>
                             {showLabel && (
                                 <span className="ms-3 text-gray-600 dark:text-gray-300">
@@ -101,38 +118,6 @@ export default function ProfileDropdown({
                             )}
                         </button>
                     </DropdownMenuTrigger>
-
-                    {/* Green themed bending line indicator */}
-                    <div
-                        className={cn(
-                            "absolute -right-2 top-1/2 -translate-y-1/2 transition-all duration-200",
-                            isOpen
-                                ? "opacity-100"
-                                : "opacity-0 group-hover:opacity-60"
-                        )}
-                    >
-                        <svg
-                            width="8"
-                            height="16"
-                            viewBox="0 0 8 16"
-                            fill="none"
-                            className={cn(
-                                "rotate-180 transition-all duration-200",
-                                isOpen
-                                    ? "text-cyan-500 dark:text-cyan-400"
-                                    : "text-zinc-400 dark:text-zinc-500"
-                            )}
-                            aria-hidden="true"
-                        >
-                            <path
-                                d="M1 3C4 6 4 10 1 13"
-                                stroke="currentColor"
-                                strokeWidth="1"
-                                strokeLinecap="round"
-                                fill="none"
-                            />
-                        </svg>
-                    </div>
 
                     <DropdownMenuContent
                         align="end"
@@ -217,7 +202,7 @@ export default function ProfileDropdown({
                             >
                                 <LogOut className="w-4 h-4 text-red-500 group-hover:text-red-600" />
                                 <span className="text-sm font-medium text-red-500 group-hover:text-red-600">
-                                    Sign Out
+                                    خروج
                                 </span>
                             </button>
                         </DropdownMenuItem>

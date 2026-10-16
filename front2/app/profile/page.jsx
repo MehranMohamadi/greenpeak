@@ -246,7 +246,7 @@ export default function ProfilePage() {
         <header className="flex flex-wrap items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary"><UserRound className="h-6 w-6" /></div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground" dir="rtl">پروفایل و تنظیمات</h1>
+            <h1 className="text-3xl font-bold text-foreground" dir="rtl">پروفایل</h1>
             <p className="text-muted-foreground" dir="rtl">حساب کاربری، اتصال بروکر و تنظیمات شخصی در یک صفحه</p>
           </div>
         </header>

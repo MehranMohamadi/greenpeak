@@ -935,14 +935,14 @@ export default function RiskManagementCenter() {
             <p className="mt-1 text-xs leading-5 text-muted-foreground">برنامه روزانه، تنش‌سنجی و تحلیل یکپارچه ریسک حساب</p>
           </div>
           <div className="grid gap-2 lg:justify-items-end">
-            <div className="grid w-full grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2 lg:w-auto">
+            <div className={`grid w-full items-center gap-2 lg:w-auto ${snapshots.length > 0 ? "grid-cols-[auto_minmax(0,1fr)_auto_auto]" : "grid-cols-[auto_auto_auto]"}`}>
               <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setScenarioOpen(true)} disabled={!snapshot}><Gauge className="ml-2 h-4 w-4" />سناریو</Button>
-              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={load} disabled={loading} aria-label="به‌روزرسانی داده" title="به‌روزرسانی داده"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
               {snapshots.length > 0 && <Select value={selectedAccount || accountKey(snapshots[0])} onValueChange={setSelectedAccount}>
                 <SelectTrigger className="h-9 w-56 min-w-0 max-w-full [&>span]:min-w-0 [&>span]:truncate"><SelectValue><span className="block truncate">{accountName(snapshot || snapshots[0])}</span></SelectValue></SelectTrigger>
                 <SelectContent dir="rtl" className="w-[min(90vw,32rem)] max-w-[calc(100vw-2rem)]">{snapshots.map((item) => <SelectItem key={accountKey(item)} value={accountKey(item)}><span className="whitespace-normal break-words">{accountName(item)}</span></SelectItem>)}</SelectContent>
               </Select>}
               <SnapshotFreshnessIndicator snapshot={snapshot} loading={loading} error={error} />
+              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={load} disabled={loading} aria-label="به‌روزرسانی داده" title="به‌روزرسانی داده"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
             </div>
             <div className="flex flex-wrap items-stretch gap-2 lg:justify-end">
               <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setDailyPlanOpen(true)} disabled={!snapshot}><ListChecks className="ml-2 h-4 w-4" />برنامه</Button>

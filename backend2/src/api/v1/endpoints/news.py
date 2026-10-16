@@ -11,7 +11,9 @@ from ....services.economic_calendar import TRADAYS_BASE_URL, fetch_recent_us_eve
 from ....services.llm_engine.routing import create_llm_provider, llm_is_configured
 from ....services.news.article_analysis import NEWS_ANALYSIS_VERSION, analyze_news_document
 from ....services.news.feed import SEARCH_TOPICS, SOURCE_IDS, build_source_feed
+from ....services.news.highlights import NewsHighlightsUnavailableError, get_cnbc_highlights
 from ....services.news.repository import MongoNewsRepository
+from ....services.news.schemas import CNBCNewsHighlightsResponse
 from ....services.news.scheduler import ingest_news
 
 router = APIRouter(prefix="/news", tags=["S&P 500 News"])
@@ -57,6 +59,25 @@ def source_news(source: str, limit: int = Query(default=50, ge=20, le=100)):
     except HTTPException: raise
     except PyMongoError: raise HTTPException(503, detail={"code": "NEWS_STORE_UNAVAILABLE", "message": "News storage is temporarily unavailable."})
     finally: client.close()
+
+
+@router.get("/highlights/cnbc", response_model=CNBCNewsHighlightsResponse)
+def cnbc_highlights():
+    """Select up to four CNBC stories without depending on Alpha Vantage or LLMs."""
+    client = None
+    documents = []
+    try:
+        client, repository = _repository()
+        documents = repository.source_raw("cnbc_rss", datetime.now(UTC) - timedelta(days=7))
+    except PyMongoError:
+        pass
+    finally:
+        if client is not None:
+            client.close()
+    try:
+        return CNBCNewsHighlightsResponse(data=get_cnbc_highlights(documents, get_settings().greenpeak_cnbc_rss_url))
+    except NewsHighlightsUnavailableError:
+        raise HTTPException(503, detail={"code": "CNBC_NEWS_UNAVAILABLE", "message": "CNBC news is temporarily unavailable."})
 
 
 @router.get("/items/{item_id}/analysis")

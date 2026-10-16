@@ -355,6 +355,8 @@ function DialogAnalysisList({ items, emptyText }) {
 
 export default function MarketIntelligenceSections({ market }) {
   const [news, setNews] = useState([])
+  const [newsState, setNewsState] = useState({ loading: true, error: "", stale: false })
+  const [newsReloadKey, setNewsReloadKey] = useState(0)
   const [selectedNews, setSelectedNews] = useState(null)
   const [newsAnalyses, setNewsAnalyses] = useState({})
   const [newsAnalysisLoading, setNewsAnalysisLoading] = useState(null)
@@ -369,18 +371,24 @@ export default function MarketIntelligenceSections({ market }) {
   })
   useEffect(() => {
     const controller = new AbortController()
-    const loadData = async (path) => {
-      const response = await fetch(path, { cache: "no-store", signal: controller.signal })
-      return response.ok ? (await response.json()).data : null
-    }
-    loadData("/analytics-data/news/sources/alpha_vantage?limit=20")
-      .then(feed => {
-        const items = (feed?.items || []).filter(item => item.importance === "high" || item.importance === "medium").slice(0, 4)
+    const loadNews = async () => {
+      setNewsState(current => ({ ...current, loading: true, error: "" }))
+      try {
+        const response = await fetch("/analytics-data/news/highlights/cnbc", { cache: "no-store", signal: controller.signal })
+        const payload = await response.json()
+        if (!response.ok || !Array.isArray(payload?.data?.items)) throw new Error("Invalid CNBC news response")
+        if (controller.signal.aborted) return
+        const items = payload.data.items.filter(item => item.source === "cnbc_rss").slice(0, 4)
         setNews(items)
-        setSelectedNews(items[0] || null)
-      }).catch(() => {})
+        setSelectedNews(current => items.find(item => item.item_id === current?.item_id) || items[0] || null)
+        setNewsState({ loading: false, error: "", stale: Boolean(payload.data.stale) })
+      } catch {
+        if (!controller.signal.aborted) setNewsState(current => ({ ...current, loading: false, error: "دریافت اخبار CNBC ناموفق بود." }))
+      }
+    }
+    void loadNews()
     return () => controller.abort()
-  }, [])
+  }, [newsReloadKey])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -434,7 +442,7 @@ export default function MarketIntelligenceSections({ market }) {
 
   useEffect(() => {
     const itemId = selectedNews?.item_id
-    if (!itemId || newsAnalyses[itemId]) return
+    if (!itemId || !selectedNews.analysis_available || newsAnalyses[itemId]) return
     const controller = new AbortController()
     setNewsAnalysisLoading(itemId)
     setNewsAnalysisErrors(current => ({ ...current, [itemId]: "" }))
@@ -486,7 +494,7 @@ export default function MarketIntelligenceSections({ market }) {
   const riskItems = uniqueFactors([...structuredRisks, ...(classifiedFactors ? [] : market.key_risks || [])])
   const selectedNewsAnalysis = selectedNews ? newsAnalyses[selectedNews.item_id] : null
   const selectedNewsAnalysisError = selectedNews ? newsAnalysisErrors[selectedNews.item_id] : ""
-  const selectedNewsTitle = selectedNews ? selectedNews.title_fa || selectedNews.title || selectedNews.analysis_title_fa : ""
+  const selectedNewsTitle = selectedNews ? selectedNewsAnalysis?.title_fa || selectedNews.title_fa || selectedNews.title || selectedNews.analysis_title_fa : ""
   const selectedNewsBody = selectedNewsAnalysis?.interpretation_fa || selectedNews?.analysis_fa || selectedNews?.summary || ""
   const nextAnalysisLabel = market.next_analysis_at === undefined
     ? fallbackNextAnalysisLabel()
@@ -506,6 +514,7 @@ export default function MarketIntelligenceSections({ market }) {
       <Card className="h-64 min-h-0 overflow-hidden border-border bg-card lg:h-full">
         <Tabs defaultValue="current" dir="rtl" className="flex h-full min-h-0 flex-col">
         <CardHeader className="shrink-0 space-y-2 pb-3">
+          {market.analysis_freshness?.is_stale && <p role="status" className="text-xs leading-5 text-amber-700 dark:text-amber-400">تحلیل به‌روز هنوز در دسترس نیست؛ آخرین تحلیل ذخیره‌شده نمایش داده می‌شود.</p>}
           <div className="flex items-center justify-end gap-2">
             <div className="flex min-w-0 items-center gap-2">
               <time dateTime={market.analysis_generated_at} dir="ltr" className="truncate text-left text-xs tabular-nums text-muted-foreground">
@@ -522,7 +531,8 @@ export default function MarketIntelligenceSections({ market }) {
                     <DialogTitle>راهنمای تحلیل بازار</DialogTitle>
                     <DialogDescription className="space-y-3 leading-7 text-muted-foreground">
                       <span className="block">این تب‌ها آخرین تحلیل ذخیره‌شدهٔ هوش مصنوعی را در جریان بازار، افق کوتاه‌مدت، میان‌مدت و جمع‌بندی پنج‌خطی نمایش می‌دهند.</span>
-                      <span className="block text-primary">تحلیل بعدی: {nextAnalysisLabel} به وقت تهران</span>
+                      {market.analysis_freshness?.status === "overdue" && <span className="block text-amber-700 dark:text-amber-400">زمان انتشار تحلیل امروز گذشته است و هنوز خروجی تازه‌ای دریافت نشده است.</span>}
+                      <span className="block text-primary">زمان‌بندی روزانه بعدی: {nextAnalysisLabel} به وقت تهران</span>
                     </DialogDescription>
                   </DialogHeader>
                 </DialogContent>
@@ -572,27 +582,31 @@ export default function MarketIntelligenceSections({ market }) {
       <CardContent className="space-y-4">
     <section className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-4">
       <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-border">
-        <CardHeader className="shrink-0 pb-3"><div className="flex items-center justify-between"><CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-primary" />اخبار پرتأثیر</CardTitle><Link href="/analytics/events" className="text-xs text-primary">مشاهده همه</Link></div></CardHeader>
-        <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto">{news.length ? news.map(item => {
-          const itemTitle = item.title_fa || item.title || item.analysis_title_fa
+        <CardHeader className="shrink-0 pb-3"><div className="flex items-center justify-between"><CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-primary" />اخبار منتخب CNBC</CardTitle><Link href="/analytics/events" className="text-xs text-primary">مشاهده همه</Link></div><p className="text-xs leading-5 text-muted-foreground">چهار خبر منتخب گرین‌پیک بر اساس ارتباط با بازار آمریکا و تازگی خبر</p></CardHeader>
+        <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto">
+        {newsState.error && <div role="alert" className="flex items-center justify-between gap-2 text-xs text-amber-600 dark:text-amber-400"><span>{newsState.error}</span><button type="button" disabled={newsState.loading} onClick={() => setNewsReloadKey(current => current + 1)} className="shrink-0 rounded px-2 py-1 text-primary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">تلاش دوباره</button></div>}
+        {newsState.stale && news.length > 0 && <p className="text-xs leading-5 text-amber-600 dark:text-amber-400">تازه‌ترین خبر موجود بیش از ۴۸ ساعت قدمت دارد.</p>}
+        {news.length ? news.map(item => {
+          const translatedTitle = newsAnalyses[item.item_id]?.title_fa || item.title_fa
+          const itemTitle = translatedTitle || item.title
           const isSelected = selectedNews?.item_id === item.item_id
-          return <button key={item.item_id} type="button" aria-pressed={isSelected} onClick={() => setSelectedNews(item)} className={`w-full rounded-lg border border-border p-3 text-right transition ${isSelected ? "bg-primary/15" : "bg-muted/25 hover:bg-muted/40"}`}><div className="flex items-center justify-between gap-2"><Badge variant="outline">{item.importance === "high" ? "اثر بالا" : "بااهمیت"}</Badge><time className="text-[11px] text-muted-foreground">{formatTime(item.published_at)}</time></div><p className="mt-2 line-clamp-2 text-right text-sm font-medium leading-6" dir={item.title_fa ? "rtl" : "ltr"}>{itemTitle}</p></button>
-        }) : <p className="text-sm text-muted-foreground">خبر رتبه‌بندی‌شده‌ای در دسترس نیست.</p>}</CardContent>
+          return <button key={item.item_id} type="button" aria-pressed={isSelected} onClick={() => setSelectedNews(item)} className={`w-full rounded-lg border border-border p-3 text-right transition ${isSelected ? "bg-primary/15" : "bg-muted/25 hover:bg-muted/40"}`}><div className="flex items-center justify-between gap-2"><Badge variant="outline">CNBC · {item.selection_rank}</Badge><time className="text-[11px] text-muted-foreground">{formatTime(item.published_at)}</time></div><p className="mt-2 line-clamp-2 text-right text-sm font-medium leading-6" dir={translatedTitle ? "rtl" : "ltr"}>{itemTitle}</p><p className="mt-1 text-[11px] leading-5 text-muted-foreground">{item.selection_reason_fa}</p></button>
+        }) : newsState.loading ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="h-4 w-4 animate-spin" />در حال دریافت اخبار CNBC…</p> : !newsState.error && <p className="text-sm text-muted-foreground">خبر تازه‌ای از CNBC در دسترس نیست.</p>}</CardContent>
       </Card>
 
       <CardConnector label="ارتباط خبر انتخاب‌شده با تحلیل همان خبر" />
 
       <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-border">
-        <CardHeader className="shrink-0 pb-3"><div className="flex items-center gap-2"><CardTitle>تحلیل خبر منتخب</CardTitle><InfoDialog title="تحلیل خبر منتخب" description="صفحهٔ منبع خبر در سمت سرور خوانده می‌شود؛ سپس LLM تیتر انگلیسی را به فارسی ترجمه و متن خبر را برای بازار S&P 500 تفسیر می‌کند. اگر متن کامل منبع قابل دریافت نباشد، خلاصهٔ ثبت‌شدهٔ همان منبع مبنا قرار می‌گیرد." /></div></CardHeader>
+        <CardHeader className="shrink-0 pb-3"><div className="flex items-center gap-2"><CardTitle>{selectedNews?.analysis_available ? "تحلیل خبر منتخب" : "خلاصه خبر منتخب"}</CardTitle><InfoDialog title="خبر منتخب CNBC" description="خلاصهٔ خبر و لینک اصلی CNBC نمایش داده می‌شود. برای خبرهای موجود در آرشیو، در صورت آماده‌بودن سرویس تحلیل، ترجمه و تفسیر فارسی همان خبر نیز دریافت می‌شود." /></div></CardHeader>
         <CardContent className="min-h-0 flex-1 overflow-y-auto" aria-live="polite">{selectedNews ? <div className="space-y-3">
-          <div className="flex items-center gap-2 text-xs font-medium text-primary">
-            {newsAnalysisLoading === selectedNews.item_id && !selectedNewsAnalysis && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
+          {newsAnalysisLoading === selectedNews.item_id && !selectedNewsAnalysis && <div className="flex items-center gap-2 text-xs font-medium text-primary">
+            <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
             <span>در حال تحلیل این خبر</span>
-          </div>
-          <a href={selectedNewsAnalysis?.source_url || selectedNews.url || "#"} target="_blank" rel="noreferrer" className="block font-medium leading-7 text-primary transition hover:text-primary/80 hover:underline" dir={selectedNews.title_fa ? "rtl" : "ltr"}>{selectedNewsTitle}</a>
-          {selectedNewsBody ? <p className="text-sm leading-8 text-muted-foreground">{selectedNewsBody}</p> : <p className="text-sm text-muted-foreground">تحلیل این خبر در حال آماده‌سازی است.</p>}
+          </div>}
+          <a href={selectedNewsAnalysis?.source_url || selectedNews.url} target="_blank" rel="noreferrer" className="block font-medium leading-7 text-primary transition hover:text-primary/80 hover:underline" dir={selectedNewsAnalysis?.title_fa || selectedNews.title_fa ? "rtl" : "ltr"}>{selectedNewsTitle}</a>
+          {selectedNewsBody ? <p dir="auto" className="text-sm leading-8 text-muted-foreground">{selectedNewsBody}</p> : <p className="text-sm text-muted-foreground">خلاصهٔ خبر در خوراک CNBC موجود نیست؛ متن خبر را از لینک بالا بخوانید.</p>}
           {selectedNewsAnalysisError && <p className="text-xs leading-6 text-amber-400">{selectedNewsAnalysisError}</p>}
-          <div className="flex flex-wrap gap-2"><Badge variant="outline">ارتباط: {selectedNews.relevance_fa || "نامشخص"}</Badge><Badge variant="outline">احساس منبع: {selectedNews.sentiment_fa || "نامشخص"}</Badge>{selectedNewsAnalysis && <Badge variant="outline">مبنای تحلیل: {selectedNewsAnalysis.evidence_type === "source_page" ? "متن صفحهٔ منبع" : "خلاصهٔ منبع"}</Badge>}</div>
+          <div className="flex flex-wrap gap-2"><Badge variant="outline">منبع: CNBC</Badge>{selectedNewsAnalysis && <Badge variant="outline">مبنای تحلیل: {selectedNewsAnalysis.evidence_type === "source_page" ? "متن صفحهٔ منبع" : "خلاصهٔ منبع"}</Badge>}</div>
         </div> : <p className="text-sm text-muted-foreground">یک خبر را انتخاب کنید.</p>}</CardContent>
       </Card>
     </section>

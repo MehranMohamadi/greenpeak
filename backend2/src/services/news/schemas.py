@@ -20,6 +20,36 @@ class RawNewsItem(BaseModel):
     raw_payload: dict[str, Any] = {}
 
 
+class CNBCNewsHighlight(BaseModel):
+    item_id: str
+    source: Literal["cnbc_rss"] = "cnbc_rss"
+    title: str
+    summary: str | None = None
+    url: HttpUrl
+    published_at: datetime
+    source_score: None = None
+    selection_rank: int = Field(ge=1, le=4)
+    selection_reason_fa: str
+    analysis_available: bool = False
+
+
+class CNBCNewsHighlights(BaseModel):
+    source: Literal["cnbc_rss"] = "cnbc_rss"
+    source_label: Literal["CNBC"] = "CNBC"
+    items: list[CNBCNewsHighlight]
+    count: int = Field(ge=0, le=4)
+    ranking: str
+    native_importance_score_available: Literal[False] = False
+    data_origin: Literal["database", "rss"]
+    latest_published_at: datetime | None = None
+    stale: bool = False
+
+
+class CNBCNewsHighlightsResponse(BaseModel):
+    ok: Literal[True] = True
+    data: CNBCNewsHighlights
+
+
 Direction = Literal["up", "down", "mixed", "unclear"]
 Confidence = Literal["low", "medium", "high"]
 NodeRole = Literal["news", "driver", "market"]

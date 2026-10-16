@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import FeedbackForm from "@/components/support/feedback-form"
 
 export const metadata = {
-  title: "Support | GreenPeak",
+  title: "پشتیبانی | GreenPeak",
   description: "ارتباط با پشتیبانی GreenPeak، ارسال نظرات و پیشنهادها و گزارش مشکل",
 }
 

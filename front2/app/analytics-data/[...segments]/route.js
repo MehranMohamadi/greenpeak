@@ -4,6 +4,7 @@ const ALLOWED_PATHS = new Set([
   "market/analysis/latest",
   "market/status-summary",
   "news/sources/alpha_vantage",
+  "news/highlights/cnbc",
   "news/calendar/upcoming",
   "news/calendar/released",
 ])

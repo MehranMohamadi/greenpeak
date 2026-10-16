@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from ....core.config import get_settings
 from ....services.greenpeak_config import load_registry
 from ....services.daily_analysis import market_analysis_completed, next_scheduled_analysis_at
+from ....services.analysis_freshness import market_analysis_freshness
 from ....services.llm_engine.local_cache import LocalNarrativeCache, NarrativeCacheError
 from ....services.llm_engine.repository import MongoNarrativeRepository
 from ....services.llm_engine.schemas import DomainNarrative, IndicatorNarrative, MarketNarrative
@@ -103,6 +104,7 @@ def latest_market_analysis(debug: bool = Depends(require_debug_access), allowed:
     response = _latest("market", "sp500", MarketNarrative)
     next_analysis_at = next_scheduled_analysis_at()
     response.setdefault("metadata", {})["next_analysis_at"] = next_analysis_at.isoformat() if next_analysis_at else None
+    response["metadata"]["freshness"] = market_analysis_freshness(response["data"])
     response = response if debug else public_narrative(response)
     response["data"] = market_for_access(response["data"], allowed)
     return response

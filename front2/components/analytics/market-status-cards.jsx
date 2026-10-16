@@ -9,7 +9,7 @@ const CARDS = [
   { key: "market_condition", label: "شرایط کلی بازار" },
   { key: "risk_level", label: "ریسک بازار" },
   { key: "sentiment", label: "سنتیمنت" },
-  { key: "change_intensity", label: "تغییر شدت روزانه" },
+  { key: "change_intensity", label: "تغییر روزانه" },
   { key: "confidence_level", label: "اعتماد به تحلیل" },
 ]
 const LABELS = {
@@ -101,6 +101,5 @@ export default function MarketStatusCards() {
         </Dialog>
       })}
     </div>
-    <p role="status" className="text-[11px] leading-5 text-muted-foreground">{loading ? "در حال دریافت شواهد خلاصه وضعیت بازار…" : error || `بررسی کارت‌ها: ${formatGregorianTehranDateTime(data?.calculated_at)} · منابع ممکن است روزانه یا هفتگی باشند؛ به‌روزرسانی هر یک دقیقه.`}</p>
   </section>
 }
