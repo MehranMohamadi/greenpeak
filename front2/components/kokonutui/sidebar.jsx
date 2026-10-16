@@ -96,7 +96,7 @@ export default function Sidebar() {
               </div>)}
             </div>}
           </section>)}
-          <div className="mt-3">{navItem("/gold", "طلا", Coins)}</div>
+          <div className="mt-3">{navItem("/gold", "طلا · Gold", Coins)}</div>
           <div className="mt-3">{navItem("/analytics/events", "News & Events", CalendarDays)}</div>
         </div>
       </div>

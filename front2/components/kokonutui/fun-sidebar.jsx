@@ -16,6 +16,7 @@ const funNavigation = [
   {
     id: "mashhad",
     label: "در شهر",
+    href: "/fun/mashhad",
     icon: Landmark,
     children: [
       { id: "book-club", label: "کتاب‌خوانی", icon: BookOpen },
@@ -86,6 +87,7 @@ export default function FunSidebar() {
   };
   const toggleCategory = (item) => {
     selectItem(item.label, makeTrail(item.label));
+    if (item.href) setIsMobileMenuOpen(false);
     setOpenCategories((current) => {
       categoryExpansionState = Object.fromEntries(funNavigation.map(({ id }) => [id, id === item.id && !current[id]]));
       return categoryExpansionState;

@@ -150,11 +150,11 @@ function SnapshotFreshnessIndicator({ snapshot, loading, error }) {
 
 function RiskOverviewList({ metrics }) {
   return <ul className="divide-y divide-border" aria-label="شش شاخص نمای کلی ریسک">
-    {metrics.map(({ key, label, icon: Icon, tone, value, detail, note }) => <li key={key} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 text-xs">
+    {metrics.map(({ key, label, icon: Icon, tone, value, detail, note }) => <li key={key} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 py-3 text-xs lg:grid-cols-[auto_9rem_7rem_minmax(0,1fr)]">
       <Icon className={`h-4 w-4 shrink-0 ${tone === "danger" ? "text-rose-600 dark:text-rose-400" : tone === "warning" ? "text-amber-600 dark:text-amber-400" : tone === "success" ? "text-emerald-600 dark:text-emerald-400" : "text-primary"}`} />
-      <span className="w-36 shrink-0 font-medium">{label}</span>
-      <span className="min-w-[7rem] font-semibold tabular-nums" dir="ltr">{value}</span>
-      <span className="min-w-0 flex-1 text-sm leading-6 text-foreground">{detail}{note && ` · ${note}`}</span>
+      <span className="min-w-0 font-medium">{label}</span>
+      <span className="font-semibold tabular-nums" dir="ltr">{value}</span>
+      <span className="col-span-3 min-w-0 break-words text-sm leading-7 text-foreground lg:col-span-1">{detail}{note && ` · ${note}`}</span>
     </li>)}
   </ul>
 }
