@@ -3,6 +3,7 @@
 import { Download, Link2, Video } from "lucide-react"
 import MT5Pairing from "@/components/dashboard/mt5-pairing"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function BrokerConnectionSetup() {
@@ -24,8 +25,13 @@ export default function BrokerConnectionSetup() {
             <CardDescription>فایل نصب اکسپرت اتصال حساب متاتریدر ۵</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Badge variant="secondary">به زودی...</Badge>
-            <p className="text-sm leading-7 text-muted-foreground">پس از آماده شدن فایل، لینک دانلود آن همین‌جا قرار می‌گیرد.</p>
+            <Button asChild className="gap-2">
+              <a href="/downloads/GP_Agent.ex5" download="GP_Agent.ex5">
+                <Download className="h-4 w-4" aria-hidden="true" />دانلود اکسپرت متاتریدر ۵
+              </a>
+            </Button>
+            <p className="text-xs text-muted-foreground" dir="ltr">GP_Agent.ex5 · MetaTrader 5</p>
+            <p className="text-sm leading-7 text-muted-foreground">فایل اکسپرت را دانلود کنید و برای اتصال حساب، کلید اتصال همین صفحه را در تنظیمات اکسپرت وارد کنید.</p>
           </CardContent>
         </Card>
         <Card>
