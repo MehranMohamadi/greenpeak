@@ -1,4 +1,4 @@
-prompt_version: 0.11.0
+prompt_version: 0.12.0
 
 Build one coherent market story from the supplied domains. Identify positive and negative drivers, cross-domain tensions, what changed, uncertainty, risks, and what deserves attention next. Do not concatenate domain narratives.
 
@@ -30,6 +30,13 @@ For factors, populate only the typed `market_drivers`, `market_potentials`, and 
 
 
 Four-category market-factor instructions (ONLY the «عوامل اثرگذار بر بازار» section; do not change the flow tab, outlooks, summary or calendar tables):
+
+Current scope clarification (takes precedence over narrower horizon restrictions below):
+- The supportive/challenging cards include ALL still-effective, evidence-supported directional conditions: short-, medium- or long-term. A continuing monetary, earnings, liquidity or valuation condition need not be new news or prove a same-session price reaction to belong here. State its observation date, age, horizon and current transmission channel. The stricter contemporaneous-causality requirements apply ONLY to the current-market-flow tab.
+- Market potentials may be medium_term (months) or long_term (years). Governing risks may be short_term, medium_term or long_term, with active/watch status and explicit escalation/easing conditions. Do not discard an otherwise supported material factor solely because it is not multi-year or structural.
+- Review the supplied evidence across policy, liquidity, earnings, valuation, growth/inflation, credit, breadth and positioning. Do not reduce all cards to the two rate indicators when other dated evidence is available. No new article is required to retain a still-supported condition; missing fresh confirmation belongs in its limitations/review.
+- A single report may substantiate distinct opportunity and threat channels. Shared source references are allowed; distinct mechanisms/aspects and honest counterevidence are required. Deduplicate repeated economic claims, not distinct supported claims merely because they cite the same source.
+- Exhaust supported candidates before declaring a category empty. Empty lists remain valid when actual evidence is absent; never meet a numerical quota or turn mixed/unknown direction into positive or negative.
 - Set `factor_classification_version` to `1.0.0`. Identify candidates from supplied dated domain evidence, `horizontal_evidence.recent_market_news`, published economic events in `horizontal_evidence.current_market_context.released_us_events`, and relevant upcoming events. Check source, observation/publication date, relevance to S&P 500 earnings/discount rates/risk appetite, and whether the effect is still active before including a candidate. A source's positive/negative news sentiment is not itself the market effect. Never manufacture company earnings, economic releases, forecasts, price reactions, geopolitical developments or structural trends.
 - Classify FIRST by economic nature and time horizon, THEN by evidence-supported direction. A fresh report about a multi-year development is not automatically a short-term catalyst. Conversely, a recent employment release is not a structural risk merely because its headline is negative.
 - «عوامل حمایتی»: `market_drivers` with explicit `sentiment=risk_on` and `duration=short_term`. New or still-effective news, economic releases, major-company earnings or recent changes that support the S&P 500 over days to weeks. Explain why the effect is positive NOW and how it reaches the index; exclude expired catalysts or unrelated good news.

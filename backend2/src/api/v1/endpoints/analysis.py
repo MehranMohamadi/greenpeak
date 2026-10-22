@@ -65,6 +65,9 @@ def _latest(level: str, subject_id: str, model):
         response = _validated_response(document, model, "mongodb")
         if cache is not None:
             try:
+                cached = cache.latest(level, subject_id)
+                if cached and _snapshot_order(cached) > _snapshot_order(response["data"]):
+                    return _validated_response(cached, model, "local_cache")
                 cache.save(level, subject_id, response["data"])
             except NarrativeCacheError:
                 # A cache write must never hide a valid MongoDB response.
@@ -81,6 +84,19 @@ def _latest(level: str, subject_id: str, model):
         raise HTTPException(status_code=503, detail={"code": "ANALYSIS_STORE_UNAVAILABLE", "message": "Analysis storage is temporarily unavailable."})
     finally:
         client.close()
+
+
+def _snapshot_order(document):
+    """A local refresh must not be overwritten by an older Mongo snapshot."""
+    generated = document.get("analysis_generated_at")
+    if isinstance(generated, str):
+        try:
+            generated = datetime.fromisoformat(generated.replace("Z", "+00:00"))
+        except ValueError:
+            generated = None
+    if isinstance(generated, datetime):
+        generated = generated.replace(tzinfo=UTC) if generated.tzinfo is None else generated
+    return (str(document.get("as_of_date") or "")[:10], generated.timestamp() if isinstance(generated, datetime) else 0)
 
 
 @router.get("/indicators/{indicator_id}/analysis/latest", dependencies=[Depends(require_premium_analysis)])

@@ -104,14 +104,14 @@ class MarketRiskItem(MarketFactorDetails):
     escalation_conditions_fa: str
     easing_conditions_fa: str
     evidence_refs: list[str] = Field(default_factory=list)
-    duration: Literal["medium_term", "long_term", "unknown"] = "unknown"
+    duration: Literal["short_term", "medium_term", "long_term", "unknown"] = "unknown"
 
 
 class MarketPotentialItem(MarketFactorDetails):
     title_fa: str
     detail_fa: str
     evidence_refs: list[str] = Field(default_factory=list)
-    duration: Literal["long_term", "unknown"] = "unknown"
+    duration: Literal["medium_term", "long_term", "unknown"] = "unknown"
 
 
 class MarketConflictItem(StrictModel):
@@ -187,8 +187,8 @@ class MarketNarrative(NarrativeBase):
             raise ValueError("Use structured factors only; leave legacy driver/risk lists empty")
         groups = {"supportive": [], "challenging": [], "potentials": self.market_potentials, "risks": self.risk_monitor}
         for item in self.market_drivers:
-            if item.sentiment not in {"risk_on", "risk_off"} or item.duration != "short_term":
-                raise ValueError("Every market driver needs explicit risk_on/risk_off sentiment and short_term duration")
+            if item.sentiment not in {"risk_on", "risk_off"} or item.duration == "unknown":
+                raise ValueError("Every market driver needs explicit risk_on/risk_off sentiment and a known duration")
             groups["supportive" if item.sentiment == "risk_on" else "challenging"].append(item)
         seen = {}
         evidence = info.context.get("evidence", {})
@@ -204,18 +204,18 @@ class MarketNarrative(NarrativeBase):
                     raise ValueError(f"Incomplete explanation, mechanism, horizon or review in {category}")
                 if item.change_status == "unknown":
                     raise ValueError(f"Explicit new/ongoing/changed status is required in {category}")
-                if category == "potentials" and item.duration != "long_term":
-                    raise ValueError("Market potentials must have a multi-year long_term duration")
+                if category == "potentials" and item.duration == "unknown":
+                    raise ValueError("Market potentials must have an explicit medium_term or long_term duration")
                 if category == "risks" and (item.duration == "unknown" or item.status not in {"active", "watch"}):
-                    raise ValueError("Governing risks must be active/watch with a structural medium_term/long_term duration")
+                    raise ValueError("Governing risks must be active/watch with a known duration")
                 if not item.evidence_refs or any(not _factor_evidence_exists(evidence, ref) for ref in item.evidence_refs):
                     raise ValueError(f"Factors in {category} must cite non-empty supplied evidence using JSON Pointers; prior factors alone are not evidence")
                 key = "".join(char for char in item.title_fa.casefold() if char.isalnum())
                 for other_category, other in seen.get(key, []):
                     if (category == other_category or not item.distinct_aspect_fa.strip()
                             or not other.distinct_aspect_fa.strip()
-                            or set(item.evidence_refs) & set(other.evidence_refs)):
-                        raise ValueError("Repeated factors need distinct aspects and independent evidence in different categories")
+                            or item.distinct_aspect_fa.strip() == other.distinct_aspect_fa.strip()):
+                        raise ValueError("Repeated factors need distinct mechanisms/aspects in different categories")
                 seen.setdefault(key, []).append((category, item))
         return self
 
@@ -253,7 +253,7 @@ def resolve_factor_evidence(evidence: dict, reference: str) -> dict | None:
         return None
     if tokens[0] == "horizontal_evidence" and not (
         tokens[1] == "sp500_session_move"
-        or tokens[1] in {"recent_market_news", "upcoming_us_events"} and len(tokens) >= 3
+        or tokens[1] in {"recent_market_news", "upcoming_us_events", "observed_indicators"} and len(tokens) >= 3
         or tokens[1] == "current_market_context" and len(tokens) >= 4 and tokens[2] == "released_us_events"
     ):
         return None

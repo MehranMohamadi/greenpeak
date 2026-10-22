@@ -86,8 +86,8 @@ def test_all_four_categories_survive_generation_storage_and_public_endpoint(monk
     assert data["premium_analysis_locked"] is True
 
 
-@pytest.mark.parametrize("field,value", [("sentiment", "unknown"), ("sentiment", "mixed"), ("duration", "long_term")])
-def test_short_term_factors_cannot_be_saved_with_unknown_direction_or_structural_horizon(factors, evidence, field, value):
+@pytest.mark.parametrize("field,value", [("sentiment", "unknown"), ("sentiment", "mixed"), ("duration", "unknown")])
+def test_directional_factors_still_require_known_direction_and_horizon(factors, evidence, field, value):
     factors["market_drivers"][0][field] = value
     with pytest.raises(ValidationError, match="explicit risk_on/risk_off"):
         generate(factors, evidence)
@@ -142,8 +142,54 @@ def test_duplicate_opportunity_and_threat_need_independent_aspects_and_evidence(
     risk["distinct_aspect_fa"] = "هزینه سرمایه؛ شواهد مستقل"
     generate(factors, evidence)
     risk["evidence_refs"] = opportunity["evidence_refs"]
+    generate(factors, evidence)  # One report may support two distinct mechanisms.
+    risk["distinct_aspect_fa"] = opportunity["distinct_aspect_fa"]
     with pytest.raises(ValidationError, match="Repeated factors"):
         generate(factors, evidence)
+
+
+def test_supported_factors_are_not_rejected_by_an_artificial_horizon(factors, evidence):
+    factors["market_drivers"][0]["duration"] = "medium_term"
+    factors["market_drivers"][1]["duration"] = "long_term"
+    factors["market_potentials"][0]["duration"] = "medium_term"
+    factors["risk_monitor"][0]["duration"] = "short_term"
+    (snapshot, _), _, _ = generate(factors, evidence)
+    assert len(snapshot.market_drivers) == 2
+    assert snapshot.market_potentials[0].duration == "medium_term"
+    assert snapshot.risk_monitor[0].duration == "short_term"
+
+
+def test_local_refresh_writes_validated_cache_without_mongo_or_notification(tmp_path, factors, evidence):
+    from datetime import UTC, datetime
+    from src.services.local_market_analysis import refresh_local_market
+    from src.services.llm_engine.local_cache import LocalNarrativeCache
+    settings = SimpleNamespace(environment="development", analysis_local_db_path=tmp_path / "cache.db")
+    provider = SimpleNamespace(provider_id="fake", model_id="fake", generate_json=Mock(return_value=factors))
+    result = refresh_local_market(settings=settings, provider=provider, evidence=evidence, now=datetime(2026, 10, 19, 12, tzinfo=UTC))
+    assert result["status"] == "generated"
+    assert result["supportive"] == result["challenging"] == result["potentials"] == result["risks"] == 1
+    saved = LocalNarrativeCache(settings.analysis_local_db_path).latest("market", "sp500")
+    assert saved["as_of_date"] == "2026-10-19"
+    assert saved["coverage"]["status"] == "provisional"
+    with pytest.raises(RuntimeError, match="development-only"):
+        refresh_local_market(settings=SimpleNamespace(environment="production"), provider=provider, evidence=evidence)
+
+
+def test_latest_does_not_replace_newer_local_refresh_with_older_mongo(monkeypatch, tmp_path, factors, evidence):
+    from src.api.v1.endpoints import analysis
+    from src.services.llm_engine.local_cache import LocalNarrativeCache
+    (_, _), repository, _ = generate(factors, evidence)
+    old = repository.values[0]
+    latest = {**deepcopy(old), "as_of_date": "2026-10-19", "analysis_generated_at": "2026-10-19T12:00:00Z"}
+    cache = LocalNarrativeCache(tmp_path / "cache.db")
+    cache.save("market", "sp500", latest)
+    monkeypatch.setattr(analysis, "_local_cache", lambda settings: cache)
+    monkeypatch.setattr(analysis, "MongoClient", lambda *a, **kw: SimpleNamespace(close=lambda: None))
+    monkeypatch.setattr(analysis, "MongoNarrativeRepository", lambda *a: SimpleNamespace(latest=lambda *a: old))
+    response = analysis._latest("market", "sp500", MarketNarrative)
+    assert response["metadata"]["storage"] == "local_cache"
+    assert response["data"]["as_of_date"] == "2026-10-19"
+    assert cache.latest("market", "sp500")["as_of_date"] == "2026-10-19"
 
 
 def test_generation_repairs_an_incomplete_factor_before_saving(factors, evidence):
