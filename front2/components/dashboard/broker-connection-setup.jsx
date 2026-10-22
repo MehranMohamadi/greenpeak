@@ -2,7 +2,6 @@
 
 import { Download, Link2, Video } from "lucide-react"
 import MT5Pairing from "@/components/dashboard/mt5-pairing"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -40,8 +39,13 @@ export default function BrokerConnectionSetup() {
             <CardDescription>راهنمای نصب اکسپرت و وارد کردن کلید اتصال</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Badge variant="secondary">به زودی...</Badge>
-            <p className="text-sm leading-7 text-muted-foreground">ویدئوی مراحل اتصال حساب در این قسمت نمایش داده خواهد شد.</p>
+            <Button asChild className="gap-2">
+              <a href="/downloads/GreenPeak_Connection_3min_Synced.mp4" download="GreenPeak_Connection_3min_Synced.mp4">
+                <Download className="h-4 w-4" aria-hidden="true" />دانلود ویدئوی آموزش اتصال
+              </a>
+            </Button>
+            <p className="text-xs text-muted-foreground">فرمت MP4 · حجم حدود ۴ مگابایت</p>
+            <p className="text-sm leading-7 text-muted-foreground">ویدئو را دانلود کنید و مراحل نصب اکسپرت و اتصال حساب متاتریدر ۵ را روی دستگاه خود ببینید.</p>
           </CardContent>
         </Card>
       </div>
