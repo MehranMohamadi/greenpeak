@@ -2,7 +2,6 @@ import {
   BarChart3,
   Building2,
   DollarSign,
-  Globe,
   Layers3,
   LineChart,
   MessageSquare,
@@ -10,7 +9,8 @@ import {
 } from "lucide-react"
 
 // Canonical product taxonomy. Navigation and indicator ownership must stay
-// aligned with these eight groups.
+// aligned with the seven S&P 500 groups. Cross-market comparisons have their
+// own top-level destination and are no longer an S&P analysis subgroup.
 export const marketAnalysisCategories = [
   {
     name: "Monetary Policy & System Liquidity",
@@ -81,16 +81,6 @@ export const marketAnalysisCategories = [
     color: "from-cyan-600 to-cyan-500",
     description: "Investor positioning, survey sentiment, options measures, and implied volatility.",
     subgroups: ["Positioning", "Sentiment", "Volatility"],
-  },
-  {
-    name: "Capital Flows & Intermarket",
-    aliases: ["Institutional"],
-    shortName: "Flows & Intermarket",
-    page: "intermarket",
-    icon: Globe,
-    color: "from-cyan-600 to-cyan-500",
-    description: "Cross-market relationships across the U.S. dollar and major commodity benchmarks.",
-    subgroups: ["Capital flows", "Currencies", "Commodities & cross-asset"],
   },
 ]
 

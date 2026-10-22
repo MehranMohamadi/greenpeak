@@ -18,5 +18,6 @@ from .news import router as news_router
 from .auth import router as auth_router
 from .support import router as support_router
 from .chat import router as chat_router
+from .market_comparison import router as market_comparison_router
 
-__all__ = ["market_router", "monetary_router", "economic_router", "system_router", "systemrisk_router", "liquidity_router", "macroeco_router", "corporate_router", "valuation_router", "sectors_router", "features_router", "analysis_router", "rules_router", "mt5_router", "news_router", "auth_router", "support_router", "chat_router"]
+__all__ = ["market_router", "monetary_router", "economic_router", "system_router", "systemrisk_router", "liquidity_router", "macroeco_router", "corporate_router", "valuation_router", "sectors_router", "features_router", "analysis_router", "rules_router", "mt5_router", "news_router", "auth_router", "support_router", "chat_router", "market_comparison_router"]

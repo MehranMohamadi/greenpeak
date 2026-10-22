@@ -7,6 +7,7 @@ import { useSidebarHover } from "@/app/context/sidebar-hover-context";
 import { normalizeNavigationPath, US_MARKET } from "@/lib/navigation-state";
 
 const routeLabels = {
+  "/market-comparison": "مقایسه و روابط بازارها",
   "/": "Dashboard",
   "/analytics": US_MARKET.label,
   "/gold": "طلا · Gold",

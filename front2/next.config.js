@@ -24,6 +24,16 @@ const nextConfig = {
   async redirects() {
     return [
       {
+        source: "/analytics/intermarket",
+        destination: "/market-comparison",
+        permanent: false,
+      },
+      {
+        source: "/analytics/institutional",
+        destination: "/market-comparison",
+        permanent: false,
+      },
+      {
         source: "/settings",
         destination: "/profile#dashboard-settings",
         permanent: false,

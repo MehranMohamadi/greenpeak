@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { createChart } from "lightweight-charts"
 import { normalizeChartData, normalizeIntradayChartData } from "@/lib/chart-data"
 
-export default function MultiLineChart({ dataSets = [], isTransitioning = false, height = 300, textColor = "#e0e0e0", seriesColors, intraday = false }) {
+export default function MultiLineChart({ dataSets = [], isTransitioning = false, height = 300, textColor = "#e0e0e0", seriesColors, seriesOptions, intraday = false }) {
   const chartRef = useRef()
   const chartInstanceRef = useRef()
   const timeoutRef = useRef()
@@ -73,6 +73,10 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false,
             borderColor: "#444",
             backgroundColor: 'transparent',
           },
+          leftPriceScale: {
+            visible: Boolean(seriesOptions?.some((options) => options.priceScaleId === "left")),
+            borderColor: "#444",
+          },
         })
 
         chartInstanceRef.current = chart
@@ -90,6 +94,7 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false,
             const series = chart.addLineSeries({
               color: colors[index % colors.length],
               lineWidth: 2,
+              ...seriesOptions?.[index],
             })
 
             const safeData = (intraday ? normalizeIntradayChartData : normalizeChartData)(seriesData)
@@ -139,7 +144,7 @@ export default function MultiLineChart({ dataSets = [], isTransitioning = false,
         chartInstanceRef.current = null
       }
     }
-  }, [dataSets, isClient, isTransitioning, height, textColor, seriesColors, intraday])
+  }, [dataSets, isClient, isTransitioning, height, textColor, seriesColors, seriesOptions, intraday])
 
   // Handle window resize with debouncing and smooth animations
   useEffect(() => {

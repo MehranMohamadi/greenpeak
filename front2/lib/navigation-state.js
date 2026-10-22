@@ -4,6 +4,7 @@ const aliases = { "liquidity-flows": "monetary-policy", "sector-performance": "m
 export function normalizeNavigationPath(pathname) {
   const path = (pathname || "/").split(/[?#]/)[0].replace(/\/+$/, "") || "/"
   if (path === "/sp500") return "/analytics"
+  if (path === "/analytics/intermarket" || path === "/analytics/institutional") return "/market-comparison"
   const parts = path.split("/")
   if (parts[1] === "analytics" && aliases[parts[2]]) parts[2] = aliases[parts[2]]
   return parts.join("/")

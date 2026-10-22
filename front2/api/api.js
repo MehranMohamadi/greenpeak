@@ -8,6 +8,10 @@ const API_BASE = configuredApiBase || "/api/v1";
 export { API_BASE };
 
 export const endpoints = {
+    marketComparison: {
+        symbols: `${API_BASE}/market-comparison/symbols`,
+        compare: `${API_BASE}/market-comparison/compare`,
+    },
     chat: {
         status: `${API_BASE}/chat/status`,
         accounts: `${API_BASE}/chat/accounts`,

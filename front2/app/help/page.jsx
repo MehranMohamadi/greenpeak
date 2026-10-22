@@ -176,19 +176,19 @@ const analysisGroups = [
     reading: "احساسات افراطی می‌تواند ادامه روند یا بازگشت آن را همراهی کند؛ هیچ آستانه‌ای به‌تنهایی سیگنال خرید یا فروش نیست.",
   },
   {
-    number: "۰۸",
-    href: "/analytics/intermarket",
-    title: "جریان سرمایه و روابط بین‌بازاری",
-    english: "Capital Flows & Intermarket",
+    number: "↔",
+    href: "/market-comparison",
+    title: "مقایسه و روابط بازارها",
+    english: "Market Comparisons & Relationships",
     icon: LineChart,
-    purpose: "مقایسه جهت دلار و کالاهای مهم برای مشاهده هم‌جهتی‌ها و واگرایی‌های بین‌بازاری.",
+    purpose: "تب مستقل کنار S&P 500 و طلا؛ مقایسه چند نماد با مبنای ۱۰۰ و تحلیل مستقل رابطه دو بازار.",
     charts: [
       "شاخص گسترده و وزنی دلار آمریکا",
-      "قیمت طلا",
-      "نفت خام WTI",
-      "قیمت مس",
+      "سهام آمریکا، قراردادهای آتی طلا، نقره و نفت WTI",
+      "شاخص کل و هم‌وزن ایران با سود نقدی و شاخص قیمت بدون سود نقدی",
+      "بازده واقعی اوراق ۱۰ساله آمریکا؛ با محور درصد مستقل",
     ],
-    reading: "برای مقایسه، به جهت و واگرایی سری‌ها توجه کنید؛ تفاوت واحدها به معنی امکان مقایسه مستقیم مقدار عددی آن‌ها نیست.",
+    reading: "همبستگی روی تغییرات بین تاریخ‌های مشترک است. سود نقدی و مبنای پولی باید یکسان باشند؛ مقایسه ایران و طلا به تاریخچه تأییدشده دلار آزاد نیاز دارد. شاخص گسترده دلار، DXY نیست.",
   },
 ]
 
@@ -241,7 +241,7 @@ export default function HelpPage() {
             <div className="space-y-5">
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary">راهنمای GreenPeak</Badge>
-                <Badge variant="outline">۸ گروه تحلیلی</Badge>
+                <Badge variant="outline">۷ گروه S&P و تب مقایسه بازارها</Badge>
                 <Badge variant="outline">داده‌های منبع‌دار</Badge>
               </div>
               <div>
@@ -283,7 +283,7 @@ export default function HelpPage() {
           <SectionHeading id="goals" icon={Target} eyebrow="هدف سامانه" title="GreenPeak چه مسئله‌ای را حل می‌کند؟" />
           <div className="grid gap-4 md:grid-cols-3">
             {[
-              ["دید یکپارچه", "داده‌های پراکنده بازار و اقتصاد در هشت دامنه مشخص سازمان‌دهی می‌شوند تا ارتباط میان نرخ بهره، رشد، سود شرکت‌ها و قیمت بازار قابل مشاهده باشد."],
+              ["دید یکپارچه", "داده‌های بازار و اقتصاد در گروه‌های مشخص سازمان‌دهی می‌شوند؛ مقایسه و روابط بازارها نیز در تبی مستقل در دسترس است."],
               ["شفافیت داده", "منبع، تاریخ مشاهده، واحد، تناوب و وضعیت کیفیت کنار نمودار نمایش داده می‌شود. داده ناموجود با صفر یا مقدار ساختگی جایگزین نمی‌شود."],
               ["کمک به تصمیم‌سازی", "هدف، ساختن چارچوب منظم برای تحقیق و مدیریت ریسک است؛ خروجی سامانه توصیه قطعی خرید، فروش یا تضمین بازده نیست."],
             ].map(([title, text]) => (
@@ -387,7 +387,7 @@ export default function HelpPage() {
                 <CardHeader className="border-b bg-muted/20">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs font-semibold text-primary">گروه {number}</p>
+                      <p className="text-xs font-semibold text-primary">{number === "↔" ? "تب مستقل" : `گروه ${number}`}</p>
                       <CardTitle className="mt-1 text-lg">{title}</CardTitle>
                       <p dir="ltr" className="mt-1 text-left text-xs text-muted-foreground">{english}</p>
                     </div>
@@ -403,7 +403,7 @@ export default function HelpPage() {
                     </ul>
                   </div>
                   <div className="rounded-lg border border-dashed p-3 text-xs leading-6 text-muted-foreground"><strong className="text-foreground">نکته تفسیر:</strong> {reading}</div>
-                  <Link href={href} className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline">بازکردن این گروه<ArrowLeft className="h-4 w-4" /></Link>
+                  <Link href={href} className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline">بازکردن صفحه<ArrowLeft className="h-4 w-4" /></Link>
                 </CardContent>
               </Card>
             ))}

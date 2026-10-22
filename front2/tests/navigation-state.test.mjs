@@ -16,6 +16,8 @@ test("only the most specific destination is active and boundaries are respected"
 test("legacy and normalized routes identify the same destination", () => {
   assert.equal(normalizeNavigationPath("/analytics/liquidity-flows/sofr-rate/?x=1#chart"), "/analytics/monetary-policy/sofr-rate")
   assert.equal(getActiveNavHref("/sp500/", hrefs), "/analytics")
+  assert.equal(normalizeNavigationPath("/analytics/intermarket"), "/market-comparison")
+  assert.equal(getActiveNavHref("/analytics/institutional", [...hrefs, "/market-comparison"]), "/market-comparison")
 })
 test("new child routes reveal their parent without changing independent branches", () => {
   const markets = [{ id: "us500", children: [{ href: "/analytics/monetary-policy" }] }]

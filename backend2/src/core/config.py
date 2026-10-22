@@ -105,6 +105,11 @@ class Settings(BaseSettings):
     # API Keys
     fred_api_key: str = ""
     alpha_vantage_key: str = ""
+    # Daily observations are cached separately from immutable raw market inputs.
+    market_comparison_cache_dir: Path = Path(__file__).parent.parent.parent / "instance" / "market_comparison"
+    navasan_api_key: str = ""
+    # Must be explicitly verified by the operator; never infer a rial/toman unit.
+    navasan_quote_unit: str = ""
 
     # Yahoo Finance Tickers
     yahoo_tickers: List[str] = []

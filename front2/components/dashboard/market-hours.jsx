@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { endpoints } from "../../api/api"
+import { endpoints } from "@/api/api"
+import { fetchMarketSession } from "@/lib/market-session"
 
 const persianSessionNames = {
   Sydney: "سیدنی",
@@ -16,31 +17,23 @@ export default function MarketHours() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Fetch market session data
-  const fetchMarketData = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch(endpoints.system.session)
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      const data = await response.json()
-      setMarketData(data)
-      setError(null)
-    } catch (err) {
-      console.error("Failed to fetch market session data:", err)
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
-    // Fetch market data initially and every 30 seconds
-    fetchMarketData()
-    const marketTimer = setInterval(fetchMarketData, 30000)
-
-    return () => clearInterval(marketTimer)
+    const controller = new AbortController()
+    let marketTimer
+    async function refresh() {
+      const data = await fetchMarketSession(endpoints.system.session, { signal: controller.signal })
+      if (controller.signal.aborted) return
+      setMarketData(data)
+      setError(data ? null : "unavailable")
+      setLoading(false)
+      // Schedule after completion so slow requests cannot overlap.
+      marketTimer = setTimeout(refresh, 30000)
+    }
+    refresh()
+    return () => {
+      controller.abort()
+      clearTimeout(marketTimer)
+    }
   }, [])
 
   const getStatusColor = (status) => {
