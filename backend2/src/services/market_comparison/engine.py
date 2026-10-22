@@ -61,6 +61,8 @@ def build_comparison(request: ComparisonRequest, sources: dict, *, today: date, 
                 item.reason = "تاریخچه منبع بازه انتخابی را پوشش نمی‌دهد."
             if stale:
                 response.warnings.append(f"{item.label}: داده یا حافظه ذخیره‌شده قدیمی است؛ آخرین مشاهده {latest}.")
+            if source.get("packaged_snapshot"):
+                response.warnings.append(f"{item.label}: تازه‌سازی زنده موفق نشد؛ تاریخچه واقعیِ ذخیره‌شده از TSETMC نمایش داده می‌شود. تاریخ دریافت: {source['retrieved_at'][:10]}.")
             if start and item.history_start > start.isoformat():
                 response.warnings.append(f"{item.label}: تاریخچه از {item.history_start} شروع می‌شود و ابتدای بازه انتخابی را پوشش نمی‌دهد.")
             if source.get("invalid_rows"):

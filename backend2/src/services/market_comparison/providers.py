@@ -116,8 +116,10 @@ def parse_navasan(payload, quote_unit, *, today=None):
 
 
 class DailyMarketStore:
-    def __init__(self, directory, *, fred_key="", navasan_key="", navasan_unit="", request=None, now=None):
+    def __init__(self, directory, *, fred_key="", navasan_key="", navasan_unit="", request=None, now=None, fallback_directory=None):
         self.directory = Path(directory)
+        self.fallback_directory = Path(fallback_directory) if fallback_directory else None
+        self.refresh_failures = {}
         self.fred_key = fred_key
         self.navasan_key = navasan_key
         self.navasan_unit = navasan_unit
@@ -126,9 +128,9 @@ class DailyMarketStore:
         self.now = now or (lambda: datetime.now(UTC))
         self.locks = {key: Lock() for key in [*DEFINITIONS, "usdirr"]}
 
-    def _read(self, key):
+    def _read(self, key, directory=None):
         try:
-            value = json.loads((self.directory / f"{key}.json").read_text(encoding="utf-8"))
+            value = json.loads(((directory or self.directory) / f"{key}.json").read_text(encoding="utf-8"))
             if not isinstance(value, dict) or not all(isinstance(value.get(field), str) and value[field] for field in ("source", "source_url", "retrieved_at")):
                 return None
             expected = "usd_sell" if key == "usdirr" else DEFINITIONS[key]["series"]
@@ -204,7 +206,13 @@ class DailyMarketStore:
             raise ValueError("Unsupported comparison symbol")
         with self.locks[key]:
             cached = self._read(key)
-            if cached and not force and self.now() - datetime.fromisoformat(cached["retrieved_at"]) < TTL:
+            packaged = False
+            if not cached and self.fallback_directory and key in DEFINITIONS and DEFINITIONS[key]["provider"] == "tsetmc":
+                cached = self._read(key, self.fallback_directory)
+                packaged = cached is not None
+            if packaged and not force and key in self.refresh_failures and self.now() - self.refresh_failures[key] < timedelta(minutes=5):
+                return {**cached, "cache_stale": True, "packaged_snapshot": True}
+            if cached and not packaged and not force and self.now() - datetime.fromisoformat(cached["retrieved_at"]) < TTL:
                 return {**cached, "cache_stale": False}
             try:
                 value = self._fetch(key)
@@ -212,10 +220,12 @@ class DailyMarketStore:
                 temporary = self.directory / f"{key}.{os.getpid()}.tmp"
                 temporary.write_text(json.dumps(value, ensure_ascii=False, allow_nan=False), encoding="utf-8")
                 temporary.replace(self.directory / f"{key}.json")
+                self.refresh_failures.pop(key, None)
                 return {**value, "cache_stale": False}
             except (requests.RequestException, BrowserRequestException, SourceUnavailable, OSError, ValueError, KeyError, TypeError):
+                self.refresh_failures[key] = self.now()
                 if cached:
-                    return {**cached, "cache_stale": True}
+                    return {**cached, "cache_stale": True, "packaged_snapshot": packaged}
                 return None
 
     def load_many(self, keys):

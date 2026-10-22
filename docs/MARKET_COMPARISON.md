@@ -44,6 +44,15 @@ does not certify completeness against an official Iranian trading calendar.
 The reported coverage starts at the first received observation, with no claim
 that earlier history does not exist. Holidays and upstream omissions remain gaps.
 
+The production smoke check could not retrieve live TSETMC history from the
+hosting server. The three verified, public TSETMC histories above are therefore
+also shipped under `backend2/src/data/fallback/market_comparison/`. They retain
+their original retrieval timestamp, source URL, series identity and observations.
+The server tries the live source first; on failure it validates the stored
+history using the same reader and marks the result stale with an explicit
+stored-history warning. Failed refreshes have a five-minute retry interval.
+No rates, FX history or simulated observations are added by this fallback.
+
 All three Iran identities differ: the first two include cash distributions;
 TEPIX is price-only. A total-return index is never silently exchanged for TEPIX.
 Gold, silver and oil are explicitly labelled continuous futures prices, not spot

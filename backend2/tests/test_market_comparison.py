@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, timedelta
+import json
 from unittest.mock import Mock
 
 from fastapi import FastAPI
@@ -218,6 +219,68 @@ def test_catalog_disables_iran_gold_until_verified_fx_and_distinguishes_dollar_i
     catalog = MarketComparisonService(DailyMarketStore(tmp_path)).catalog()
     assert not next(preset for preset in catalog["presets"] if preset["id"] == "iran_gold")["enabled"]
     assert next(symbol for symbol in catalog["symbols"] if symbol["id"] == "broad_dollar")["series"] == "DTWEXBGS"
+
+
+def packaged_history(directory, key="iran_total", series_id="32097828799138957"):
+    directory.mkdir(parents=True, exist_ok=True)
+    value = {"version": 1, "source_series_id": series_id, **source([100, 110])}
+    (directory / f"{key}.json").write_text(json.dumps(value), encoding="utf-8")
+    return value
+
+
+def test_packaged_index_history_is_stale_and_retries_after_cooldown(tmp_path):
+    fallback = tmp_path / "packaged"
+    value = packaged_history(fallback)
+    current = [NOW]
+    store = DailyMarketStore(tmp_path / "runtime", fallback_directory=fallback, now=lambda: current[0])
+    store._fetch = Mock(side_effect=requests.RequestException("provider unavailable"))
+    result = store.load("iran_total")
+    assert result["data"] == value["data"]
+    assert result["retrieved_at"] == value["retrieved_at"]
+    assert result["cache_stale"] is result["packaged_snapshot"] is True
+    assert not (tmp_path / "runtime" / "iran_total.json").exists()
+    assert store.load("iran_total") == result
+    assert store._fetch.call_count == 1
+    store.load("iran_total", force=True)
+    assert store._fetch.call_count == 2
+    current[0] += timedelta(minutes=6)
+    store.load("iran_total")
+    assert store._fetch.call_count == 3
+
+
+def test_live_index_history_takes_precedence_and_persists(tmp_path):
+    fallback = tmp_path / "packaged"
+    packaged_history(fallback)
+    live = {"version": 1, "source_series_id": "32097828799138957", **source([120, 130])}
+    store = DailyMarketStore(tmp_path / "runtime", fallback_directory=fallback, now=lambda: NOW)
+    store._fetch = Mock(return_value=live)
+    result = store.load("iran_total")
+    assert result["data"] == live["data"]
+    assert result["cache_stale"] is False
+    assert not result.get("packaged_snapshot")
+    assert store.load("iran_total") == result
+    store._fetch.assert_called_once()
+
+
+@pytest.mark.parametrize("key,series_id", [("iran_total", "wrong-series"), ("sp500", "^GSPC"), ("usdirr", "usd_sell")])
+def test_packaged_fallback_rejects_wrong_identity_and_non_tsetmc_symbols(tmp_path, key, series_id):
+    fallback = tmp_path / "packaged"
+    packaged_history(fallback, key, series_id)
+    store = DailyMarketStore(tmp_path / "runtime", fallback_directory=fallback, now=lambda: NOW)
+    store._fetch = Mock(side_effect=requests.RequestException("unavailable"))
+    assert store.load(key) is None
+
+
+def test_packaged_index_comparison_preserves_values_dates_and_explicit_warning():
+    result = compare(["iran_total", "iran_equal"], {
+        "iran_total": source([100, 110], cache_stale=True, packaged_snapshot=True),
+        "iran_equal": source([200, 210], cache_stale=True, packaged_snapshot=True),
+    }, currency="IRR", view="relationship")
+    assert result.status == "available"
+    assert all(item.status == "stale" for item in result.series)
+    assert [point.x for point in result.relationship.points] == [200, 210]
+    assert [point.y for point in result.relationship.points] == [100, 110]
+    assert sum("TSETMC" in warning and NOW.date().isoformat() in warning for warning in result.warnings) == 2
 
 
 def test_api_contract_and_whitelist(monkeypatch, tmp_path):

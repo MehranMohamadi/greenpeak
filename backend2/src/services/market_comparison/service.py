@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from ...core.config import get_settings
 from .definitions import DEFINITIONS, PRESETS
@@ -31,4 +32,5 @@ def get_comparison_service():
     settings = get_settings()
     return MarketComparisonService(DailyMarketStore(settings.market_comparison_cache_dir,
         fred_key=settings.fred_api_key, navasan_key=settings.navasan_api_key,
-        navasan_unit=settings.navasan_quote_unit))
+        navasan_unit=settings.navasan_quote_unit,
+        fallback_directory=Path(__file__).resolve().parents[2] / "data" / "fallback" / "market_comparison"))
