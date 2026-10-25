@@ -3,13 +3,12 @@ import {
   Building2,
   DollarSign,
   Layers3,
-  LineChart,
   MessageSquare,
   Shield,
 } from "lucide-react"
 
 // Canonical product taxonomy. Navigation and indicator ownership must stay
-// aligned with the seven S&P 500 groups. Cross-market comparisons have their
+// aligned with the six S&P 500 groups. Cross-market comparisons have their
 // own top-level destination and are no longer an S&P analysis subgroup.
 export const marketAnalysisCategories = [
   {
@@ -43,24 +42,14 @@ export const marketAnalysisCategories = [
     subgroups: ["Credit pricing", "Credit access", "Stress & fragility", "Yield curve"],
   },
   {
-    name: "Corporate Fundamentals & Earnings",
-    aliases: ["Corporate Earnings"],
-    shortName: "Corporate Fundamentals",
+    name: "Corporate Fundamentals & Valuation",
+    aliases: ["Corporate Earnings", "Corporate Fundamentals & Earnings", "Corporate Fundamentals", "Valuation"],
+    shortName: "Fundamentals & Valuation",
     page: "corporate-earnings",
     icon: Building2,
     color: "from-cyan-600 to-cyan-500",
-    description: "Earnings, revenue, margins, and balance-sheet fundamentals.",
-    subgroups: ["Earnings", "Revenue", "Margins & balance sheets"],
-  },
-  {
-    name: "Valuation",
-    aliases: [],
-    shortName: "Valuation",
-    page: "valuation",
-    icon: LineChart,
-    color: "from-cyan-600 to-cyan-500",
-    description: "Market multiples, earnings yield, dividend yield, and valuation history.",
-    subgroups: ["Multiples", "Yields", "Historical comparison"],
+    description: "Earnings, revenue, margins, balance-sheet fundamentals, market multiples, earnings yield, dividend yield, and valuation history.",
+    subgroups: ["Earnings", "Revenue", "Margins & balance sheets", "Multiples", "Yields", "Historical comparison"],
   },
   {
     name: "Market Structure, Sectors & Concentration",
@@ -85,13 +74,14 @@ export const marketAnalysisCategories = [
 ]
 
 export const legacyAnalyticsRoutes = {
+  valuation: "corporate-earnings",
   "liquidity-flows": "monetary-policy",
   "sector-performance": "market-internals",
   derivatives: "sentiment",
   institutional: "intermarket",
 }
 
-// Events are shared context, not a ninth analysis group.
+// Events are shared context, not a separate analysis group.
 export const sharedAnalyticsRoutes = ["events"]
 
 export const indicatorOwnership = {
@@ -109,7 +99,7 @@ export const indicatorOwnership = {
 export const analyticsCategories = marketAnalysisCategories
 
 export const getMarketAnalysisCategory = (page) =>
-  marketAnalysisCategories.find((category) => category.page === page)
+  marketAnalysisCategories.find((category) => category.page === (legacyAnalyticsRoutes[page] || page))
 
 export const getCategoryByName = (name) =>
   marketAnalysisCategories.find(
@@ -117,7 +107,7 @@ export const getCategoryByName = (name) =>
   )
 
 export const getCategoryByPage = (page) =>
-  marketAnalysisCategories.find((category) => category.page === page)
+  getMarketAnalysisCategory(page)
 
 export const getCategoryIndex = (name) =>
   marketAnalysisCategories.findIndex(

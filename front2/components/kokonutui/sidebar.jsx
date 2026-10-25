@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, CalendarDays, Coins, Home, Menu, Pin, PinOff, X } from "lucide-react";
+import { ArrowLeftRight, CalendarDays, Home, Menu, Pin, PinOff, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -13,6 +13,12 @@ let marketExpansionState = { [US_MARKET.id]: true };
 const hrefs = ["/", "/support", "/gold", "/market-comparison", "/analytics/events", ...markets.flatMap((market) => [market.href, ...market.children.map((child) => child.href)])];
 const focusStyle = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 const USIcon = () => <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-current text-[10px] font-bold">US</span>;
+const GoldBarIcon = ({ className }) => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M7 5h10l4 10H3L7 5Z" fill="currentColor" fillOpacity="0.12" />
+    <path d="M3 15v4h18v-4M9 10h6" />
+  </svg>
+);
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -79,7 +85,7 @@ export default function Sidebar() {
           <button ref={mobileClose} type="button" aria-label="Close financial navigation" onClick={closeMobile} className={`rounded p-2 lg:hidden ${focusStyle}`}><X className="h-4 w-4" /></button>
         </div>
         <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2 py-3">
-          {navItem("/", "Dashboard", Home)}
+          {navItem("/", "داشبورد من", Home)}
           {markets.map((market) => <section key={market.id} className="mt-3">
             <div className={activeHref && market.children.some((child) => child.href === activeHref) ? "font-medium" : ""}>
               <button type="button" title={market.labelFa} aria-label={market.labelFa} aria-expanded={Boolean(openMarkets[market.id])} onClick={() => toggleMarket(market.id)} onMouseEnter={() => setHoveredItem({ label: market.labelFa, href: market.href, side: "left" })} onMouseLeave={() => setHoveredItem(null)} className={`relative flex h-9 w-full min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors motion-reduce:transition-none ${focusStyle} ${activeHref === market.href ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}>
@@ -96,8 +102,8 @@ export default function Sidebar() {
               </div>)}
             </div>}
           </section>)}
-          <div className="mt-3">{navItem("/gold", "طلا · Gold", Coins)}</div>
-          <div className="mt-3">{navItem("/market-comparison", "مقایسه و روابط بازارها", ArrowLeftRight)}</div>
+          <div className="mt-3">{navItem("/gold", "طلای جهانی · Gold", GoldBarIcon)}</div>
+          <div className="mt-3">{navItem("/market-comparison", "Markets", ArrowLeftRight)}</div>
           <div className="mt-3">{navItem("/analytics/events", "News & Events", CalendarDays)}</div>
         </div>
       </div>

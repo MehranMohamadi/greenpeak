@@ -1,19 +1,20 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import Layout from "@/components/kokonutui/layout"
 import BrokerConnectionSetup from "@/components/dashboard/broker-connection-setup"
+import MT5Pairing from "@/components/dashboard/mt5-pairing"
 import ProfileSettings from "@/components/dashboard/profile-settings"
-import Link from "next/link"
 import { useAuth } from "@/components/auth/auth-context"
 import { endpoints } from "@/api/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Bell, Crown, Link2, LockKeyhole, Plus, Settings, Trash2, UserRound } from "lucide-react"
+import { Bell, Crown, LockKeyhole, Plus, Trash2, UserRound } from "lucide-react"
 
 const DEFAULT_NOTIFICATIONS = {
   newsAlerts: true,
@@ -96,7 +97,6 @@ function ProfileNotifications({ userKey }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" />اعلان‌ها و آلارم‌ها</CardTitle>
-        <CardDescription>اعلان‌های دلخواه و آلارم‌های قیمت را مدیریت کنید.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-4">
@@ -111,9 +111,8 @@ function ProfileNotifications({ userKey }) {
         <div className="space-y-3 border-t pt-5">
           <div>
             <h3 className="font-medium">آلارم‌های قیمت</h3>
-            <p className="text-sm text-muted-foreground">حد قیمت دلخواه را برای پروفایل این حساب ثبت کنید.</p>
           </div>
-          <form onSubmit={addPriceAlert} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+          <form onSubmit={addPriceAlert} className="grid grid-cols-1 gap-2 sm:grid-cols-2 [&>*]:min-w-0">
             <Input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} maxLength={16} placeholder="نماد (مثلاً AAPL)" aria-label="نماد" />
             <select value={condition} onChange={(event) => setCondition(event.target.value)} aria-label="شرط آلارم" className="h-10 rounded-md border border-input bg-background px-3 text-sm">
               <option value="above">بالاتر از</option>
@@ -191,7 +190,6 @@ function ChangePassword() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><LockKeyhole className="h-5 w-5" />تغییر رمز عبور</CardTitle>
-        <CardDescription>برای انتخاب رمز عبور جدید، رمز فعلی خود را وارد کنید.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
@@ -247,45 +245,47 @@ export default function ProfilePage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary"><UserRound className="h-6 w-6" /></div>
           <div>
             <h1 className="text-3xl font-bold text-foreground" dir="rtl">پروفایل</h1>
-            <p className="text-muted-foreground" dir="rtl">حساب کاربری، اتصال بروکر و تنظیمات شخصی در یک صفحه</p>
           </div>
         </header>
 
-        <nav aria-label="بخش‌های پروفایل" className="flex flex-wrap gap-2" dir="rtl">
-          <Button asChild variant="outline" className="gap-2"><Link href="#broker-connection"><Link2 className="h-4 w-4" />اتصال حساب معاملاتی</Link></Button>
-          <Button asChild variant="outline" className="gap-2"><Link href="#dashboard-settings"><Settings className="h-4 w-4" />تنظیمات داشبورد</Link></Button>
-        </nav>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>مشخصات حساب</CardTitle>
-            <CardDescription>مشخصات حساب کاربری شما در گرین پیک</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 sm:grid-cols-2">
-            <div>
-              <p className="text-sm text-muted-foreground">نام کاربری</p>
-              <p className="font-medium" dir="auto">{user?.username || "-"}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">نوع حساب</p>
-              <p className="font-medium">{user?.role === "admin" ? "مدیر" : "کاربر"}</p>
-            </div>
-            <div className="sm:col-span-2">
-              <p className="mb-1 text-sm text-muted-foreground">دسترسی تحلیل‌ها</p>
-              <div className="flex items-center gap-2">
-                {isPremium ? <Crown className="h-4 w-4 text-amber-500" /> : null}
-                <Badge variant={isPremium ? "default" : "secondary"}>{isPremium ? "پرمیوم" : "رایگان"}</Badge>
-                <span className="text-sm text-muted-foreground">{isPremium ? "دسترسی پرمیوم فعال است." : "دسترسی پرمیوم برای این حساب فعال نیست."}</span>
+        <div id="broker-connection" className="grid scroll-mt-20 gap-6 md:grid-cols-2 [&>*]:min-w-0">
+          <Card>
+            <CardHeader>
+              <CardTitle>مشخصات حساب</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-5 sm:grid-cols-2">
+              <div>
+                <p className="text-sm text-muted-foreground">نام کاربری</p>
+                <p className="font-medium" dir="auto">{user?.username || "-"}</p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+              <div>
+                <p className="text-sm text-muted-foreground">نوع حساب</p>
+                <p className="font-medium">{user?.role === "admin" ? "مدیر" : user?.role === "staff" ? "کارمند" : "کاربر"}</p>
+              </div>
+              <div className="sm:col-span-2">
+                <p className="mb-1 text-sm text-muted-foreground">دسترسی تحلیل‌ها</p>
+                <div className="flex items-center gap-2">
+                  {isPremium ? <Crown className="h-4 w-4 text-amber-500" /> : null}
+                  <Badge variant={isPremium ? "default" : "secondary"}>{isPremium ? "پرمیوم" : "رایگان"}</Badge>
+                  <span className="text-sm text-muted-foreground">{isPremium ? "دسترسی پرمیوم فعال است." : "دسترسی پرمیوم برای این حساب فعال نیست."}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <MT5Pairing key={`broker-${userKey}`} />
+        </div>
 
-        <BrokerConnectionSetup key={`broker-${userKey}`} />
+        {["staff", "admin"].includes(user?.role) && <div className="flex flex-wrap gap-3">
+          <Button asChild><Link href="/workplace">میز کار من</Link></Button>
+          {user?.role === "admin" && <Button asChild variant="outline"><Link href="/admin/employees">مدیریت کارکنان</Link></Button>}
+        </div>}
 
-        <ProfileNotifications key={userKey} userKey={userKey} />
+        <BrokerConnectionSetup />
 
-        <ChangePassword />
+        <div className="grid gap-6 md:grid-cols-2 [&>*]:min-w-0">
+          <ProfileNotifications key={userKey} userKey={userKey} />
+          <ChangePassword />
+        </div>
 
         <ProfileSettings />
       </div>

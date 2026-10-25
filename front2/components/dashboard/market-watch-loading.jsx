@@ -14,7 +14,7 @@ export default function MarketWatchLoadingSkeleton() {
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0 p-3 md:p-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-3 w-full">
+        <div dir="rtl" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-3 w-full">
           {[...Array(6)].map((_, index) => (
             <div
               key={index}

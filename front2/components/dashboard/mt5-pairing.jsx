@@ -5,7 +5,7 @@ import { Check, Copy, Eye, EyeOff, Link2, Loader2, Trash2 } from "lucide-react"
 import { endpoints } from "@/api/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/components/auth/auth-context"
@@ -112,8 +112,7 @@ function MT5PairingContent({ accessToken }) {
 
   return <Card className="border-primary/20">
     <CardHeader>
-      <CardTitle className="flex flex-wrap items-center gap-2"><Link2 className="h-5 w-5 text-primary" />کلید اتصال متاتریدر ۵ <span dir="ltr">(API Key)</span></CardTitle>
-      <CardDescription>برای حساب خود کلید بسازید و آن را در قسمت «کلید اتصال / API Key» تنظیمات اکسپرت وارد کنید. در نسخه‌های قبلی، نام این ورودی <span dir="ltr">GreenPeakApiToken</span> است.</CardDescription>
+      <CardTitle className="flex flex-wrap items-center gap-2"><Link2 className="h-5 w-5 text-primary" />کلید اتصال متاتریدر ۵</CardTitle>
     </CardHeader>
     <CardContent className="space-y-4">
       <Label htmlFor="mt5-connection-label">نام اتصال</Label>
@@ -126,15 +125,6 @@ function MT5PairingContent({ accessToken }) {
         >
           {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Link2 className="ml-2 h-4 w-4" />}ساخت کلید اتصال
         </Button>
-      </div>
-
-      <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
-        <p className="text-sm leading-7">کلید هر اتصال را می‌توانید با دکمه «نمایش کلید» کنار همان بروکر دوباره ببینید و کپی کنید.</p>
-        <ol className="list-decimal space-y-1 ps-5 text-sm leading-7 text-muted-foreground">
-          <li>تنظیمات اکسپرت گرین‌پیک را در متاتریدر ۵ باز کنید.</li>
-          <li>کلید را در قسمت «کلید اتصال / API Key» وارد کنید.</li>
-          <li>دسترسی <span dir="ltr">WebRequest</span> را برای آدرس API گرین‌پیک فعال کنید و اولین اطلاعات حساب را ارسال کنید.</li>
-        </ol>
       </div>
 
       {error && <p role="alert" className="text-sm text-red-500">{error}</p>}

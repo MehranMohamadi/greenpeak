@@ -118,11 +118,17 @@ export function AnalysisFactorGrid({ title, children, className }) {
     <div className={cn("grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3", className)}>{children}</div></section>
 }
 
-export function AnalysisFactorCard({ selected, onClick, children, className }) {
+export function AnalysisFactorCard({ selected, onClick, onSelect, title, children, className }) {
   return <Card onClick={onClick} className={cn(
-    "h-full cursor-pointer transition-[border-color,background-color,box-shadow] hover:border-primary/50 hover:shadow-md [&_svg]:!text-primary",
+    "relative h-full min-w-0 cursor-pointer text-left transition-[border-color,background-color,box-shadow] hover:border-primary/50 hover:shadow-md [&_svg]:!text-primary",
     selected && "border-primary/60 bg-primary/10 ring-2 ring-primary/30", className
-  )}>{children}</Card>
+  )}>
+    {onSelect && <button type="button" onClick={onSelect} aria-pressed={selected}
+      className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+      <span className="sr-only">{title}</span>
+    </button>}
+    {children}
+  </Card>
 }
 
 export function AnalysisState({ title, description, tone = "error" }) {

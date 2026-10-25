@@ -3,6 +3,14 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
 export async function requireAdminPage() {
+  return requireRolesPage(["admin"])
+}
+
+export async function requireWorkplacePage() {
+  return requireRolesPage(["staff", "admin"])
+}
+
+async function requireRolesPage(roles) {
   const session = (await cookies()).get("gp_session")?.value
   if (!session) redirect("/login")
   const base = (process.env.GREENPEAK_INTERNAL_API_BASE_URL || "http://127.0.0.1:8000/api/v1").replace(/\/$/, "")
@@ -16,5 +24,5 @@ export async function requireAdminPage() {
     // Fail closed if the authentication service cannot verify this session.
   }
   if (!user) redirect("/login")
-  if (user.role !== "admin") redirect("/profile")
+  if (!roles.includes(user.role)) redirect("/profile")
 }

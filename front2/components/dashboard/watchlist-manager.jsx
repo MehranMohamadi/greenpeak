@@ -1,201 +1,96 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useId, useState } from "react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Star, Plus, X, TrendingUp, TrendingDown } from "lucide-react"
+import { Plus, Search, TrendingUp, TrendingDown, X } from "lucide-react"
+import useMarketWatch from "@/hooks/use-market-watch"
 
 export default function WatchlistManager() {
-  const [watchlists, setWatchlists] = useState([
-    {
-      id: 1,
-      name: "سهام فناوری",
-      symbols: [
-        { symbol: "AAPL", price: "175.43", change: "+2.34", changePercent: "+1.35%", trend: "up" },
-        { symbol: "MSFT", price: "378.85", change: "-1.23", changePercent: "-0.32%", trend: "down" },
-        { symbol: "GOOGL", price: "138.21", change: "+0.87", changePercent: "+0.63%", trend: "up" },
-      ],
-    },
-    {
-      id: 2,
-      name: "رمزارزها",
-      symbols: [
-        { symbol: "BTC", price: "43,250", change: "+1,234", changePercent: "+2.94%", trend: "up" },
-        { symbol: "ETH", price: "2,587", change: "-45", changePercent: "-1.71%", trend: "down" },
-      ],
-    },
-  ])
+  const { data, isLoading } = useMarketWatch()
+  const [symbols, setSymbols] = useState(() => data.map(({ id, symbol }) => ({ id, symbol })))
+  const [query, setQuery] = useState("")
+  const suggestionsId = useId()
+  const search = query.trim().toLowerCase()
+  const match = data.find((item) => item.symbol.toLowerCase() === search || item.id.toLowerCase() === search)
+  const alreadyAdded = symbols.some((item) => item.id === match?.id || item.symbol.toLowerCase() === search)
+  const visibleSymbols = symbols
+    .filter((item) => `${item.symbol} ${item.id}`.toLowerCase().includes(search))
+    .map((entry) => data.find((quote) => quote.id === entry.id) || {
+      ...entry, price: "—", change: "—", changePercent: "—", trend: "neutral", error: "داده واقعی در دسترس نیست",
+    })
 
-  const [newSymbol, setNewSymbol] = useState("")
-  const [selectedWatchlist, setSelectedWatchlist] = useState(null)
-  const [isAddingWatchlist, setIsAddingWatchlist] = useState(false)
-  const [newWatchlistName, setNewWatchlistName] = useState("")
-
-  const addSymbolToWatchlist = (watchlistId) => {
-    if (!newSymbol.trim()) return
-
-    setWatchlists((prev) =>
-      prev.map((watchlist) =>
-        watchlist.id === watchlistId
-          ? {
-              ...watchlist,
-              symbols: [
-                ...watchlist.symbols,
-                {
-                  symbol: newSymbol.toUpperCase(),
-                  price: "0.00",
-                  change: "0.00",
-                  changePercent: "0.00%",
-                  trend: "neutral",
-                },
-              ],
-            }
-          : watchlist,
-      ),
-    )
-    setNewSymbol("")
-  }
-
-  const removeSymbolFromWatchlist = (watchlistId, symbolToRemove) => {
-    setWatchlists((prev) =>
-      prev.map((watchlist) =>
-        watchlist.id === watchlistId
-          ? {
-              ...watchlist,
-              symbols: watchlist.symbols.filter((s) => s.symbol !== symbolToRemove),
-            }
-          : watchlist,
-      ),
-    )
-  }
-
-  const createNewWatchlist = () => {
-    if (!newWatchlistName.trim()) return
-
-    const newWatchlist = {
-      id: Date.now(),
-      name: newWatchlistName,
-      symbols: [],
-    }
-
-    setWatchlists((prev) => [...prev, newWatchlist])
-    setNewWatchlistName("")
-    setIsAddingWatchlist(false)
-  }
-
-  const deleteWatchlist = (watchlistId) => {
-    setWatchlists((prev) => prev.filter((w) => w.id !== watchlistId))
+  const addSymbol = (event) => {
+    event.preventDefault()
+    if (!search || alreadyAdded) return
+    const nextSymbol = match
+      ? { id: match.id, symbol: match.symbol }
+      : { id: `custom:${search}`, symbol: query.trim().toUpperCase() }
+    setSymbols((current) => [...current, nextSymbol])
+    setQuery("")
   }
 
   return (
-    <div className="space-y-4" dir="rtl">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">دیده‌بان‌های من</h3>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsAddingWatchlist(true)}
-          className="flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          دیده‌بان جدید
+    <div className="space-y-3" dir="rtl">
+      <form onSubmit={addSymbol} className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Search aria-hidden="true" className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            list={suggestionsId}
+            maxLength={40}
+            placeholder="جست‌وجو یا افزودن نماد (مثلاً AAPL)"
+            aria-label="جست‌وجو یا افزودن نماد"
+            className="pr-9"
+          />
+          <datalist id={suggestionsId}>
+            {data.map((item) => <option key={item.id} value={item.symbol} />)}
+          </datalist>
+        </div>
+        <Button type="submit" size="sm" disabled={!search || alreadyAdded} className="gap-2">
+          <Plus aria-hidden="true" className="h-4 w-4" />افزودن
         </Button>
-      </div>
-
-      {/* Create دیده‌بان جدید */}
-      {isAddingWatchlist && (
-        <Card className="border-dashed">
-          <CardContent className="p-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="نام دیده‌بان"
-                value={newWatchlistName}
-                onChange={(e) => setNewWatchlistName(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && createNewWatchlist()}
-              />
-              <Button onClick={createNewWatchlist}>ایجاد</Button>
-              <Button variant="outline" onClick={() => setIsAddingWatchlist(false)}>
-                انصراف
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Watchlists */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {watchlists.map((watchlist) => (
-          <Card key={watchlist.id}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Star className="h-4 w-4 text-yellow-500" />
-                  {watchlist.name}
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => deleteWatchlist(watchlist.id)}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <CardDescription>{watchlist.symbols.length } نماد</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {/* Add Symbol */}
-              <div className="flex gap-2">
-                <Input
-                  placeholder="افزودن نماد (مثلاً AAPL)"
-                  value={newSymbol}
-                  onChange={(e) => setNewSymbol(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && addSymbolToWatchlist(watchlist.id)}
-                />
-                <Button size="sm" onClick={() => addSymbolToWatchlist(watchlist.id)}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* Symbols */}
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {watchlist.symbols.map((symbol) => (
-                  <div
-                    key={symbol.symbol}
-                    className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{symbol.symbol}</Badge>
-                      <span className="font-medium">${symbol.price}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`text-sm ${symbol.trend === "up" ? "text-cyan-600" : symbol.trend === "down" ? "text-red-600" : "text-gray-600"}`}
-                      >
-                        {symbol.change} ({symbol.changePercent})
-                      </span>
-                      {symbol.trend === "up" ? (
-                        <TrendingUp className="h-4 w-4 text-cyan-500" />
-                      ) : symbol.trend === "down" ? (
-                        <TrendingDown className="h-4 w-4 text-red-500" />
-                      ) : null}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeSymbolFromWatchlist(watchlist.id, symbol.symbol)}
-                        className="text-red-600 hover:text-red-700 p-1"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      </form>
+      <div className="space-y-2" aria-busy={isLoading}>
+      {visibleSymbols.map((item) => (
+        <div
+          key={item.id}
+          className="flex flex-wrap items-center justify-between gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{item.symbol}</Badge>
+            <span className="font-medium" dir="ltr">{item.price}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              dir="ltr"
+              className={`text-sm ${item.trend === "up" ? "text-cyan-600" : item.trend === "down" ? "text-red-600" : "text-gray-600"}`}
+              title={item.error || undefined}
+            >
+              {item.change} ({item.changePercent})
+            </span>
+            {item.trend === "up" ? (
+              <TrendingUp className="h-4 w-4 text-cyan-500" />
+            ) : item.trend === "down" ? (
+              <TrendingDown className="h-4 w-4 text-red-500" />
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setSymbols((current) => current.filter((symbol) => symbol.id !== item.id))}
+              aria-label={`حذف ${item.symbol}`}
+              className="h-7 w-7 text-red-600 hover:text-red-700"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      ))}
+      {visibleSymbols.length === 0 && <p role="status" className="py-2 text-sm text-muted-foreground">{search ? "نمادی پیدا نشد." : "نمادی در دیده‌بان نیست."}</p>}
       </div>
     </div>
   )

@@ -15,6 +15,7 @@ from ....core.config import get_settings
 from ....services.auth import AuthError, AuthService, AuthStorageError
 from ....services.auth_email import EmailAuthService
 from ....services.auth_admin import AccountManagementError, manage_account
+from ....models.workplace import StaffRoleInput
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -256,6 +257,18 @@ def promote_user(
         if not user:
             raise HTTPException(404, detail="User not found.")
         return user
+    except (AuthStorageError, PyMongoError) as exc:
+        raise auth_failure(exc) from exc
+
+
+@router.put("/users/{user_id}/staff-role", response_model=UserResponse, dependencies=[Depends(no_store)])
+def set_staff_role(user_id: str, body: StaffRoleInput,
+                   actor: Annotated[dict, Depends(require_admin)],
+                   service: Annotated[AuthService, Depends(get_auth_service)]):
+    try:
+        return service.set_staff_role(user_id, body.role, actor)
+    except AccountManagementError as exc:
+        raise HTTPException(exc.status_code, detail=str(exc)) from exc
     except (AuthStorageError, PyMongoError) as exc:
         raise auth_failure(exc) from exc
 

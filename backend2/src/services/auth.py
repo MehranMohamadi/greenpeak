@@ -390,3 +390,30 @@ class AuthService:
         return {"id": str(document["_id"]), "username": document["username"],
                 "role": document.get("role", "user"),
                 "can_view_premium_analysis": document.get("can_view_premium_analysis") is True}
+
+    def set_staff_role(self, user_id, role, actor):
+        """Staff assignment cannot change an administrator or premium access."""
+        from .auth_admin import AccountManagementError
+        if role not in {"user", "staff"}:
+            raise AccountManagementError("Invalid staff role.", 422)
+        try:
+            identifier = int(user_id) if isinstance(self.collection, LocalUserCollection) else ObjectId(user_id)
+        except (ValueError, InvalidId):
+            raise AccountManagementError("User not found.", 404)
+        document = self.collection.find_one({"_id": identifier, "deleted_at": None})
+        if not document or not document.get("is_active", True):
+            raise AccountManagementError("Active user not found.", 404)
+        if document.get("role") == "admin":
+            raise AccountManagementError("Staff assignment cannot change an administrator.")
+        if document.get("role", "user") == role:
+            return {"id": str(document["_id"]), "username": document["username"], "role": role,
+                    "can_view_premium_analysis": document.get("can_view_premium_analysis") is True}
+        now = datetime.now(timezone.utc)
+        result = self.collection.update_one(
+            {"_id": identifier, "role": document.get("role"), "deleted_at": None},
+            {"$set": {"role": role, "role_changed_at": now, "updated_at": now,
+                      "role_changed_by": actor["id"], "role_changed_by_username": actor["username"]}})
+        if not result.modified_count:
+            raise AccountManagementError("Account changed concurrently. Refresh and try again.")
+        return {"id": str(document["_id"]), "username": document["username"], "role": role,
+                "can_view_premium_analysis": document.get("can_view_premium_analysis") is True}

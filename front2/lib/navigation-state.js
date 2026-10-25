@@ -1,6 +1,6 @@
 export const US_MARKET = { id: "us500", href: "/analytics", label: "US 500", labelFa: "بازار آمریکا · US 500" }
 
-const aliases = { "liquidity-flows": "monetary-policy", "sector-performance": "market-internals", derivatives: "sentiment", institutional: "intermarket", "macro-calendar": "events" }
+const aliases = { "liquidity-flows": "monetary-policy", "sector-performance": "market-internals", derivatives: "sentiment", institutional: "intermarket", "macro-calendar": "events", valuation: "corporate-earnings" }
 export function normalizeNavigationPath(pathname) {
   const path = (pathname || "/").split(/[?#]/)[0].replace(/\/+$/, "") || "/"
   if (path === "/sp500") return "/analytics"

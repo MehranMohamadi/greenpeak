@@ -15,7 +15,7 @@ const domains = [
   ["growth_inflation_labor", "رشد، تورم و بازار کار", "/analytics/macroeconomic"],
   ["credit_financial_risk", "اعتبار و ثبات مالی", "/analytics/systemic-risk"],
   ["corporate_fundamentals", "بنیادهای شرکتی", "/analytics/corporate-earnings"],
-  ["valuation", "ارزش‌گذاری", "/analytics/valuation"],
+  ["valuation", "ارزش‌گذاری", "/analytics/corporate-earnings"],
   ["market_internals_sectors", "ساختار بازار، بخش‌ها و تمرکز", "/analytics/market-internals"],
   ["positioning_sentiment_derivatives_volatility", "موقعیت‌گیری، احساسات و نوسان", "/analytics/sentiment"],
   ["capital_flows_intermarket", "جریان سرمایه و بین‌بازاری", "/analytics/intermarket"],

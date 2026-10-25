@@ -8,7 +8,6 @@ import {
   Building2,
   CalendarDays,
   CheckCircle2,
-  CircleDollarSign,
   Clock3,
   Database,
   Gauge,
@@ -113,26 +112,15 @@ const analysisGroups = [
   {
     number: "۰۴",
     href: "/analytics/corporate-earnings",
-    title: "بنیادهای شرکتی و سودآوری",
-    english: "Corporate Fundamentals & Earnings",
+    title: "بنیادهای شرکتی و ارزش‌گذاری",
+    english: "Corporate Fundamentals & Valuation",
     icon: Building2,
-    purpose: "بررسی اینکه حرکت شاخص با رشد واقعی درآمد، سود و کیفیت ترازنامه شرکت‌ها پشتیبانی می‌شود یا نه.",
+    purpose: "بررسی اینکه حرکت شاخص با رشد واقعی درآمد، سود و کیفیت ترازنامه شرکت‌ها پشتیبانی می‌شود یا نه. مقایسه قیمت بازار با سود، فروش، ارزش دفتری، رشد سود و سود نقدی.",
     charts: [
       "EPS واقعی دوازده‌ماهه S&P 500، تعدیل‌شده با تورم",
       "رشد تجمیعی درآمد شرکت‌ها",
       "حاشیه سود تجمیعی",
       "بازده دارایی‌ها (ROA)",
-    ],
-    reading: "در شاخص‌های تجمیعی، پوشش شرکت‌ها و تاریخ آخرین صورت مالی مهم است. درصد پوشش در متادیتا نمایش داده می‌شود.",
-  },
-  {
-    number: "۰۵",
-    href: "/analytics/valuation",
-    title: "ارزش‌گذاری",
-    english: "Valuation",
-    icon: CircleDollarSign,
-    purpose: "مقایسه قیمت بازار با سود، فروش، ارزش دفتری، رشد سود و سود نقدی.",
-    charts: [
       "نسبت P/E دوازده‌ماهه گذشته",
       "Forward P/E دوازده‌ماهه آینده",
       "نسبت قیمت به ارزش دفتری",
@@ -140,10 +128,10 @@ const analysisGroups = [
       "PEG Proxy پنج‌ساله",
       "بازده سود نقدی",
     ],
-    reading: "PEG این سایت یک پروکسی تاریخی است: P/E گذشته تقسیم بر رشد سالانه‌شده EPS در پنج سال. این مقدار با Forward PEG مبتنی بر پیش‌بینی تحلیلگران یکسان نیست.",
+    reading: "در شاخص‌های تجمیعی، پوشش شرکت‌ها و تاریخ آخرین صورت مالی مهم است. درصد پوشش در متادیتا نمایش داده می‌شود. PEG این سایت یک پروکسی تاریخی است: P/E گذشته تقسیم بر رشد سالانه‌شده EPS در پنج سال. این مقدار با Forward PEG مبتنی بر پیش‌بینی تحلیلگران یکسان نیست.",
   },
   {
-    number: "۰۶",
+    number: "۰۵",
     href: "/analytics/market-internals",
     title: "ساختار بازار، بخش‌ها و تمرکز",
     english: "Market Structure, Sectors & Concentration",
@@ -160,7 +148,7 @@ const analysisGroups = [
     reading: "برچسب ETF proxy یعنی نمودار از ETF نماینده استفاده می‌کند. داده فعلی هیچ‌وقت به‌جای وزن تاریخی ناموجود قرار داده نمی‌شود.",
   },
   {
-    number: "۰۷",
+    number: "۰۶",
     href: "/analytics/sentiment",
     title: "موقعیت‌گیری، احساسات و نوسان",
     english: "Positioning, Sentiment & Volatility",
@@ -241,7 +229,7 @@ export default function HelpPage() {
             <div className="space-y-5">
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary">راهنمای GreenPeak</Badge>
-                <Badge variant="outline">۷ گروه S&P و تب مقایسه بازارها</Badge>
+                <Badge variant="outline">۶ گروه S&P و تب مقایسه بازارها</Badge>
                 <Badge variant="outline">داده‌های منبع‌دار</Badge>
               </div>
               <div>

@@ -35,12 +35,15 @@ export default function CustomizationPanel({ onLayoutChange }) {
 
   return (
     <Card dir="rtl">
-      <CardHeader>
+      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
         <CardTitle className="flex items-center gap-2">
           <Layout className="h-5 w-5" />
           شخصی‌سازی چیدمان
         </CardTitle>
-        <p className="text-sm text-muted-foreground">اجزا و چیدمان داشبورد را تنظیم کنید</p>
+        <Button type="button" variant="outline" size="sm" onClick={resetToDefault} className="ms-auto h-8 shrink-0 gap-1.5 bg-transparent px-2 text-xs">
+          <RotateCcw className="h-3.5 w-3.5" />
+          بازگشت به پیش‌فرض
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
@@ -70,13 +73,6 @@ export default function CustomizationPanel({ onLayoutChange }) {
               <Switch id={id} checked={layoutSettings[key]} onCheckedChange={(checked) => handleLayoutChange(key, checked)} />
             </div>
           ))}
-        </div>
-
-        <div className="border-t pt-4">
-          <Button variant="outline" onClick={resetToDefault} className="flex items-center gap-2 bg-transparent">
-            <RotateCcw className="h-4 w-4" />
-            بازگشت به پیش‌فرض
-          </Button>
         </div>
       </CardContent>
     </Card>

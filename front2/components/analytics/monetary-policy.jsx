@@ -26,6 +26,7 @@ import {
   processWALCLData,
 } from "@/hooks/monetaryDataUtils"
 import DomainUnderstandingPanel from "./domain-understanding-panel"
+import IndicatorGuide from "@/components/analytics/indicator-guide"
 import MonetaryIndicatorAnalysis from "./monetary-indicator-analysis"
 import { AnalysisFactorCard, AnalysisPageHeader, AnalysisPageShell, AnalysisState } from "./analysis-page"
 
@@ -114,7 +115,7 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
 
       <div dir="ltr" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
         <Card ref={chartSectionRef} className="min-w-0 lg:col-start-1 lg:row-start-1">
-          <CardHeader className="!pt-2.5"><div className="flex flex-col gap-4"><div><CardTitle className="flex items-start justify-between gap-3 text-base"><span className="min-w-0 break-words">{selected.title}</span><Button variant="outline" size="icon" title="Expand chart" aria-label="Expand chart" onClick={() => setIsFullScreen(true)} disabled={!selectedData.length}><Maximize2 className="h-4 w-4" /></Button></CardTitle><CardDescription className="mt-2 text-xs">{selected.metadata?.source || "Source unavailable"} &middot; {chartDateLabel} &middot; {selected.metadata?.frequency && <span> · {selected.metadata.frequency}</span>} &middot; {selected.format === "rate" ? "%" : selected.format === "trillions" ? "USD trillions" : "USD billions"}{selected.metadata?.quality_status === "stale" && <span className="ml-2 text-amber-700 dark:text-amber-400">Data is outdated</span>}</CardDescription></div><PeriodControls period={period} onChange={setPeriod} periods={chartPeriods} /></div></CardHeader>
+          <CardHeader className="!pt-2.5"><div className="flex flex-col gap-4"><div><CardTitle className="flex items-start justify-between gap-3 text-base"><span className="flex min-w-0 items-center gap-2"><span className="min-w-0 break-words">{selected.title}</span><IndicatorGuide indicatorId={selected.id} title={selected.title} /></span><Button variant="outline" size="icon" title="Expand chart" aria-label="Expand chart" onClick={() => setIsFullScreen(true)} disabled={!selectedData.length}><Maximize2 className="h-4 w-4" /></Button></CardTitle><CardDescription className="mt-2 text-xs">{selected.metadata?.source || "Source unavailable"} &middot; {chartDateLabel} &middot; {selected.metadata?.frequency && <span> · {selected.metadata.frequency}</span>} &middot; {selected.format === "rate" ? "%" : selected.format === "trillions" ? "USD trillions" : "USD billions"}{selected.metadata?.quality_status === "stale" && <span className="ml-2 text-amber-700 dark:text-amber-400">Data is outdated</span>}</CardDescription></div><PeriodControls period={period} onChange={setPeriod} periods={chartPeriods} /></div></CardHeader>
           <CardContent>
             {selected.id === "ten-year-treasury" && <p className="mb-3 text-xs leading-5 text-muted-foreground">Cboe benchmark yield via Yahoo Finance; quotes may be delayed. Short periods use hourly observations; long periods use daily closes.</p>}
             {selected.error && selectedData.length > 0 && <p role="status" className="mb-3 text-xs text-amber-700 dark:text-amber-400">Refresh failed; showing the last received observations.</p>}
@@ -140,21 +141,22 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
               const trend = unavailable || !Number.isFinite(change) ? "neutral" : change > 0 ? "up" : change < 0 ? "down" : "neutral"
               const Icon = factor.icon
               return (
-                <button key={factor.id} type="button" className="h-full min-w-0 text-left" aria-pressed={selectedId === factor.id} onClick={() => { setSelectedId(factor.id); if (factor.id !== "ten-year-treasury" && !PERIODS.includes(period)) setPeriod("1M"); chartSectionRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" }) }}>
                   <AnalysisFactorCard
+                    key={factor.id}
+                    title={factor.title}
+                    onSelect={() => { setSelectedId(factor.id); if (factor.id !== "ten-year-treasury" && !PERIODS.includes(period)) setPeriod("1M"); chartSectionRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" }) }}
                     selected={selectedId === factor.id}
                     className={selectedId === factor.id
                       ? "!border-cyan-500/60 !bg-cyan-500/10 !ring-cyan-500/30 dark:!border-cyan-400/60 dark:!ring-cyan-400/30"
                       : ""}
                   >
-                    <CardHeader className="px-4 pb-3 !pt-2.5"><p className="text-xs text-slate-500">{factor.group}</p><CardTitle className="flex items-center justify-between gap-3 text-base"><span className="min-w-0 break-words">{factor.title}</span><Icon className="h-4 w-4 shrink-0 text-primary" /></CardTitle></CardHeader>
+                    <CardHeader className="px-4 pb-3 !pt-2.5"><p className="text-xs text-slate-500">{factor.group}</p><CardTitle className="flex items-center justify-between gap-3 text-base"><span className="min-w-0 break-words">{factor.title}</span><span className="flex shrink-0 items-center gap-1"><Icon className="h-4 w-4 shrink-0 text-primary" /><IndicatorGuide indicatorId={factor.id} title={factor.title} /></span></CardTitle></CardHeader>
                     <CardContent className="p-4 pt-0">
                       <div className="text-2xl font-semibold tabular-nums">{factor.loading ? "Loading…" : unavailable ? "N/A" : formatValue(latest, factor.format)}</div>
                       <div className="pointer-events-none mt-3 h-20 p-2 bg-transparent rounded-lg mini-chart-container" aria-hidden="true">{factor.loading ? <div className="h-full animate-pulse rounded bg-slate-100 dark:bg-slate-800" /> : <MiniChart data={view} trend={trend} upColor={MONETARY_CHART_COLOR} />}</div>
                       <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400"><Badge variant="outline">{unavailable ? (quality || "unavailable") : quality === "stale" ? "stale" : (factor.metadata?.frequency || "frequency N/A")}</Badge><span>{factor.metadata?.observation_date || factor.metadata?.latest_date || view.at(-1)?.time || "No observation date"}</span></div>
                     </CardContent>
                   </AnalysisFactorCard>
-                </button>
               )
             })}
           </div>
@@ -163,7 +165,7 @@ export default function MonetaryPolicy({ initialFactorId = "ten-year-treasury" }
       <Dialog open={isFullScreen} onOpenChange={setIsFullScreen}>
         <DialogContent className="w-[95vw] max-w-6xl">
           <DialogHeader>
-            <DialogTitle>{selected.title}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">{selected.title}<IndicatorGuide indicatorId={selected.id} title={selected.title} /></DialogTitle>
             <DialogDescription>Observation {chartDateLabel} · {selected.metadata?.source || "Source unavailable"}</DialogDescription>
           </DialogHeader>
           <PeriodControls period={period} onChange={setPeriod} periods={chartPeriods} />

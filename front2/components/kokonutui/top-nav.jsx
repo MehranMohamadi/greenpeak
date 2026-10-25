@@ -7,15 +7,14 @@ import { useSidebarHover } from "@/app/context/sidebar-hover-context";
 import { normalizeNavigationPath, US_MARKET } from "@/lib/navigation-state";
 
 const routeLabels = {
-  "/market-comparison": "مقایسه و روابط بازارها",
+  "/market-comparison": "مقایسه بازارها",
   "/": "Dashboard",
   "/analytics": US_MARKET.label,
-  "/gold": "طلا · Gold",
+  "/gold": "طلای جهانی · Gold",
   "/analytics/monetary-policy": "Monetary Policy & System Liquidity",
   "/analytics/systemic-risk": "Credit & Financial Stability",
   "/analytics/macroeconomic": "Growth, Inflation & Labor",
-  "/analytics/corporate-earnings": "Corporate Fundamentals & Earnings",
-  "/analytics/valuation": "Valuation",
+  "/analytics/corporate-earnings": "Corporate Fundamentals & Valuation",
   "/analytics/market-internals": "Market Structure, Sectors & Concentration",
   "/analytics/intermarket": "Capital Flows & Intermarket",
   "/analytics/sentiment": "Positioning, Sentiment & Volatility",

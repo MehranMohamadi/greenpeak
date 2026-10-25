@@ -4,7 +4,7 @@ import test from "node:test"
 const load = async (name) => import(`data:text/javascript;base64,${Buffer.from(await readFile(new URL(`../lib/${name}.js`, import.meta.url), "utf8")).toString("base64")}`)
 const { getActiveNavHref, normalizeNavigationPath, revealActiveMarket } = await load("navigation-state")
 const { matchingNarrative, monetaryNarrativeIds } = await load("monetary-narrative")
-const hrefs = ["/", "/analytics", "/analytics/monetary-policy", "/analytics/valuation", "/fun"]
+const hrefs = ["/", "/analytics", "/analytics/monetary-policy", "/analytics/corporate-earnings", "/fun"]
 test("only the most specific destination is active and boundaries are respected", () => {
   assert.equal(getActiveNavHref("/analytics/monetary-policy/ten-year-treasury", hrefs), "/analytics/monetary-policy")
   assert.equal(getActiveNavHref("/fun", hrefs), "/fun")
@@ -14,6 +14,8 @@ test("only the most specific destination is active and boundaries are respected"
   assert.equal(getActiveNavHref("/help", hrefs), null)
 })
 test("legacy and normalized routes identify the same destination", () => {
+  assert.equal(normalizeNavigationPath("/analytics/valuation"), "/analytics/corporate-earnings")
+  assert.equal(getActiveNavHref("/analytics/valuation", hrefs), "/analytics/corporate-earnings")
   assert.equal(normalizeNavigationPath("/analytics/liquidity-flows/sofr-rate/?x=1#chart"), "/analytics/monetary-policy/sofr-rate")
   assert.equal(getActiveNavHref("/sp500/", hrefs), "/analytics")
   assert.equal(normalizeNavigationPath("/analytics/intermarket"), "/market-comparison")

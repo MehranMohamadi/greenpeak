@@ -1,9 +1,17 @@
 # Administrator access
 
-`gp_users.role` is either `user` or `admin`. Registration always creates a
+`gp_users.role` is `user`, `staff`, or `admin`. Registration always creates a
 `user`. Authorization reads the current database role on every protected API
 request; changing the role takes effect even for an existing signed session.
 Subscription status is independent of this role.
+
+Staff and administrators can use `/workplace`; only administrators can use
+`/admin/employees`. Their entry buttons are in `/profile`. The existing `admin`
+role keeps every existing permission; attendance does not create accounts or
+run a role migration. Administrators assign `user`/`staff` through the employee
+management page or `PUT /api/v1/auth/users/{user_id}/staff-role`. This endpoint
+cannot modify an administrator and does not change premium-analysis access.
+Programmers use the same `staff` role. See [WORKPLACE.md](WORKPLACE.md).
 
 The administrator entry is `/admin/settings`, also linked from the profile menu
 and the dashboard-settings section at `/profile#dashboard-settings` for admins.

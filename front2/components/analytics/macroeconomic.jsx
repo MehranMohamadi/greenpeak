@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic"
 import { useTheme } from "next-themes"
 import DomainUnderstandingPanel from "./domain-understanding-panel"
+import IndicatorGuide from "@/components/analytics/indicator-guide"
 import { IndicatorNarrativeAnalysis } from "./monetary-indicator-analysis"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useMemo, useRef, useState } from "react"
@@ -77,7 +78,7 @@ export default function Macroeconomic() {
       <div dir="ltr" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
         <Card ref={chartRef} className="min-w-0 lg:col-start-1 lg:row-start-1">
           <CardHeader className="space-y-3">
-            <CardTitle className="flex items-start justify-between gap-3 text-base"><span className="min-w-0 break-words">{selected.title}</span><Button variant="outline" size="icon" title="Expand chart" aria-label="Expand chart" disabled={!chartData.length} onClick={() => setIsFullScreen(true)}><Maximize2 className="h-4 w-4" /></Button></CardTitle>
+            <CardTitle className="flex items-start justify-between gap-3 text-base"><span className="flex min-w-0 items-center gap-2"><span className="min-w-0 break-words">{selected.title}</span><IndicatorGuide indicatorId={(selected.indicatorId || selected.id)} title={selected.title} /></span><Button variant="outline" size="icon" title="Expand chart" aria-label="Expand chart" disabled={!chartData.length} onClick={() => setIsFullScreen(true)}><Maximize2 className="h-4 w-4" /></Button></CardTitle>
             <CardDescription className="text-xs">{sourceLine}</CardDescription>
             <p className="text-xs leading-5 text-muted-foreground">{selected.detail}</p>
             {periodControls}
@@ -104,22 +105,21 @@ export default function Macroeconomic() {
             const unavailable = errors[factor.key] || meta?.quality_status === "unavailable" || meta?.quality_status === "invalid" || (!loading && series.length === 0)
             const trend = unavailable || !Number.isFinite(latest) || !Number.isFinite(first) ? "neutral" : latest > first ? "up" : latest < first ? "down" : "neutral"
             const Icon = factor.icon
-            return <button key={factor.id} type="button" className="h-full min-w-0 text-left" aria-pressed={selectedId === factor.id} onClick={() => { setSelectedId(factor.id); chartRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" }) }}>
-              <AnalysisFactorCard selected={selectedId === factor.id}>
-                <CardHeader className="p-4 pb-3"><p className="text-xs text-slate-500">{factor.group}</p><CardTitle className="flex items-center justify-between gap-3 text-base"><span className="min-w-0 break-words">{factor.title}</span><Icon className="h-4 w-4 shrink-0 text-primary" /></CardTitle></CardHeader>
+            return <AnalysisFactorCard key={factor.id} title={factor.title} selected={selectedId === factor.id}
+              onSelect={() => { setSelectedId(factor.id); chartRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" }) }}>
+                <CardHeader className="p-4 pb-3"><p className="text-xs text-slate-500">{factor.group}</p><CardTitle className="flex items-center justify-between gap-3 text-base"><span className="min-w-0 break-words">{factor.title}</span><span className="flex shrink-0 items-center gap-1"><Icon className="h-4 w-4 shrink-0 text-primary" /><IndicatorGuide indicatorId={(factor.indicatorId || factor.id)} title={factor.title} /></span></CardTitle></CardHeader>
                 <CardContent className="p-4 pt-0">
                   <div className="text-2xl font-semibold tabular-nums">{loading ? "Loading…" : unavailable ? "N/A" : formatValue(latest, factor.format)}</div>
                   <div className="pointer-events-none mt-3 h-20 rounded-lg bg-transparent p-2 mini-chart-container" aria-hidden="true">{loading ? <div className="h-full animate-pulse rounded bg-slate-100 dark:bg-slate-800" /> : <MiniChart data={series} trend={trend} />}</div>
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400"><Badge variant="outline">{unavailable ? (meta?.quality_status || "unavailable") : meta?.quality_status === "stale" ? "stale" : (meta?.frequency || "frequency N/A")}</Badge>{meta?.latest_observation_status && <Badge variant="outline">{meta.latest_observation_status}</Badge>}<span>{meta?.observation_date || meta?.latest_date || series.at(-1)?.date || "No observation date"}</span></div>
                 </CardContent>
               </AnalysisFactorCard>
-            </button>
           })}
         </div>
       </section>
       <Dialog open={isFullScreen} onOpenChange={setIsFullScreen}>
         <DialogContent className="w-[95vw] max-w-6xl">
-          <DialogHeader><DialogTitle>{selected.title}</DialogTitle><DialogDescription>{sourceLine}</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle className="flex items-center gap-2">{selected.title}<IndicatorGuide indicatorId={(selected.indicatorId || selected.id)} title={selected.title} /></DialogTitle><DialogDescription>{sourceLine}</DialogDescription></DialogHeader>
           {periodControls}
           {isFullScreen && <MultiLineChart dataSets={[chartData]} height={440} textColor={chartTextColor} />}
         </DialogContent>

@@ -8,6 +8,19 @@ const API_BASE = configuredApiBase || "/api/v1";
 export { API_BASE };
 
 export const endpoints = {
+    workplace: {
+        myReport: `${API_BASE}/workplace/me/report`,
+        clockIn: `${API_BASE}/workplace/me/clock-in`,
+        clockOut: `${API_BASE}/workplace/me/clock-out`,
+        activities: id => `${API_BASE}/workplace/me/sessions/${encodeURIComponent(id)}/activities`,
+        correction: id => `${API_BASE}/workplace/me/sessions/${encodeURIComponent(id)}/corrections`,
+        employees: `${API_BASE}/workplace/admin/employees`,
+        employeeReport: id => `${API_BASE}/workplace/admin/employees/${encodeURIComponent(id)}/report`,
+        manualSession: id => `${API_BASE}/workplace/admin/employees/${encodeURIComponent(id)}/sessions`,
+        correctTimes: id => `${API_BASE}/workplace/admin/sessions/${encodeURIComponent(id)}/times`,
+        corrections: `${API_BASE}/workplace/admin/corrections`,
+        review: (sessionId, requestId) => `${API_BASE}/workplace/admin/sessions/${encodeURIComponent(sessionId)}/corrections/${encodeURIComponent(requestId)}/review`,
+    },
     marketComparison: {
         symbols: `${API_BASE}/market-comparison/symbols`,
         compare: `${API_BASE}/market-comparison/compare`,
@@ -22,6 +35,7 @@ export const endpoints = {
     auth: {
         admins: `${API_BASE}/auth/admins`,
         users: `${API_BASE}/auth/users`,
+        staffRole: userId => `${API_BASE}/auth/users/${encodeURIComponent(userId)}/staff-role`,
         analysisAccess: (userId) => `${API_BASE}/auth/users/${encodeURIComponent(userId)}/analysis-access`,
         promoteUser: (userId) => `${API_BASE}/auth/users/${encodeURIComponent(userId)}/promote`,
         demoteUser: (userId) => `${API_BASE}/auth/users/${encodeURIComponent(userId)}/demote`,

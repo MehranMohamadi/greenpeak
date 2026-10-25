@@ -1,10 +1,5 @@
-import Layout from "@/components/kokonutui/layout"
-import Valuation from "@/components/analytics/valuation"
+import { redirect } from "next/navigation"
 
 export default function ValuationPage() {
-  return (
-    <Layout>
-      <Valuation />
-    </Layout>
-  )
+  redirect("/analytics/corporate-earnings")
 }

@@ -42,7 +42,7 @@ export default function ProfileDropdown({
     const profileData = user ? {
         ...data,
         name: user.username,
-        role: user.role === 'admin' ? 'System Administrator' : 'User',
+        role: user.role === 'admin' ? 'System Administrator' : user.role === 'staff' ? 'Staff' : 'User',
     } : data;
     const isPremium = canViewPremiumAnalysis;
     const subscriptionLabel = isPremium ? "Premium" : "Free";

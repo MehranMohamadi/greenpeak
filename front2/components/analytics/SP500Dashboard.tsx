@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import SP500Chart from "@/components/charts/sp500-chart"
+import IndicatorGuide from "@/components/analytics/indicator-guide"
 import USMarketPageHeader from "@/components/analytics/us-market-page-header"
 import useSP500Data from "@/hooks/useSP500Data"
 import {
@@ -67,6 +68,7 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
             <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
               <Activity className="h-4 w-4 shrink-0 text-primary" />
               <span className="truncate">S&amp;P 500</span>
+              <IndicatorGuide indicatorId="sp500" title="S&P 500" />
             </CardTitle>
             <Button
               type="button"
@@ -160,6 +162,7 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
                         <CardTitle className="flex items-center gap-2 text-xl">
                           <Activity className="h-5 w-5 shrink-0 text-primary" />
                           US 500
+                          <IndicatorGuide indicatorId="sp500" title="S&P 500" />
                           <span
                             className={`h-2 w-2 shrink-0 rounded-full ${
                               error

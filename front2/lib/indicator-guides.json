@@ -1,0 +1,489 @@
+{
+  "source": {
+    "fileName": "GreenPeak_Indicator_Guide_Compact_FA (1).xlsx",
+    "sha256": "a96c4748fe5b37a4613438438835ba7f677e1f1dc862554613dbc767ba968a0e",
+    "sheetName": "راهنمای کوتاه شاخص‌ها"
+  },
+  "entries": {
+    "ten-year-treasury": {
+      "section": "Monetary Policy & System Liquidity",
+      "sourceRange": "A3:F3",
+      "titleEn": "10-Year Treasury Yield",
+      "titleFa": "بازده اوراق خزانه ۱۰ساله",
+      "literal": "Treasury Yield: بازده اوراق خزانه؛ 10-Year: ده‌ساله",
+      "meaning": "بازده سالانه مورد مطالبه برای نگهداری اوراق دولتی ۱۰ساله آمریکا؛ نرخ مرجع مهمی برای ارزش‌گذاری دارایی‌هاست.",
+      "increase": "قیمت اوراق موجود معمولاً پایین می‌آید؛ افزایش نرخ تنزیل می‌تواند بر ارزش سهام فشار بگذارد، مگر آنکه رشد مورد انتظار قوی‌تر باشد.",
+      "decrease": "قیمت اوراق معمولاً بالا می‌رود؛ ممکن است به ارزش‌گذاری سهام کمک کند یا نشانه نگرانی از رشد باشد."
+    },
+    "fed-funds-rate": {
+      "section": "Monetary Policy & System Liquidity",
+      "sourceRange": "A4:F4",
+      "titleEn": "Effective Federal Funds Rate (EFFR)",
+      "titleFa": "نرخ مؤثر وجوه فدرال",
+      "literal": "Effective Federal Funds Rate: نرخ مؤثر وجوه فدرال؛ EFFR مخفف همین عبارت است",
+      "meaning": "نرخ میانه وزنی معاملات واقعی وام یک‌شبه بدون وثیقه میان نهادهای واجد شرایط؛ با دامنه هدف فدرال رزرو فرق دارد.",
+      "increase": "اگر ناشی از تصمیم سیاستی باشد هزینه تأمین مالی را بالا می‌برد؛ تغییر کوچک روزانه ممکن است صرفاً از شرایط بازار پول باشد.",
+      "decrease": "اگر ناشی از کاهش نرخ سیاستی باشد هزینه پول را کم می‌کند؛ علت کاهش، از جمله ضعف اقتصاد، مهم است."
+    },
+    "sofr-rate": {
+      "section": "Monetary Policy & System Liquidity",
+      "sourceRange": "A5:F5",
+      "titleEn": "Secured Overnight Financing Rate (SOFR)",
+      "titleFa": "نرخ تأمین مالی یک‌شبه وثیقه‌دار",
+      "literal": "Secured Overnight Financing Rate: نرخ تأمین مالی یک‌شبه وثیقه‌دار؛ SOFR مخفف همین عبارت است",
+      "meaning": "هزینه وام یک‌شبه با وثیقه اوراق خزانه در بازار ریپو؛ نرخ مرجع بسیاری از قراردادهای مالی.",
+      "increase": "افزایش غیرمعمول نسبت به نرخ‌های مشابه می‌تواند از تنگی نقدینگی یا محدودیت واسطه‌ها خبر دهد.",
+      "decrease": "کاهش نسبی می‌تواند از آسان‌تر شدن تأمین مالی یا تغییر نرخ سیاستی باشد."
+    },
+    "real-interest-rate": {
+      "section": "Monetary Policy & System Liquidity",
+      "sourceRange": "A6:F6",
+      "titleEn": "10-Year Real Yield",
+      "titleFa": "نرخ واقعی ۱۰ساله",
+      "literal": "Real Yield: بازده واقعی؛ 10-Year: ده‌ساله",
+      "meaning": "بازده اوراق خزانه مصون از تورم ۱۰ساله؛ معیاری بازارمحور از بازده پس از تورم مورد انتظار است.",
+      "increase": "هزینه فرصت نگهداری دارایی‌های بدون سود و نرخ تنزیل سود آینده بیشتر می‌شود؛ معمولاً فشار بر سهام رشدی و طلا را افزایش می‌دهد.",
+      "decrease": "می‌تواند به ارزش‌گذاری دارایی‌های بلندمدت کمک کند؛ اگر از ترس رکود باشد پیام متفاوتی دارد."
+    },
+    "fed-balance-sheet": {
+      "section": "Monetary Policy & System Liquidity",
+      "sourceRange": "A7:F7",
+      "titleEn": "Federal Reserve Total Assets",
+      "titleFa": "کل دارایی‌های فدرال رزرو",
+      "literal": "Federal Reserve Total Assets: کل دارایی‌های فدرال رزرو",
+      "meaning": "مجموع دارایی‌هایی مانند اوراق و وام‌ها در ترازنامه بانک مرکزی؛ تغییر آن لزوماً به معنی تغییر یکسان نقدینگی بازار نیست.",
+      "increase": "ممکن است از خرید اوراق یا وام اضطراری باشد؛ علت را پیش از نتیجه‌گیری درباره سهام بررسی کنید.",
+      "decrease": "ممکن است از کوچک‌سازی ترازنامه یا بازپرداخت وام باشد؛ اثر نقدینگی به بدهی‌های ترازنامه نیز وابسته است."
+    },
+    "money-supply-m2": {
+      "section": "Monetary Policy & System Liquidity",
+      "sourceRange": "A8:F8",
+      "titleEn": "M2 Money Stock",
+      "titleFa": "حجم پول گسترده",
+      "literal": "M2 Money Stock: موجودی پول در تعریف M2؛ M2 نام یک طبقه آماری است، نه مخفف دو واژه",
+      "meaning": "مانده پول نقد، سپرده‌های قابل برداشت و برخی سپرده‌های پس‌انداز و ابزارهای پولی مشمول تعریف M2.",
+      "increase": "رشد آن می‌تواند فضای پولی آسان‌تر یا افزایش تقاضا برای سپرده را نشان دهد؛ به‌تنهایی پیش‌بینی‌کننده تورم نیست.",
+      "decrease": "کاهش سطح می‌تواند از انتقال پول به ابزارهای بیرون M2 باشد؛ کندشدن رشد را با افت سطح اشتباه نگیرید."
+    },
+    "reverse-repo": {
+      "section": "Monetary Policy & System Liquidity",
+      "sourceRange": "A9:F9",
+      "titleEn": "Overnight Reverse Repurchase Agreements (ON RRP)",
+      "titleFa": "مانده ریپوی معکوس یک‌شبه",
+      "literal": "Overnight Reverse Repurchase Agreement: قرارداد بازخرید معکوس یک‌شبه؛ ON RRP شکل کوتاه نام آن است",
+      "meaning": "وجهی که طرف‌های واجد شرایط یک‌شبه نزد فدرال رزرو در برابر اوراق پارک می‌کنند.",
+      "increase": "ممکن است از جذابیت نرخ این ابزار یا جریان‌های پایان دوره باشد؛ الزاماً ورود پول تازه به اقتصاد نیست.",
+      "decrease": "ممکن است وجه به اسناد خزانه یا بازار ریپوی خصوصی برود؛ افزایش نقدینگی سهام از آن نتیجه نمی‌شود."
+    },
+    "real_gdp": {
+      "section": "Growth, Inflation & Labor",
+      "sourceRange": "A12:F12",
+      "titleEn": "Real Gross Domestic Product Growth",
+      "titleFa": "رشد واقعی تولید ناخالص داخلی",
+      "literal": "Gross Domestic Product: تولید ناخالص داخلی؛ GDP مخفف همین عبارت؛ Real Growth: رشد واقعی",
+      "meaning": "تغییر تولید کالاها و خدمات نهایی اقتصاد پس از تعدیل اثر قیمت‌ها؛ نرخ فصلی آمریکا معمولاً سالانه‌شده گزارش می‌شود.",
+      "increase": "رشد بالاتر می‌تواند سود شرکت‌ها را تقویت کند، اما فشار تورم و نرخ بهره را هم بالا ببرد.",
+      "decrease": "کندشدن رشد می‌تواند به کاهش نرخ بهره کمک کند یا از ضعف تقاضا و سودآوری خبر دهد."
+    },
+    "retail_sales_growth_mom": {
+      "section": "Growth, Inflation & Labor",
+      "sourceRange": "A13:F13",
+      "titleEn": "Retail Sales Growth",
+      "titleFa": "رشد فروش خرده‌فروشی",
+      "literal": "Retail Sales Growth: رشد فروش خرده‌فروشی",
+      "meaning": "تغییر ارزش اسمی فروش فروشگاه‌ها و برخی کسب‌وکارهای خدمات غذایی؛ مقدار واقعی خرید را مستقیم نشان نمی‌دهد.",
+      "increase": "تقاضای مصرف‌کننده ممکن است قوی‌تر باشد؛ بخشی از افزایش می‌تواند ناشی از قیمت بالاتر باشد.",
+      "decrease": "می‌تواند نشانه ضعف تقاضا باشد؛ اثر نوسان ماهانه و ترکیب کالاها را بررسی کنید."
+    },
+    "consumer_confidence": {
+      "section": "Growth, Inflation & Labor",
+      "sourceRange": "A14:F14",
+      "titleEn": "University of Michigan Consumer Sentiment",
+      "titleFa": "احساس مصرف‌کننده میشیگان",
+      "literal": "University of Michigan Consumer Sentiment: احساس مصرف‌کننده در نظرسنجی دانشگاه میشیگان",
+      "meaning": "شاخص نظرسنجی درباره ارزیابی خانوارها از وضعیت مالی و اقتصاد؛ خودِ مخارج واقعی نیست.",
+      "increase": "ممکن است با مصرف قوی‌تر همراه شود؛ واکنش بازار به دلیل بهبود انتظارات بستگی دارد.",
+      "decrease": "می‌تواند نگرانی درباره تورم، اشتغال یا درآمد را بازتاب دهد؛ کاهش شاخص معادل افت فوری مصرف نیست."
+    },
+    "cpi_inflation_yoy": {
+      "section": "Growth, Inflation & Labor",
+      "sourceRange": "A15:F15",
+      "titleEn": "Consumer Price Index Inflation (CPI)",
+      "titleFa": "تورم سالانه مصرف‌کننده",
+      "literal": "Consumer Price Index: شاخص قیمت مصرف‌کننده؛ CPI مخفف همین عبارت؛ YoY: نسبت به سال قبل",
+      "meaning": "درصد تغییر قیمت سبد مصرفی خانوار شهری نسبت به همان ماه سال قبل.",
+      "increase": "تورم بالاتر می‌تواند احتمال سیاست سخت‌گیرانه و بازده اوراق بالاتر را افزایش دهد.",
+      "decrease": "اگر هنوز مثبت باشد قیمت‌ها همچنان بالا می‌روند، فقط آهسته‌تر؛ می‌تواند از فشار نرخ بهره بکاهد."
+    },
+    "core_cpi_inflation_yoy": {
+      "section": "Growth, Inflation & Labor",
+      "sourceRange": "A16:F16",
+      "titleEn": "Core Consumer Price Index Inflation (Core CPI)",
+      "titleFa": "تورم هسته مصرف‌کننده",
+      "literal": "Core Consumer Price Index: شاخص هسته قیمت مصرف‌کننده؛ Core: هسته یا بدون غذا و انرژی",
+      "meaning": "روند قیمت‌های مصرفی به‌جز غذا و انرژی؛ برای سنجش ماندگاری فشار تورمی به کار می‌رود.",
+      "increase": "پایداری فشار قیمت ممکن است انتظار کاهش نرخ بهره را عقب ببرد و بر ارزش‌گذاری سهام فشار آورد.",
+      "decrease": "کاهش پایدار می‌تواند از فشار سیاست پولی بکاهد؛ اجزای مسکن و خدمات را جدا بررسی کنید."
+    },
+    "core_pce_inflation_yoy": {
+      "section": "Growth, Inflation & Labor",
+      "sourceRange": "A17:F17",
+      "titleEn": "Core Personal Consumption Expenditures Inflation (Core PCE)",
+      "titleFa": "تورم هسته مخارج مصرف شخصی",
+      "literal": "Core Personal Consumption Expenditures Price Index: شاخص قیمت هسته مخارج مصرف شخصی؛ PCE: مخارج مصرف شخصی",
+      "meaning": "تغییر قیمت مخارج مصرف شخصی بدون غذا و انرژی؛ وزن‌ها و پوشش آن با CPI تفاوت دارد.",
+      "increase": "ممکن است احتمال نرخ بهره بالاتر برای مدت طولانی‌تر را افزایش دهد.",
+      "decrease": "می‌تواند به انتظار سیاست آسان‌تر کمک کند؛ تفاوت عدد آن با CPI لزوماً خطا نیست."
+    },
+    "ppi_final_demand_inflation_yoy": {
+      "section": "Growth, Inflation & Labor",
+      "sourceRange": "A18:F18",
+      "titleEn": "Producer Price Index Inflation (PPI)",
+      "titleFa": "تورم تولیدکننده",
+      "literal": "Producer Price Index: شاخص قیمت تولیدکننده؛ PPI مخفف همین عبارت",
+      "meaning": "تغییر قیمت‌های دریافتی تولیدکنندگان داخلی برای محصول نهایی؛ همه تغییرات آن به قیمت مصرف‌کننده منتقل نمی‌شود.",
+      "increase": "ممکن است فشار هزینه یا حاشیه سود شرکت‌ها را تغییر دهد؛ اثر به امکان انتقال هزینه وابسته است.",
+      "decrease": "می‌تواند از فشار هزینه بکاهد؛ ممکن است همچنین نشانه ضعف تقاضا باشد."
+    },
+    "unemployment_rate": {
+      "section": "Growth, Inflation & Labor",
+      "sourceRange": "A19:F19",
+      "titleEn": "Unemployment Rate",
+      "titleFa": "نرخ بیکاری",
+      "literal": "Unemployment Rate: نرخ بیکاری",
+      "meaning": "سهم افراد بیکارِ جویای کار از نیروی کار؛ از نظرسنجی خانوار به دست می‌آید.",
+      "increase": "ممکن است از ضعف اشتغال یا ورود افراد بیشتر به جست‌وجوی کار باشد؛ علت برای سود شرکت‌ها و نرخ بهره مهم است.",
+      "decrease": "می‌تواند نشان‌دهنده بازار کار قوی‌تر باشد؛ خروج افراد از نیروی کار نیز گاهی نرخ را پایین می‌آورد."
+    },
+    "nonfarm_payrolls": {
+      "section": "Growth, Inflation & Labor",
+      "sourceRange": "A20:F20",
+      "titleEn": "Nonfarm Payroll Employment (NFP)",
+      "titleFa": "اشتغال غیرکشاورزی",
+      "literal": "Nonfarm Payrolls: حقوق‌بگیران بخش غیرکشاورزی؛ NFP مخفف همین عبارت",
+      "meaning": "تعداد شغل‌های حقوق‌بگیری در بخش‌های غیرکشاورزی؛ از نظرسنجی کارفرمایان محاسبه می‌شود.",
+      "increase": "ایجاد شغل بیشتر از انتظار می‌تواند چشم‌انداز تقاضا را تقویت کند، ولی فشار نرخ بهره را بالا ببرد.",
+      "decrease": "افت سطح نشانه کاهش خالص شغل است؛ کاهش رشد ماهانه الزاماً افت سطح اشتغال نیست."
+    },
+    "high_yield_credit_spread": {
+      "section": "Credit & Financial Stability",
+      "sourceRange": "A23:F23",
+      "titleEn": "High-Yield Option-Adjusted Spread (HY OAS)",
+      "titleFa": "اسپرد اوراق پربازده",
+      "literal": "High-Yield Option-Adjusted Spread: اختلاف بازده تعدیل‌شده به‌دلیل اختیار برای اوراق پربازده؛ HY: پربازده و OAS: اختلاف تعدیل‌شده",
+      "meaning": "بازده اضافی اوراق شرکتی با رتبه اعتباری پایین نسبت به اوراق خزانه، پس از تعدیل ویژگی‌های اختیار.",
+      "increase": "افزایش معمولاً به معنای مطالبه جبران بیشتر بابت ریسک نکول، نقدشوندگی یا ریسک‌گریزی است؛ برای سهام هشداردهنده است.",
+      "decrease": "کاهش می‌تواند از بهبود شرایط اعتبار و اشتهای ریسک حکایت کند؛ فشردگی بیش‌ازحد نیز آسیب‌پذیری می‌سازد."
+    },
+    "bbb_credit_spread": {
+      "section": "Credit & Financial Stability",
+      "sourceRange": "A24:F24",
+      "titleEn": "BBB Option-Adjusted Spread (BBB OAS)",
+      "titleFa": "اسپرد اوراق با رتبه BBB",
+      "literal": "BBB: نام یک رده در مقیاس رتبه‌بندی اعتباری و مخفف کلمات نیست؛ Option-Adjusted Spread / OAS: اختلاف بازده تعدیل‌شده بابت اختیار",
+      "meaning": "اختلاف بازده اوراق شرکتی دارای رتبه BBB نسبت به خزانه پس از تعدیل اختیار؛ BBB پایین‌ترین رده سرمایه‌گذاری در مقیاس رایج S&P/Fitch است، نه مخفف سه واژه.",
+      "increase": "افزایش یعنی سرمایه‌گذاران جبران بیشتری برای ریسک اعتباری و نقدشوندگی این اوراق می‌خواهند؛ می‌تواند فشار مالی شرکت‌ها را نشان دهد.",
+      "decrease": "کاهش می‌تواند از بهبود شرایط اعتبار یا تقاضای بیشتر برای اوراق شرکتی باشد."
+    },
+    "financial_stress_index": {
+      "section": "Credit & Financial Stability",
+      "sourceRange": "A25:F25",
+      "titleEn": "St. Louis Financial Stress Index (STLFSI)",
+      "titleFa": "شاخص تنش مالی سنت‌لوئیس",
+      "literal": "St. Louis Financial Stress Index: شاخص تنش مالی سنت‌لوئیس؛ STLFSI مخفف همین عبارت",
+      "meaning": "ترکیبی استانداردشده از متغیرهای بازار که تنش مالی را نسبت به میانگین تاریخی می‌سنجد.",
+      "increase": "افزایش حتی از عدد منفی به منفی کمتر، نشانه افزایش نسبی تنش است؛ معمولاً برای دارایی‌های پرریسک نامطلوب است.",
+      "decrease": "افت می‌تواند نشانه فروکش تنش و آسان‌تر شدن شرایط مالی باشد."
+    },
+    "treasury_2y10y_spread": {
+      "section": "Credit & Financial Stability",
+      "sourceRange": "A26:F26",
+      "titleEn": "10-Year minus 2-Year Treasury Yield Spread",
+      "titleFa": "اختلاف بازده ۱۰ساله و ۲ساله",
+      "literal": "10-Year minus 2-Year Treasury Yield Spread: اختلاف بازده خزانه ۱۰ساله و ۲ساله",
+      "meaning": "شکل ساده‌ای از شیب منحنی بازده خزانه؛ مثبت یا منفی بودن آن به مسیر هر دو سررسید وابسته است.",
+      "increase": "شیب بیشتر ممکن است از چشم‌انداز رشد بهتر یا افت نرخ کوتاه‌مدت به دلیل نگرانی رکودی باشد.",
+      "decrease": "تخت‌شدن یا وارونگی بیشتر ممکن است انتظار رشد ضعیف‌تر یا سیاست پولی سخت‌تر را نشان دهد."
+    },
+    "sp500_eps": {
+      "section": "Corporate Fundamentals & Earnings",
+      "sourceRange": "A29:F29",
+      "titleEn": "S&P 500 Operating Earnings per Share (TTM)",
+      "titleFa": "سود عملیاتی هر واحد شاخص، چهار فصل اخیر",
+      "literal": "Earnings per Share: سود به‌ازای هر سهم؛ EPS مخفف همین عبارت؛ Trailing Twelve Months / TTM: ۱۲ ماه گذشته",
+      "meaning": "مجموع سود عملیاتی محاسبه‌شده برای هر واحد شاخص S&P 500 طی چهار فصل گذشته؛ با سود گزارش‌شده حسابداری تفاوت دارد.",
+      "increase": "رشد می‌تواند از فروش، حاشیه سود یا ترکیب شرکت‌ها باشد و در قیمت ثابت P/E را کاهش دهد.",
+      "decrease": "افت می‌تواند حاشیه سود را تحت فشار نشان دهد و در قیمت ثابت P/E را افزایش دهد."
+    },
+    "revenue_growth": {
+      "section": "Corporate Fundamentals & Earnings",
+      "sourceRange": "A30:F30",
+      "titleEn": "Aggregate Revenue Growth",
+      "titleFa": "رشد تجمیعی درآمد شرکت‌ها",
+      "literal": "Revenue Growth: رشد درآمد یا فروش؛ Aggregate: تجمیعی",
+      "meaning": "درصد تغییر درآمد تجمیعی شرکت‌های پوشش‌داده‌شده در دوره‌ای مشخص؛ دوره و پوشش باید روی سایت درج شوند.",
+      "increase": "ممکن است از حجم فروش، افزایش قیمت، ارز یا تغییر ترکیب شرکت‌ها ناشی شود؛ با تورم تعدیل نشده است.",
+      "decrease": "کاهش نرخ رشد لزوماً به معنای کاهش سطح فروش نیست؛ می‌تواند از ضعف تقاضا یا اثر پایه باشد."
+    },
+    "profit_margins": {
+      "section": "Corporate Fundamentals & Earnings",
+      "sourceRange": "A31:F31",
+      "titleEn": "Aggregate Net Profit Margin",
+      "titleFa": "حاشیه سود خالص تجمیعی",
+      "literal": "Net Profit Margin: حاشیه سود خالص؛ Aggregate: تجمیعی",
+      "meaning": "سود خالص تجمیعی تقسیم بر فروش تجمیعی همان شرکت‌ها و همان دوره؛ میانگین ساده حاشیه تک‌تک شرکت‌ها نیست.",
+      "increase": "هر دلار فروش سود بیشتری می‌سازد؛ ممکن است از کنترل هزینه یا اقلام غیرعملیاتی باشد.",
+      "decrease": "فشار هزینه، قیمت‌گذاری یا تغییر ترکیب شرکت‌ها می‌تواند سود هر دلار فروش را کاهش دهد."
+    },
+    "return_on_assets": {
+      "section": "Corporate Fundamentals & Earnings",
+      "sourceRange": "A32:F32",
+      "titleEn": "Return on Assets (ROA)",
+      "titleFa": "بازده دارایی‌ها",
+      "literal": "Return on Assets: بازده دارایی‌ها؛ ROA مخفف همین عبارت",
+      "meaning": "سود خالص تقسیم بر میانگین دارایی‌های همان شرکت‌ها در دوره‌ای همسان؛ میزان سودسازی دارایی‌ها را می‌سنجد.",
+      "increase": "ممکن است از سود بیشتر یا کاهش دارایی باشد؛ افزایش ناشی از فروش دارایی الزاماً بهبود کسب‌وکار نیست.",
+      "decrease": "ممکن است از افت سود یا سرمایه‌گذاری تازه باشد؛ کاهش موقت در دوره توسعه لزوماً منفی نیست."
+    },
+    "valuation_pe_ratio": {
+      "section": "Valuation",
+      "sourceRange": "A35:F35",
+      "titleEn": "Trailing Price-to-Earnings Ratio (P/E)",
+      "titleFa": "نسبت قیمت به سود گذشته",
+      "literal": "Price-to-Earnings: قیمت به سود؛ P/E مخفف همین عبارت؛ Trailing: مبتنی بر گذشته",
+      "meaning": "قیمت یا ارزش بازار شاخص تقسیم بر سود هر سهم چهار فصل اخیر با تعریف یکسان.",
+      "increase": "بازار برای هر واحد سود گذشته بهای بیشتری می‌پردازد؛ گاهی علت، افت مخرج سود است.",
+      "decrease": "بهای پرداختی نسبت به سود کمتر می‌شود؛ گاهی علت رشد سود و گاهی افت قیمت است."
+    },
+    "forward_pe_ratio": {
+      "section": "Valuation",
+      "sourceRange": "A36:F36",
+      "titleEn": "Forward Price-to-Earnings Ratio (Forward P/E)",
+      "titleFa": "نسبت قیمت به سود پیش‌بینی‌شده",
+      "literal": "Forward Price-to-Earnings: قیمت به سود پیش‌بینی‌شده آینده؛ Forward: آینده‌نگر",
+      "meaning": "قیمت شاخص تقسیم بر برآورد سود دوره آینده، معمولاً ۱۲ ماه آتی؛ نتیجه به فرض تحلیلگران وابسته است.",
+      "increase": "ممکن است قیمت بالا رفته یا پیش‌بینی سود کاهش یافته باشد؛ باید هر دو جزء دیده شوند.",
+      "decrease": "ممکن است قیمت افت کرده یا پیش‌بینی سود بالا رفته باشد؛ پیش‌بینی می‌تواند بازنگری شود."
+    },
+    "price_to_book_ratio": {
+      "section": "Valuation",
+      "sourceRange": "A37:F37",
+      "titleEn": "Price-to-Book Ratio (P/B)",
+      "titleFa": "نسبت قیمت به ارزش دفتری",
+      "literal": "Price-to-Book: قیمت به ارزش دفتری؛ P/B مخفف همین عبارت",
+      "meaning": "ارزش بازار تقسیم بر حقوق صاحبان سهام دفتری تجمیعی؛ برای شرکت‌های کم‌دارایی فیزیکی محدودیت دارد.",
+      "increase": "ممکن است قیمت بالا یا ارزش دفتری بر اثر بازخرید و کاهش ارزش پایین آمده باشد.",
+      "decrease": "می‌تواند از افت قیمت یا افزایش حقوق دفتری ناشی شود؛ به‌تنهایی ارزندگی را ثابت نمی‌کند."
+    },
+    "price_to_sales_ratio": {
+      "section": "Valuation",
+      "sourceRange": "A38:F38",
+      "titleEn": "Price-to-Sales Ratio (P/S)",
+      "titleFa": "نسبت قیمت به فروش",
+      "literal": "Price-to-Sales: قیمت به فروش؛ P/S مخفف همین عبارت",
+      "meaning": "ارزش بازار تقسیم بر درآمد فروش دوازده ماه اخیر؛ سودآوری را در مخرج وارد نمی‌کند.",
+      "increase": "قیمت در برابر فروش بالاتر است؛ ممکن است از خوش‌بینی به حاشیه سود یا افت فروش باشد.",
+      "decrease": "نسبت پایین‌تر می‌تواند فرصت یا نشانه حاشیه سود ضعیف باشد."
+    },
+    "peg_ratio": {
+      "section": "Valuation",
+      "sourceRange": "A39:F39",
+      "titleEn": "Historical Five-Year PEG Ratio",
+      "titleFa": "PEG تاریخی پنج‌ساله",
+      "literal": "Price/Earnings to Growth: قیمت به سود در نسبت با رشد؛ PEG مخفف Price/Earnings to Growth است",
+      "meaning": "P/E گذشته تقسیم بر نرخ رشد سالانه‌شده اسمی EPS طی پنج سال گذشته؛ دوره‌های رشد صفر یا منفی حذف می‌شوند.",
+      "increase": "ممکن است قیمت نسبت به رشد گذشته بالاتر باشد یا رشد گذشته کم شده باشد؛ پیش‌بینی آینده نیست.",
+      "decrease": "ممکن است رشد گذشته بالا یا P/E پایین باشد؛ رشد تاریخی لزوماً تکرار نمی‌شود."
+    },
+    "valuation_dividend_yield": {
+      "section": "Valuation",
+      "sourceRange": "A40:F40",
+      "titleEn": "Trailing Dividend Yield",
+      "titleFa": "بازده سود نقدی گذشته",
+      "literal": "Dividend Yield: بازده سود تقسیمی؛ Dividend: سود نقدی تقسیم‌شده",
+      "meaning": "سود نقدی پرداخت‌شده طی دوازده ماه گذشته تقسیم بر قیمت جاری؛ سود آینده تضمین نمی‌شود.",
+      "increase": "ممکن است شرکت پول بیشتری تقسیم کرده یا قیمت سهام افت کرده باشد؛ افزایش ناشی از افت قیمت هشدار می‌خواهد.",
+      "decrease": "ممکن است قیمت بالا رفته یا سود تقسیمی کمتر شده باشد؛ به‌تنهایی نشانه بدتر شدن شرکت نیست."
+    },
+    "company-concentration": {
+      "section": "Market Structure, Sectors & Concentration",
+      "sourceRange": "A43:F43",
+      "titleEn": "Top-10 Constituents Weight",
+      "titleFa": "تمرکز ده شرکت بزرگ",
+      "literal": "Top-10 Weight: وزن ده عضو بزرگ؛ Weight: سهم از کل شاخص",
+      "meaning": "مجموع وزن ده شرکت بزرگ در شاخص S&P 500؛ وابستگی شاخص به رهبران بازار را نشان می‌دهد.",
+      "increase": "حرکت چند شرکت اثر بیشتری بر شاخص می‌گذارد و ریسک تمرکز بیشتر می‌شود.",
+      "decrease": "اثر شرکت‌های بزرگ کمتر می‌شود؛ ممکن است مشارکت بقیه بازار بیشتر شده باشد."
+    },
+    "company-contribution": {
+      "section": "Market Structure, Sectors & Concentration",
+      "sourceRange": "A44:F44",
+      "titleEn": "Constituent Contribution to Index Return",
+      "titleFa": "سهم شرکت در بازده شاخص",
+      "literal": "Contribution to Index Return: سهم در بازده شاخص؛ Contribution: سهم یا مشارکت",
+      "meaning": "بخشی از بازده شاخص که از وزن و بازده یک شرکت در دوره مشخص حاصل می‌شود.",
+      "increase": "سهم مثبت بزرگ‌تر یعنی شرکت بیشتر به بازده شاخص افزوده است؛ وزن و بازده هر دو مهم‌اند.",
+      "decrease": "کم‌شدن سهم یا منفی‌شدن آن یعنی کمک کمتر یا فشار بیشتر بر شاخص."
+    },
+    "cap-vs-equal-weight": {
+      "section": "Market Structure, Sectors & Concentration",
+      "sourceRange": "A45:F45",
+      "titleEn": "Market-Cap Weighted vs Equal-Weighted S&P 500",
+      "titleFa": "شاخص وزنی در برابر هم‌وزن",
+      "literal": "Market-Cap Weighted: وزن‌دار بر پایه ارزش بازار؛ Equal-Weighted: هم‌وزن؛ SPY و RSP نماد صندوق هستند، نه مخفف یک شاخص اقتصادی",
+      "meaning": "مقایسه عملکرد شاخص با وزن ارزش بازار و نسخه هم‌وزن آن؛ نشانه‌ای از پهنای مشارکت بازار.",
+      "increase": "اگر برتری شاخص وزنی بیشتر شود، معمولاً بزرگان نقش پررنگ‌تری در رشد دارند.",
+      "decrease": "اگر شاخص هم‌وزن جلو بیفتد، مشارکت شرکت‌های کوچک‌تر در شاخص می‌تواند گسترده‌تر باشد."
+    },
+    "sector-weights": {
+      "section": "Market Structure, Sectors & Concentration",
+      "sourceRange": "A46:F46",
+      "titleEn": "Sector Weights",
+      "titleFa": "وزن بخش‌های اقتصادی",
+      "literal": "Sector Weight: وزن بخش اقتصادی؛ Sector: بخش",
+      "meaning": "سهم ارزش بازار یک بخش اقتصادی از کل شاخص؛ وزن با قیمت و ترکیب اعضا تغییر می‌کند.",
+      "increase": "بخش بر شاخص اثر بیشتری می‌گذارد؛ افزایش وزن لزوماً ورود خالص پول به آن نیست.",
+      "decrease": "اثر بخش بر شاخص کمتر می‌شود؛ دلیل ممکن است عملکرد نسبی یا تغییر اعضا باشد."
+    },
+    "sector-relative-returns": {
+      "section": "Market Structure, Sectors & Concentration",
+      "sourceRange": "A47:F47",
+      "titleEn": "Sector Relative Returns",
+      "titleFa": "بازده نسبی بخش‌ها",
+      "literal": "Relative Return: بازده نسبی؛ یعنی بازده یک دارایی نسبت به مبنا",
+      "meaning": "مقایسه بازده هر بخش با معیار مشخص، مثلاً SPY، در یک بازه یکسان.",
+      "increase": "بازده نسبی مثبت‌تر یعنی بخش بهتر از مبنا عمل کرده؛ ممکن است هر دو بازده منفی باشند.",
+      "decrease": "بخش نسبت به مبنا ضعیف‌تر است؛ افت نسبی الزاماً زیان مطلق نیست."
+    },
+    "sector-relative-path": {
+      "section": "Market Structure, Sectors & Concentration",
+      "sourceRange": "A48:F48",
+      "titleEn": "Selected Sector Relative Performance Path",
+      "titleFa": "مسیر بازده نسبی بخش",
+      "literal": "Relative Performance Path: مسیر عملکرد نسبی؛ Path: روند در طول زمان",
+      "meaning": "روند تجمعی اختلاف عملکرد بخش منتخب با شاخص معیار در طول زمان.",
+      "increase": "مسیر صعودی یعنی بخش در آن فاصله بیشتر از معیار رشد کرده یا کمتر افت کرده است.",
+      "decrease": "مسیر نزولی یعنی برتری بخش کاهش یافته یا عقب‌ماندگی بیشتر شده است."
+    },
+    "growth-value": {
+      "section": "Market Structure, Sectors & Concentration",
+      "sourceRange": "A49:F49",
+      "titleEn": "Growth vs Value Stocks",
+      "titleFa": "سهام رشدی در برابر ارزشی",
+      "literal": "Growth Stocks: سهام رشدی؛ Value Stocks: سهام ارزشی",
+      "meaning": "مقایسه عملکرد شرکت‌هایی با انتظار رشد بالاتر با شرکت‌های ارزان‌تر نسبت به معیارهای بنیادی.",
+      "increase": "برتری رشدی‌ها می‌تواند با انتظار سود آینده و نرخ تنزیل پایین‌تر همراه باشد.",
+      "decrease": "برتری ارزشی‌ها می‌تواند از چرخش به شرکت‌های بالغ و سود فعلی بیشتر حکایت کند."
+    },
+    "large-small": {
+      "section": "Market Structure, Sectors & Concentration",
+      "sourceRange": "A50:F50",
+      "titleEn": "Large-Cap vs Small-Cap Stocks",
+      "titleFa": "شرکت‌های بزرگ در برابر کوچک",
+      "literal": "Large Cap: ارزش بازار بزرگ؛ Small Cap: ارزش بازار کوچک",
+      "meaning": "مقایسه بازده سهام شرکت‌های بزرگ و کوچک؛ ترکیب صنایع و حساسیت به تأمین مالی یکسان نیست.",
+      "increase": "اگر کوچک‌ها جلو بیفتند، ممکن است انتظار رشد داخلی یا آسانی تأمین مالی تقویت شده باشد.",
+      "decrease": "اگر بزرگ‌ها جلو بیفتند، ممکن است نگرانی مالی کوچک‌ها یا تمرکز رشد در غول‌ها بیشتر باشد."
+    },
+    "cyclical-defensive": {
+      "section": "Market Structure, Sectors & Concentration",
+      "sourceRange": "A51:F51",
+      "titleEn": "Cyclical vs Defensive Sectors",
+      "titleFa": "بخش‌های چرخه‌ای در برابر تدافعی",
+      "literal": "Cyclical: چرخه‌ای؛ Defensive: تدافعی",
+      "meaning": "مقایسه صنایع حساس به رشد اقتصادی با صنایعی که تقاضای نسبتاً پایدارتر دارند.",
+      "increase": "برتری چرخه‌ای‌ها می‌تواند با انتظار تقاضای بیشتر همراه باشد؛ شوک نفت نیز ممکن است علت باشد.",
+      "decrease": "برتری تدافعی‌ها می‌تواند نگرانی از رشد یا تمایل به درآمد پایدارتر را نشان دهد."
+    },
+    "vix": {
+      "section": "Positioning, Sentiment & Volatility",
+      "sourceRange": "A54:F54",
+      "titleEn": "Cboe Volatility Index (VIX)",
+      "titleFa": "نوسان ضمنی ۳۰روزه",
+      "literal": "Volatility Index: شاخص نوسان؛ VIX نماد شاخص نوسان Cboe است",
+      "meaning": "برآورد بازار اختیار معامله از دامنه نوسان سالانه‌شده S&P 500 در حدود ۳۰ روز آینده؛ جهت قیمت را پیش‌بینی نمی‌کند.",
+      "increase": "هزینه پوشش ریسک و انتظار نوسان بیشتر می‌شود؛ اغلب با فشار بر سهام همراه است.",
+      "decrease": "انتظار نوسان کمتر می‌شود؛ لزوماً رشد سهام را تضمین نمی‌کند."
+    },
+    "vix_term_structure": {
+      "section": "Positioning, Sentiment & Volatility",
+      "sourceRange": "A55:F55",
+      "titleEn": "Implied Volatility Term Structure",
+      "titleFa": "ساختار زمانی نوسان",
+      "literal": "Term Structure of Volatility: ساختار سررسیدی نوسان؛ Term: سررسید",
+      "meaning": "مقایسه نوسان ضمنی کوتاه‌مدت و بلندمدت در سررسیدهای مختلف اختیار یا قرارداد مربوط.",
+      "increase": "افزایش فاصله به تعریف تفریق بستگی دارد؛ اگر بلندمدت منهای کوتاه‌مدت باشد، بالا رفتن یعنی شیب بیشتر.",
+      "decrease": "منفی شدن همان فاصله می‌تواند از تقاضای شدید پوشش ریسک کوتاه‌مدت خبر دهد؛ تعریف سری را بررسی کنید."
+    },
+    "spx_put_call_ratio": {
+      "section": "Positioning, Sentiment & Volatility",
+      "sourceRange": "A56:F56",
+      "titleEn": "SPX and SPXW Put/Call Volume Ratio",
+      "titleFa": "نسبت اختیار فروش به خرید",
+      "literal": "Put/Call Ratio: نسبت اختیار فروش به خرید؛ SPXW: نماد اختیارهای هفتگی شاخص SPX",
+      "meaning": "حجم قراردادهای Put تقسیم بر Call برای SPX و SPXW؛ حجم به‌تنهایی موقعیت خالص را نشان نمی‌دهد.",
+      "increase": "حجم نسبی Put بیشتر است؛ ممکن است پوشش ریسک یا راهبرد فروش اختیار باشد، نه فقط بدبینی.",
+      "decrease": "حجم نسبی Call بیشتر است؛ به‌تنهایی نشانه خوش‌بینی قطعی نیست."
+    },
+    "aaii_bull_bear_spread": {
+      "section": "Positioning, Sentiment & Volatility",
+      "sourceRange": "A57:F57",
+      "titleEn": "AAII Investor Sentiment",
+      "titleFa": "احساس سرمایه‌گذاران حقیقی",
+      "literal": "American Association of Individual Investors: انجمن سرمایه‌گذاران حقیقی آمریکا؛ AAII مخفف همین عبارت",
+      "meaning": "نتیجه نظرسنجی انجمن سرمایه‌گذاران حقیقی آمریکا، معمولاً اختلاف درصد خوش‌بین و بدبین.",
+      "increase": "اختلاف بیشتر یعنی خوش‌بینی نسبی بیشتر؛ مثبت شدن را از صرف کاهش بدبینی جدا کنید.",
+      "decrease": "اختلاف کمتر یعنی بدبینی نسبی بیشتر؛ پیمایش سیگنال مستقیم خرید و فروش نیست."
+    },
+    "cftc_sp500_positioning": {
+      "section": "Positioning, Sentiment & Volatility",
+      "sourceRange": "A58:F58",
+      "titleEn": "E-mini S&P 500 Futures Positioning",
+      "titleFa": "موقعیت آتی E-mini S&P 500",
+      "literal": "Commodity Futures Trading Commission: کمیسیون معاملات آتی کالا؛ CFTC مخفف همین عبارت؛ E-mini: قرارداد کوچک‌تر آتی",
+      "meaning": "خالص موقعیت خرید منهای فروش گروهی مشخص از معامله‌گران در قرارداد آتی E-mini؛ گروه و تاریخ گزارش مهم است.",
+      "increase": "خالص خرید بیشتر می‌شود؛ ممکن است خرید بیشتر یا فروش کمتر باشد و در ازدحام موقعیت ریسک برگشت ایجاد کند.",
+      "decrease": "خالص خرید کمتر می‌شود؛ ممکن است فروش بیشتر یا بستن خرید باشد."
+    },
+    "broad_dollar": {
+      "section": "Capital Flows & Intermarket",
+      "sourceRange": "A61:F61",
+      "titleEn": "Broad Trade-Weighted U.S. Dollar Index",
+      "titleFa": "شاخص گسترده دلار",
+      "literal": "Broad Trade-Weighted U.S. Dollar: دلار گسترده آمریکا با وزن تجاری؛ DTWEXBGS شناسه سری است، نه واژه اقتصادی",
+      "meaning": "ارزش اسمی دلار در برابر سبدی از ارزها با وزن تجاری؛ با شاخص DXY یکسان نیست.",
+      "increase": "دلار تقویت می‌شود؛ می‌تواند درآمد خارجی تبدیل‌شده شرکت‌های آمریکایی را کاهش دهد، اما علت رشد دلار مهم است.",
+      "decrease": "دلار تضعیف می‌شود؛ می‌تواند به صادرکنندگان کمک کند یا از افت جذابیت دارایی‌های دلاری باشد."
+    },
+    "gold": {
+      "section": "Capital Flows & Intermarket",
+      "sourceRange": "A62:F62",
+      "titleEn": "Gold Price",
+      "titleFa": "قیمت طلا",
+      "literal": "Gold: طلا",
+      "meaning": "قیمت دارایی بدون سود دوره‌ای که از نرخ واقعی، دلار، تقاضای ذخیره ارزش و عرضه اثر می‌گیرد؛ نوع نقدی یا آتی باید مشخص شود.",
+      "increase": "ممکن است از افت نرخ واقعی یا افزایش تقاضای پوشش ریسک باشد؛ افزایش همیشه نشانه تورم نیست.",
+      "decrease": "ممکن است از دلار قوی، بازده واقعی بالاتر یا فروش برای تأمین نقد باشد."
+    },
+    "wti": {
+      "section": "Capital Flows & Intermarket",
+      "sourceRange": "A63:F63",
+      "titleEn": "West Texas Intermediate Crude Oil Price (WTI)",
+      "titleFa": "قیمت نفت آمریکا",
+      "literal": "West Texas Intermediate: نفت خام شاخص «غرب تگزاس میانی»؛ WTI مخفف همین عبارت",
+      "meaning": "قیمت نفت خام شاخص آمریکا؛ در نمایش قیمت باید نقدی یا آتی بودن و سررسید مشخص باشد.",
+      "increase": "اگر از تقاضای بیشتر باشد به رشد اشاره می‌کند؛ اگر از کاهش عرضه باشد هزینه و تورم را بالا می‌برد.",
+      "decrease": "ممکن است فشار هزینه را کم کند یا نشانه ضعف تقاضای جهانی باشد."
+    },
+    "copper": {
+      "section": "Capital Flows & Intermarket",
+      "sourceRange": "A64:F64",
+      "titleEn": "Copper Price",
+      "titleFa": "قیمت مس",
+      "literal": "Copper: مس",
+      "meaning": "قیمت فلز پرکاربرد در ساخت‌وساز، صنعت و برق؛ عرضه معدن و موجودی انبار نیز مهم‌اند.",
+      "increase": "ممکن است با تقاضای صنعتی قوی همراه باشد یا از اختلال عرضه ناشی شود.",
+      "decrease": "ممکن است ضعف فعالیت صنعتی یا افزایش عرضه را نشان دهد."
+    }
+  }
+}

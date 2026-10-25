@@ -29,7 +29,7 @@ export default function DomainUnderstandingPanel(props) {
   return <PremiumAnalysisGate><DomainUnderstandingPanelContent {...props} /></PremiumAnalysisGate>
 }
 
-function DomainUnderstandingPanelContent({ domainId, simple = false, onUpdated }) {
+function DomainUnderstandingPanelContent({ domainId, title = "تحلیل گروه", simple = false, onUpdated }) {
   const { isAdmin, accessToken } = useAuth()
   const [analysis, setAnalysis] = useState(null)
   const [expanded, setExpanded] = useState(false)
@@ -114,7 +114,7 @@ function DomainUnderstandingPanelContent({ domainId, simple = false, onUpdated }
     const analysisDate = analysis?.analysis_generated_at?.slice(0, 10)
     return <div dir="rtl" className="text-right">
       <div className="mb-4 flex flex-row flex-wrap items-center gap-3">
-        <h3 className="me-auto text-lg font-semibold">تحلیل گروه</h3>
+        <h3 className="me-auto text-lg font-semibold">{title}</h3>
         {analysisDate && <time dateTime={analysisDate} dir="ltr" className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">{analysisDate}</time>}
         {isAdmin && <div className="w-full sm:w-1/5 sm:min-w-[10rem]">
           <RunButton running={running} onClick={runAnalysis} simple />
