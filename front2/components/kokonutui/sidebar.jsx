@@ -85,7 +85,7 @@ export default function Sidebar() {
           <button ref={mobileClose} type="button" aria-label="Close financial navigation" onClick={closeMobile} className={`rounded p-2 lg:hidden ${focusStyle}`}><X className="h-4 w-4" /></button>
         </div>
         <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2 py-3">
-          {navItem("/", "داشبورد من", Home)}
+          {navItem("/", "داشبورد من · Dashboard", Home)}
           {markets.map((market) => <section key={market.id} className="mt-3">
             <div className={activeHref && market.children.some((child) => child.href === activeHref) ? "font-medium" : ""}>
               <button type="button" title={market.labelFa} aria-label={market.labelFa} aria-expanded={Boolean(openMarkets[market.id])} onClick={() => toggleMarket(market.id)} onMouseEnter={() => setHoveredItem({ label: market.labelFa, href: market.href, side: "left" })} onMouseLeave={() => setHoveredItem(null)} className={`relative flex h-9 w-full min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors motion-reduce:transition-none ${focusStyle} ${activeHref === market.href ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}>
@@ -103,7 +103,7 @@ export default function Sidebar() {
             </div>}
           </section>)}
           <div className="mt-3">{navItem("/gold", "طلای جهانی · Gold", GoldBarIcon)}</div>
-          <div className="mt-3">{navItem("/market-comparison", "Markets", ArrowLeftRight)}</div>
+          <div className="mt-3">{navItem("/market-comparison", "مقایسه بازار ها · Markets", ArrowLeftRight)}</div>
           <div className="mt-3">{navItem("/analytics/events", "News & Events", CalendarDays)}</div>
         </div>
       </div>
