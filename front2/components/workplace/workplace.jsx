@@ -196,7 +196,7 @@ export default function Workplace({ admin = false }) {
   const todayWork = currentReport?.days.find(day => day.date === today)?.seconds || 0
 
   return <Layout><div dir="rtl" className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
-    <header className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="flex items-center gap-2 text-2xl font-bold"><BriefcaseBusiness className="h-6 w-6 text-primary" />{admin ? "مدیریت کارکنان" : "میز کار من"}</h1><p className="mt-2 text-sm text-muted-foreground">حضور و غیاب و کارها · ساعت تهران</p></div><Button asChild variant="outline"><Link href="/profile">بازگشت به پروفایل</Link></Button></header>
+    <header className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="flex items-center gap-2 text-2xl font-bold"><BriefcaseBusiness className="h-6 w-6 text-primary" />{admin ? "مدیریت کارکنان" : "میز کار من"}</h1>{!admin && <p className="mt-2 text-sm text-muted-foreground">حضور و غیاب و کارها · ساعت تهران</p>}</div><Button asChild variant="outline"><Link href="/profile">بازگشت به پروفایل</Link></Button></header>
     <Tabs value={section} onValueChange={setSection} dir="rtl" className="space-y-5">
     <TabsList aria-label="بخش‌های میز کار"><TabsTrigger value="attendance">{admin ? "حضور و غیاب کارکنان" : "حضور و غیاب"}</TabsTrigger><TabsTrigger value="tasks">کارها</TabsTrigger></TabsList>
     <TabsContent value="attendance" forceMount className="space-y-6 data-[state=inactive]:hidden">
