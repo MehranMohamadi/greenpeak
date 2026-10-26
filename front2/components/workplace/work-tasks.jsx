@@ -10,8 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { formatInstant, parsePersianDate } from "@/lib/workplace-time.mjs"
-import { workEvents, workStates } from "@/lib/work-tasks.mjs"
-import WorkTaskDetail, { WorkStateBadges, workDueLabel } from "@/components/workplace/work-task-detail"
+import { completionLabel, deliveryLabel, workEvents, workStates } from "@/lib/work-tasks.mjs"
+import WorkTaskDetail, { workDueLabel } from "@/components/workplace/work-task-detail"
 import { WorkDateInput, WorkTaskEditor, workSelectClass } from "@/components/workplace/work-task-forms"
 
 async function workRequest(url, token, options = {}) {
@@ -160,7 +160,22 @@ export default function WorkTasks({ initialTaskId = null }) {
     </form></CardContent></Card>
     {loading && <p role="status" className="text-sm text-muted-foreground">در حال دریافت کارها…</p>}
     {!loading && !error && !listing.items.length && <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">کاری با این فیلترها پیدا نشد.</p>}
-    <ul className="space-y-3" aria-label="فهرست کارها">{listing.items.map(task => <li key={task.id} className="space-y-4 rounded-xl border bg-card p-4"><div className="flex flex-wrap items-start justify-between gap-3"><button type="button" onClick={() => open(task.id)} className="min-w-0 break-words text-right font-semibold text-primary underline-offset-4 hover:underline">{task.title}</button><Badge variant="outline">{task.visibility === "team" ? "قابل مشاهده برای تیم" : "محدود"}</Badge></div><WorkStateBadges task={task} /><dl className="grid gap-3 text-sm sm:grid-cols-3"><div><dt className="text-xs text-muted-foreground">مسئول انجام</dt><dd dir="auto">{task.assignee.username}</dd></div><div><dt className="text-xs text-muted-foreground">ایجادکننده</dt><dd dir="auto">{task.created_by.username}</dd></div><div><dt className="text-xs text-muted-foreground">مهلت</dt><dd>{workDueLabel(task.due_date)}</dd></div></dl></li>)}</ul>
+    <ul className="space-y-1.5" aria-label="فهرست کارها">{listing.items.map(task => {
+      const summary = [
+        `مسئول: ${task.assignee.username}`,
+        `مهلت: ${workDueLabel(task.due_date)}`,
+        `ایجادکننده: ${task.created_by.username}`,
+        `اولویت ${task.priority === "high" ? "بالا" : "عادی"}`,
+        task.visibility === "team" ? "قابل مشاهده برای تیم" : "محدود",
+        deliveryLabel(task),
+        task.completion_mode ? completionLabel(task.completion_mode) : "",
+      ].filter(Boolean).join(" · ")
+      return <li key={task.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-lg border bg-card px-3 py-2">
+        <button type="button" onClick={() => open(task.id)} title={task.title} className="min-w-0 truncate rounded-sm text-right text-sm font-semibold leading-5 text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{task.title}</button>
+        <Badge variant={task.state === "awaiting_approval" ? "default" : "secondary"} className="whitespace-nowrap px-2 py-0.5 leading-4">{workStates[task.state]}</Badge>
+        <p title={summary} className="col-span-2 min-w-0 truncate text-xs leading-4 text-muted-foreground">{summary}</p>
+      </li>
+    })}</ul>
     {listing.total > 0 && <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><p>{listing.total.toLocaleString("fa-IR")} کار · صفحه {(Math.floor(offset / pageSize) + 1).toLocaleString("fa-IR")}</p><div className="flex gap-2"><Button variant="outline" size="sm" disabled={loading || busy || offset === 0} onClick={() => setOffset(value => Math.max(0, value - pageSize))}>قبلی</Button><Button variant="outline" size="sm" disabled={loading || busy || offset + pageSize >= listing.total} onClick={() => setOffset(value => value + pageSize)}>بعدی</Button></div></div>}
     <Dialog open={creating} onOpenChange={value => { if (!busy) { setCreating(value); setActionError("") } }}><DialogContent dir="rtl" className="flex max-h-[90dvh] w-[calc(100vw-2rem)] max-w-2xl flex-col overflow-hidden"><DialogHeader className="shrink-0 pr-7 !text-right"><DialogTitle>کار جدید</DialogTitle><DialogDescription>{isAdmin ? "برای یکی از کارکنان داخلی کار ایجاد کنید." : "کاری را که مسئول انجامش هستید، برای خودتان ثبت کنید."}</DialogDescription></DialogHeader><div className="min-h-0 space-y-3 overflow-y-auto">{actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}<WorkTaskEditor user={user} isAdmin={isAdmin} people={people} busy={busy} onSave={create} onCancel={() => setCreating(false)} /></div></DialogContent></Dialog>
     <Dialog open={Boolean(selectedId)} onOpenChange={value => { if (!value && !busy) { setSelectedId(null); setActionError("") } }}><DialogContent dir="rtl" className="flex max-h-[90dvh] w-[calc(100vw-2rem)] max-w-3xl flex-col overflow-hidden"><DialogHeader className="shrink-0 pr-7 !text-right"><DialogTitle className="break-words leading-7">{currentDetail?.title || "جزئیات کار"}</DialogTitle><DialogDescription>مشخصات، نتیجه‌ها، گفت‌وگو و سابقه کار</DialogDescription></DialogHeader><div className="min-h-0 space-y-4 overflow-y-auto">{actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}{detailError ? <div className="space-y-3"><p role="alert" className="text-sm text-destructive">{detailError}</p><Button variant="outline" size="sm" onClick={() => setRevision(value => value + 1)}>تلاش دوباره</Button></div> : currentDetail ? <WorkTaskDetail key={currentDetail.id} task={currentDetail} user={user} isAdmin={isAdmin} people={people} busy={busy} mutate={mutate} /> : <p role="status" className="text-sm text-muted-foreground">در حال دریافت کار…</p>}</div></DialogContent></Dialog>
