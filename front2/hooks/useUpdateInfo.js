@@ -53,8 +53,8 @@ export default function useUpdateInfo() {
     try {
       const date = new Date(dateString);
       return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
         year: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
@@ -83,8 +83,8 @@ export default function useUpdateInfo() {
       return `In ${diffDays} days`;
     } else {
       return nextDate.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
         year: nextDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
       });
     }

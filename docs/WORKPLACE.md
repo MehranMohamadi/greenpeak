@@ -6,6 +6,11 @@ reports, manual time corrections, approval/rejection of correction requests,
 and assignment of the `staff` role to existing users. Both entry buttons are
 shown only in the profile, according to role. The main dashboard is unchanged.
 
+The **کارها** tab adds internal work assignment, submissions, administrator
+review, discussion, history and in-workplace notifications. It reuses these same
+roles and database but keeps attendance records independent. See
+[WORK_TASKS.md](WORK_TASKS.md) for its permissions, API and setup.
+
 ## Identity and storage
 
 The existing signed session and live `gp_users.role` are the authority:

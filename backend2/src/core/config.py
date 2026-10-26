@@ -39,6 +39,21 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
     telegram_message_thread_id: int | None = None
+    # Task forum topic only. Never fall back to the market-report topic/General.
+    telegram_task_message_thread_id: int | None = None
+
+    @field_validator("telegram_task_message_thread_id", mode="before")
+    @classmethod
+    def task_topic_or_disabled(cls, value):
+        # Bad task-only configuration must not stop analysis or the main API.
+        if isinstance(value, (bool, float)):
+            return None
+        try:
+            identifier = int(value)
+        except (TypeError, ValueError):
+            return None
+        return identifier if identifier > 1 else None
+
     # Comma-separated dedicated MT5 ingestion tokens. Empty disables ingestion.
     greenpeak_mt5_api_tokens: str = ""
     greenpeak_daily_analysis_enabled: bool = True

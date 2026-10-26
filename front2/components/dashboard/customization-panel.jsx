@@ -18,8 +18,9 @@ const DEFAULT_LAYOUT = {
   dashboardLayout: "default",
 }
 
-export default function CustomizationPanel({ onLayoutChange }) {
-  const [layoutSettings, setLayoutSettings] = useState(DEFAULT_LAYOUT)
+export default function CustomizationPanel({ onLayoutChange, settings, embedded = false }) {
+  const [localSettings, setLayoutSettings] = useState(DEFAULT_LAYOUT)
+  const layoutSettings = settings ?? localSettings
 
   const handleLayoutChange = (key, value) => {
     const nextSettings = { ...layoutSettings, [key]: value }
@@ -33,7 +34,42 @@ export default function CustomizationPanel({ onLayoutChange }) {
     onLayoutChange?.(defaults)
   }
 
-  return (
+  const content = <div className="space-y-4">
+    {embedded && <div className="flex justify-end">
+      <Button type="button" variant="outline" size="sm" onClick={resetToDefault} className="h-8 gap-1.5 px-2 text-xs">
+        <RotateCcw className="h-3.5 w-3.5" />بازگشت به پیش‌فرض
+      </Button>
+    </div>}
+    <div>
+      <Label htmlFor="layout-style">چیدمان داشبورد</Label>
+      <Select value={layoutSettings.dashboardLayout} onValueChange={(value) => handleLayoutChange("dashboardLayout", value)}>
+        <SelectTrigger id="layout-style"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="default">پیش‌فرض</SelectItem>
+          <SelectItem value="compact">فشرده</SelectItem>
+          <SelectItem value="wide">عریض</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+    <div className="space-y-3">
+      <h4 className="font-medium">اجزای داشبورد</h4>
+      {[
+        ["showMarketWatch", "market-watch", "دیده‌بان بازار"],
+        ["showMarketHours", "market-hours", "ساعت بازارها"],
+        ["showNewsTicker", "news-ticker", "نوار اخبار"],
+        ["showAccounts", "accounts", "نمای کلی حساب‌ها"],
+        ["showTransactions", "transactions", "معاملات اخیر"],
+        ["showUpcomingEvents", "events", "رویدادهای پیش‌رو"],
+      ].map(([key, id, label]) => (
+        <div key={key} className="flex items-center justify-between gap-3">
+          <Label htmlFor={id}>{label}</Label>
+          <Switch id={id} checked={layoutSettings[key]} onCheckedChange={(checked) => handleLayoutChange(key, checked)} />
+        </div>
+      ))}
+    </div>
+  </div>
+
+  return embedded ? content : (
     <Card dir="rtl">
       <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
         <CardTitle className="flex items-center gap-2">
@@ -45,36 +81,7 @@ export default function CustomizationPanel({ onLayoutChange }) {
           بازگشت به پیش‌فرض
         </Button>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <Label htmlFor="layout-style">چیدمان داشبورد</Label>
-          <Select value={layoutSettings.dashboardLayout} onValueChange={(value) => handleLayoutChange("dashboardLayout", value)}>
-            <SelectTrigger id="layout-style"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="default">پیش‌فرض</SelectItem>
-              <SelectItem value="compact">فشرده</SelectItem>
-              <SelectItem value="wide">عریض</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-3">
-          <h4 className="font-medium">اجزای داشبورد</h4>
-          {[
-            ["showMarketWatch", "market-watch", "دیده‌بان بازار"],
-            ["showMarketHours", "market-hours", "ساعت بازارها"],
-            ["showNewsTicker", "news-ticker", "نوار اخبار"],
-            ["showAccounts", "accounts", "نمای کلی حساب‌ها"],
-            ["showTransactions", "transactions", "معاملات اخیر"],
-            ["showUpcomingEvents", "events", "رویدادهای پیش‌رو"],
-          ].map(([key, id, label]) => (
-            <div key={key} className="flex items-center justify-between">
-              <Label htmlFor={id}>{label}</Label>
-              <Switch id={id} checked={layoutSettings[key]} onCheckedChange={(checked) => handleLayoutChange(key, checked)} />
-            </div>
-          ))}
-        </div>
-      </CardContent>
+      <CardContent>{content}</CardContent>
     </Card>
   )
 }

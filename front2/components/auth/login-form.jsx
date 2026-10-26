@@ -10,6 +10,7 @@ import { useAuth } from "./auth-context"
 import { Lock, User, Eye, EyeOff, Shield, ChevronRight } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
+import { workTaskIdFromSearch } from "@/lib/work-tasks.mjs"
 
 const LOGIN_STARS = Array.from({ length: 15 }, (_, index) => ({
   left: `${(index * 37 + 11) % 100}%`,
@@ -41,10 +42,10 @@ export default function LoginForm() {
       const result = await login(credentials.username, credentials.password)
 
       if (result.success) {
-        // Redirect to dashboard after successful login
+        // A task link keeps its target; the workplace page still verifies roles.
+        const taskId = workTaskIdFromSearch(window.location.search)
         setTimeout(() => {
-          console.log('🔄 Redirecting to dashboard')
-          router.push('/')
+          router.push(taskId ? `/workplace?task=${taskId}` : '/')
           setIsLoading(false)
         }, 1000)
       } else {

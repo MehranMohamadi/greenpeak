@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/components/auth/auth-context"
+import BrokerConnectionSetup from "@/components/dashboard/broker-connection-setup"
 
 export default function MT5Pairing() {
   const { accessToken } = useAuth()
@@ -110,13 +111,15 @@ function MT5PairingContent({ accessToken }) {
     }
   }
 
-  return <Card className="border-primary/20">
-    <CardHeader>
-      <CardTitle className="flex flex-wrap items-center gap-2"><Link2 className="h-5 w-5 text-primary" />کلید اتصال متاتریدر ۵</CardTitle>
+  return <Card id="broker-connection" className="scroll-mt-20 border-primary/20">
+    <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
+      <CardTitle className="flex items-center gap-2 text-base"><Link2 className="h-5 w-5 text-primary" />اتصال متاتریدر ۵</CardTitle>
+      <BrokerConnectionSetup />
     </CardHeader>
-    <CardContent className="space-y-4">
-      <Label htmlFor="mt5-connection-label">نام اتصال</Label>
-      <div className="flex flex-col gap-2 sm:flex-row">
+    <CardContent className="space-y-3 pb-4">
+      <p className="text-xs leading-6 text-muted-foreground">اکسپرت را دانلود کنید و کلید اتصال را در تنظیمات آن وارد کنید.</p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Label htmlFor="mt5-connection-label" className="shrink-0">نام اتصال</Label>
         <Input id="mt5-connection-label" value={label} maxLength={80} onChange={(event) => setLabel(event.target.value)} placeholder="مثلاً حساب اصلی من" />
         <Button
           onClick={createConnection}

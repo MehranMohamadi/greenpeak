@@ -130,17 +130,17 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
         <USMarketPageHeader />
 
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-5">
-          <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted p-1 sm:w-[320px]">
+          <TabsList className="grid w-full grid-cols-2 rounded-xl p-1 sm:w-[320px]">
             <TabsTrigger
               value="overview"
-              className="flex items-center gap-2 rounded-lg transition-all duration-300 data-[state=active]:bg-background data-[state=active]:text-foreground"
+              className="gap-2 rounded-lg duration-300"
             >
               <BarChart3 className="h-4 w-4" />
               Overview
             </TabsTrigger>
             <TabsTrigger
               value="analytics"
-              className="flex items-center gap-2 rounded-lg transition-all duration-300 data-[state=active]:bg-background data-[state=active]:text-foreground"
+              className="gap-2 rounded-lg duration-300"
             >
               <Zap className="h-4 w-4" />
               Analytics

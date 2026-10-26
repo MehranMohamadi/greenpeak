@@ -121,7 +121,7 @@ def test_full_application_lifespan_health_and_email_api_round_trip(setup, monkey
     auth, identity, mailbox, settings = setup
     routes._attempts.clear()
     # Start the actual app lifespan without scheduled external jobs.
-    for factory in ("create_daily_analysis_scheduler", "create_news_scheduler", "create_official_sentiment_scheduler"):
+    for factory in ("create_daily_analysis_scheduler", "create_news_scheduler", "create_official_sentiment_scheduler", "create_work_task_notification_scheduler"):
         monkeypatch.setattr(main, factory, lambda: None)
     monkeypatch.setattr(routes, "get_settings", lambda: settings)
     app = main.create_app()

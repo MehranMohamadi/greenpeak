@@ -13,7 +13,7 @@ import MarketStatusCards from "@/components/analytics/market-status-cards"
 import { marketFactorGroups } from "@/lib/market-factors"
 import { formatGregorianDate, formatGregorianTehranDateTime, GREGORIAN_PERSIAN_LOCALE, TEHRAN_TIME_ZONE } from "@/lib/date-format"
 
-const analysisTabClass = "flex h-full w-full items-center justify-center border border-transparent px-1.5 py-0 text-xs leading-none text-slate-500 transition sm:px-3 sm:text-sm dark:text-slate-400 data-[state=active]:border-cyan-500/50 data-[state=active]:bg-cyan-50 data-[state=active]:font-semibold data-[state=active]:text-cyan-900 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-cyan-500/15 dark:data-[state=active]:border-cyan-400/50 dark:data-[state=active]:bg-cyan-400/15 dark:data-[state=active]:text-cyan-100 dark:data-[state=active]:ring-cyan-400/15"
+const analysisTabClass = "h-full w-full px-1.5 py-0 text-xs leading-none sm:px-3 sm:text-sm"
 
 const statusLabels = {
   favorable: "مساعد", mixed: "ترکیبی", challenging: "پرچالش", unknown: "نامشخص",
@@ -510,7 +510,7 @@ export default function MarketIntelligenceSections({ market, onRefresh, loading 
               </Dialog>
             </div>
           </div>
-          <TabsList className="mt-3 grid h-12 w-full grid-cols-4 items-stretch border border-slate-300/80 bg-slate-100/90 p-1.5 dark:border-white/10 dark:bg-black/20">
+          <TabsList className="mt-3 grid h-12 w-full grid-cols-4 items-stretch p-1.5">
             <TabsTrigger value="current" className={analysisTabClass}>جریان بازار</TabsTrigger>
             <TabsTrigger value="short-term" className={analysisTabClass}>کوتاه‌مدت</TabsTrigger>
             <TabsTrigger value="medium-term" className={analysisTabClass}>میان‌مدت</TabsTrigger>

@@ -55,6 +55,8 @@ jobs:
           cp -a front2/.next/static release-frontend/front2/.next/static
           cp -a front2/public release-frontend/front2/public
           cp docs/AI_MARKET_ANALYSIS_ARCHITECTURE.md release-frontend/docs/
+          cp docs/WORKPLACE.md docs/WORK_TASKS.md release-frontend/docs/
+          cp -a docs/licenses release-frontend/docs/
           tar -C release-frontend \
             -czf greenpeak-frontend-${{ github.event.workflow_run.head_sha }}.tar.gz \
             front2 docs

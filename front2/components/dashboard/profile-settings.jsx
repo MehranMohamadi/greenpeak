@@ -1,35 +1,33 @@
 "use client"
 
-import Link from "next/link"
-import { ShieldCheck, Star } from "lucide-react"
-import { useAuth } from "@/components/auth/auth-context"
+import { useState } from "react"
 import CustomizationPanel from "@/components/dashboard/customization-panel"
 import WatchlistManager from "@/components/dashboard/watchlist-manager"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
-export default function ProfileSettings() {
-  const { isAdmin } = useAuth()
+export default function ProfileSettings({ notifications, password }) {
+  const [layoutSettings, setLayoutSettings] = useState()
+  const [watchlistSymbols, setWatchlistSymbols] = useState()
+  const sections = [
+    { id: "notifications", title: "اعلان‌ها و آلارم‌ها", description: "اعلان‌ها و آلارم‌های قیمت این حساب را تنظیم کنید.", content: notifications },
+    { id: "password", title: "تغییر رمز عبور", description: "برای تغییر رمز، رمز فعلی و رمز جدید را وارد کنید.", content: password },
+    { id: "customization", title: "شخصی‌سازی چیدمان", description: "چیدمان و اجزای داشبورد را انتخاب کنید.", content: <CustomizationPanel embedded settings={layoutSettings} onLayoutChange={setLayoutSettings} /> },
+    { id: "watchlist", title: "مدیریت دیده‌بان", description: "نمادهای دیده‌بان خود را اضافه یا حذف کنید.", content: <WatchlistManager symbols={watchlistSymbols} onSymbolsChange={setWatchlistSymbols} /> },
+  ]
 
   return (
-    <section id="dashboard-settings" className="scroll-mt-20 space-y-6">
-      <div className="grid gap-6 md:grid-cols-2 [&>*]:min-w-0">
-        <CustomizationPanel />
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Star className="h-5 w-5" />مدیریت دیده‌بان</CardTitle>
-          </CardHeader>
-          <CardContent><WatchlistManager /></CardContent>
-        </Card>
-      </div>
-
-      {isAdmin && <Card dir="rtl">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5" />پنل مدیریت</CardTitle>
-        </CardHeader>
-        <CardContent><Button asChild><Link href="/admin/settings">ورود به پنل مدیریت</Link></Button></CardContent>
-      </Card>}
-    </section>
+    <nav id="dashboard-settings" aria-label="تنظیمات پروفایل" className="flex scroll-mt-20 flex-wrap items-center gap-2">
+      {sections.map((section) => <Dialog key={section.id}>
+        <DialogTrigger asChild><Button type="button" variant="outline" size="sm" className="h-9">{section.title}</Button></DialogTrigger>
+        <DialogContent dir="rtl" className={`max-h-[90dvh] w-[calc(100vw-2rem)] overflow-y-auto ${section.id === "watchlist" ? "max-w-md" : "max-w-2xl"}`}>
+          <DialogHeader className="pr-7 text-right sm:text-right">
+            <DialogTitle>{section.title}</DialogTitle>
+            <DialogDescription>{section.description}</DialogDescription>
+          </DialogHeader>
+          {section.content}
+        </DialogContent>
+      </Dialog>)}
+    </nav>
   )
 }

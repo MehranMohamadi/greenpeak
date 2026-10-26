@@ -19,7 +19,7 @@ const marketSeries = [
   },
   {
     id: "treasury-10y",
-    symbol: "نرخ ۱۰ ساله اوراق خزانه",
+    symbol: "نرخ اوراق ده ساله",
     url: `${endpoints.monetaryPolicy.tenYear}?period=5D`,
     suffix: "%",
     decimals: 2,
@@ -52,6 +52,8 @@ const marketSeries = [
     decimals: 2,
   },
 ]
+
+export const MARKET_WATCH_SYMBOLS = marketSeries.map(({ id, symbol }) => ({ id, symbol }))
 
 function pointTimestamp(point) {
   if (Number.isFinite(point?.time)) {

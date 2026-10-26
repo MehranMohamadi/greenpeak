@@ -362,7 +362,7 @@ def test_concurrent_checkouts_do_not_duplicate_time_or_audit(harness):
 def test_full_application_lifespan_health_and_workplace_routes(harness, monkeypatch):
     h = harness
     from src import main
-    for factory in ("create_daily_analysis_scheduler", "create_news_scheduler", "create_official_sentiment_scheduler"):
+    for factory in ("create_daily_analysis_scheduler", "create_news_scheduler", "create_official_sentiment_scheduler", "create_work_task_notification_scheduler"):
         monkeypatch.setattr(main, factory, lambda: None)
     app = main.create_app()
     app.dependency_overrides[auth.get_auth_service] = lambda: h.identity

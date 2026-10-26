@@ -9,8 +9,8 @@ const TEHRAN_TIME_ZONE = "Asia/Tehran"
 
 const chartDateFormatter = new Intl.DateTimeFormat(GREGORIAN_PERSIAN_LOCALE, {
   year: "numeric",
-  month: "short",
-  day: "numeric",
+  month: "2-digit",
+  day: "2-digit",
   timeZone: TEHRAN_TIME_ZONE,
 })
 const chartTimeFormatter = new Intl.DateTimeFormat(GREGORIAN_PERSIAN_LOCALE, {
@@ -19,8 +19,11 @@ const chartTimeFormatter = new Intl.DateTimeFormat(GREGORIAN_PERSIAN_LOCALE, {
   timeZone: TEHRAN_TIME_ZONE,
 })
 const chartDateTimeFormatter = new Intl.DateTimeFormat(GREGORIAN_PERSIAN_LOCALE, {
-  dateStyle: "medium",
-  timeStyle: "short",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
   timeZone: TEHRAN_TIME_ZONE,
 })
 

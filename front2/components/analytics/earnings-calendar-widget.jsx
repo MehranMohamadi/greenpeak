@@ -88,8 +88,8 @@ const formatEventDate = (date) => {
   if (Number.isNaN(parsedDate.getTime())) return date
   return new Intl.DateTimeFormat("en-US", {
     weekday: "short",
-    month: "short",
-    day: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).format(parsedDate)
 }
 

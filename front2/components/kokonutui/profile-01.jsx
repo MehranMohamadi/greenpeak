@@ -48,7 +48,7 @@ export default function ProfileDropdown({
     const subscriptionLabel = isPremium ? "Premium" : "Free";
 
     const menuItems = [
-        ...(user?.role === "admin" ? [{ label: "Admin Panel", href: "/admin/settings", icon: <ShieldCheck className="w-4 h-4" /> }] : []),
+        ...(user?.role === "admin" ? [{ label: "پنل مدیریت", href: "/admin/settings", icon: <ShieldCheck className="w-4 h-4" /> }] : []),
         {
             label: "پروفایل",
             href: "/profile",

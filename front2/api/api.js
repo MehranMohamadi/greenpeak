@@ -9,6 +9,12 @@ export { API_BASE };
 
 export const endpoints = {
     workplace: {
+        tasks: `${API_BASE}/workplace/tasks`,
+        task: id => `${API_BASE}/workplace/tasks/${encodeURIComponent(id)}`,
+        taskAction: (id, action) => `${API_BASE}/workplace/tasks/${encodeURIComponent(id)}/${action}`,
+        taskPeople: `${API_BASE}/workplace/tasks/people`,
+        taskNotifications: `${API_BASE}/workplace/tasks/notifications`,
+        readTaskNotification: (id, eventId) => `${API_BASE}/workplace/tasks/notifications/${encodeURIComponent(id)}/${encodeURIComponent(eventId)}/read`,
         myReport: `${API_BASE}/workplace/me/report`,
         clockIn: `${API_BASE}/workplace/me/clock-in`,
         clockOut: `${API_BASE}/workplace/me/clock-out`,

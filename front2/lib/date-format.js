@@ -7,8 +7,11 @@ export function formatGregorianTehranDateTime(value) {
   if (Number.isNaN(date.getTime())) return "—"
 
   return new Intl.DateTimeFormat(GREGORIAN_PERSIAN_LOCALE, {
-    dateStyle: "medium",
-    timeStyle: "short",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
     timeZone: TEHRAN_TIME_ZONE,
   }).format(date)
 }
@@ -19,7 +22,9 @@ export function formatGregorianDate(value, timeZone = TEHRAN_TIME_ZONE) {
   if (Number.isNaN(date.getTime())) return "—"
 
   return new Intl.DateTimeFormat(GREGORIAN_PERSIAN_LOCALE, {
-    dateStyle: "medium",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     timeZone,
   }).format(date)
 }

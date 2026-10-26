@@ -7,13 +7,26 @@ const parts = (formatter, value) => Object.fromEntries(formatter.formatToParts(n
 const pad = value => String(value).padStart(2, "0")
 
 export function persianDateParts(value = new Date()) { return parts(persianParts, value) }
-export function formatDate(value) { return new Intl.DateTimeFormat("fa-IR", { timeZone: tehranZone, year: "numeric", month: "long", day: "numeric" }).format(new Date(value)) }
+export function formatDate(value) { return new Intl.DateTimeFormat("fa-IR", { timeZone: tehranZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value)) }
 export function formatInstant(value) {
   return value ? new Intl.DateTimeFormat("fa-IR", { timeZone: tehranZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(value)) : "باز / خروج ثبت نشده"
 }
 export function formatDuration(seconds) {
   const minutes = Math.floor(seconds / 60)
   return `${Math.floor(minutes / 60).toLocaleString("fa-IR")} ساعت و ${(minutes % 60).toLocaleString("fa-IR")} دقیقه`
+}
+
+export function editableDate(value) {
+  if (!value) return ""
+  const date = persianDateParts(`${value}T12:00:00Z`)
+  return `${date.year}/${pad(date.month)}/${pad(date.day)}`
+}
+
+export function parsePersianDate(value) {
+  if (!value.trim()) return null
+  const match = digits(value).trim().match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/)
+  if (!match) throw new Error("تاریخ شمسی معتبر وارد کنید؛ مانند ۱۴۰۵/۰۸/۰۴.")
+  return gregorianDate(...match.slice(1).map(Number))
 }
 
 export function gregorianDate(year, month, day) {

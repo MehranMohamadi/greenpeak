@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import Layout from "@/components/kokonutui/layout"
-import BrokerConnectionSetup from "@/components/dashboard/broker-connection-setup"
 import MT5Pairing from "@/components/dashboard/mt5-pairing"
 import ProfileSettings from "@/components/dashboard/profile-settings"
 import { useAuth } from "@/components/auth/auth-context"
@@ -14,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Bell, Crown, LockKeyhole, Plus, Trash2, UserRound } from "lucide-react"
+import { Crown, Plus, Trash2, UserRound } from "lucide-react"
 
 const DEFAULT_NOTIFICATIONS = {
   newsAlerts: true,
@@ -94,55 +93,50 @@ function ProfileNotifications({ userKey }) {
   ]
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" />اعلان‌ها و آلارم‌ها</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-4">
-          {toggles.map(([key, label]) => (
-            <div key={key} className="flex items-center justify-between gap-4">
-              <Label htmlFor={`profile-${key}`}>{label}</Label>
-              <Switch id={`profile-${key}`} checked={Boolean(settings[key])} onCheckedChange={(checked) => updateSetting(key, checked)} />
-            </div>
-          ))}
-        </div>
-
-        <div className="space-y-3 border-t pt-5">
-          <div>
-            <h3 className="font-medium">آلارم‌های قیمت</h3>
+    <div className="space-y-6">
+      <div className="space-y-4">
+        {toggles.map(([key, label]) => (
+          <div key={key} className="flex items-center justify-between gap-4">
+            <Label htmlFor={`profile-${key}`}>{label}</Label>
+            <Switch id={`profile-${key}`} checked={Boolean(settings[key])} onCheckedChange={(checked) => updateSetting(key, checked)} />
           </div>
-          <form onSubmit={addPriceAlert} className="grid grid-cols-1 gap-2 sm:grid-cols-2 [&>*]:min-w-0">
-            <Input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} maxLength={16} placeholder="نماد (مثلاً AAPL)" aria-label="نماد" />
-            <select value={condition} onChange={(event) => setCondition(event.target.value)} aria-label="شرط آلارم" className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-              <option value="above">بالاتر از</option>
-              <option value="below">پایین‌تر از</option>
-              <option value="change">درصد تغییر</option>
-            </select>
-            <Input type="number" step="any" value={value} onChange={(event) => setValue(event.target.value)} placeholder={condition === "change" ? "درصد" : "قیمت"} aria-label="مقدار آلارم" />
-            <Button type="submit" disabled={!symbol.trim() || value === ""} className="gap-2"><Plus className="h-4 w-4" />افزودن</Button>
-          </form>
+        ))}
+      </div>
 
-          {settings.priceAlerts.length > 0 ? (
-            <ul className="space-y-2">
-              {settings.priceAlerts.map((alert) => (
-                <li key={alert.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                  <span className="text-sm" dir="auto">
-                    {alert.symbol} {alert.condition === "above" ? "بالاتر از" : alert.condition === "below" ? "پایین‌تر از" : "تغییر به میزان"} {alert.value}{alert.condition === "change" ? "%" : ""}
-                  </span>
-                  <Button type="button" variant="ghost" size="icon" onClick={() => removePriceAlert(alert.id)} aria-label={`حذف آلارم ${alert.symbol}`}>
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">هنوز آلارم قیمتی ثبت نشده است.</p>
-          )}
+      <div className="space-y-3 border-t pt-5">
+        <div>
+          <h3 className="font-medium">آلارم‌های قیمت</h3>
         </div>
-        <p className="text-xs text-muted-foreground">تنظیمات اعلان این حساب در همین مرورگر ذخیره می‌شود.</p>
-      </CardContent>
-    </Card>
+        <form onSubmit={addPriceAlert} className="grid grid-cols-1 gap-2 sm:grid-cols-2 [&>*]:min-w-0">
+          <Input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} maxLength={16} placeholder="نماد (مثلاً AAPL)" aria-label="نماد" />
+          <select value={condition} onChange={(event) => setCondition(event.target.value)} aria-label="شرط آلارم" className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <option value="above">بالاتر از</option>
+            <option value="below">پایین‌تر از</option>
+            <option value="change">درصد تغییر</option>
+          </select>
+          <Input type="number" step="any" value={value} onChange={(event) => setValue(event.target.value)} placeholder={condition === "change" ? "درصد" : "قیمت"} aria-label="مقدار آلارم" />
+          <Button type="submit" disabled={!symbol.trim() || value === ""} className="gap-2"><Plus className="h-4 w-4" />افزودن</Button>
+        </form>
+
+        {settings.priceAlerts.length > 0 ? (
+          <ul className="space-y-2">
+            {settings.priceAlerts.map((alert) => (
+              <li key={alert.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                <span className="text-sm" dir="auto">
+                  {alert.symbol} {alert.condition === "above" ? "بالاتر از" : alert.condition === "below" ? "پایین‌تر از" : "تغییر به میزان"} {alert.value}{alert.condition === "change" ? "%" : ""}
+                </span>
+                <Button type="button" variant="ghost" size="icon" onClick={() => removePriceAlert(alert.id)} aria-label={`حذف آلارم ${alert.symbol}`}>
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">هنوز آلارم قیمتی ثبت نشده است.</p>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">تنظیمات اعلان این حساب در همین مرورگر ذخیره می‌شود.</p>
+    </div>
   )
 }
 
@@ -187,31 +181,24 @@ function ChangePassword() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><LockKeyhole className="h-5 w-5" />تغییر رمز عبور</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={submit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="current-password">رمز عبور فعلی</Label>
-            <Input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="new-password">رمز عبور جدید</Label>
-              <Input id="new-password" type="password" autoComplete="new-password" minLength={8} maxLength={128} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirm-password">تکرار رمز عبور جدید</Label>
-              <Input id="confirm-password" type="password" autoComplete="new-password" minLength={8} maxLength={128} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required />
-            </div>
-          </div>
-          {feedback && <p role="status" className={`text-sm ${feedback.type === "error" ? "text-red-600" : "text-emerald-600"}`}>{feedback.text}</p>}
-          <Button type="submit" disabled={isSaving || !accessToken}>{isSaving ? "در حال ذخیره…" : "ذخیره رمز عبور"}</Button>
-        </form>
-      </CardContent>
-    </Card>
+    <form onSubmit={submit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="current-password">رمز عبور فعلی</Label>
+        <Input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="new-password">رمز عبور جدید</Label>
+          <Input id="new-password" type="password" autoComplete="new-password" minLength={8} maxLength={128} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="confirm-password">تکرار رمز عبور جدید</Label>
+          <Input id="confirm-password" type="password" autoComplete="new-password" minLength={8} maxLength={128} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required />
+        </div>
+      </div>
+      {feedback && <p role="status" className={`text-sm ${feedback.type === "error" ? "text-red-600" : "text-emerald-600"}`}>{feedback.text}</p>}
+      <Button type="submit" disabled={isSaving || !accessToken}>{isSaving ? "در حال ذخیره…" : "ذخیره رمز عبور"}</Button>
+    </form>
   )
 }
 
@@ -240,54 +227,48 @@ export default function ProfilePage() {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6" dir="rtl">
-        <header className="flex flex-wrap items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary"><UserRound className="h-6 w-6" /></div>
-          <div>
+      <div className="w-full space-y-4 py-4 md:py-6" dir="rtl">
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary"><UserRound className="h-6 w-6" /></div>
             <h1 className="text-3xl font-bold text-foreground" dir="rtl">پروفایل</h1>
+          </div>
+          <div className="ms-auto flex flex-wrap items-center gap-2">
+            <ProfileSettings key={userKey} notifications={<ProfileNotifications userKey={userKey} />} password={<ChangePassword />} />
+            {["staff", "admin"].includes(user?.role) && <nav aria-label="دسترسی‌های کاری و مدیریت" className="flex flex-wrap items-center gap-2">
+              <Button asChild size="sm" className="h-9"><Link href="/workplace">میز کار من</Link></Button>
+              {user?.role === "admin" && <>
+                <Button asChild variant="outline" size="sm" className="h-9"><Link href="/admin/settings">پنل مدیریت</Link></Button>
+                <Button asChild variant="outline" size="sm" className="h-9"><Link href="/admin/employees">مدیریت کارکنان</Link></Button>
+              </>}
+            </nav>}
           </div>
         </header>
 
-        <div id="broker-connection" className="grid scroll-mt-20 gap-6 md:grid-cols-2 [&>*]:min-w-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>مشخصات حساب</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <p className="text-sm text-muted-foreground">نام کاربری</p>
-                <p className="font-medium" dir="auto">{user?.username || "-"}</p>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">مشخصات حساب</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_2fr] [&>*]:min-w-0">
+            <div>
+              <p className="text-sm text-muted-foreground">نام کاربری</p>
+              <p className="break-words font-medium" dir="auto">{user?.username || "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">نوع حساب</p>
+              <p className="font-medium">{user?.role === "admin" ? "مدیر" : user?.role === "staff" ? "کارمند" : "کاربر"}</p>
+            </div>
+            <div className="sm:col-span-2 lg:col-span-1">
+              <p className="mb-1 text-sm text-muted-foreground">دسترسی تحلیل‌ها</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {isPremium ? <Crown className="h-4 w-4 text-amber-500" /> : null}
+                <Badge variant={isPremium ? "default" : "secondary"}>{isPremium ? "پرمیوم" : "رایگان"}</Badge>
+                <span className="text-sm text-muted-foreground">{isPremium ? "دسترسی پرمیوم فعال است." : "دسترسی پرمیوم برای این حساب فعال نیست."}</span>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">نوع حساب</p>
-                <p className="font-medium">{user?.role === "admin" ? "مدیر" : user?.role === "staff" ? "کارمند" : "کاربر"}</p>
-              </div>
-              <div className="sm:col-span-2">
-                <p className="mb-1 text-sm text-muted-foreground">دسترسی تحلیل‌ها</p>
-                <div className="flex items-center gap-2">
-                  {isPremium ? <Crown className="h-4 w-4 text-amber-500" /> : null}
-                  <Badge variant={isPremium ? "default" : "secondary"}>{isPremium ? "پرمیوم" : "رایگان"}</Badge>
-                  <span className="text-sm text-muted-foreground">{isPremium ? "دسترسی پرمیوم فعال است." : "دسترسی پرمیوم برای این حساب فعال نیست."}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <MT5Pairing key={`broker-${userKey}`} />
-        </div>
-
-        {["staff", "admin"].includes(user?.role) && <div className="flex flex-wrap gap-3">
-          <Button asChild><Link href="/workplace">میز کار من</Link></Button>
-          {user?.role === "admin" && <Button asChild variant="outline"><Link href="/admin/employees">مدیریت کارکنان</Link></Button>}
-        </div>}
-
-        <BrokerConnectionSetup />
-
-        <div className="grid gap-6 md:grid-cols-2 [&>*]:min-w-0">
-          <ProfileNotifications key={userKey} userKey={userKey} />
-          <ChangePassword />
-        </div>
-
-        <ProfileSettings />
+            </div>
+          </CardContent>
+        </Card>
+        <MT5Pairing key={`broker-${userKey}`} />
       </div>
     </Layout>
   )

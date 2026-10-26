@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { BriefcaseBusiness, RefreshCw } from "lucide-react"
 import Layout from "@/components/kokonutui/layout"
 import { useAuth } from "@/components/auth/auth-context"
@@ -11,6 +12,9 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import WorkTasks from "@/components/workplace/work-tasks"
+import { workTaskIdFromSearch } from "@/lib/work-tasks.mjs"
 import { editableInstant, formatDate, formatDuration, formatInstant, monthRange, parseTehranInstant, persianDateParts, persianMonths } from "@/lib/workplace-time.mjs"
 
 const statusLabels = { pending: "در انتظار بررسی", approved: "تأیید شده", rejected: "رد شده" }
@@ -113,6 +117,9 @@ function ReviewCard({ item, busy, perform }) {
 }
 
 export default function Workplace({ admin = false }) {
+  const taskLinkId = workTaskIdFromSearch(useSearchParams().toString())
+  const [section, setSection] = useState(taskLinkId ? "tasks" : "attendance")
+  useEffect(() => { if (taskLinkId) setSection("tasks") }, [taskLinkId])
   const { user, accessToken, isLoading, isAdmin } = useAuth()
   const allowed = admin ? isAdmin : ["staff", "admin"].includes(user?.role)
   const [month, setMonth] = useState(() => persianDateParts())
@@ -189,7 +196,10 @@ export default function Workplace({ admin = false }) {
   const todayWork = currentReport?.days.find(day => day.date === today)?.seconds || 0
 
   return <Layout><div dir="rtl" className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
-    <header className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="flex items-center gap-2 text-2xl font-bold"><BriefcaseBusiness className="h-6 w-6 text-primary" />{admin ? "مدیریت کارکنان" : "میز کار من"}</h1><p className="mt-2 text-sm text-muted-foreground">حضور و غیاب و کارهای انجام‌شده · ساعت تهران</p></div><Button asChild variant="outline"><Link href="/profile">بازگشت به پروفایل</Link></Button></header>
+    <header className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="flex items-center gap-2 text-2xl font-bold"><BriefcaseBusiness className="h-6 w-6 text-primary" />{admin ? "مدیریت کارکنان" : "میز کار من"}</h1><p className="mt-2 text-sm text-muted-foreground">حضور و غیاب و کارها · ساعت تهران</p></div><Button asChild variant="outline"><Link href="/profile">بازگشت به پروفایل</Link></Button></header>
+    <Tabs value={section} onValueChange={setSection} dir="rtl" className="space-y-5">
+    <TabsList aria-label="بخش‌های میز کار"><TabsTrigger value="attendance">{admin ? "حضور و غیاب کارکنان" : "حضور و غیاب"}</TabsTrigger><TabsTrigger value="tasks">کارها</TabsTrigger></TabsList>
+    <TabsContent value="attendance" forceMount className="space-y-6 data-[state=inactive]:hidden">
     <div className="flex flex-wrap items-center justify-between gap-3"><MonthPicker month={month} setMonth={setMonth} disabled={busy} /><Button size="sm" variant="outline" disabled={loading || busy} onClick={() => setRevision(value => value + 1)}><RefreshCw className="me-2 h-4 w-4" />تازه‌سازی</Button></div>
     {feedback && <p role={feedback.ok ? "status" : "alert"} className={`rounded-lg border p-3 text-sm ${feedback.ok ? "text-primary" : "text-destructive"}`}>{feedback.text}</p>}
     {error && <p role="alert" className="rounded-lg border p-3 text-sm text-destructive">{error}</p>}
@@ -213,5 +223,8 @@ export default function Workplace({ admin = false }) {
     </CardContent></Card>}
 
     {admin && <Card><CardHeader><CardTitle>تعیین نقش کارکنان</CardTitle><CardDescription>کارمندان و برنامه‌نویسان نقش «کارمند» دارند. دسترسی مدیران از این قسمت تغییر نمی‌کند.</CardDescription></CardHeader><CardContent className="space-y-3">{users.map(account => <div key={account.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"><span dir="auto" className="text-sm">{account.username}</span>{account.role === "admin" ? <Badge>مدیر</Badge> : <select className={selectClass} aria-label={`نقش ${account.username}`} value={account.role} disabled={busy || loading || !account.is_active} onChange={event => perform(endpoints.auth.staffRole(account.id), "PUT", { role: event.target.value })}><option value="user">کاربر</option><option value="staff">کارمند</option></select>}</div>)}</CardContent></Card>}
+    </TabsContent>
+    <TabsContent value="tasks" forceMount className="data-[state=inactive]:hidden"><WorkTasks initialTaskId={taskLinkId} /></TabsContent>
+    </Tabs>
   </div></Layout>
 }

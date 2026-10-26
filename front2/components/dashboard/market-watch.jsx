@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, Minus, Globe } from "lucide-react"
 import useMarketWatch from "@/hooks/use-market-watch"
-import IndicatorGuide from "@/components/analytics/indicator-guide"
 import MarketWatchLoadingSkeleton from "./market-watch-loading"
 
 function trendColor(trend) {
@@ -136,7 +135,6 @@ export default function MarketWatch() {
                     {item.symbol}
                   </motion.span>
                   <div className="flex flex-shrink-0 items-center gap-1">
-                    <IndicatorGuide indicatorId={item.id} title={item.symbol} className="h-6 w-6" />
                     <motion.div
                       animate={{
                         rotate: item.trend === "up" ? [0, 5, 0] : item.trend === "down" ? [0, -5, 0] : 0,
@@ -184,7 +182,7 @@ export default function MarketWatch() {
                 </motion.div>
 
                 <div className="mt-1 truncate text-[10px] text-gray-500 dark:text-gray-400">
-                  {item.observationDate ? `آخرین داده: ${item.observationDate}` : item.error}
+                  {item.observationDate || item.error}
                 </div>
               </motion.div>
             ))}
