@@ -25,7 +25,7 @@ class TaskCreate(Input):
     due_date: date | None = None
     priority: Priority = "normal"
     requires_approval: StrictBool = True
-    visibility: Visibility = "restricted"
+    visibility: Visibility = "team"
 
 
 class TaskRevision(Input):

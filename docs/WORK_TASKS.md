@@ -26,6 +26,8 @@ No administrator or new role is created.
 Employee creation always assigns the current user and requires approval by
 default. Forged creator, timestamps, state and unknown input fields are rejected.
 The creator snapshot cannot be edited. Team visibility grants viewing only.
+New work defaults to team visibility in both the creation form and API; creators
+can explicitly choose restricted visibility. Editing retains the work's existing visibility.
 Authorization is applied before title search, filters, pagination, counts and
 notifications; unread counts and event links cannot reveal restricted work.
 Reassignment immediately removes a former assignee's restricted access unless

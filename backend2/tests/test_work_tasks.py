@@ -93,7 +93,8 @@ def test_defaults_creator_identity_and_assignment_are_enforced(harness):
     assert task["assignee"] == {"id": "2", "username": "worker"}
     assert task["created_by"] == task["assignee"]
     assert task["created_at"] == "2026-10-26T05:30:00Z"
-    assert task["requires_approval"] and task["priority"] == "normal" and task["visibility"] == "restricted"
+    assert task["requires_approval"] and task["priority"] == "normal" and task["visibility"] == "team"
+    assert call(h, "GET", f"/{task['id']}", "other").status_code == 200
     assert call(h, "POST", body={"title": "x", "assignee_id": "3"}).status_code == 403
     assert call(h, "POST", body={"title": "x", "requires_approval": False}).status_code == 403
     assert call(h, "POST", body={"title": "x", "created_by": {"id": "1", "username": "admin"}}).status_code == 422
@@ -101,6 +102,7 @@ def test_defaults_creator_identity_and_assignment_are_enforced(harness):
     assert call(h, "POST", name="admin", body={"title": "x"}).status_code == 422
     assert call(h, "POST", name="admin", body={"title": "x", "assignee_id": "4"}).status_code == 422
     admins_work = create(h, "admin")
+    assert admins_work["visibility"] == "team"
     assert admins_work["created_by"]["id"] == "1" and admins_work["assignee"]["id"] == "2"
     assert "storage_revision" not in task
     assert "recipients" not in task["history"][0] and "read_by" not in task["history"][0]
@@ -109,7 +111,7 @@ def test_defaults_creator_identity_and_assignment_are_enforced(harness):
 
 def test_restricted_work_does_not_leak_via_search_counts_notifications_or_actions(harness):
     h = harness
-    task = create(h, "admin", title="SECRET INTERNAL TITLE")
+    task = create(h, "admin", title="SECRET INTERNAL TITLE", visibility="restricted")
     for suffix in ("?view=mine", "?view=team", "?search=SECRET", "?deadline=overdue"):
         response = call(h, "GET", suffix, "other")
         assert response.status_code == 200
@@ -341,7 +343,7 @@ def test_live_roles_and_sanitized_storage_errors(harness, monkeypatch):
 
 def test_creator_keeps_restricted_access_after_admin_reassignment(harness):
     h = harness
-    task = create(h)
+    task = create(h, visibility="restricted")
     changed = call(h, "PUT", f"/{task['id']}", "admin", {"revision": 1, "assignee_id": "3"})
     assert changed.status_code == 200
     creator = call(h, "GET", f"/{task['id']}").json()

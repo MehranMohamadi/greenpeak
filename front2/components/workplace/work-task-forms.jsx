@@ -22,7 +22,7 @@ export function WorkTaskEditor({ task = null, user, isAdmin, people, busy, onSav
   const [due, setDue] = useState(editableDate(task?.due_date))
   const [priority, setPriority] = useState(task?.priority || "normal")
   const [approval, setApproval] = useState(task?.requires_approval ?? true)
-  const [visibility, setVisibility] = useState(task?.visibility || "restricted")
+  const [visibility, setVisibility] = useState(task?.visibility || "team")
   const [error, setError] = useState("")
   const stale = original && original.revision !== task.revision
   const submit = async event => {
