@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { BriefcaseBusiness } from "lucide-react"
 import Layout from "@/components/kokonutui/layout"
@@ -65,14 +64,13 @@ export default function Workplace() {
   if (isLoading) return <p className="p-6" role="status" dir="rtl">در حال بررسی دسترسی…</p>
   if (!["staff", "admin"].includes(user?.role)) return <p className="p-6" dir="rtl">دسترسی لازم برای این بخش را ندارید.</p>
   return <Layout><div dir="rtl" className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
-    <header className="flex flex-wrap items-center justify-between gap-3">
-      <h1 className="flex items-center gap-2 text-2xl font-bold"><BriefcaseBusiness className="h-6 w-6 text-primary" />میز کار من</h1>
-      <Button asChild variant="outline"><Link href="/profile">بازگشت به پروفایل</Link></Button>
-    </header>
     <Tabs value={section} onValueChange={changeSection} dir="rtl" className="space-y-5">
-      <TabsList aria-label="بخش‌های میز کار" className="h-auto max-w-full flex-wrap justify-start gap-1">
-        {workplaceTabs.filter(tab => !tab.adminOnly || isAdmin).map(tab => <TabsTrigger key={tab.id} value={tab.id}>{tab.label}</TabsTrigger>)}
-      </TabsList>
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="flex shrink-0 items-center gap-2 text-2xl font-bold"><BriefcaseBusiness className="h-6 w-6 text-primary" />میز کار من</h1>
+        <TabsList aria-label="بخش‌های میز کار" className="ms-auto h-auto max-w-full flex-wrap justify-start gap-1">
+          {workplaceTabs.filter(tab => !tab.adminOnly || isAdmin).map(tab => <TabsTrigger key={tab.id} value={tab.id}>{tab.label}</TabsTrigger>)}
+        </TabsList>
+      </header>
       <TabsContent value="tasks" forceMount className="data-[state=inactive]:hidden">{(visited.has("tasks") || section === "tasks") && <WorkTasks initialTaskId={taskId} accountsRevision={accountsRevision} />}</TabsContent>
       <TabsContent value="attendance" forceMount className="data-[state=inactive]:hidden">{(visited.has("attendance") || section === "attendance") && <AttendanceTab accountsRevision={accountsRevision} />}</TabsContent>
       {isAdmin && <>
