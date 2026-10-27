@@ -1,7 +1,8 @@
 # Per-user premium analysis access
 
 Administrators use the “تحلیل‌های پرمیوم” switch for each account at
-`/admin/settings`. One persisted `gp_users.can_view_premium_analysis` boolean
+`/workplace?tab=users` (the legacy `/admin/settings` redirects there).
+One persisted `gp_users.can_view_premium_analysis` boolean
 controls every restricted analysis. Missing/false means locked, including for
 existing accounts. Administrators always have access independently of this flag.
 This is an analysis entitlement; it does not grant admin privileges or implement

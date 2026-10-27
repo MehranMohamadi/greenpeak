@@ -5,19 +5,20 @@
 request; changing the role takes effect even for an existing signed session.
 Subscription status is independent of this role.
 
-Staff and administrators can use `/workplace`; only administrators can use
-`/admin/employees`. Their entry buttons are in `/profile`. The existing `admin`
+Staff and administrators can use `/workplace`; only administrators can use its
+`users` and `tools` tabs and team attendance management. Its entry is in `/profile`. The existing `admin`
 role keeps every existing permission; attendance does not create accounts or
-run a role migration. Administrators assign `user`/`staff` through the employee
-management page or `PUT /api/v1/auth/users/{user_id}/staff-role`. This endpoint
+run a role migration. Administrators assign `user`/`staff` through the users and access
+tab (`/workplace?tab=users`) or `PUT /api/v1/auth/users/{user_id}/staff-role`. This endpoint
 cannot modify an administrator and does not change premium-analysis access.
 Programmers use the same `staff` role. See [WORKPLACE.md](WORKPLACE.md).
 
-The administrator entry is `/admin/settings`, also linked from the profile menu
-and the dashboard-settings section at `/profile#dashboard-settings` for admins.
-The former `/settings` page redirects there. It lists account usernames, IDs,
-roles, activation state and registration dates, never credentials. Both the
-administrator list and the complete user list require administrator access.
+The administrator entry is the **کاربران و دسترسی‌ها** tab at
+`/workplace?tab=users`. `/admin` and `/admin/settings` redirect there behind the
+existing admin page guard; `/admin/employees` redirects to team attendance.
+The single account list displays usernames, roles, activation state,
+registration dates and premium-analysis access, never credentials. Inspection
+tools are in `/workplace?tab=tools`. Both tabs require administrator access.
 Admins can promote a user with the user-list action or
 `POST /api/v1/auth/users/{user_id}/promote`. Admins can also demote another admin
 via `POST /api/v1/auth/users/{user_id}/demote`, or delete an account via

@@ -237,10 +237,6 @@ export default function ProfilePage() {
             <ProfileSettings key={userKey} notifications={<ProfileNotifications userKey={userKey} />} password={<ChangePassword />} />
             {["staff", "admin"].includes(user?.role) && <nav aria-label="دسترسی‌های کاری و مدیریت" className="flex flex-wrap items-center gap-2">
               <Button asChild size="sm" className="h-9"><Link href="/workplace">میز کار من</Link></Button>
-              {user?.role === "admin" && <>
-                <Button asChild variant="outline" size="sm" className="h-9"><Link href="/admin/settings">پنل مدیریت</Link></Button>
-                <Button asChild variant="outline" size="sm" className="h-9"><Link href="/admin/employees">مدیریت کارکنان</Link></Button>
-              </>}
             </nav>}
           </div>
         </header>

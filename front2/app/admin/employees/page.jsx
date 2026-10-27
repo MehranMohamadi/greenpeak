@@ -1,5 +1,5 @@
-import Workplace from "@/components/workplace/workplace"
+import { redirect } from "next/navigation"
 
 export default function EmployeesPage() {
-  return <Workplace admin />
+  redirect("/workplace?tab=attendance&scope=team")
 }

@@ -2,14 +2,16 @@ import "server-only"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { workTaskIdFromSearch } from "@/lib/work-tasks.mjs"
+import { isAdminWorkplaceTab } from "@/lib/workplace-navigation.mjs"
 
 export async function requireAdminPage() {
   return requireRolesPage(["admin"])
 }
 
-export async function requireWorkplacePage(taskId = null) {
+export async function requireWorkplacePage(taskId = null, tab = null, scope = null) {
   const safeId = workTaskIdFromSearch(taskId ? `task=${encodeURIComponent(taskId)}` : "")
-  return requireRolesPage(["staff", "admin"], safeId ? `/login?task=${safeId}` : "/login")
+  const adminOnly = isAdminWorkplaceTab(tab) || (tab === "attendance" && scope === "team")
+  return requireRolesPage(adminOnly ? ["admin"] : ["staff", "admin"], safeId ? `/login?task=${safeId}` : "/login")
 }
 
 async function requireRolesPage(roles, loginPath = "/login") {

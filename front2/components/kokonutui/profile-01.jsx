@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { Headset, LogOut, ShieldCheck, User } from "lucide-react";
+import { BriefcaseBusiness, Headset, LogOut, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-context";
@@ -48,7 +48,7 @@ export default function ProfileDropdown({
     const subscriptionLabel = isPremium ? "Premium" : "Free";
 
     const menuItems = [
-        ...(user?.role === "admin" ? [{ label: "پنل مدیریت", href: "/admin/settings", icon: <ShieldCheck className="w-4 h-4" /> }] : []),
+        ...(["staff", "admin"].includes(user?.role) ? [{ label: "میز کار من", href: "/workplace", icon: <BriefcaseBusiness className="w-4 h-4" /> }] : []),
         {
             label: "پروفایل",
             href: "/profile",

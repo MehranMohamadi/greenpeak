@@ -1,10 +1,22 @@
 # GreenPeak workplace
 
-`/workplace` provides personal attendance and free-text activity reports.
-`/admin/employees` provides current presence, monthly summaries, individual
-reports, manual time corrections, approval/rejection of correction requests,
-and assignment of the `staff` role to existing users. Both entry buttons are
-shown only in the profile, according to role. The main dashboard is unchanged.
+`/workplace` is the shared internal workspace, linked once from the profile and
+account menu. It contains **کارها**, **حضور و غیاب**, and, for administrators only,
+**کاربران و دسترسی‌ها** and **تنظیمات و ابزارها**. Tasks are the default tab;
+`?tab=attendance` opens personal attendance. Administrators switch to
+`?tab=attendance&scope=team` for current presence, monthly summaries, individual
+reports, manual time corrections and correction-request review.
+
+`?tab=users` combines the complete account list, staff-role assignment, premium
+analysis access, promotion, demotion and confirmed deletion in one table.
+`?tab=tools` contains the existing inspection tools. These two tabs require a
+verified current administrator on both server page entry and their existing
+APIs. No role or capability is added. Previously visited task and attendance
+forms stay mounted while switching tabs so unsaved text is retained.
+
+The protected legacy `/admin` and `/admin/settings` paths redirect to the users
+tab; `/admin/employees` redirects to team attendance. Existing task deep links
+and their login return behavior remain supported.
 
 The **کارها** tab adds internal work assignment, submissions, administrator
 review, discussion, history and in-workplace notifications. It reuses these same

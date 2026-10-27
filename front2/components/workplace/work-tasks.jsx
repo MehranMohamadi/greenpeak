@@ -34,7 +34,7 @@ const emptyFilters = { search: "", status: "active", deadline: "any", assignee_i
 const emptyList = { items: [], total: 0, counts: { mine: 0, team: 0, all: 0, pending: 0 } }
 const pageSize = 30
 
-export default function WorkTasks({ initialTaskId = null }) {
+export default function WorkTasks({ initialTaskId = null, accountsRevision = 0 }) {
   const { user, accessToken, isAdmin } = useAuth()
   const [view, setView] = useState("mine")
   const [draftFilters, setDraftFilters] = useState(emptyFilters)
@@ -79,7 +79,7 @@ export default function WorkTasks({ initialTaskId = null }) {
         }
       }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
-  }, [accessToken, isAdmin, query, revision, offset])
+  }, [accessToken, isAdmin, query, revision, offset, accountsRevision])
 
   useEffect(() => {
     if (!selectedId || !accessToken) { setDetail(null); setDetailError(""); return }
