@@ -62,7 +62,9 @@ export default function WorkplaceUsers({ onUsersChanged }) {
       })
       if (!response.ok) throw new Error(response.status === 409 ? "حذف یا تنزل حساب خودتان و آخرین مدیر فعال مجاز نیست؛ تغییر هم‌زمان را نیز دوباره بررسی کنید." : response.status === 403 ? "دسترسی مدیریت لازم است." : response.status === 400 ? "نام کاربری را دقیق وارد کنید." : "تغییر حساب ممکن نشد؛ فهرست را تازه‌سازی کنید.")
       const updated = await response.json()
-      setUsers(current => action === "delete" ? current.filter(item => item.id !== target.id) : current.map(item => item.id === target.id ? { ...item, ...updated } : item))
+      // Role-only responses contain a default premium flag, not its stored value.
+      const fields = ["promote", "demote"].includes(action) ? { role: updated.role } : updated
+      setUsers(current => action === "delete" ? current.filter(item => item.id !== target.id) : current.map(item => item.id === target.id ? { ...item, ...fields } : item))
       if (action === "delete") { setDeleteTarget(null); setDeleteConfirmation("") }
       setFeedback({ ok: true, text: operation.message })
       onUsersChanged?.()
