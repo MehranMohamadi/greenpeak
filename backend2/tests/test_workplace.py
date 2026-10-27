@@ -139,6 +139,23 @@ def test_role_boundaries(harness, method, path, body, admin_only):
         assert call(h, method, path, "employee", body).status_code == 403
 
 
+def test_viewing_and_refreshing_reports_never_clocks_in_or_out(harness):
+    h = harness
+    for _ in range(2):
+        report = call(h, "GET", "/me/report" + RANGE).json()
+        assert report["active_session"] is None and report["sessions"] == []
+    assert h.repo.all_sessions(h.users["employee"]["id"]) == []
+
+    session = start(h)
+    h.clock[0] += timedelta(hours=2)
+    for _ in range(2):
+        report = call(h, "GET", "/me/report" + RANGE).json()
+        assert report["active_session"]["id"] == session["id"]
+        assert report["active_session"]["check_out"] is None
+        assert call(h, "GET", "/admin/employees" + RANGE, "admin").status_code == 200
+    assert h.repo.get(session["id"]) == session
+
+
 def test_server_clock_multiple_intervals_activities_and_persistence(harness):
     h = harness
     first = start(h)

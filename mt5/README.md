@@ -49,6 +49,13 @@ The account identifier and token are never drawn or printed. JSON schema `1.0`
 is additive: the backend preserves unknown future fields. MongoDB collection
 `gp_mt5_account_snapshots` is immutable and deduplicated by `snapshot_id`.
 
+Version 1.04 also sends `account.trade_mode` from MT5's `ACCOUNT_TRADE_MODE`.
+Broker comparisons keep real, demo and contest account costs separate. Older
+snapshots use an explicit server-name marker where available; otherwise their
+type remains unknown. Compile/install the updated expert and send a fresh
+snapshot for authoritative account-type classification. See
+[BROKER_COMPARISON.md](../docs/BROKER_COMPARISON.md).
+
 ## Safety and calculation conventions
 
 - The EA never calls `OrderSend`, `CTrade`, position/order modification, or any

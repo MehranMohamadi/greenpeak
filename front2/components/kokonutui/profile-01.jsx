@@ -63,7 +63,7 @@ export default function ProfileDropdown({
 
     return (
         <div className={cn("relative", className)} {...props}>
-            <DropdownMenu onOpenChange={setIsOpen}>
+            <DropdownMenu dir="rtl" onOpenChange={setIsOpen}>
                 <div className="group relative">
                     <DropdownMenuTrigger asChild>
                         <button
@@ -120,9 +120,9 @@ export default function ProfileDropdown({
                     </DropdownMenuTrigger>
 
                     <DropdownMenuContent
-                        align="end"
+                        align="start"
                         sideOffset={4}
-                        className="w-[11.2rem] p-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl shadow-xl shadow-zinc-900/5 dark:shadow-zinc-950/20
+                        className="w-[12.32rem] p-2 text-right bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl shadow-xl shadow-zinc-900/5 dark:shadow-zinc-950/20
                     data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-top-right"
                     >
                         {/* User Info Header */}
@@ -165,7 +165,7 @@ export default function ProfileDropdown({
                                 <DropdownMenuItem key={item.label} asChild>
                                     <Link
                                         href={item.href}
-                                        className="flex items-center p-3 hover:bg-zinc-100/80 dark:hover:bg-zinc-800/60 rounded-xl transition-all duration-200 cursor-pointer group hover:shadow-sm border border-transparent hover:border-zinc-200/50 dark:hover:border-zinc-700/50"
+                                        className="flex items-center p-3 text-right hover:bg-zinc-100/80 dark:hover:bg-zinc-800/60 rounded-xl transition-all duration-200 cursor-pointer group hover:shadow-sm border border-transparent hover:border-zinc-200/50 dark:hover:border-zinc-700/50"
                                     >
                                         <div className="flex items-center gap-3 flex-1">
                                             <div className="text-zinc-600 dark:text-zinc-400 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
@@ -175,7 +175,7 @@ export default function ProfileDropdown({
                                                 {item.label}
                                             </span>
                                         </div>
-                                        <div className="flex-shrink-0 ml-auto">
+                                        <div className="flex-shrink-0 ms-auto">
                                             {item.value && (
                                                 <span
                                                     className={cn(
@@ -198,7 +198,7 @@ export default function ProfileDropdown({
                             <button
                                 type="button"
                                 onClick={handleLogout}
-                                className="w-full flex items-center gap-3 p-3 duration-200 bg-red-500/10 rounded-xl hover:bg-red-500/20 cursor-pointer border border-transparent hover:border-red-500/30 hover:shadow-sm transition-all group"
+                                className="w-full flex items-center gap-3 p-3 text-right duration-200 bg-red-500/10 rounded-xl hover:bg-red-500/20 cursor-pointer border border-transparent hover:border-red-500/30 hover:shadow-sm transition-all group"
                             >
                                 <LogOut className="w-4 h-4 text-red-500 group-hover:text-red-600" />
                                 <span className="text-sm font-medium text-red-500 group-hover:text-red-600">

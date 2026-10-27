@@ -222,7 +222,7 @@ export function buildDashboardInsights({ snapshots, comparison, articles, snooze
     if (comparison?.brokers?.length > 0) {
       const accountBrokers = new Set(activeSnapshots.map((snapshot) => String(snapshot?.source?.broker_company || "").trim().toLocaleLowerCase()))
       const matched = (comparison.brokers || []).find((broker) => accountBrokers.has(String(broker?.broker_name || "").trim().toLocaleLowerCase()))
-      add({ id: "broker-comparison-ready", kind: "broker", priority: 44, title: matched ? `مقایسه هزینه‌های ${matched.broker_name} با داده تجمیعی بروکرها آماده است` : comparison.eligible_broker_count != null ? `مقایسه تجمیعی ${formatCount(comparison.eligible_broker_count)} بروکر آماده مشاهده است` : "مقایسه هزینه‌های بروکرها آماده مشاهده است", detail: "اسپرد، کمیسیون و سواپ فقط از داده واقعی و بی‌نام حساب‌ها ساخته می‌شوند.", meta: "هزینه معامله", href: "#trading-accounts-title", focus: "broker-comparison" })
+      add({ id: "broker-comparison-ready", kind: "broker", priority: 44, title: matched ? `مقایسه هزینه‌های ${matched.broker_name} با تفکیک نوع حساب آماده است` : "مقایسه هزینه‌های بروکرها با تفکیک نوع حساب آماده مشاهده است", detail: "اسپرد، کمیسیون و سواپ از داده‌های بی‌نام هر نوع حساب به‌صورت جداگانه ساخته می‌شوند.", meta: "هزینه معامله", href: "#trading-accounts-title", focus: "broker-comparison" })
     }
   }
 

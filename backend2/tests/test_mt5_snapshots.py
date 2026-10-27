@@ -113,6 +113,7 @@ def test_snapshot_round_trip_and_idempotency():
     user_headers = {"Authorization": "Bearer user-session"}
     payload = deepcopy(SNAPSHOT)
     payload["additional_snapshot_data"] = {"nested_value": "preserved"}
+    payload["account"]["trade_mode"] = "ACCOUNT_TRADE_MODE_REAL"
     try:
         first = client.post("/api/v1/mt5/snapshots", json=payload, headers=pairing_headers)
         second = client.post("/api/v1/mt5/snapshots", json=payload, headers=pairing_headers)
@@ -128,6 +129,7 @@ def test_snapshot_round_trip_and_idempotency():
     assert second.json()["status"] == "already_exists"
     assert latest.status_code == 200
     assert latest.json()["portfolio_metrics"]["gross_portfolio_exposure_usd"] == 60000
+    assert latest.json()["account"]["trade_mode"] == "ACCOUNT_TRADE_MODE_REAL"
     assert accounts.status_code == 200
     assert [item["source"]["account_identifier"] for item in accounts.json()] == ["123456"]
     assert all_snapshots.status_code == 200

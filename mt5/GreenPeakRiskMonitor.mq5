@@ -1,5 +1,5 @@
 #property copyright "GreenPeak"
-#property version   "1.03"
+#property version   "1.04"
 #property strict
 #property description "Read-only portfolio risk monitor and GreenPeak snapshot sender"
 
@@ -26,7 +26,7 @@ input int YOffset=15;
 input int LineSpacing=22;
 
 #define EA_NAME "GreenPeak MT5 Risk Monitor"
-#define EA_VERSION "1.03"
+#define EA_VERSION "1.04"
 #define SCHEMA_VERSION "1.0"
 #define PREFIX "GP_RISK_"
 
@@ -226,7 +226,7 @@ string BrokerJson(){
 string BuildSnapshot(bool automatic) {
   CalculateCurrent();datetime now=TimeGMT();string id=(string)AccountInfoInteger(ACCOUNT_LOGIN)+"-"+(string)((long)now)+"-"+(string)GetTickCount();double bal=AccountInfoDouble(ACCOUNT_BALANCE),eq=AccountInfoDouble(ACCOUNT_EQUITY);double dd=bal>0?MathMax(0,(bal-eq)/bal*100):Unavailable();
   string j="{\"schema_version\":\"1.0\",\"snapshot_id\":"+JStr(id)+",\"timestamp_utc\":"+JStr(Iso(now))+",\"source\":{\"ea_name\":"+JStr(EA_NAME)+",\"ea_version\":"+JStr(EA_VERSION)+",\"terminal_build\":"+IntegerToString((int)TerminalInfoInteger(TERMINAL_BUILD))+",\"broker_company\":"+JStr(AccountInfoString(ACCOUNT_COMPANY))+",\"trade_server\":"+JStr(AccountInfoString(ACCOUNT_SERVER))+",\"account_identifier\":"+JStr((string)AccountInfoInteger(ACCOUNT_LOGIN))+",\"send_mode\":"+JStr(automatic?"automatic":"manual")+"},";
-  j+="\"account\":{\"currency\":"+JStr(AccountInfoString(ACCOUNT_CURRENCY))+",\"balance\":"+JNum(bal)+",\"equity\":"+JNum(eq)+",\"used_margin\":"+JNum(AccountInfoDouble(ACCOUNT_MARGIN))+",\"free_margin\":"+JNum(AccountInfoDouble(ACCOUNT_MARGIN_FREE))+",\"margin_level_pct\":"+JNum(AccountInfoDouble(ACCOUNT_MARGIN_LEVEL))+",\"floating_profit_loss\":"+JNum(AccountInfoDouble(ACCOUNT_PROFIT))+"},";
+  j+="\"account\":{\"currency\":"+JStr(AccountInfoString(ACCOUNT_CURRENCY))+",\"trade_mode\":"+JStr(EnumToString((ENUM_ACCOUNT_TRADE_MODE)AccountInfoInteger(ACCOUNT_TRADE_MODE)))+",\"balance\":"+JNum(bal)+",\"equity\":"+JNum(eq)+",\"used_margin\":"+JNum(AccountInfoDouble(ACCOUNT_MARGIN))+",\"free_margin\":"+JNum(AccountInfoDouble(ACCOUNT_MARGIN_FREE))+",\"margin_level_pct\":"+JNum(AccountInfoDouble(ACCOUNT_MARGIN_LEVEL))+",\"floating_profit_loss\":"+JNum(AccountInfoDouble(ACCOUNT_PROFIT))+"},";
   j+="\"portfolio_metrics\":{\"net_portfolio_exposure_usd\":"+JNum(portfolio_net_usd)+",\"gross_portfolio_exposure_usd\":"+JNum(portfolio_gross_usd)+",\"net_portfolio_leverage\":"+JNum(eq>0?portfolio_net_usd/eq:Unavailable())+",\"gross_portfolio_leverage\":"+JNum(eq>0?portfolio_gross_usd/eq:Unavailable())+",\"account_current_drawdown_pct\":"+JNum(dd)+",\"required_deposit_for_gross_portfolio_usd\":"+JNum(eq>0?MathMax(0,portfolio_gross_usd/MaxLeverage-eq):Unavailable())+"},";
   j+="\"symbol_metrics\":[{\"symbol\":"+JStr(_Symbol)+",\"net_symbol_exposure_usd\":"+JNum(current.net_usd)+",\"long_symbol_notional_usd\":"+JNum(current.long_usd)+",\"short_symbol_notional_usd\":"+JNum(current.short_usd)+",\"net_symbol_leverage\":"+JNum(current.net_leverage)+",\"break_even_price\":"+JNum(current.break_even)+",\"break_even_status\":"+JStr(current.break_even_status)+",\"final_leverage_price\":"+JNum(current.final_price)+",\"final_leverage_status\":"+JStr(current.final_leverage_status)+",\"required_deposit_for_active_symbol_usd\":"+JNum(current.required_deposit)+",\"annualized_long_swap_rate_pct\":"+JNum(current.long_swap_pct)+",\"annualized_short_swap_rate_pct\":"+JNum(current.short_swap_pct)+",\"current_symbol_annualized_swap_cost_usd\":"+JNum(current.annual_swap_usd)+",\"next_buy_net_symbol_leverage\":"+JNum(current.next_buy_leverage)+",\"next_sell_net_symbol_leverage\":"+JNum(current.next_sell_leverage)+"}],";
   j+="\"positions\":"+PositionJson()+",\"pending_orders\":"+OrdersJson()+",\"broker_symbol_data\":"+BrokerJson()+",\"swap_metrics\":{\"portfolio_annualized_swap_cost_usd\":"+JNum(portfolio_swap_usd)+",\"portfolio_annual_swap_burden_pct_equity\":"+JNum(eq>0?portfolio_swap_usd/eq*100:Unavailable())+"},\"trade_history_delta\":"+TradeHistoryJson()+",\"calculation_status\":{\"active_symbol\":"+JStr(current.status)+",\"swap\":"+JStr(current.swap_status)+",\"trade_history_window_days\":7,\"commission_convention\":\"EXCLUDES_UNKNOWN_FUTURE_CLOSING_COMMISSION\"}}";return j;

@@ -61,6 +61,7 @@ export default function FunSidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openCategories, setOpenCategories] = useState(() => categoryExpansionState);
   const showLabels = isMobileMenuOpen;
+  const utilityLayout = showLabels ? "justify-start gap-3 px-3" : "justify-center px-0";
   useEffect(() => { if (isMobileMenuOpen) mobileCloseRef.current?.focus(); }, [isMobileMenuOpen]);
   useEffect(() => {
     if (!isMobileMenuOpen) return;
@@ -144,18 +145,18 @@ export default function FunSidebar() {
             </div>
           </div>
           <div className="shrink-0 border-t border-gray-200 bg-white px-2 py-2 dark:border-[#1F1F23] dark:bg-[#0F0F12]">
-            {isAuthenticated && accessToken && <button ref={chatTriggerRef} type="button" aria-label="دستیار GreenPeak" aria-expanded={chatOpen} aria-controls={chatOpen ? "greenpeak-chat-dialog" : undefined} aria-haspopup="dialog" title="دستیار GreenPeak" onClick={() => setChatOpen((open) => !open)} className={`relative flex h-9 w-full min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors ${itemFocus} ${chatOpen ? "bg-primary/10 font-medium text-primary" : neutralItem}`}>
+            {isAuthenticated && accessToken && <button ref={chatTriggerRef} type="button" aria-label="دستیار GreenPeak" aria-expanded={chatOpen} aria-controls={chatOpen ? "greenpeak-chat-dialog" : undefined} aria-haspopup="dialog" title="دستیار GreenPeak" onClick={() => setChatOpen((open) => !open)} className={`relative flex h-9 w-full min-w-0 items-center ${utilityLayout} rounded-lg text-sm transition-colors ${itemFocus} ${chatOpen ? "bg-primary/10 font-medium text-primary" : neutralItem}`}>
               {chatOpen && <span aria-hidden="true" className="absolute inset-y-2 right-0 w-[3px] rounded-full bg-primary" />}
               <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center text-primary"><MessageCircle className="h-5 w-5 animate-[chat-icon-pulse_3s_ease-in-out_infinite] motion-reduce:animate-none" /></span>
               {showLabels && <span className="truncate">دستیار GreenPeak</span>}
             </button>}
-            <Link href="/help" aria-label="راهنما" aria-current={isHelpActive ? "page" : undefined} title="راهنما" onClick={() => setIsMobileMenuOpen(false)} className={`relative flex h-9 min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors ${itemFocus} ${isHelpActive ? "bg-primary/10 font-medium text-primary" : neutralItem}`}>
+            <Link href="/help" aria-label="راهنما" aria-current={isHelpActive ? "page" : undefined} title="راهنما" onClick={() => setIsMobileMenuOpen(false)} className={`relative flex h-9 min-w-0 items-center ${utilityLayout} rounded-lg text-sm transition-colors ${itemFocus} ${isHelpActive ? "bg-primary/10 font-medium text-primary" : neutralItem}`}>
               {isHelpActive && <span aria-hidden="true" className="absolute inset-y-2 right-0 w-[3px] rounded-full bg-primary" />}
               <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><HelpCircle className="h-5 w-5" /></span>
               {showLabels && <span className="truncate">راهنما</span>}
             </Link>
-            <ThemeToggle showLabel={showLabels} label="تم" className={showLabels ? "h-9 justify-start px-3" : "h-9 w-full rounded-lg"} />
-            <ProfileDropdown showLabel={showLabels} triggerLabel="حساب کاربری" triggerClassName="h-11 w-full justify-start rounded-lg px-2.5 py-2" />
+            <ThemeToggle showLabel={showLabels} label="تم" className={showLabels ? "h-9 justify-start px-3" : "h-9 w-full justify-center rounded-lg p-0"} />
+            <ProfileDropdown showLabel={showLabels} triggerLabel="حساب کاربری" triggerClassName={showLabels ? "h-11 w-full justify-start rounded-lg px-2.5 py-2" : "h-11 w-full justify-center rounded-lg p-0"} />
           </div>
         </div>
       </nav>

@@ -6,7 +6,7 @@ request; changing the role takes effect even for an existing signed session.
 Subscription status is independent of this role.
 
 Staff and administrators can use `/workplace`; only administrators can use its
-`users` and `tools` tabs and team attendance management. Its entry is in `/profile`. The existing `admin`
+`users` and `tools` tabs and team attendance management. Its entry is in the account menu. The existing `admin`
 role keeps every existing permission; attendance does not create accounts or
 run a role migration. Administrators assign `user`/`staff` through the users and access
 tab (`/workplace?tab=users`) or `PUT /api/v1/auth/users/{user_id}/staff-role`. This endpoint

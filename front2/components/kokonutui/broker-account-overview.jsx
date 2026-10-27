@@ -235,6 +235,12 @@ function AccountRow({ snapshot, onDelete, deleting }) {
 
 const comparisonAssetPriority = { sp500: 0, gold: 1, eurusd: 2, bitcoin: 3, ethereum: 4 }
 
+const comparisonAccountTypeLabel = (type) => ({
+  real: "ریل",
+  demo: "دمو",
+  contest: "مسابقه‌ای",
+}[type] || "نوع حساب نامشخص")
+
 const comparisonAssetLabel = (asset) => ({
   sp500: "S&P 500",
   gold: "طلا",
@@ -303,13 +309,14 @@ function ComparisonTable({ comparison, loading, error, onRetry }) {
   </div>
 
   return <div className="min-w-max">
-    <p className="sticky right-0 mb-2 w-fit rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2.5 py-1 text-[10px] text-muted-foreground">میانه داده‌های بی‌نام · بدون شماره حساب و هویت کاربر</p>
-    <table className="border-separate border-spacing-0 text-xs" aria-label="مقایسه ستونی هزینه‌های بروکرها">
+    <p className="sticky right-0 mb-2 w-fit rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2.5 py-1 text-[10px] text-muted-foreground">میانه داده‌های بی‌نام · تفکیک نوع حساب · بدون شماره حساب و هویت کاربر</p>
+    <table className="border-separate border-spacing-0 text-xs" aria-label="مقایسه ستونی هزینه‌های بروکرها با تفکیک نوع حساب">
       <thead>
         <tr>
           <th className="sticky right-0 top-0 z-30 min-w-[11rem] border-b bg-white px-3 py-2 text-right font-medium text-muted-foreground dark:bg-[#1F1F23]">شاخص مقایسه</th>
           {brokers.map((broker) => <th key={broker.broker_key} className="sticky top-0 z-20 min-w-[10rem] border-b bg-white px-3 py-2 text-center dark:bg-[#1F1F23]">
             <span className="block max-w-[10rem] truncate font-semibold text-foreground" title={broker.broker_name}>{broker.broker_name}</span>
+            <Badge variant="outline" className="mt-1 text-[10px]">{comparisonAccountTypeLabel(broker.account_type)}</Badge>
             {isAdmin && <span className="mt-0.5 block text-[9px] font-normal text-muted-foreground">{broker.sample_accounts} حساب · {broker.sample_users} کاربر</span>}
           </th>)}
         </tr>

@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import Link from "next/link"
 import Layout from "@/components/kokonutui/layout"
 import MT5Pairing from "@/components/dashboard/mt5-pairing"
 import ProfileSettings from "@/components/dashboard/profile-settings"
@@ -235,9 +234,6 @@ export default function ProfilePage() {
           </div>
           <div className="ms-auto flex flex-wrap items-center gap-2">
             <ProfileSettings key={userKey} notifications={<ProfileNotifications userKey={userKey} />} password={<ChangePassword />} />
-            {["staff", "admin"].includes(user?.role) && <nav aria-label="دسترسی‌های کاری و مدیریت" className="flex flex-wrap items-center gap-2">
-              <Button asChild size="sm" className="h-9"><Link href="/workplace">میز کار من</Link></Button>
-            </nav>}
           </div>
         </header>
 
@@ -248,7 +244,7 @@ export default function ProfilePage() {
           <CardContent className="grid gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_2fr] [&>*]:min-w-0">
             <div>
               <p className="text-sm text-muted-foreground">نام کاربری</p>
-              <p className="break-words font-medium" dir="auto">{user?.username || "-"}</p>
+              <p className="break-words text-right font-medium" dir="auto">{user?.username || "-"}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">نوع حساب</p>

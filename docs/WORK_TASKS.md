@@ -1,6 +1,6 @@
 # Internal work management
 
-Entry: **Profile → میز کار من → کارها**. The employee-management page also
+Entry: **Account menu → میز کار من → کارها**. The employee-management page also
 offers the same work tab to its verified administrator. Attendance remains a
 separate tab, with its forms mounted so switching tabs retains unsaved notes.
 Everything uses the existing `gp_users` identity, live `staff`/`admin` roles,

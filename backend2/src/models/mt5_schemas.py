@@ -96,6 +96,7 @@ class BrokerComparisonSymbol(BaseModel):
 class BrokerComparisonBroker(BaseModel):
     broker_key: str
     broker_name: str
+    account_type: Literal["real", "demo", "contest", "unknown"] = "unknown"
     sample_users: int = Field(ge=1)
     sample_accounts: int = Field(ge=1)
     latest_observation_utc: datetime | None = None

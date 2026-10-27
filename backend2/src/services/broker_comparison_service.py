@@ -3,6 +3,7 @@
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from hashlib import sha256
+import re
 from statistics import median
 from typing import Any, Iterable
 
@@ -78,8 +79,30 @@ def _asset_identity(symbol: Any) -> tuple[str, str]:
     return normalized.lower(), str(symbol or normalized)
 
 
-def _broker_key(name: str) -> str:
-    return sha256(name.casefold().encode("utf-8")).hexdigest()[:12]
+def _broker_key(name: str, account_type: str) -> str:
+    return sha256(f"{name.casefold()}\0{account_type}".encode("utf-8")).hexdigest()[:12]
+
+
+def _account_type(snapshot: dict[str, Any]) -> str:
+    """Prefer MT5's explicit trade mode; never assume an unmarked account is real."""
+    account = snapshot.get("account") or {}
+    aliases = {"0": "demo", "1": "contest", "2": "real", "demo": "demo",
+               "contest": "contest", "real": "real", "live": "real",
+               "account_trade_mode_demo": "demo", "account_trade_mode_contest": "contest",
+               "account_trade_mode_real": "real"}
+    for field in ("trade_mode", "account_type"):
+        value = account.get(field)
+        if value is not None:
+            if isinstance(value, bool) or not isinstance(value, (str, int)):
+                return "unknown"
+            return aliases.get(str(value).strip().casefold(), "unknown")
+    # Legacy experts did not send trade mode. Only use explicit server markers,
+    # including numbered server names; an absent/ambiguous marker stays unknown.
+    server = str(snapshot.get("source", {}).get("trade_server") or "").casefold()
+    markers = re.findall(r"(?<![a-z0-9])(?:demo|contest|real|live)(?:\d+)?(?![a-z0-9])", server)
+    types = {"real" if marker.startswith(("live", "real")) else "demo" if marker.startswith("demo") else "contest"
+             for marker in markers}
+    return types.pop() if len(types) == 1 else "unknown"
 
 
 def _broker_identity(snapshot: dict[str, Any]) -> str:
@@ -173,12 +196,12 @@ def aggregate_broker_comparison(
     snapshots: list[dict[str, Any]],
 ) -> dict[str, Any]:
     """Aggregate all current broker account snapshots without exposing identifiers."""
-    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for snapshot in snapshots:
         owner = str(snapshot.get("owner_user_id") or "").strip()
         broker = _broker_identity(snapshot)
         if owner and broker:
-            groups[broker].append(snapshot)
+            groups[(broker, _account_type(snapshot))].append(snapshot)
 
     eligible = groups
     coverage: Counter[str] = Counter()
@@ -195,7 +218,7 @@ def aggregate_broker_comparison(
     included_assets = fixed | set(dynamic)
 
     brokers: list[dict[str, Any]] = []
-    for normalized_name, items in eligible.items():
+    for (normalized_name, account_type), items in eligible.items():
         display_names = [str(item["source"]["broker_company"]).strip() for item in items]
         owners = {str(item["owner_user_id"]) for item in items}
         currencies = Counter(str(item.get("account", {}).get("currency") or "").upper() for item in items)
@@ -233,8 +256,9 @@ def aggregate_broker_comparison(
         timestamps = [item.get("timestamp_utc") for item in items if isinstance(item.get("timestamp_utc"), datetime)]
         broker_name = Counter(display_names).most_common(1)[0][0]
         brokers.append({
-            "broker_key": _broker_key(normalized_name),
+            "broker_key": _broker_key(normalized_name, account_type),
             "broker_name": broker_name,
+            "account_type": account_type,
             "sample_users": len(owners),
             "sample_accounts": len(items),
             "latest_observation_utc": max(timestamps) if timestamps else None,
@@ -245,7 +269,8 @@ def aggregate_broker_comparison(
             "dividend_sample_records": len(dividend),
             "symbols": symbols,
         })
-    brokers.sort(key=lambda broker: (-broker["sample_accounts"], broker["broker_name"].casefold()))
+    type_order = {"real": 0, "demo": 1, "contest": 2, "unknown": 3}
+    brokers.sort(key=lambda broker: (" ".join(broker["broker_name"].casefold().split()), type_order[broker["account_type"]]))
 
     return {
         "generated_at_utc": datetime.now(timezone.utc),

@@ -63,7 +63,7 @@ export default function Workplace() {
   }
   if (isLoading) return <p className="p-6" role="status" dir="rtl">در حال بررسی دسترسی…</p>
   if (!["staff", "admin"].includes(user?.role)) return <p className="p-6" dir="rtl">دسترسی لازم برای این بخش را ندارید.</p>
-  return <Layout><div dir="rtl" className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
+  return <Layout><div dir="rtl" className={`${section === "attendance" ? "w-full" : "mx-auto max-w-6xl"} space-y-6 p-4 md:p-6`}>
     <Tabs value={section} onValueChange={changeSection} dir="rtl" className="space-y-5">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex shrink-0 items-center gap-2 text-2xl font-bold"><BriefcaseBusiness className="h-6 w-6 text-primary" />میز کار من</h1>

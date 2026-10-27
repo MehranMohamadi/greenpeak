@@ -1,7 +1,7 @@
 # GreenPeak workplace
 
-`/workplace` is the shared internal workspace, linked once from the profile and
-account menu. It contains **کارها**, **حضور و غیاب**, and, for administrators only,
+`/workplace` is the shared internal workspace, linked from the account menu.
+It contains **کارها**, **حضور و غیاب**, and, for administrators only,
 **کاربران و دسترسی‌ها** and **تنظیمات و ابزارها**. Tasks are the default tab;
 `?tab=attendance` opens personal attendance. Administrators switch to
 `?tab=attendance&scope=team` for current presence, monthly summaries, individual
@@ -60,6 +60,8 @@ These operations also work on standalone MongoDB without replica-set transaction
 ## Time and reporting
 
 Clock-in/out use server UTC instants, with no client-supplied attendance clock.
+They run only on the employee's explicit clock-in/out button clicks; opening,
+refreshing, hiding or leaving the workplace never starts or closes a session.
 Manual corrections require offset-aware timestamps and a reason. Future times,
 exit-before-entry and overlapping sessions are rejected. Multiple consecutive
 sessions per day are supported; an open session must be closed before a new one.
@@ -85,6 +87,16 @@ checks protect saved text from concurrent updates. The UI retains dirty activity
 text on a background refresh and asks for a refresh when the revision conflicts.
 Activity history is preserved. Stable session/user IDs and the separate workplace
 service leave room for task references and future work-report modules.
+
+Attendance uses the full available page width. Monthly report entries are compact
+full-width rows with date, entry/exit, daily allocated duration and an inline
+correction button. Multiple sessions retain their individual rows and show the
+day's total once; overnight entries retain their actual dates and server-calculated
+daily durations. Activities and audit/request history expand under **جزئیات**.
+Correction opens a dialog, including for the current open session. Employee
+requests keep their existing administrator approval flow and show pending status
+without altering the recorded times. Activity and correction textareas start at
+two lines and can be resized.
 
 ## API
 
