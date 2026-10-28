@@ -77,6 +77,7 @@ import {
   positionIdentifier,
   positiveRule,
   scenarioEstimate,
+  scenarioSymbolOptions,
   stepTradePrice,
   tradeAssetVolume,
   tradeInputErrors,
@@ -96,6 +97,17 @@ function responseError(body, status) {
 function accountName(snapshot) {
   const source = snapshot?.source || {}
   return [source.broker_company, source.trade_server, source.account_identifier].filter(Boolean).join(" · ") || "حساب معاملاتی"
+}
+
+function RiskAccountSelect({ id, snapshots, snapshot, onAccountChange }) {
+  return <Select required dir="rtl" value={accountKey(snapshot)} onValueChange={onAccountChange}>
+    <SelectTrigger id={id} aria-required="true" className="h-9 min-w-0 px-2 text-xs [&>span]:min-w-0 [&>span]:truncate">
+      <SelectValue><span className="block truncate">{accountName(snapshot)}</span></SelectValue>
+    </SelectTrigger>
+    <SelectContent dir="rtl" className="w-[min(90vw,32rem)] max-w-[calc(100vw-2rem)]">
+      {snapshots.map((item) => <SelectItem key={accountKey(item)} value={accountKey(item)}><span className="whitespace-normal break-words">{accountName(item)}</span></SelectItem>)}
+    </SelectContent>
+  </Select>
 }
 
 function formatTehranTimestamp(value) {
@@ -378,14 +390,7 @@ function TradeReviewPanel({ open, onOpenChange, snapshots, onAccountChange, snap
         <form ref={formRef} onSubmit={runReview} noValidate className="space-y-4">
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           <TradeReviewField id="trade-broker" label="بروکر" required>
-            <Select required value={accountKey(snapshot)} onValueChange={onAccountChange}>
-              <SelectTrigger id="trade-broker" aria-required="true" className="h-9 min-w-0 px-2 text-xs [&>span]:min-w-0 [&>span]:truncate">
-                <SelectValue><span className="block truncate">{accountName(snapshot)}</span></SelectValue>
-              </SelectTrigger>
-              <SelectContent dir="rtl" className="w-[min(90vw,32rem)] max-w-[calc(100vw-2rem)]">
-                {snapshots.map((item) => <SelectItem key={accountKey(item)} value={accountKey(item)}><span className="whitespace-normal break-words">{accountName(item)}</span></SelectItem>)}
-              </SelectContent>
-            </Select>
+            <RiskAccountSelect id="trade-broker" snapshots={snapshots} snapshot={snapshot} onAccountChange={onAccountChange} />
           </TradeReviewField>
           <TradeReviewField id="trade-symbol" label="نماد" required error={inputErrors.symbol}>
             <Select required value={draft.symbol || undefined} onValueChange={selectSymbol}>
@@ -538,7 +543,7 @@ function PlannedTradeRow({ plan, onConfirmTicket, onDeletePlan }) {
   </div>
 }
 
-function TradeAllocationDialog({ open, onOpenChange, snapshot, plans, openRisk, onConfirmTicket, onDeletePlan, analysis, focusSection, storageError }) {
+function TradeAllocationDialog({ open, onOpenChange, snapshots, onAccountChange, snapshot, plans, openRisk, onConfirmTicket, onDeletePlan, analysis, focusSection, storageError }) {
   const currency = snapshot?.account?.currency || "USD"
   const liveTrades = [
     ...openRisk.positions.map((trade) => ({ trade, kind: "position" })),
@@ -559,8 +564,11 @@ function TradeAllocationDialog({ open, onOpenChange, snapshot, plans, openRisk, 
       <DialogHeader className="pl-8 text-right sm:text-right">
         <DialogTitle>تخصیص و ارزیابی</DialogTitle>
         <DialogDescription>شمارهٔ تیکت را از معاملات باز یا سفارش‌های در انتظار کپی و مقابل برنامه وارد کنید؛ سپس «تأیید» را بزنید تا تخصیص و انطباق ثبت شود. برنامه‌ها و تخصیص‌ها در همین مرورگر برای حساب انتخاب‌شده ذخیره می‌شوند.</DialogDescription>
-        <p className="break-words text-xs text-foreground">{accountName(snapshot)}</p>
       </DialogHeader>
+      <div className="min-w-0 space-y-1.5">
+        <Label htmlFor="allocation-broker">بروکر و حساب</Label>
+        <RiskAccountSelect id="allocation-broker" snapshots={snapshots} snapshot={snapshot} onAccountChange={onAccountChange} />
+      </div>
       <section className="min-w-0 space-y-2" aria-labelledby="planned-trades-title">
         <div className="flex items-center justify-between gap-2"><h3 id="planned-trades-title" className="text-sm font-semibold">معاملات برنامه‌ریزی‌شده</h3><Badge variant="secondary">{plans.length} برنامه</Badge></div>
         <ScrollArea dir="rtl" className="h-60 w-full min-w-0 rounded-lg border">
@@ -608,13 +616,17 @@ function TradeAllocationDialog({ open, onOpenChange, snapshot, plans, openRisk, 
   </Dialog>
 }
 
-function DailyPlanDialog({ open, onOpenChange, rules, setRules, rulesSaved, onSaveRules, history, maxTrades }) {
+function DailyPlanDialog({ open, onOpenChange, snapshots, onAccountChange, snapshot, rules, setRules, rulesSaved, onSaveRules, history, maxTrades }) {
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent dir="rtl" className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-xl overflow-y-auto">
       <DialogHeader className="pl-8 text-right sm:text-right">
         <DialogTitle>برنامه</DialogTitle>
         <DialogDescription>حدهای شخصی روی همین مرورگر و برای حساب انتخاب‌شده ذخیره می‌شوند.</DialogDescription>
       </DialogHeader>
+      <div className="min-w-0 space-y-1.5">
+        <Label htmlFor="daily-plan-broker">بروکر و حساب</Label>
+        <RiskAccountSelect id="daily-plan-broker" snapshots={snapshots} snapshot={snapshot} onAccountChange={onAccountChange} />
+      </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <RuleField label="حداکثر ریسک هر معامله" suffix="٪" value={rules.maxTradeRiskPct} onChange={(value) => setRules((current) => ({ ...current, maxTradeRiskPct: value }))} />
         <RuleField label="حداکثر ریسک باز" suffix="٪" value={rules.maxOpenRiskPct} onChange={(value) => setRules((current) => ({ ...current, maxOpenRiskPct: value }))} />
@@ -637,12 +649,21 @@ function ScenarioDialog({ open, onOpenChange, scenarioSymbols, selectedScenarioS
         <DialogDescription>اثر خطی یک شوک قیمتی روی Exposure خالص نماد انتخاب‌شده را بررسی کنید.</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
-        <div className="grid grid-cols-[1fr_110px] gap-3">
-          <Select value={selectedScenarioSymbol || undefined} onValueChange={onSymbolChange}><SelectTrigger><SelectValue placeholder="نماد سناریو" /></SelectTrigger><SelectContent>{scenarioSymbols.map((symbol) => <SelectItem key={symbol} value={symbol}>{symbol}</SelectItem>)}</SelectContent></Select>
-          <Input dir="ltr" type="number" min="-20" max="20" step="1" value={shockPct} onChange={(event) => onShockChange(Number(event.target.value))} />
+        <div className="grid grid-cols-[minmax(0,1fr)_130px] gap-3">
+          <div className="min-w-0 space-y-1.5">
+            <Label htmlFor="scenario-symbol">نماد</Label>
+            <Select dir="rtl" value={selectedScenarioSymbol || undefined} onValueChange={onSymbolChange}><SelectTrigger id="scenario-symbol"><SelectValue placeholder="نماد سناریو" /></SelectTrigger><SelectContent>{scenarioSymbols.map(({ symbol, label }) => <SelectItem key={symbol} value={symbol}>{label}</SelectItem>)}</SelectContent></Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="scenario-shock">تغییر قیمت (درصد)</Label>
+            <div className="relative" dir="ltr">
+              <Input id="scenario-shock" aria-describedby="scenario-shock-help" className="pr-7" type="number" min="-20" max="20" step="1" value={shockPct} onChange={(event) => onShockChange(Number(event.target.value))} />
+              <span aria-hidden="true" className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+            </div>
+          </div>
         </div>
-        <Slider dir="ltr" min={-20} max={20} step={1} value={[shockPct]} onValueChange={([value]) => onShockChange(value)} />
-        <p className="text-[10px] leading-5 text-muted-foreground">بازه شوک از ۲۰٪- تا ۲۰٪+ است. نتیجه بر اساس Exposure ثبت‌شده در آخرین داده محاسبه می‌شود.</p>
+        <Slider aria-label="درصد تغییر قیمت نماد" dir="ltr" min={-20} max={20} step={1} value={[shockPct]} onValueChange={([value]) => onShockChange(value)} />
+        <p id="scenario-shock-help" className="text-[10px] leading-5 text-muted-foreground">عدد منفی یعنی افت قیمت و عدد مثبت یعنی رشد قیمت؛ بازه از <bdi>-20%</bdi> تا <bdi>+20%</bdi> است. نتیجه بر اساس اکسپوژر ثبت‌شده در آخرین داده محاسبه می‌شود.</p>
       </div>
       <dl className="grid grid-cols-2 gap-2">
         <div className={`${insetClass} p-4`}><dt className="text-[10px] text-muted-foreground">اثر تقریبی بر Equity</dt><dd className={`mt-2 text-base font-semibold tabular-nums ${scenario.pnl < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`} dir="ltr">{scenario.available ? money(scenario.pnl, "USD") : "—"}</dd></div>
@@ -659,6 +680,7 @@ export default function RiskManagementCenter() {
   const [serverLeverage, setServerLeverage] = useState(null)
   const [serverSymbols, setServerSymbols] = useState([])
   const [selectedAccount, setSelectedAccount] = useState(ALL_ACCOUNTS)
+  const [selectedToolAccount, setSelectedToolAccount] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [reviewOpen, setReviewOpen] = useState(false)
@@ -719,6 +741,7 @@ export default function RiskManagementCenter() {
       setServerLeverage(null)
       setServerSymbols([])
       setSelectedAccount(ALL_ACCOUNTS)
+      setSelectedToolAccount("")
       setError("برای مشاهده مدیریت ریسک ابتدا وارد حساب کاربری شوید")
       setLoading(false)
       return
@@ -754,9 +777,10 @@ export default function RiskManagementCenter() {
     return () => { window.clearInterval(timer); requestController.current?.abort() }
   }, [load])
 
-  const snapshot = useMemo(() => snapshots.find((item) => accountKey(item) === selectedAccount) || snapshots[0] || null, [snapshots, selectedAccount])
   const allAccounts = selectedAccount === ALL_ACCOUNTS
-  const storageKey = !allAccounts && snapshot ? accountKey(snapshot) : ""
+  const snapshot = useMemo(() => snapshots.find((item) => accountKey(item) === (allAccounts ? selectedToolAccount : selectedAccount)) || snapshots[0] || null, [snapshots, selectedAccount, selectedToolAccount, allAccounts])
+  const onToolAccountChange = allAccounts ? setSelectedToolAccount : setSelectedAccount
+  const storageKey = snapshot ? accountKey(snapshot) : ""
   const tradePlans = planCollection.accountKey === storageKey ? planCollection.plans : []
 
   useEffect(() => {
@@ -788,8 +812,9 @@ export default function RiskManagementCenter() {
       setServerLeverage(null)
       setServerSymbols([])
       setSnapshots((current) => withoutBroker(current, broker))
-      if (!allAccounts && snapshot?.source?.broker_company === broker) {
-        setSelectedAccount(ALL_ACCOUNTS)
+      if (snapshot?.source?.broker_company === broker) {
+        if (!allAccounts) setSelectedAccount(ALL_ACCOUNTS)
+        setSelectedToolAccount("")
         setReviewOpen(false)
         setAllocationOpen(false)
         setDailyPlanOpen(false)
@@ -845,8 +870,8 @@ export default function RiskManagementCenter() {
   const maxLeverage = positiveRule(rules.maxGrossLeverage)
   const minMargin = positiveRule(rules.minMarginLevelPct)
   const maxTrades = positiveRule(rules.maxTradesPerDay)
-  const scenarioSymbols = (snapshot?.symbol_metrics || []).map((item) => item?.symbol).filter(Boolean)
-  const selectedScenarioSymbol = scenarioSymbols.includes(scenarioSymbol) ? scenarioSymbol : scenarioSymbols[0] || ""
+  const scenarioSymbols = scenarioSymbolOptions(snapshot)
+  const selectedScenarioSymbol = scenarioSymbols.some(({ symbol }) => symbol === scenarioSymbol) ? scenarioSymbol : scenarioSymbols[0]?.symbol || ""
   const scenario = scenarioEstimate(snapshot, selectedScenarioSymbol, shockPct)
   const overviewOpenRisk = allAccounts ? aggregate.openRisk : openRisk
   const symbolRisks = allAccounts ? serverSymbols : snapshot?.symbol_risks || []
@@ -957,9 +982,9 @@ export default function RiskManagementCenter() {
               <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={load} disabled={loading} aria-label="به‌روزرسانی داده" title="به‌روزرسانی داده"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
             </div>
             <div className="flex flex-wrap items-stretch gap-2 lg:justify-end">
-              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setDailyPlanOpen(true)} disabled={!snapshot || allAccounts} title={allAccounts ? "برای تنظیم برنامه، یک حساب را انتخاب کنید" : undefined}><ListChecks className="ml-2 h-4 w-4" />برنامه</Button>
-              <Button size="sm" className="h-9 w-auto" onClick={() => setReviewOpen(true)} disabled={!snapshot || allAccounts} title={allAccounts ? "برای بررسی معامله، یک حساب را انتخاب کنید" : undefined}><ClipboardCheck className="ml-2 h-4 w-4" />بررسی معامله جدید</Button>
-              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => { setAllocationFocus(""); setAllocationOpen(true) }} disabled={!snapshot || allAccounts} title={allAccounts ? "برای تخصیص معامله، یک حساب را انتخاب کنید" : undefined}><Link2 className="ml-2 h-4 w-4" />تخصیص و ارزیابی</Button>
+              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setDailyPlanOpen(true)} disabled={!snapshot}><ListChecks className="ml-2 h-4 w-4" />برنامه</Button>
+              <Button size="sm" className="h-9 w-auto" onClick={() => setReviewOpen(true)} disabled={!snapshot}><ClipboardCheck className="ml-2 h-4 w-4" />بررسی معامله جدید</Button>
+              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => { setAllocationFocus(""); setAllocationOpen(true) }} disabled={!snapshot}><Link2 className="ml-2 h-4 w-4" />تخصیص و ارزیابی</Button>
             </div>
           </div>
         </div>
@@ -994,11 +1019,11 @@ export default function RiskManagementCenter() {
       </CardContent>
     </Card>
 
-    {snapshot && !allAccounts && <>
-      <DailyPlanDialog open={dailyPlanOpen} onOpenChange={setDailyPlanOpen} rules={rules} setRules={setRules} rulesSaved={rulesSaved} onSaveRules={saveRules} history={history} maxTrades={maxTrades} />
-      <ScenarioDialog open={scenarioOpen} onOpenChange={setScenarioOpen} scenarioSymbols={scenarioSymbols} selectedScenarioSymbol={selectedScenarioSymbol} onSymbolChange={setScenarioSymbol} shockPct={shockPct} onShockChange={setShockPct} scenario={scenario} />
-      <TradeReviewPanel key={storageKey} open={reviewOpen} onOpenChange={setReviewOpen} snapshots={snapshots} onAccountChange={setSelectedAccount} snapshot={snapshot} rules={rules} openRisk={openRisk} draft={currentDraft} setDraft={updateDraft} onSavePlan={savePlan} saved={savedPlan} storageError={planStorageError} />
-      <TradeAllocationDialog open={allocationOpen} onOpenChange={setAllocationOpen} snapshot={snapshot} plans={tradePlans} openRisk={openRisk} onConfirmTicket={confirmTicket} onDeletePlan={deletePlan} analysis={behaviorAnalysis} focusSection={allocationFocus} storageError={planStorageError} />
+    {snapshot && <>
+      <DailyPlanDialog open={dailyPlanOpen} onOpenChange={setDailyPlanOpen} snapshots={snapshots} onAccountChange={onToolAccountChange} snapshot={snapshot} rules={rules} setRules={setRules} rulesSaved={rulesSaved} onSaveRules={saveRules} history={history} maxTrades={maxTrades} />
+      {!allAccounts && <ScenarioDialog open={scenarioOpen} onOpenChange={setScenarioOpen} scenarioSymbols={scenarioSymbols} selectedScenarioSymbol={selectedScenarioSymbol} onSymbolChange={setScenarioSymbol} shockPct={shockPct} onShockChange={setShockPct} scenario={scenario} />}
+      <TradeReviewPanel key={storageKey} open={reviewOpen} onOpenChange={setReviewOpen} snapshots={snapshots} onAccountChange={onToolAccountChange} snapshot={snapshot} rules={rules} openRisk={openRisk} draft={currentDraft} setDraft={updateDraft} onSavePlan={savePlan} saved={savedPlan} storageError={planStorageError} />
+      <TradeAllocationDialog open={allocationOpen} onOpenChange={setAllocationOpen} snapshots={snapshots} onAccountChange={onToolAccountChange} snapshot={snapshot} plans={tradePlans} openRisk={openRisk} onConfirmTicket={confirmTicket} onDeletePlan={deletePlan} analysis={behaviorAnalysis} focusSection={allocationFocus} storageError={planStorageError} />
     </>}
   </>
 }

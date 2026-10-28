@@ -21,6 +21,7 @@ const {
   planTicketIdentifier,
   previewTrade,
   scenarioEstimate,
+  scenarioSymbolOptions,
   stepTradePrice,
   tradeAssetVolume,
   tradeInputErrors,
@@ -139,6 +140,18 @@ assert(latestSiteQuote([], "ohlc") === null && latestSiteQuote({ data: [{ date: 
 const scenario = scenarioEstimate(baseSnapshot, "XAUUSD", -5)
 assert(scenario.pnl === -500, "Scenario P/L is incorrect")
 assert(scenario.equityAfter === 9_500, "Scenario equity is incorrect")
+const defaultScenarioSymbols = scenarioSymbolOptions(null)
+assert(defaultScenarioSymbols.some((item) => item.symbol === "XAUUSD" && item.label.includes("طلا")), "Gold must be available and named in scenario choices")
+assert(defaultScenarioSymbols.some((item) => item.symbol === "US500" && item.label.includes("اس‌اندپی")), "S&P 500 must be available and named in scenario choices")
+const portfolioScenarioSymbols = scenarioSymbolOptions({
+  symbol_metrics: [{ symbol: "GOLD" }, { symbol: "US500.cash" }],
+  positions: [{ symbol: "EURUSD" }, { symbol: "gold" }, { symbol: " " }],
+  pending_orders: [{ symbol: "BTCUSD" }],
+  broker_symbol_data: [{ symbol: "UNHELD" }],
+})
+assert(portfolioScenarioSymbols.map((item) => item.symbol).join(",") === "GOLD,US500.cash,BTCUSD,EURUSD", "Scenario choices must preserve portfolio broker aliases, include orders, deduplicate case variants, and exclude unheld broker instruments")
+assert(scenarioEstimate({ ...baseSnapshot, symbol_metrics: [{ symbol: "GOLD", net_symbol_exposure_usd: 10_000 }] }, portfolioScenarioSymbols[0].symbol, -5).pnl === -500, "Scenario selections must resolve the actual broker exposure")
+assert(!scenarioEstimate(baseSnapshot, "US500", -5).available, "A default symbol without exposure must not fabricate scenario results")
 
 assert(stepTradePrice("", 3000, 0.01, -1) === 2999.99, "An empty SL must step from the price, not zero")
 assert(stepTradePrice("", 3000, 0.01, 1) === 3000.01, "An empty TP must step from the price, not zero")
