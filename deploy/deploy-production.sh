@@ -117,6 +117,10 @@ fi
 mkdir -p "$legacy_root/backend2/instance/chat" "$release_root/backend2/instance"
 ln -s "$legacy_root/backend2/instance/chat" "$release_root/backend2/instance/chat"
 
+# Keep LLM usage, admin priorities, cooldowns and one-shot receipts across releases.
+mkdir -p "$legacy_root/backend2/instance/llm"
+ln -s "$legacy_root/backend2/instance/llm" "$release_root/backend2/instance/llm"
+
 if [[ -n "$previous_target" \
   && -x "$previous_target/backend2/.venv/bin/python" \
   && -f "$previous_target/backend2/requirements.txt" ]] \

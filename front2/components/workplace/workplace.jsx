@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import WorkplaceAttendance from "@/components/workplace/workplace-attendance"
 import WorkplaceUsers from "@/components/workplace/workplace-users"
 import WorkplaceTools from "@/components/workplace/workplace-tools"
+import WorkplaceLLM from "@/components/workplace/workplace-llm"
 import WorkTasks from "@/components/workplace/work-tasks"
 import { workTaskIdFromSearch } from "@/lib/work-tasks.mjs"
 import { workplaceTab, workplaceTabs } from "@/lib/workplace-navigation.mjs"
@@ -74,6 +75,7 @@ export default function Workplace() {
       <TabsContent value="tasks" forceMount className="data-[state=inactive]:hidden">{(visited.has("tasks") || section === "tasks") && <WorkTasks initialTaskId={taskId} accountsRevision={accountsRevision} />}</TabsContent>
       <TabsContent value="attendance" forceMount className="data-[state=inactive]:hidden">{(visited.has("attendance") || section === "attendance") && <AttendanceTab accountsRevision={accountsRevision} />}</TabsContent>
       {isAdmin && <>
+        <TabsContent value="llm"><WorkplaceLLM /></TabsContent>
         <TabsContent value="users" forceMount className="data-[state=inactive]:hidden">{(visited.has("users") || section === "users") && <WorkplaceUsers onUsersChanged={() => setAccountsRevision(value => value + 1)} />}</TabsContent>
         <TabsContent value="tools"><WorkplaceTools /></TabsContent>
       </>}

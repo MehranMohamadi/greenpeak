@@ -8,6 +8,8 @@ const API_BASE = configuredApiBase || "/api/v1";
 export { API_BASE };
 
 export const endpoints = {
+    llmAdmin: `${API_BASE}/admin/llm`,
+    llmConnectionTest: id => `${API_BASE}/admin/llm/${encodeURIComponent(id)}/test`,
     workplace: {
         tasks: `${API_BASE}/workplace/tasks`,
         task: id => `${API_BASE}/workplace/tasks/${encodeURIComponent(id)}`,

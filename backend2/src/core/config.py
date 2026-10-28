@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     greenpeak_llm_base_url: str = "https://api.gapgpt.app/v1"
     # Ordered direct providers; when set, the legacy single provider is unused.
     greenpeak_llm_providers: list[LLMEndpointSettings] = []
-    greenpeak_llm_router_db_path: Path = Path(__file__).parent.parent.parent / "instance" / "llm_router.db"
+    greenpeak_llm_router_db_path: Path = Path(__file__).parent.parent.parent / "instance" / "llm" / "llm_router.db"
     greenpeak_chat_db_path: Path = Path(__file__).parent.parent.parent / "instance" / "chat" / "chat.db"
     greenpeak_chat_retention_days: int = 30
     greenpeak_chat_daily_limit: int = 100

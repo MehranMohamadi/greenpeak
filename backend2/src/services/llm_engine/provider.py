@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import logging
+import sqlite3
 from typing import Any, Protocol
 
 import httpx
 
 
 MAX_PROVIDER_TIMEOUT = 30.0
+logger = logging.getLogger(__name__)
 
 
 class InvalidLLMResponse(ValueError):
@@ -59,19 +62,33 @@ class OpenAICompatibleProvider:
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.timeout = min(timeout, MAX_PROVIDER_TIMEOUT)
+        self.usage_store = None
+        self.usage_key = None
 
     def generate_json(self, system_prompt: str, evidence: dict[str, Any]) -> dict[str, Any]:
-        response = httpx.post(
-            f"{self.base_url}/chat/completions",
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            json={"model": self.model_id, "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": json.dumps(evidence, ensure_ascii=False, default=str)}]},
-            timeout=self.timeout,
-        )
-        response.raise_for_status()
+        response, payload = None, None
         try:
-            content = response.json()["choices"][0]["message"]["content"]
-            if not isinstance(content, str) or not content.strip():
-                raise InvalidLLMResponse("LLM response content is empty")
-            return decode_json_content(content)
-        except (ValueError, KeyError, IndexError, TypeError) as exc:
-            raise InvalidLLMResponse("LLM response must contain a JSON object") from exc
+            response = httpx.post(
+                f"{self.base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json={"model": self.model_id, "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": json.dumps(evidence, ensure_ascii=False, default=str)}]},
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            try:
+                payload = response.json()
+                content = payload["choices"][0]["message"]["content"]
+                if not isinstance(content, str) or not content.strip():
+                    raise InvalidLLMResponse("LLM response content is empty")
+                return decode_json_content(content)
+            except (ValueError, KeyError, IndexError, TypeError) as exc:
+                raise InvalidLLMResponse("LLM response must contain a JSON object") from exc
+        finally:
+            if self.usage_store is not None:
+                try:
+                    self.usage_store.record(self.usage_key,
+                        response.status_code if response is not None else None,
+                        payload, response.headers if response is not None else {}, self.provider_id)
+                except sqlite3.Error:
+                    # Telemetry must not turn a valid paid response into a retry.
+                    logger.warning("LLM usage recording unavailable provider=%s", self.provider_id)

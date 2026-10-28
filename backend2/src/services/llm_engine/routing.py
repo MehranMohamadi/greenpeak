@@ -13,6 +13,7 @@ import httpx
 from pydantic import ValidationError
 
 from .provider import MAX_PROVIDER_TIMEOUT, DisabledProvider, InvalidLLMResponse, OpenAICompatibleProvider
+from .control import LLMControlStore, model_key
 
 
 logger = logging.getLogger(__name__)
@@ -77,15 +78,24 @@ def is_quota_error(response):
 
 
 class ProviderRouter:
-    def __init__(self, providers, db_path):
+    def __init__(self, providers, db_path, control_store=None):
         self.providers = providers
+        self.control_store = control_store
         self._selected = providers[0]
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as db:
             db.execute("CREATE TABLE IF NOT EXISTS provider_cooldowns (identity TEXT PRIMARY KEY, retry_at REAL NOT NULL)")
         now = time.time()
-        self._selected = next((p for p in providers if self._retry_at(p) <= now), providers[0])
+        ordered = self._ordered_providers()
+        self._selected = next((p for p in ordered if self._retry_at(p) <= now), ordered[0])
+
+    def _ordered_providers(self):
+        if self.control_store is None:
+            return self.providers
+        by_id = {p.usage_key: p for p in self.providers}
+        return [by_id[item['id']] for item in self.control_store.ordered(
+            [{'id': p.usage_key} for p in self.providers])]
 
     @property
     def provider_id(self):
@@ -129,7 +139,7 @@ class ProviderRouter:
     def _generate(self, system_prompt, evidence, validator=None):
         last_error = None
         earliest_retry = None
-        for provider in self.providers:
+        for provider in self._ordered_providers():
             now = time.time()
             retry_at = self._retry_at(provider)
             if retry_at > now:
@@ -169,7 +179,13 @@ class ProviderRouter:
 
 
 def create_llm_provider(settings, timeout=MAX_PROVIDER_TIMEOUT):
+    def track(provider, store):
+        provider.usage_store = store
+        provider.usage_key = model_key(provider.provider_id, provider.model_id, provider.base_url)
+        return provider
+
     if settings.greenpeak_llm_providers:
+        store = LLMControlStore(settings.greenpeak_llm_router_db_path)
         providers = []
         for item in settings.greenpeak_llm_providers:
             base_url = item.base_url or DIRECT_URLS.get(item.provider_id)
@@ -177,9 +193,9 @@ def create_llm_provider(settings, timeout=MAX_PROVIDER_TIMEOUT):
                 raise ValueError("LLM provider requires an HTTPS base URL")
             provider = OpenAICompatibleProvider(item.api_key.get_secret_value(), item.model, base_url, timeout)
             provider.provider_id = item.provider_id
-            providers.append(provider)
-        return ProviderRouter(providers, settings.greenpeak_llm_router_db_path)
+            providers.append(track(provider, store))
+        return ProviderRouter(providers, settings.greenpeak_llm_router_db_path, store)
     if llm_is_configured(settings):
-        return OpenAICompatibleProvider(settings.greenpeak_llm_api_key, settings.greenpeak_llm_model,
-                                        settings.greenpeak_llm_base_url, timeout)
+        return track(OpenAICompatibleProvider(settings.greenpeak_llm_api_key, settings.greenpeak_llm_model,
+                     settings.greenpeak_llm_base_url, timeout), LLMControlStore(settings.greenpeak_llm_router_db_path))
     return DisabledProvider()
