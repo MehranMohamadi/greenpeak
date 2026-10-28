@@ -28,6 +28,7 @@ import { useAuth } from "@/components/auth/auth-context"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
   Dialog,
   DialogContent,
@@ -133,22 +134,22 @@ function symbolMoveText(row) {
 }
 
 function RiskOverviewTable({ columns, symbols, allAccounts }) {
-  return <div className="space-y-3">
-    <div className="w-fit max-w-full overflow-hidden rounded-lg border">
+  const [expanded, setExpanded] = useState(false)
+  return <Collapsible open={expanded} onOpenChange={setExpanded} className="w-fit max-w-full overflow-hidden rounded-lg border">
       <Table className="w-auto min-w-[800px] text-right text-xs" aria-label="خلاصه مدیریت ریسک">
-        <TableHeader><TableRow className="bg-muted/40">{columns.map(({ key, label }) => <TableHead key={key} scope="col" className="h-10 whitespace-nowrap px-2 text-right text-xs">{label}</TableHead>)}</TableRow></TableHeader>
+        <TableHeader><TableRow className="bg-muted/40">{columns.map(({ key, label }) => <TableHead key={key} scope="col" className="h-10 whitespace-nowrap px-2 text-right text-xs">{label}</TableHead>)}<TableHead scope="col" className="w-8 px-1"><span className="sr-only">جزئیات</span></TableHead></TableRow></TableHeader>
         <TableBody><TableRow>{columns.map(({ key, value, detail, tone }) => <TableCell key={key} className={`px-2 py-4 text-right align-top ${tone === "danger" ? "text-rose-600 dark:text-rose-400" : tone === "warning" ? "text-amber-600 dark:text-amber-400" : ""}`}>
           <bdi className="whitespace-nowrap font-semibold tabular-nums">{value}</bdi>
           {detail && <p className="mt-1 text-[10px] leading-5 text-muted-foreground">{detail}</p>}
-        </TableCell>)}</TableRow></TableBody>
+        </TableCell>)}<TableCell className="w-8 px-1 py-3">
+          <CollapsibleTrigger asChild>
+            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" aria-label={expanded ? "بستن جزئیات اکسپوژر و اهرم نمادها" : "نمایش جزئیات اکسپوژر و اهرم نمادها"}>
+              <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
+            </Button>
+          </CollapsibleTrigger>
+        </TableCell></TableRow></TableBody>
       </Table>
-    </div>
-    <details className="group rounded-lg border">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 text-xs font-medium [&::-webkit-details-marker]:hidden">
-        جزئیات اکسپوژر و اهرم نمادها
-        <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" />
-      </summary>
-      <div className="space-y-3 border-t p-3">
+      <CollapsibleContent className="space-y-3 border-t p-3">
         <p className="text-xs leading-6 text-muted-foreground">{allAccounts ? "خرید و فروش هر نماد در کل حساب‌ها خالص می‌شود؛ اکسپوژر کل، جمع قدر مطلق خالص نمادهاست." : "خرید و فروش هر نماد خالص می‌شود؛ اکسپوژر کل، جمع قدر مطلق خالص نمادهاست."}</p>
         <Table className="min-w-[580px] text-right text-xs" aria-label="ریسک هر نماد">
           <TableHeader><TableRow>{["نماد", "اکسپوژر خالص (دلار)", "اهرم نماد", "حرکت قیمت تا اهرم ۱۰ نماد"].map((label) => <TableHead key={label} scope="col" className="px-2 text-right text-xs">{label}</TableHead>)}</TableRow></TableHeader>
@@ -160,9 +161,8 @@ function RiskOverviewTable({ columns, symbols, allAccounts }) {
           </TableRow>) : <TableRow><TableCell colSpan={4} className="p-3 text-right text-muted-foreground">نماد بازی برای نمایش وجود ندارد.</TableCell></TableRow>}</TableBody>
         </Table>
         <p className="text-[10px] leading-6 text-muted-foreground">برآورد با تغییر خطی قیمت همین نماد و ثابت‌بودن سایر نمادها، حجم و نرخ ارز محاسبه می‌شود؛ هزینه‌ها و تغییر مارجین لحاظ نشده‌اند. برای خالص فروش، افزایش قیمت حرکت نامطلوب است.</p>
-      </div>
-    </details>
-  </div>
+      </CollapsibleContent>
+  </Collapsible>
 }
 
 function RuleField({ label, value, suffix, onChange }) {
