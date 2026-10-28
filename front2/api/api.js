@@ -73,6 +73,7 @@ export const endpoints = {
         updateSchedule: `${API_BASE}/system/update-schedule`,
     },
     mt5: {
+        riskOverview: `${API_BASE}/mt5/risk-overview`,
         latestSnapshot: `${API_BASE}/mt5/snapshots/latest`,
         connections: `${API_BASE}/mt5/connections`,
         connectionKey: (connectionId) => `${API_BASE}/mt5/connections/${encodeURIComponent(connectionId)}/reveal-key`,

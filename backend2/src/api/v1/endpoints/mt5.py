@@ -13,6 +13,8 @@ from ....services.mt5_connection_service import ConnectionKeyConfigurationError,
 from ....services.mt5_snapshot_service import MT5ConnectionUnavailableError, MT5SnapshotService
 from .auth import no_store, require_admin, require_user
 from ....services.presentation import public_broker_comparison, public_mt5_snapshot
+from ....models.mt5_schemas import MT5RiskOverview
+from ....services.mt5_risk_service import build_risk_overview
 
 
 router = APIRouter(prefix="/mt5", tags=["mt5"], dependencies=[Depends(no_store)])
@@ -182,6 +184,18 @@ def latest_snapshots_by_account(
     if user.get("role") != "admin":
         return [MT5DisplaySnapshot.model_validate(public_mt5_snapshot(item.model_dump(mode="json"))) for item in validated]
     return validated
+
+
+@router.get("/risk-overview", response_model=MT5RiskOverview)
+def risk_overview(
+    user: Annotated[dict, Depends(require_user)],
+    service: Annotated[MT5SnapshotService, Depends(snapshot_service)],
+) -> MT5RiskOverview:
+    try:
+        items = service.latest_by_account(user["id"])
+    except PyMongoError as exc:
+        raise HTTPException(status_code=503, detail="Snapshot storage unavailable") from exc
+    return build_risk_overview([MT5Snapshot.model_validate(item) for item in items])
 
 
 @router.get("/broker-comparison", response_model=BrokerComparisonResponse | BrokerComparisonDisplayResponse)

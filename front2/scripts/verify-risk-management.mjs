@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises"
 
 const source = await readFile(new URL("../lib/risk-management.js", import.meta.url), "utf8")
 const {
+  aggregateRiskOverview,
   analyzeOpenRisk,
   assessAllocatedTrade,
   assessPlannedTrade,
@@ -34,6 +35,7 @@ function assert(condition, message) {
 }
 
 const baseSnapshot = {
+  leverage: { value: 2 },
   account: { currency: "USD", equity: 10_000 },
   portfolio_metrics: { gross_portfolio_exposure_usd: 20_000, gross_portfolio_leverage: 2 },
   broker_symbol_data: [{ symbol: "XAUUSD", tick_size: 0.01, tick_value: 1 }],
@@ -255,7 +257,7 @@ assert(behavior.lines.find((line) => line.key === "risk").tone === "success", "K
 assert(behavior.lines.find((line) => line.key === "after-loss").tone === "warning", "Observed volume increases after a loss must appear in the short behavior list")
 assert(behavior.lines.find((line) => line.key === "attention").text.includes("ناقص"), "Excluded incomplete histories must remain visible")
 const breachedBehavior = buildBehaviorAnalysis({
-  snapshot: { ...behaviorSnapshot, timestamp_utc: "2026-10-12T12:00:00Z", portfolio_metrics: { ...baseSnapshot.portfolio_metrics, gross_portfolio_leverage: 10 }, positions: [{ ...behaviorSnapshot.positions[0], stop_loss: 0 }] },
+  snapshot: { ...behaviorSnapshot, leverage: { value: 10 }, timestamp_utc: "2026-10-12T12:00:00Z", portfolio_metrics: { ...baseSnapshot.portfolio_metrics, gross_portfolio_leverage: 0 }, positions: [{ ...behaviorSnapshot.positions[0], stop_loss: 0 }] },
   rules: { ...behaviorRules, maxTradesPerDay: "2" }, plans: [assignedPlan], lifecycles, now: behaviorNow,
 })
 assert(breachedBehavior.lines.find((line) => line.key === "risk").tone === "danger", "A leverage rule breach must not be described as compliant")
@@ -265,5 +267,81 @@ assert(breachedBehavior.lines.find((line) => line.key === "attention").text.incl
 const emptyBehavior = buildBehaviorAnalysis({ snapshot: null, now: behaviorNow })
 assert(emptyBehavior.winRatePct === null && emptyBehavior.netResult === null, "Missing performance history must remain unknown, not zero")
 assert(emptyBehavior.lines.every((line) => !line.text.includes("NaN") && !line.text.includes("Infinity")), "Empty data must not produce invalid numeric summaries")
+
+const aggregateNow = new Date(baseSnapshot.timestamp_utc)
+const smallRiskyAccount = {
+  ...baseSnapshot,
+  leverage: { value: 50 },
+  source: { broker_company: "Small broker", account_identifier: "small" },
+  account: { currency: "USD", equity: 100, used_margin: 200, free_margin: -100, floating_profit_loss: -50 },
+  portfolio_metrics: { gross_portfolio_exposure_usd: 5_000, gross_portfolio_leverage: 0 },
+  symbol_metrics: [{ symbol: "XAUUSD", net_symbol_exposure_usd: -5_000 }],
+}
+const largeSafeAccount = {
+  ...baseSnapshot,
+  leverage: { value: 5_000 / 9_900 },
+  source: { broker_company: "Large broker", account_identifier: "large" },
+  account: { currency: "USD", equity: 9_900, used_margin: 500, free_margin: 9_400, floating_profit_loss: 50 },
+  portfolio_metrics: { gross_portfolio_exposure_usd: 5_000, gross_portfolio_leverage: 5_000 / 9_900 },
+  broker_symbol_data: [{ symbol: "XAUUSD", tick_size: 0.01, tick_value: 2 }],
+  symbol_metrics: [{ symbol: "XAUUSD", net_symbol_exposure_usd: 5_000 }],
+}
+const accountRules = { maxGrossLeverage: 10, minMarginLevelPct: 150, dailyLossLimitPct: 2 }
+const combined = aggregateRiskOverview([
+  { snapshot: smallRiskyAccount, rules: accountRules },
+  { snapshot: largeSafeAccount, rules: accountRules },
+], aggregateNow, { value: 1 })
+assert(combined.grossLeverage === 1, "Combined leverage must display the server result")
+assert(aggregateRiskOverview([{ snapshot: smallRiskyAccount }], aggregateNow).grossLeverage === null, "The browser must not compute leverage when the server result is absent")
+assert(aggregateRiskOverview([{ snapshot: smallRiskyAccount }], aggregateNow, { value: 7 }).grossLeverage === 7, "The server result must remain authoritative instead of recalculating a quotient in the browser")
+assert(aggregateRiskOverview([{ snapshot: { ...smallRiskyAccount, leverage: null }, rules: accountRules }], aggregateNow).accountWarnings[0].warnings.some((warning) => warning.includes("سرور")), "Missing server leverage must not fall back to a legacy snapshot field")
+assert(combined.marginLevel === 10_000 / 700 * 100, "Combined margin level must use total equity and total used margin")
+assert(combined.freeMargin === 9_300 && combined.floating === 0, "Account-currency amounts must sum across accounts")
+assert(combined.openRisk.total === 300 && combined.openRisk.riskPct === 3, "Each account must use its own symbol specifications before risk is summed")
+assert(combined.concentration.exposure === 10_000 && combined.concentration.sharePct === 100, "Opposing positions at different brokers must not cancel concentration")
+assert(combined.dailyLimitAmount === 200, "Daily budgets must sum each account's equity times its own daily limit")
+const lossBudget = aggregateRiskOverview([
+  { snapshot: { ...smallRiskyAccount, trade_history_delta: [{ entry_type: 1, profit: -50, timestamp_utc: aggregateNow.toISOString() }] }, rules: accountRules },
+  { snapshot: { ...largeSafeAccount, trade_history_delta: [{ entry_type: 1, profit: 100, timestamp_utc: aggregateNow.toISOString() }] }, rules: accountRules },
+], aggregateNow)
+assert(lossBudget.history.realizedToday === 50 && lossBudget.dailyRemaining === 150, "Profits in one account must not replenish another account's daily loss budget")
+assert(lossBudget.accountWarnings.some(({ warnings }) => warnings.some((warning) => warning.includes("بودجه زیان"))), "A breached individual loss budget must warn even when total budget remains positive")
+const isolatedWarnings = combined.accountWarnings.find(({ snapshot }) => snapshot.source.account_identifier === "small")
+assert(isolatedWarnings.warnings.some((warning) => warning.includes("اهرم حساب")), "A highly leveraged small account must warn even when combined leverage is low")
+assert(isolatedWarnings.warnings.some((warning) => warning.includes("سطح مارجین")), "A low-margin account must warn even when combined margin is healthy")
+assert(!combined.accountWarnings.some(({ snapshot }) => snapshot.source.account_identifier === "large"), "Healthy accounts with configured limits must not inherit another account's warning")
+const unconfigured = aggregateRiskOverview([{ snapshot: smallRiskyAccount }], aggregateNow)
+assert(unconfigured.accountWarnings[0].warnings.some((warning) => warning.includes("سقف اهرم")), "Missing leverage limits must remain visible")
+assert(unconfigured.accountWarnings[0].warnings.some((warning) => warning.includes("سطح مارجین")), "Margin below the 100-percent monitoring floor must warn without personal rules")
+const mixedCurrency = aggregateRiskOverview([
+  { snapshot: smallRiskyAccount },
+  { snapshot: { ...largeSafeAccount, account: { ...largeSafeAccount.account, currency: "EUR" } } },
+], aggregateNow)
+assert(mixedCurrency.grossLeverage === null && mixedCurrency.equity === null && mixedCurrency.openRisk.total === null && mixedCurrency.marginLevel === null, "Different account currencies cannot be added without conversion")
+assert(mixedCurrency.notices.length > 0 && mixedCurrency.accountWarnings.length > 0, "Currency limitations must not suppress individual account monitoring")
+const euroOnly = aggregateRiskOverview([{ snapshot: { ...largeSafeAccount, account: { ...largeSafeAccount.account, currency: "EUR" } } }], aggregateNow)
+assert(euroOnly.equity === 9_900 && euroOnly.grossLeverage === null, "USD exposure cannot be divided by non-USD equity, even when all accounts share a currency")
+const missingExposure = aggregateRiskOverview([
+  { snapshot: smallRiskyAccount }, { snapshot: { ...largeSafeAccount, portfolio_metrics: {} } },
+], aggregateNow)
+assert(missingExposure.grossLeverage === null, "An account with missing exposure cannot silently be excluded from total leverage")
+const missingEquity = aggregateRiskOverview([{ snapshot: { ...smallRiskyAccount, account: { currency: "USD" } } }], aggregateNow)
+assert(missingEquity.equity === null && missingEquity.grossLeverage === null, "Missing equity must not become zero")
+const zeroEquity = aggregateRiskOverview([{ snapshot: { ...smallRiskyAccount, account: { ...smallRiskyAccount.account, equity: 0 } } }], aggregateNow)
+assert(zeroEquity.grossLeverage === null && zeroEquity.accountWarnings[0].warnings.some((warning) => warning.includes("صفر یا منفی")), "Zero equity must warn without displaying infinite leverage")
+const negativeEquity = aggregateRiskOverview([
+  { snapshot: { ...smallRiskyAccount, account: { ...smallRiskyAccount.account, equity: -100 } } },
+  { snapshot: largeSafeAccount },
+], aggregateNow, { value: 10_000 / 9_800 })
+assert(negativeEquity.equity === 9_800 && negativeEquity.grossLeverage === 10_000 / 9_800, "Negative equity must be included in the total rather than silently excluding the account")
+assert(negativeEquity.accountWarnings[0].warnings.some((warning) => warning.includes("صفر یا منفی")), "Negative-equity accounts must retain their independent alert")
+const incompleteCombined = aggregateRiskOverview([
+  { snapshot: smallRiskyAccount }, { snapshot: { ...largeSafeAccount, positions: [{ ...largeSafeAccount.positions[0], stop_loss: 0 }] } },
+], aggregateNow)
+assert(incompleteCombined.openRisk.total === null && !incompleteCombined.openRisk.complete, "Missing stops in any account must make combined open risk incomplete")
+const staleCombined = aggregateRiskOverview([{ snapshot: { ...largeSafeAccount, timestamp_utc: "2000-01-01T00:00:00Z" }, rules: accountRules }], aggregateNow)
+assert(staleCombined.accountWarnings[0].warnings.some((warning) => warning.includes("قدیمی")), "A stale account must remain visible in the aggregate")
+const noAccounts = aggregateRiskOverview([], aggregateNow)
+assert(noAccounts.grossLeverage === null && noAccounts.marginLevel === null && noAccounts.openRisk.total === null, "Empty account lists must not produce valid totals")
 
 console.log("Risk management checks passed")

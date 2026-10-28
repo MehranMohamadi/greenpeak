@@ -155,6 +155,41 @@ class MT5DisplaySnapshot(BaseModel):
     calculation_status: dict[str, Any]
 
 
+class MT5Leverage(BaseModel):
+    """Server-derived gross leverage; missing inputs never become zero."""
+
+    value: float | None = None
+    gross_exposure_usd: float | None = None
+    equity_usd: float | None = None
+    reason: str | None = None
+    exposure_source: Literal["symbol_notionals", "symbol_net", "portfolio_exposure", "no_positions", "aggregate"] | None = None
+
+
+class MT5SymbolRisk(BaseModel):
+    symbol_id: str
+    label: str
+    symbols: list[str]
+    net_exposure_usd: float | None = None
+    leverage: float | None = None
+    target_leverage: float = 10
+    adverse_move_pct: float | None = None
+    adverse_direction: Literal["fall", "rise"] | None = None
+    reason: str | None = None
+    target_reason: str | None = None
+
+
+class MT5RiskAccount(MT5DisplaySnapshot):
+    leverage: MT5Leverage
+    symbol_risks: list[MT5SymbolRisk] = Field(default_factory=list)
+
+
+class MT5RiskOverview(BaseModel):
+    generated_at_utc: datetime
+    accounts: list[MT5RiskAccount]
+    leverage: MT5Leverage
+    symbol_risks: list[MT5SymbolRisk] = Field(default_factory=list)
+
+
 class BrokerDeleteRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

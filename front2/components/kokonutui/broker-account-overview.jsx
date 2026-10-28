@@ -4,10 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/components/auth/auth-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Building2, ChevronDown, Loader2, RefreshCw, Scale, Trash2 } from "lucide-react"
+import { Building2, ChevronDown, Loader2, RefreshCw, Scale, Trash2, Wifi, WifiOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { MT5_BROKER_DELETED_EVENT } from "@/lib/mt5-account-changes"
+import { freshnessSummary } from "@/lib/risk-management"
+import { formatTradeTime } from "@/lib/mt5-trade-lifecycles"
 import {
   EmptyCollection,
   accountKey,
@@ -22,6 +25,7 @@ import {
 } from "./mt5-data-view"
 
 const hasNumber = (value) => value !== null && value !== "" && Number.isFinite(Number(value))
+const accountGridClass = "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,.75fr)_minmax(0,.85fr)_minmax(0,.75fr)_2rem]"
 
 const normalizeSymbol = (symbol) => String(symbol || "").toUpperCase().replace(/[^A-Z0-9]/g, "")
 
@@ -164,7 +168,35 @@ function SymbolDetails({ rows }) {
   </div>
 }
 
-function AccountRow({ snapshot, onDelete, deleting }) {
+function AccountFreshnessIndicator({ snapshot, loading, error }) {
+  const [open, setOpen] = useState(false)
+  const freshness = freshnessSummary(snapshot)
+  const current = freshness.available && !freshness.stale
+  const status = !freshness.available ? "زمان نامشخص" : current ? "به‌روز" : "نیازمند به‌روزرسانی"
+  const accountIdentifier = snapshot.source?.account_identifier || "بدون شماره"
+  return <Popover open={open} onOpenChange={setOpen}>
+    <PopoverTrigger asChild>
+      <Button type="button" variant="outline" size="icon"
+        className={`h-7 w-7 shrink-0 ${current ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400" : "border-amber-500/30 text-amber-600 dark:text-amber-400"}`}
+        aria-label={`وضعیت داده حساب ${accountIdentifier}: ${status}`} title={`وضعیت داده: ${status}`}
+        onClick={(event) => { event.preventDefault(); event.stopPropagation(); setOpen((value) => !value) }}>
+        {current ? <Wifi className="h-3.5 w-3.5" aria-hidden="true" /> : <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />}
+      </Button>
+    </PopoverTrigger>
+    <PopoverContent dir="rtl" align="end" className="w-64 max-w-[calc(100vw-2rem)] space-y-2 p-3 text-xs leading-6">
+      <h3 className="font-semibold">وضعیت به‌روزرسانی داده</h3>
+      <dl className="space-y-1">
+        <div className="flex justify-between gap-3"><dt className="text-muted-foreground">وضعیت</dt><dd className="font-medium">{status}</dd></div>
+        <div><dt className="text-muted-foreground">آخرین داده (تهران)</dt><dd className="tabular-nums" dir="ltr">{freshness.available ? formatTradeTime(snapshot.timestamp_utc) : "نامشخص"}</dd></div>
+        {freshness.available && <div className="flex justify-between gap-3"><dt className="text-muted-foreground">زمان گذشته</dt><dd>{freshness.ageMinutes < 1 ? "کمتر از یک دقیقه" : `${number(freshness.ageMinutes, 0)} دقیقه`}</dd></div>}
+      </dl>
+      <p className="border-t pt-2 text-muted-foreground">{loading ? "در حال دریافت…" : "بررسی هر دقیقه؛ داده بالای ۱۵ دقیقه قدیمی است."}</p>
+      {error && <p role="alert" className="text-amber-700 dark:text-amber-300">دریافت تازه ناموفق بود؛ آخرین داده نمایش داده می‌شود.</p>}
+    </PopoverContent>
+  </Popover>
+}
+
+function AccountRow({ snapshot, onDelete, deleting, loading, error }) {
   const account = snapshot.account || {}
   const portfolio = snapshot.portfolio_metrics || {}
   const swap = snapshot.swap_metrics || {}
@@ -189,7 +221,7 @@ function AccountRow({ snapshot, onDelete, deleting }) {
         disabled={deleting || !snapshot.source?.broker_company?.trim()}
         onClick={(event) => { event.preventDefault(); event.stopPropagation(); onDelete(snapshot.source.broker_company) }}
       ><Trash2 className="h-4 w-4" /></Button>}
-      <div className="hidden items-center gap-2 text-center text-[11px] lg:grid lg:grid-cols-7">
+      <div className={`hidden items-center gap-1.5 text-center text-[11px] lg:grid ${accountGridClass}`}>
         <div className="min-w-0 text-right"><p className="truncate text-sm font-semibold text-foreground">{broker}</p><p className="truncate text-[10px] text-muted-foreground">حساب {accountIdentifier}</p></div>
         <Value value={money(account.balance, currency)} />
         <Value value={money(account.equity, currency)} />
@@ -197,11 +229,15 @@ function AccountRow({ snapshot, onDelete, deleting }) {
         <Value value={hasNumber(totalLeverage) ? `${number(totalLeverage, 2, 2)}×` : "—"} />
         <Value value={hasNumber(account.margin_level_pct) ? `${number(account.margin_level_pct, 2)}%` : "—"} tone={marginTone(account.margin_level_pct)} />
         <Value value={hasNumber(drawdown) ? `${number(drawdown, 2)}%` : "—"} tone={drawdownTone(drawdown)} />
+        <AccountFreshnessIndicator snapshot={snapshot} loading={loading} error={error} />
       </div>
 
       <div className="space-y-3 lg:hidden">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0"><p className="truncate text-sm font-semibold text-foreground">{broker}</p><p className="text-[10px] text-muted-foreground">حساب {accountIdentifier}</p></div>
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="min-w-0"><p className="truncate text-sm font-semibold text-foreground">{broker}</p><p className="text-[10px] text-muted-foreground">حساب {accountIdentifier}</p></div>
+            <AccountFreshnessIndicator snapshot={snapshot} loading={loading} error={error} />
+          </div>
           <Value value={money(account.equity, currency)} />
         </div>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
@@ -367,7 +403,7 @@ function AssetComparisonRows({ asset, brokers, symbolFor, renderSwap }) {
   </>
 }
 
-export default function BrokerAccountOverview({ snapshots = [], accessToken = "", onDeleteBroker }) {
+export default function BrokerAccountOverview({ snapshots = [], accessToken = "", onDeleteBroker, loading = false, error = "" }) {
   const { isAdmin } = useAuth()
   const [tab, setTab] = useState("accounts")
   const [comparison, setComparison] = useState(null)
@@ -474,11 +510,11 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
     <CardContent className={`${tradingCardContentClass} ${tab === "accounts" ? "!overflow-x-hidden !overflow-y-auto" : "!overflow-auto"}`}>
       {tab === "comparison" ? <ComparisonTable comparison={comparison} loading={comparisonLoading} error={comparisonError} onRetry={loadComparison} /> :
       <div className="min-w-0 space-y-2">
-        <div className="sticky top-0 z-10 hidden gap-2 border-b bg-white py-2 pl-[4.5rem] pr-3 text-center text-[10px] font-medium text-muted-foreground dark:bg-[#1F1F23] lg:grid lg:grid-cols-7">
-          <span className="text-right">بروکر / حساب</span><span>موجودی</span><span>خالص دارایی</span><span>سود/زیان شناور</span><span>اهرم کل</span><span>سطح مارجین</span><span>افت سرمایه</span>
+        <div className={`sticky top-0 z-10 hidden gap-1.5 border-b bg-white py-2 pl-[4.5rem] pr-3 text-center text-[10px] font-medium text-muted-foreground dark:bg-[#1F1F23] lg:grid ${accountGridClass}`}>
+          <span className="text-right">بروکر / حساب</span><span>موجودی</span><span>خالص دارایی</span><span>سود/زیان شناور</span><span>اهرم کل</span><span>سطح مارجین</span><span>افت سرمایه</span><span>داده</span>
         </div>
         {!snapshots.length && <EmptyCollection>حساب بروکری برای نمایش وجود ندارد.</EmptyCollection>}
-        {snapshots.map((snapshot) => <AccountRow key={accountKey(snapshot)} snapshot={snapshot} deleting={deleting} onDelete={onDeleteBroker ? (broker) => { setDeleteError(""); setBrokerToDelete(broker) } : undefined} />)}
+        {snapshots.map((snapshot) => <AccountRow key={accountKey(snapshot)} snapshot={snapshot} loading={loading} error={error} deleting={deleting} onDelete={onDeleteBroker ? (broker) => { setDeleteError(""); setBrokerToDelete(broker) } : undefined} />)}
       </div>}
     </CardContent>
   </Card>

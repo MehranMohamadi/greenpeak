@@ -58,6 +58,40 @@ snapshot for authoritative account-type classification. See
 
 ## Safety and calculation conventions
 
+The dashboard's risk panel reads `GET /api/v1/mt5/risk-overview` with the current
+user's session. Python calculates account leverage and combined leverage from
+the latest observations; it never uses `gross_portfolio_leverage` reported by
+the EA. Raw snapshots remain unchanged. Combined leverage is total gross USD
+exposure divided by total USD equity, with each account's value kept separately
+for warnings. Missing accounts or unavailable currency conversion do not become
+zero or get silently excluded.
+
+Exposure follows `sum(abs(net USD exposure per underlying))`: opposing trades
+in the same symbol net first. In the combined view the same underlying also nets
+across accounts; recognized aliases such as `GOLD` and `XAUUSD` share one bucket.
+Account leverage and alerts remain independent of this combined netting. Net
+symbol observations can be reconstructed for supported linear contracts in USD
+accounts from net lots, a common current quote, and tick value divided by tick
+size. This also covers symbols omitted from the active-chart metrics. Decimal
+lot quantities net before valuation, so matched buys/sells cancel even with a
+bid/ask spread. Otherwise recorded net symbol exposure or long-minus-short USD
+notionals are used. No FX rate is guessed from a symbol name. Legacy portfolio
+exposure can serve an individual account when symbol
+detail is incomplete, but cannot substitute for cross-account symbol netting.
+Non-USD equity requires explicit conversion. Raw observations and timestamps
+remain unchanged; this is not a live broker connection.
+
+The risk response includes `symbol_risks` for each account and the combined view.
+For each symbol it reports signed net exposure, absolute exposure/equity, and
+the adverse percentage price move needed for that symbol's leverage to reach 10.
+The linear scenario solves `abs(E * (1+r)) / (equity + E*r) = 10`, keeping other
+symbols, quantities, FX rates and costs constant. Long exposure uses a price
+fall; short exposure uses a price rise. Fully netted symbols, nonpositive equity,
+missing observations, already-reached thresholds and targets without a positive
+price/equity solution have explicit reason codes. This is not a margin-call or
+stop-out forecast. The dashboard opens on all brokers and displays the summary
+as a header row and a value row, with expandable symbol details.
+
 - The EA never calls `OrderSend`, `CTrade`, position/order modification, or any
   equivalent trading API.
 - Hypothetical P/L uses `OrderCalcProfit`; break-even and final-leverage prices

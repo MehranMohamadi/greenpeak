@@ -28,7 +28,7 @@ const filters = [
   { id: "closed", label: "معاملات بسته‌شده" },
 ]
 
-const tradeGridClass = "grid-cols-[minmax(10rem,.95fr)_minmax(0,1.15fr)_minmax(0,.72fr)_minmax(0,.48fr)_minmax(0,1.15fr)_minmax(0,.76fr)_minmax(0,.76fr)_minmax(0,.64fr)_minmax(0,.64fr)_minmax(0,.95fr)]"
+const tradeGridClass = "grid-cols-[6rem_minmax(0,1.15fr)_minmax(0,.72fr)_minmax(0,.48fr)_8rem_minmax(0,.76fr)_minmax(0,.76fr)_minmax(0,.64fr)_minmax(0,.64fr)_minmax(0,.95fr)]"
 
 const orderTypes = {
   0: { label: "Buy", direction: "long" },
@@ -204,7 +204,7 @@ function LifecycleRow({ lifecycle }) {
   return <details className="group border-b border-gray-200 last:border-b-0 dark:border-[#2B2B30]">
     <summary className="relative cursor-pointer list-none p-3 pl-9 [&::-webkit-details-marker]:hidden">
       <ChevronDown aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform group-open:rotate-180" />
-      <div className={`grid ${tradeGridClass} items-center gap-2 whitespace-nowrap text-center text-[11px]`}>
+      <div className={`grid ${tradeGridClass} items-center gap-1.5 whitespace-nowrap text-center text-[11px]`}>
         <span className="select-all truncate font-medium tabular-nums" dir="ltr" title={lifecycle.ticket || undefined}>{lifecycle.ticket || "—"}</span>
         <p className="min-w-0 truncate text-right"><span className="font-semibold text-foreground">{lifecycle.symbol}</span><span className="text-[10px] text-muted-foreground"> · {lifecycle.accountLabel}</span></p>
         <Badge variant="outline" className={`mx-auto max-w-full truncate ${directionTone(lifecycle.direction)}`} title={lifecycle.directionLabel}>{lifecycle.directionLabel}</Badge>
@@ -238,7 +238,7 @@ function PendingRow({ order }) {
   return <details className="group border-b border-gray-200 last:border-b-0 dark:border-[#2B2B30]">
     <summary className="relative cursor-pointer list-none p-3 pl-9 [&::-webkit-details-marker]:hidden">
       <ChevronDown aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform group-open:rotate-180" />
-      <div className={`grid ${tradeGridClass} items-center gap-2 whitespace-nowrap text-center text-[11px]`}>
+      <div className={`grid ${tradeGridClass} items-center gap-1.5 whitespace-nowrap text-center text-[11px]`}>
         <span className="select-all truncate font-medium tabular-nums" dir="ltr" title={order.ticket || undefined}>{order.ticket || "—"}</span>
         <p className="min-w-0 truncate text-right"><span className="font-semibold text-foreground">{order.symbol}</span><span className="text-[10px] text-muted-foreground"> · {order.accountLabel}</span></p>
         <Badge variant="outline" className={`mx-auto max-w-full truncate ${directionTone(order.direction)}`} title={order.orderTypeLabel}>{order.orderTypeLabel}</Badge>
@@ -286,8 +286,8 @@ export default function LastTrades({ snapshots = [] }) {
       </div>
     </CardHeader>
     <CardContent className={`${tradingCardContentClass} !overflow-auto`}>
-      <div className="min-w-[1120px]">
-        <div className={`sticky top-0 z-10 grid ${tradeGridClass} gap-2 border-b bg-white py-2 pl-9 pr-3 text-center text-[9px] font-medium text-muted-foreground dark:bg-[#1F1F23]`}>
+      <div className="min-w-[960px]">
+        <div className={`sticky top-0 z-10 grid ${tradeGridClass} gap-1.5 border-b bg-white py-2 pl-9 pr-3 text-center text-[9px] font-medium text-muted-foreground dark:bg-[#1F1F23]`}>
           <span>تیکت</span><span className="text-right">نماد / حساب</span><span>جهت / نوع</span><span>حجم</span><span>زمان ورود / ثبت</span><span>قیمت ورود</span><span>خروج / فعلی</span><span>SL</span><span>TP</span><span>سود/زیان خالص</span>
         </div>
         {!visible.length && <EmptyCollection>{emptyMessages[filter]}</EmptyCollection>}

@@ -426,6 +426,127 @@ export function concentrationSummary(snapshot) {
   }
 }
 
+// Analyze each account with its own broker specifications before summing money.
+// USD exposures must never be divided by equity in a different currency.
+export function aggregateRiskOverview(entries, now = new Date(), serverLeverage = null) {
+  const accounts = entries.map(({ snapshot, rules = {} }) => {
+    const equity = finiteNumber(snapshot?.account?.equity)
+    const exposure = finiteNumber(snapshot?.portfolio_metrics?.gross_portfolio_exposure_usd)
+    const currency = String(snapshot?.account?.currency || "").trim().toUpperCase()
+    const openRisk = analyzeOpenRisk(snapshot)
+    const history = analyzeTradeHistory(snapshot, now)
+    const maxLeverage = positiveRule(rules.maxGrossLeverage)
+    const minMargin = Math.max(100, positiveRule(rules.minMarginLevelPct) || 100)
+    const usedMargin = finiteNumber(snapshot?.account?.used_margin)
+    const marginLevel = usedMargin != null && usedMargin > 0 && equity != null
+      ? equity / usedMargin * 100 : finiteNumber(snapshot?.account?.margin_level_pct)
+    const leverage = finiteNumber(snapshot?.leverage?.value)
+    const warnings = []
+    if (equity == null) warnings.push("اکوییتی حساب موجود نیست")
+    else if (equity <= 0) warnings.push("اکوییتی حساب صفر یا منفی است؛ خطر بسته‌شدن اجباری معاملات")
+    if (maxLeverage != null && leverage != null && leverage > maxLeverage) {
+      warnings.push(`اهرم حساب ${leverage.toFixed(2)}× از سقف ${maxLeverage}× بیشتر است`)
+    }
+    if (maxLeverage == null) warnings.push("سقف اهرم این حساب تعیین نشده است")
+    if (leverage == null) warnings.push(leverageReason(snapshot?.leverage?.reason))
+    if (usedMargin !== 0 && marginLevel != null && marginLevel < minMargin) {
+      warnings.push(`سطح مارجین ${marginLevel.toFixed(1)}٪ کمتر از حد پایش ${minMargin}٪ است؛ خطر کال مارجین را در همین حساب بررسی کنید`)
+    }
+    if (usedMargin !== 0 && marginLevel == null) warnings.push("سطح مارجین حساب قابل بررسی نیست")
+    if (openRisk.missingStopCount) warnings.push(`${openRisk.missingStopCount} پوزیشن بدون حد ضرر`)
+    if (!openRisk.complete) warnings.push("محاسبه ریسک پوزیشن‌های باز ناقص است")
+    const maxRisk = positiveRule(rules.maxOpenRiskPct)
+    if (maxRisk != null && openRisk.riskPct != null && openRisk.riskPct > maxRisk) warnings.push("ریسک باز حساب از سقف برنامه بیشتر است")
+    const dailyLimit = positiveRule(rules.dailyLossLimitPct)
+    if (dailyLimit != null && equity > 0 && history.realizedLossUsed > equity * dailyLimit / 100) warnings.push("بودجه زیان روزانه این حساب تمام شده است")
+    const freshness = freshnessSummary(snapshot, now)
+    if (!freshness.available || freshness.stale) warnings.push("داده حساب قدیمی است یا زمان آن مشخص نیست")
+    return { snapshot, rules, currency, equity, exposure, openRisk, history, warnings }
+  })
+  const sum = (select) => {
+    const values = accounts.map(select)
+    if (!values.length || values.some((value) => value == null || !Number.isFinite(value))) return null
+    const total = values.reduce((result, value) => result + value, 0)
+    return Number.isFinite(total) ? total : null
+  }
+  const currencies = new Set(accounts.map((account) => account.currency))
+  const commonCurrency = accounts.length > 0 && currencies.size === 1 && !currencies.has("")
+  const currency = commonCurrency ? accounts[0].currency : null
+  const moneySum = (select) => commonCurrency ? sum(select) : null
+  const equity = moneySum((account) => account.equity)
+  const exposure = sum((account) => account.exposure != null && account.exposure >= 0 ? account.exposure : null)
+  const grossLeverage = finiteNumber(serverLeverage?.value)
+  const usedMargin = moneySum(({ snapshot }) => {
+    const value = finiteNumber(snapshot?.account?.used_margin)
+    return value != null && value >= 0 ? value : null
+  })
+  const complete = accounts.length > 0 && accounts.every(({ openRisk }) => openRisk.complete)
+  const total = complete ? moneySum(({ openRisk }) => openRisk.total) : null
+  const dailyLimitAmount = moneySum(({ rules, equity }) => {
+    const limit = positiveRule(rules.dailyLossLimitPct)
+    return limit != null && equity > 0 ? equity * limit / 100 : null
+  })
+  const dailyLossUsed = moneySum(({ history }) => history.realizedLossUsed)
+  const notices = []
+  if (!commonCurrency) notices.push("ارز حساب‌ها یکسان یا مشخص نیست؛ جمع مبالغ و نسبت‌های پولی بدون نرخ تبدیل معتبر قابل محاسبه نیست.")
+  if (grossLeverage == null) notices.push(leverageReason(serverLeverage?.reason))
+
+  // Keep exposures in separate accounts from cancelling each other: collateral
+  // and margin cannot move between brokers to cover an opposing position.
+  const symbols = new Map()
+  const concentrationComplete = accounts.every(({ snapshot, exposure }) => exposure === 0 || (
+    Array.isArray(snapshot?.symbol_metrics) && snapshot.symbol_metrics.length > 0 &&
+    snapshot.symbol_metrics.every((item) => normalizeSymbol(item?.symbol) && finiteNumber(item?.net_symbol_exposure_usd) != null)
+  ))
+  for (const { snapshot } of accounts) {
+    for (const item of snapshot?.symbol_metrics || []) {
+      const amount = finiteNumber(item?.net_symbol_exposure_usd)
+      const symbol = normalizeSymbol(item?.symbol)
+      if (amount != null && symbol) symbols.set(symbol, (symbols.get(symbol) || 0) + Math.abs(amount))
+    }
+  }
+  const concentration = concentrationSummary({
+    symbol_metrics: concentrationComplete ? [...symbols].map(([symbol, amount]) => ({ symbol, net_symbol_exposure_usd: amount })) : [],
+    portfolio_metrics: { gross_portfolio_exposure_usd: exposure },
+  })
+  return {
+    currency, equity, grossLeverage, concentration, notices,
+    balance: moneySum(({ snapshot }) => finiteNumber(snapshot?.account?.balance)),
+    usedMargin,
+    floating: moneySum(({ snapshot }) => finiteNumber(snapshot?.account?.floating_profit_loss)),
+    freeMargin: moneySum(({ snapshot }) => finiteNumber(snapshot?.account?.free_margin)),
+    marginLevel: equity != null && usedMargin > 0 ? equity / usedMargin * 100 : null,
+    dailyLimitAmount,
+    dailyRemaining: dailyLimitAmount != null && dailyLossUsed != null ? dailyLimitAmount - dailyLossUsed : null,
+    history: { realizedToday: moneySum(({ history }) => history.realizedToday) },
+    openRisk: {
+      positions: accounts.flatMap(({ openRisk }) => openRisk.positions),
+      pendingOrders: accounts.flatMap(({ openRisk }) => openRisk.pendingOrders),
+      total, complete: complete && total != null,
+      riskPct: total != null && equity > 0 ? total / equity * 100 : null,
+      missingStopCount: accounts.reduce((count, { openRisk }) => count + openRisk.missingStopCount, 0),
+      pendingMissingStopCount: accounts.reduce((count, { openRisk }) => count + openRisk.pendingMissingStopCount, 0),
+      unavailableCount: accounts.reduce((count, { openRisk }) => count + openRisk.unavailableCount, 0),
+    },
+    accountWarnings: accounts.filter(({ warnings }) => warnings.length > 0).map(({ snapshot, warnings }) => ({ snapshot, warnings })),
+  }
+}
+
+export function leverageReason(reason) {
+  return {
+    unsupported_currency: "برای محاسبه اهرم، تبدیل معتبر اکوییتی به دلار موجود نیست.",
+    missing_equity: "اکوییتی معتبر برای محاسبه اهرم موجود نیست.",
+    non_positive_equity: "اکوییتی صفر یا منفی است؛ اهرم قابل محاسبه نیست.",
+    missing_exposure: "اکسپوژر معتبر معاملات باز برای محاسبه اهرم موجود نیست.",
+    incomplete_positions: "اطلاعات معاملات باز برای محاسبه اهرم ناقص است.",
+    inconsistent_positions: "فهرست معاملات باز با اکسپوژر گزارش‌شده سازگار نیست.",
+    missing_symbol_exposure: "اکسپوژر خالص این نماد موجود نیست.",
+    incomplete_accounts: "داده لازم برای محاسبه اهرم حداقل یک حساب ناقص است؛ مجموع ناقص نمایش داده نمی‌شود.",
+    no_accounts: "حسابی برای محاسبه اهرم موجود نیست.",
+    invalid_result: "داده معتبر برای محاسبه اهرم موجود نیست.",
+  }[reason] || "محاسبه اهرم از سرور دریافت نشده است."
+}
+
 export function freshnessSummary(snapshot, now = new Date(), staleMinutes = 15) {
   const timestamp = new Date(snapshot?.timestamp_utc)
   if (Number.isNaN(timestamp.getTime())) return { available: false, stale: true, ageMinutes: null, timestamp: null }
@@ -480,7 +601,7 @@ export function buildBehaviorAnalysis({ snapshot, rules = {}, plans = [], lifecy
   for (const [label, limitValue, observed, minimum] of [
     ["ریسک کل باز", rules.maxOpenRiskPct, openRisk.riskPct, false],
     ["زیان روزانه", rules.dailyLossLimitPct, equity == null || !hasReportedHistory ? null : history.realizedLossUsed / equity * 100, false],
-    ["لورج", rules.maxGrossLeverage, snapshot?.portfolio_metrics?.gross_portfolio_leverage, false],
+    ["اهرم", rules.maxGrossLeverage, snapshot?.leverage?.value, false],
     ["مارجین", rules.minMarginLevelPct, snapshot?.account?.margin_level_pct, true],
   ]) {
     const limit = positiveRule(limitValue)

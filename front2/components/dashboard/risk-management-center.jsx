@@ -13,19 +13,14 @@ import {
   ClipboardCheck,
   Gauge,
   Info,
-  Landmark,
   ListChecks,
   Link2,
   Loader2,
-  PieChart,
   RefreshCw,
   Save,
-  ShieldAlert,
   ShieldCheck,
-  Target,
   Trash2,
   Triangle,
-  Wifi,
   WifiOff,
   XCircle,
 } from "lucide-react"
@@ -53,11 +48,13 @@ import {
 } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { accountKey, money, number } from "@/components/kokonutui/mt5-data-view"
 import { MT5_BROKER_DELETED_EVENT, withoutBroker } from "@/lib/mt5-account-changes"
 import { createRiskDemoSnapshot } from "@/lib/mt5-demo-snapshot"
 import { buildTradeLifecycles } from "@/lib/mt5-trade-lifecycles"
 import {
+  aggregateRiskOverview,
   analyzeOpenRisk,
   analyzeTradeHistory,
   assessAllocatedTrade,
@@ -67,13 +64,12 @@ import {
   buildBehaviorAnalysis,
   buildTradeReview,
   confirmTradePlanTicket,
-  concentrationSummary,
   createTradePlan,
   EMPTY_RISK_RULES,
   EMPTY_TRADE_DRAFT,
   finiteNumber,
-  freshnessSummary,
   latestSiteQuote,
+  leverageReason,
   normalizePositionIdentifier,
   orderIdentifier,
   parseTradePlans,
@@ -89,6 +85,7 @@ import {
 
 const surfaceClass = "border-gray-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]"
 const insetClass = "rounded-lg border border-gray-200 bg-gray-50 dark:border-[#2B2B30] dark:bg-[#0F0F12]"
+const ALL_ACCOUNTS = "all-accounts"
 
 function responseError(body, status) {
   if (typeof body?.detail === "string") return body.detail
@@ -122,41 +119,50 @@ function toneClass(tone) {
   return "border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
 }
 
-function SnapshotFreshnessIndicator({ snapshot, loading, error }) {
-  const [open, setOpen] = useState(false)
-  const freshness = freshnessSummary(snapshot)
-  const status = snapshot ? freshness.stale ? "نیازمند به‌روزرسانی" : "داده متصل" : "بدون داده"
-  return <Popover open={open} onOpenChange={setOpen}>
-    <PopoverTrigger asChild>
-      <Button variant="outline" size="icon" className={`h-9 w-9 shrink-0 ${snapshot && !freshness.stale ? toneClass("success") : toneClass("warning")}`}
-        aria-label={`نمایش وضعیت به‌روزرسانی: ${status}`} title="وضعیت به‌روزرسانی">
-        {snapshot && !freshness.stale ? <Wifi className="h-4 w-4" aria-hidden="true" /> : <WifiOff className="h-4 w-4" aria-hidden="true" />}
-      </Button>
-    </PopoverTrigger>
-    <PopoverContent dir="rtl" align="end" className="w-80 max-w-[calc(100vw-2rem)] space-y-3 text-xs leading-6">
-      <h3 className="text-sm font-semibold">وضعیت به‌روزرسانی داده</h3>
-      <dl className="space-y-2">
-        <div><dt className="text-muted-foreground">حساب معاملاتی</dt><dd className="break-words font-medium">{snapshot ? accountName(snapshot) : "حسابی انتخاب نشده است"}</dd></div>
-        <div><dt className="text-muted-foreground">وضعیت داده</dt><dd className="font-medium">{status}</dd></div>
-        <div><dt className="text-muted-foreground">آخرین دادهٔ حساب · به وقت تهران</dt><dd className="font-medium tabular-nums" dir="ltr">{freshness.timestamp ? formatTehranTimestamp(freshness.timestamp) : "زمان موجود نیست"}</dd></div>
-        <div><dt className="text-muted-foreground">مدت گذشته از آخرین داده</dt><dd className="font-medium">{freshness.ageMinutes == null ? "قابل محاسبه نیست" : freshness.ageMinutes < 1 ? "کمتر از یک دقیقه" : `${number(freshness.ageMinutes, 1)} دقیقه`}</dd></div>
-        <div><dt className="text-muted-foreground">دریافت اطلاعات از سایت</dt><dd>{loading ? "در حال دریافت…" : "بررسی خودکار هر یک دقیقه"}</dd></div>
-      </dl>
-      <p className="border-t pt-2 text-muted-foreground">دادهٔ بیش از ۱۵ دقیقه قدیمی، نیازمند به‌روزرسانی محسوب می‌شود.</p>
-      {error && <p role="alert" className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-amber-800 dark:text-amber-200">دریافت تازه انجام نشد: {error}</p>}
-    </PopoverContent>
-  </Popover>
+function formatLeverage(value) {
+  return value == null ? "داده کافی نیست" : value > 0 && value < 0.01 ? "<0.01×" : `${number(value, 2, 2)}×`
 }
 
-function RiskOverviewList({ metrics }) {
-  return <ul className="divide-y divide-border" aria-label="شش شاخص نمای کلی ریسک">
-    {metrics.map(({ key, label, icon: Icon, tone, value, detail, note }) => <li key={key} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 py-3 text-xs lg:grid-cols-[auto_9rem_7rem_minmax(0,1fr)]">
-      <Icon className={`h-4 w-4 shrink-0 ${tone === "danger" ? "text-rose-600 dark:text-rose-400" : tone === "warning" ? "text-amber-600 dark:text-amber-400" : tone === "success" ? "text-emerald-600 dark:text-emerald-400" : "text-primary"}`} />
-      <span className="min-w-0 font-medium">{label}</span>
-      <span className="font-semibold tabular-nums" dir="ltr">{value}</span>
-      <span className="col-span-3 min-w-0 break-words text-sm leading-7 text-foreground lg:col-span-1">{detail}{note && ` · ${note}`}</span>
-    </li>)}
-  </ul>
+function symbolMoveText(row) {
+  if (row.target_reason === "already_at_target") return "اکنون ۱۰ یا بیشتر است"
+  if (row.target_reason === "net_zero") return "خالص معاملات صفر است"
+  if (row.target_reason === "no_positive_price_solution") return "با افت قیمت به ۱۰ نمی‌رسد"
+  if (row.adverse_move_pct == null) return leverageReason(row.target_reason || row.reason)
+  const percent = row.adverse_move_pct > 0 && row.adverse_move_pct < 0.01 ? "کمتر از ۰٫۰۱" : number(row.adverse_move_pct, 2, 2)
+  return `${row.adverse_direction === "rise" ? "افزایش" : "افت"} ${percent}٪`
+}
+
+function RiskOverviewTable({ columns, symbols, allAccounts }) {
+  return <div className="space-y-3">
+    <div className="overflow-hidden rounded-lg border">
+      <Table className="min-w-[860px] text-right text-xs" aria-label="خلاصه مدیریت ریسک">
+        <TableHeader><TableRow className="bg-muted/40">{columns.map(({ key, label }) => <TableHead key={key} scope="col" className="h-10 whitespace-nowrap px-3 text-right text-xs">{label}</TableHead>)}</TableRow></TableHeader>
+        <TableBody><TableRow>{columns.map(({ key, value, detail, tone }) => <TableCell key={key} className={`px-3 py-4 text-right align-top ${tone === "danger" ? "text-rose-600 dark:text-rose-400" : tone === "warning" ? "text-amber-600 dark:text-amber-400" : ""}`}>
+          <bdi className="whitespace-nowrap font-semibold tabular-nums">{value}</bdi>
+          {detail && <p className="mt-1 text-[10px] leading-5 text-muted-foreground">{detail}</p>}
+        </TableCell>)}</TableRow></TableBody>
+      </Table>
+    </div>
+    <details className="group rounded-lg border">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 text-xs font-medium [&::-webkit-details-marker]:hidden">
+        جزئیات اکسپوژر و اهرم نمادها
+        <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" />
+      </summary>
+      <div className="space-y-3 border-t p-3">
+        <p className="text-xs leading-6 text-muted-foreground">{allAccounts ? "خرید و فروش هر نماد در کل حساب‌ها خالص می‌شود؛ اکسپوژر کل، جمع قدر مطلق خالص نمادهاست." : "خرید و فروش هر نماد خالص می‌شود؛ اکسپوژر کل، جمع قدر مطلق خالص نمادهاست."}</p>
+        <Table className="min-w-[620px] text-right text-xs" aria-label="ریسک هر نماد">
+          <TableHeader><TableRow>{["نماد", "اکسپوژر خالص (دلار)", "اهرم نماد", "حرکت قیمت تا اهرم ۱۰ نماد"].map((label) => <TableHead key={label} scope="col" className="px-3 text-right text-xs">{label}</TableHead>)}</TableRow></TableHeader>
+          <TableBody>{symbols.length ? symbols.map((row) => <TableRow key={row.symbol_id}>
+            <TableCell className="px-3 py-3 font-medium">{{ gold: "طلا", sp500: "S&P 500", bitcoin: "بیت‌کوین", ethereum: "اتریوم" }[row.symbol_id] || row.label}<p className="mt-1 text-[10px] text-muted-foreground" dir="ltr">{row.symbols.join(" / ")}</p></TableCell>
+            <TableCell className="px-3 py-3 tabular-nums"><bdi>{row.net_exposure_usd == null ? "داده کافی نیست" : money(row.net_exposure_usd, "USD")}</bdi></TableCell>
+            <TableCell className="px-3 py-3 tabular-nums"><bdi>{formatLeverage(row.leverage)}</bdi></TableCell>
+            <TableCell className="px-3 py-3 leading-6">{symbolMoveText(row)}</TableCell>
+          </TableRow>) : <TableRow><TableCell colSpan={4} className="p-3 text-right text-muted-foreground">نماد بازی برای نمایش وجود ندارد.</TableCell></TableRow>}</TableBody>
+        </Table>
+        <p className="text-[10px] leading-6 text-muted-foreground">برآورد با تغییر خطی قیمت همین نماد و ثابت‌بودن سایر نمادها، حجم و نرخ ارز محاسبه می‌شود؛ هزینه‌ها و تغییر مارجین لحاظ نشده‌اند. برای خالص فروش، افزایش قیمت حرکت نامطلوب است.</p>
+      </div>
+    </details>
+  </div>
 }
 
 function RuleField({ label, value, suffix, onChange }) {
@@ -613,7 +619,7 @@ function DailyPlanDialog({ open, onOpenChange, rules, setRules, rulesSaved, onSa
         <RuleField label="حداکثر ریسک هر معامله" suffix="٪" value={rules.maxTradeRiskPct} onChange={(value) => setRules((current) => ({ ...current, maxTradeRiskPct: value }))} />
         <RuleField label="حداکثر ریسک باز" suffix="٪" value={rules.maxOpenRiskPct} onChange={(value) => setRules((current) => ({ ...current, maxOpenRiskPct: value }))} />
         <RuleField label="سقف زیان روزانه" suffix="٪" value={rules.dailyLossLimitPct} onChange={(value) => setRules((current) => ({ ...current, dailyLossLimitPct: value }))} />
-        <RuleField label="حداکثر لورج کل" suffix="×" value={rules.maxGrossLeverage} onChange={(value) => setRules((current) => ({ ...current, maxGrossLeverage: value }))} />
+        <RuleField label="حداکثر اهرم کل" suffix="×" value={rules.maxGrossLeverage} onChange={(value) => setRules((current) => ({ ...current, maxGrossLeverage: value }))} />
         <RuleField label="حداکثر ورود روزانه" suffix="عدد" value={rules.maxTradesPerDay} onChange={(value) => setRules((current) => ({ ...current, maxTradesPerDay: value }))} />
         <RuleField label="حداقل Margin Level" suffix="٪" value={rules.minMarginLevelPct} onChange={(value) => setRules((current) => ({ ...current, minMarginLevelPct: value }))} />
       </div>
@@ -650,7 +656,9 @@ function ScenarioDialog({ open, onOpenChange, scenarioSymbols, selectedScenarioS
 export default function RiskManagementCenter() {
   const { accessToken, isLoading: authLoading } = useAuth()
   const [snapshots, setSnapshots] = useState([])
-  const [selectedAccount, setSelectedAccount] = useState("")
+  const [serverLeverage, setServerLeverage] = useState(null)
+  const [serverSymbols, setServerSymbols] = useState([])
+  const [selectedAccount, setSelectedAccount] = useState(ALL_ACCOUNTS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [reviewOpen, setReviewOpen] = useState(false)
@@ -659,6 +667,7 @@ export default function RiskManagementCenter() {
   const [planCollection, setPlanCollection] = useState({ accountKey: "", plans: [] })
   const [planStorageError, setPlanStorageError] = useState("")
   const [rules, setRules] = useState(EMPTY_RISK_RULES)
+  const [accountRules, setAccountRules] = useState({})
   const [draft, setDraft] = useState(EMPTY_TRADE_DRAFT)
   const [savedPlan, setSavedPlan] = useState(false)
   const [rulesSaved, setRulesSaved] = useState(false)
@@ -707,7 +716,9 @@ export default function RiskManagementCenter() {
     requestController.current?.abort()
     if (!accessToken) {
       setSnapshots([])
-      setSelectedAccount("")
+      setServerLeverage(null)
+      setServerSymbols([])
+      setSelectedAccount(ALL_ACCOUNTS)
       setError("برای مشاهده مدیریت ریسک ابتدا وارد حساب کاربری شوید")
       setLoading(false)
       return
@@ -716,17 +727,19 @@ export default function RiskManagementCenter() {
     requestController.current = controller
     setLoading(true)
     try {
-      const response = await fetch("/dashboard-data/mt5/accounts", {
+      const response = await fetch("/dashboard-data/mt5/risk-overview", {
         cache: "no-store",
         signal: controller.signal,
         headers: { Authorization: `Bearer ${accessToken}` },
       })
       const body = await response.json().catch(() => null)
       if (!response.ok) throw new Error(responseError(body, response.status))
-      if (!Array.isArray(body)) throw new Error("پاسخ حساب‌های معاملاتی معتبر نیست")
+      if (!Array.isArray(body?.accounts) || !body?.leverage) throw new Error("پاسخ محاسبات ریسک معتبر نیست")
       if (controller.signal.aborted) return
-      setSnapshots(body)
-      setSelectedAccount((current) => current && body.some((item) => accountKey(item) === current) ? current : accountKey(body[0]) || "")
+      setSnapshots(body.accounts)
+      setServerLeverage(body.leverage)
+      setServerSymbols(Array.isArray(body.symbol_risks) ? body.symbol_risks : [])
+      setSelectedAccount((current) => current === ALL_ACCOUNTS || (current && body.accounts.some((item) => accountKey(item) === current)) ? current : ALL_ACCOUNTS)
       setError("")
     } catch (reason) {
       if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "دریافت اطلاعات ریسک ممکن نشد")
@@ -742,15 +755,41 @@ export default function RiskManagementCenter() {
   }, [load])
 
   const snapshot = useMemo(() => snapshots.find((item) => accountKey(item) === selectedAccount) || snapshots[0] || null, [snapshots, selectedAccount])
-  const storageKey = snapshot ? accountKey(snapshot) : ""
+  const allAccounts = selectedAccount === ALL_ACCOUNTS
+  const storageKey = !allAccounts && snapshot ? accountKey(snapshot) : ""
   const tradePlans = planCollection.accountKey === storageKey ? planCollection.plans : []
+
+  useEffect(() => {
+    const readRules = () => {
+      const saved = {}
+      for (const item of snapshots) {
+        const key = accountKey(item)
+        try { saved[key] = JSON.parse(window.localStorage.getItem(`greenpeak:risk-rules:${key}`) || "null") || {} }
+        catch { saved[key] = {} }
+      }
+      setAccountRules(saved)
+    }
+    readRules()
+    window.addEventListener("storage", readRules)
+    window.addEventListener("greenpeak:risk-rules-updated", readRules)
+    return () => {
+      window.removeEventListener("storage", readRules)
+      window.removeEventListener("greenpeak:risk-rules-updated", readRules)
+    }
+  }, [snapshots])
+
+  const aggregate = useMemo(() => allAccounts ? aggregateRiskOverview(snapshots.map((item) => ({
+    snapshot: item, rules: accountRules[accountKey(item)] || {},
+  })), new Date(), serverLeverage) : null, [allAccounts, snapshots, accountRules, serverLeverage])
 
   useEffect(() => {
     const handleDelete = (event) => {
       const broker = event.detail.broker_company
+      setServerLeverage(null)
+      setServerSymbols([])
       setSnapshots((current) => withoutBroker(current, broker))
-      if (snapshot?.source?.broker_company === broker) {
-        setSelectedAccount("")
+      if (!allAccounts && snapshot?.source?.broker_company === broker) {
+        setSelectedAccount(ALL_ACCOUNTS)
         setReviewOpen(false)
         setAllocationOpen(false)
         setDailyPlanOpen(false)
@@ -762,7 +801,7 @@ export default function RiskManagementCenter() {
     }
     window.addEventListener(MT5_BROKER_DELETED_EVENT, handleDelete)
     return () => window.removeEventListener(MT5_BROKER_DELETED_EVENT, handleDelete)
-  }, [load, snapshot])
+  }, [load, snapshot, allAccounts])
 
   useEffect(() => {
     try {
@@ -793,17 +832,15 @@ export default function RiskManagementCenter() {
   const openRisk = useMemo(() => analyzeOpenRisk(snapshot), [snapshot])
   const currentDraft = useMemo(() => ({ ...draft, contractSize: brokerContractSize(snapshot, draft.symbol)?.toString() || "" }), [draft, snapshot])
   const history = useMemo(() => analyzeTradeHistory(snapshot), [snapshot])
-  const concentration = useMemo(() => concentrationSummary(snapshot), [snapshot])
   const lifecycles = useMemo(() => buildTradeLifecycles(snapshot ? [snapshot] : []), [snapshot])
   const behaviorAnalysis = useMemo(() => buildBehaviorAnalysis({ snapshot, rules, plans: tradePlans, lifecycles }), [snapshot, rules, tradePlans, lifecycles, allocationOpen, loading])
-  const currency = snapshot?.account?.currency || "USD"
-  const equity = finiteNumber(snapshot?.account?.equity)
-  const grossLeverage = finiteNumber(snapshot?.portfolio_metrics?.gross_portfolio_leverage)
-  const marginLevel = finiteNumber(snapshot?.account?.margin_level_pct)
-  const floating = finiteNumber(snapshot?.account?.floating_profit_loss)
-  const dailyLimitPct = positiveRule(rules.dailyLossLimitPct)
-  const dailyLimitAmount = dailyLimitPct != null && equity != null ? equity * dailyLimitPct / 100 : null
-  const dailyRemaining = dailyLimitAmount != null ? dailyLimitAmount - history.realizedLossUsed : null
+  const currency = allAccounts ? aggregate.currency || "USD" : snapshot?.account?.currency || "USD"
+  const equity = allAccounts ? aggregate.equity : finiteNumber(snapshot?.account?.equity)
+  const balance = allAccounts ? aggregate.balance : finiteNumber(snapshot?.account?.balance)
+  const usedMargin = allAccounts ? aggregate.usedMargin : finiteNumber(snapshot?.account?.used_margin)
+  const leverage = allAccounts ? serverLeverage : snapshot?.leverage
+  const grossLeverage = finiteNumber(leverage?.value)
+  const marginLevel = allAccounts ? aggregate.marginLevel : finiteNumber(snapshot?.account?.margin_level_pct)
   const maxOpenRiskPct = positiveRule(rules.maxOpenRiskPct)
   const maxLeverage = positiveRule(rules.maxGrossLeverage)
   const minMargin = positiveRule(rules.minMarginLevelPct)
@@ -811,60 +848,32 @@ export default function RiskManagementCenter() {
   const scenarioSymbols = (snapshot?.symbol_metrics || []).map((item) => item?.symbol).filter(Boolean)
   const selectedScenarioSymbol = scenarioSymbols.includes(scenarioSymbol) ? scenarioSymbol : scenarioSymbols[0] || ""
   const scenario = scenarioEstimate(snapshot, selectedScenarioSymbol, shockPct)
-  const overviewMetrics = [
+  const overviewOpenRisk = allAccounts ? aggregate.openRisk : openRisk
+  const symbolRisks = allAccounts ? serverSymbols : snapshot?.symbol_risks || []
+  const overviewColumns = [
+    { key: "balance", label: "بالانس", value: balance == null ? "داده کافی نیست" : money(balance, currency) },
+    { key: "equity", label: "اکوییتی", value: equity == null ? "داده کافی نیست" : money(equity, currency) },
+    { key: "exposure", label: "اکسپوژر کل", value: leverage?.gross_exposure_usd == null ? "داده کافی نیست" : money(leverage.gross_exposure_usd, "USD") },
     {
-      key: "open-risk",
-      icon: ShieldAlert,
-      label: "ریسک پوزیشن‌های باز",
-      value: openRisk.total == null ? "محاسبه ناقص" : money(openRisk.total, currency),
-      detail: openRisk.riskPct == null ? `${openRisk.unavailableCount} مورد نیازمند داده` : `${number(openRisk.riskPct, 2, 2)}٪ از Equity`,
-      note: maxOpenRiskPct == null ? "سقف شخصی تعیین نشده" : `سقف برنامه: ${maxOpenRiskPct}٪`,
-      tone: openRisk.complete ? maxOpenRiskPct != null && openRisk.riskPct > maxOpenRiskPct ? "danger" : "neutral" : "warning",
+      key: "leverage", label: "اهرم کل", value: formatLeverage(grossLeverage),
+      tone: grossLeverage == null ? "warning" : !allAccounts && maxLeverage != null && grossLeverage > maxLeverage ? "danger" : "neutral",
     },
     {
-      key: "stop-coverage",
-      icon: Target,
-      label: "پوشش حد ضرر",
-      value: openRisk.positions.length ? `${openRisk.positions.length - openRisk.missingStopCount}/${openRisk.positions.length}` : "بدون پوزیشن",
-      detail: openRisk.missingStopCount ? `${openRisk.missingStopCount} پوزیشن بدون Stop` : "پوزیشن‌های باز Stop دارند",
-      note: openRisk.pendingOrders.length ? `${openRisk.pendingMissingStopCount} سفارش در انتظار بدون Stop` : "سفارش در انتظاری گزارش نشده",
-      tone: openRisk.missingStopCount ? "danger" : "success",
+      key: "margin", label: "مارجین", value: usedMargin == null ? "داده کافی نیست" : money(usedMargin, currency),
+      detail: marginLevel == null ? "سطح مارجین نامشخص" : `سطح: ${number(marginLevel, 1)}٪`,
+      tone: !allAccounts && minMargin != null && marginLevel != null && marginLevel < minMargin ? "danger" : "neutral",
     },
     {
-      key: "daily-loss",
-      icon: ListChecks,
-      label: "بودجه زیان روزانه",
-      value: dailyLimitAmount == null ? "سقف تعیین نشده" : money(dailyRemaining, currency),
-      detail: `تحقق‌یافته امروز: ${money(history.realizedToday, currency)}`,
-      note: `شناور فعلی: ${money(floating, currency)}؛ در بودجه روزانه جمع نشده`,
-      tone: dailyRemaining != null && dailyRemaining < 0 ? "danger" : "warning",
+      key: "open-risk", label: "ریسک پوزیشن‌های باز",
+      value: overviewOpenRisk.total == null ? "محاسبه ناقص" : money(overviewOpenRisk.total, currency),
+      detail: overviewOpenRisk.riskPct == null ? "نسبت ریسک نامشخص" : `${number(overviewOpenRisk.riskPct, 2, 2)}٪ از اکوییتی`,
+      tone: !overviewOpenRisk.complete ? "warning" : !allAccounts && maxOpenRiskPct != null && overviewOpenRisk.riskPct > maxOpenRiskPct ? "danger" : "neutral",
     },
     {
-      key: "leverage",
-      icon: Gauge,
-      label: "لورج کل مؤثر",
-      value: grossLeverage == null ? "داده کافی نیست" : `${number(grossLeverage, 2, 2)}×`,
-      detail: maxLeverage == null ? "سقف شخصی تعیین نشده" : `سقف برنامه: ${maxLeverage}×`,
-      note: "Gross exposure ÷ Equity در Snapshot",
-      tone: maxLeverage != null && grossLeverage > maxLeverage ? "danger" : "neutral",
-    },
-    {
-      key: "margin",
-      icon: Landmark,
-      label: "وضعیت مارجین",
-      value: marginLevel == null ? "داده کافی نیست" : `${number(marginLevel, 0)}٪`,
-      detail: `Free Margin: ${money(snapshot?.account?.free_margin, currency)}`,
-      note: minMargin == null ? "حداقل شخصی تعیین نشده" : `حداقل شخصی: ${minMargin}٪`,
-      tone: minMargin != null && marginLevel != null && marginLevel < minMargin ? "danger" : "neutral",
-    },
-    {
-      key: "concentration",
-      icon: PieChart,
-      label: "تمرکز Exposure",
-      value: concentration.available ? concentration.symbol : "داده کافی نیست",
-      detail: concentration.available ? money(concentration.exposure, "USD") : "Symbol metrics موجود نیست",
-      note: concentration.sharePct == null ? "سهم از Gross قابل محاسبه نیست" : `${number(concentration.sharePct, 1, 1)}٪ از Gross`,
-      tone: concentration.sharePct != null && concentration.sharePct > 50 ? "warning" : "neutral",
+      key: "stop-coverage", label: "داشتن حد ضرر",
+      value: overviewOpenRisk.positions.length ? `${overviewOpenRisk.positions.length - overviewOpenRisk.missingStopCount} از ${overviewOpenRisk.positions.length}` : "بدون پوزیشن",
+      detail: overviewOpenRisk.pendingMissingStopCount ? `${overviewOpenRisk.pendingMissingStopCount} سفارش بدون حد ضرر` : "",
+      tone: overviewOpenRisk.missingStopCount ? "danger" : "neutral",
     },
   ]
   const saveRules = () => {
@@ -877,6 +886,8 @@ export default function RiskManagementCenter() {
 
   const useDemoSnapshot = () => {
     const demoSnapshot = createRiskDemoSnapshot()
+    setServerLeverage(null)
+    setServerSymbols([])
     setSnapshots([demoSnapshot])
     setSelectedAccount(accountKey(demoSnapshot))
     setError("")
@@ -932,23 +943,25 @@ export default function RiskManagementCenter() {
               <ShieldCheck className="h-5 w-5 text-primary" />
               <CardTitle id="risk-management-title" className="text-lg">مدیریت ریسک</CardTitle>
             </div>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">برنامه روزانه، تنش‌سنجی و تحلیل یکپارچه ریسک حساب</p>
           </div>
           <div className="grid gap-2 lg:justify-items-end">
-            <div className={`grid w-full items-center gap-2 lg:w-auto ${snapshots.length > 0 ? "grid-cols-[auto_minmax(0,1fr)_auto_auto]" : "grid-cols-[auto_auto_auto]"}`}>
-              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setScenarioOpen(true)} disabled={!snapshot}><Gauge className="ml-2 h-4 w-4" />سناریو</Button>
+            <div className={`grid w-full items-center gap-2 lg:w-auto ${snapshots.length > 0 ? "grid-cols-[auto_minmax(0,1fr)_auto]" : "grid-cols-[auto_auto]"}`}>
+              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setScenarioOpen(true)} disabled={!snapshot || allAccounts} title={allAccounts ? "برای بررسی سناریو، یک حساب را انتخاب کنید" : undefined}><Gauge className="ml-2 h-4 w-4" />سناریو</Button>
               {snapshots.length > 0 && <Select value={selectedAccount || accountKey(snapshots[0])} onValueChange={setSelectedAccount}>
-                <SelectTrigger className="h-9 w-56 min-w-0 max-w-full [&>span]:min-w-0 [&>span]:truncate"><SelectValue><span className="block truncate">{accountName(snapshot || snapshots[0])}</span></SelectValue></SelectTrigger>
-                <SelectContent dir="rtl" className="w-[min(90vw,32rem)] max-w-[calc(100vw-2rem)]">{snapshots.map((item) => <SelectItem key={accountKey(item)} value={accountKey(item)}><span className="whitespace-normal break-words">{accountName(item)}</span></SelectItem>)}</SelectContent>
+                <SelectTrigger aria-label="انتخاب حساب یا همه بروکرها" className="h-9 w-56 min-w-0 max-w-full [&>span]:min-w-0 [&>span]:truncate"><SelectValue><span className="block truncate">{allAccounts ? `همه بروکرها (${snapshots.length} حساب)` : accountName(snapshot || snapshots[0])}</span></SelectValue></SelectTrigger>
+                <SelectContent dir="rtl" className="w-[min(90vw,32rem)] max-w-[calc(100vw-2rem)]">
+                  <SelectItem value={ALL_ACCOUNTS}>همه بروکرها ({snapshots.length} حساب)</SelectItem>
+                  {snapshots.map((item) => <SelectItem key={accountKey(item)} value={accountKey(item)}><span className="whitespace-normal break-words">{accountName(item)}</span></SelectItem>)}
+                </SelectContent>
               </Select>}
-              <SnapshotFreshnessIndicator snapshot={snapshot} loading={loading} error={error} />
               <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={load} disabled={loading} aria-label="به‌روزرسانی داده" title="به‌روزرسانی داده"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
             </div>
             <div className="flex flex-wrap items-stretch gap-2 lg:justify-end">
-              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setDailyPlanOpen(true)} disabled={!snapshot}><ListChecks className="ml-2 h-4 w-4" />برنامه</Button>
-              <Button size="sm" className="h-9 w-auto" onClick={() => setReviewOpen(true)} disabled={!snapshot}><ClipboardCheck className="ml-2 h-4 w-4" />بررسی معامله جدید</Button>
-              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => { setAllocationFocus(""); setAllocationOpen(true) }} disabled={!snapshot}><Link2 className="ml-2 h-4 w-4" />تخصیص و ارزیابی</Button>
+              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setDailyPlanOpen(true)} disabled={!snapshot || allAccounts} title={allAccounts ? "برای تنظیم برنامه، یک حساب را انتخاب کنید" : undefined}><ListChecks className="ml-2 h-4 w-4" />برنامه</Button>
+              <Button size="sm" className="h-9 w-auto" onClick={() => setReviewOpen(true)} disabled={!snapshot || allAccounts} title={allAccounts ? "برای بررسی معامله، یک حساب را انتخاب کنید" : undefined}><ClipboardCheck className="ml-2 h-4 w-4" />بررسی معامله جدید</Button>
+              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => { setAllocationFocus(""); setAllocationOpen(true) }} disabled={!snapshot || allAccounts} title={allAccounts ? "برای تخصیص معامله، یک حساب را انتخاب کنید" : undefined}><Link2 className="ml-2 h-4 w-4" />تخصیص و ارزیابی</Button>
             </div>
+            {allAccounts && <p className="text-xs text-muted-foreground">برای برنامه، سناریو یا بررسی معامله، حساب موردنظر را انتخاب کنید.</p>}
           </div>
         </div>
       </CardHeader>
@@ -961,9 +974,20 @@ export default function RiskManagementCenter() {
           </div>}
 
           <div id="risk-analysis" className="scroll-mt-16 space-y-7 p-4 md:p-6">
-              <section id="risk-overview" className="scroll-mt-16 space-y-3" aria-labelledby="risk-overview-title">
-                <div><h3 id="risk-overview-title" className="flex items-center gap-2 text-sm font-semibold"><ShieldAlert className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />نمای کلی ریسک</h3><p className="mt-1 text-xs text-muted-foreground">شش شاخص اصلی حساب در یک فهرست شش‌خطی</p></div>
-                <RiskOverviewList metrics={overviewMetrics} />
+              <section id="risk-overview" className="scroll-mt-16 space-y-3" aria-label="نمای کلی ریسک">
+                {allAccounts && aggregate.notices.map((notice) => <p key={notice} role="status" className={`rounded-lg border p-3 text-xs leading-6 ${toneClass("warning")}`}>{notice}</p>)}
+                <RiskOverviewTable columns={overviewColumns} symbols={symbolRisks} allAccounts={allAccounts} />
+                {allAccounts && aggregate.accountWarnings.length > 0 && <div className="space-y-2 border-t pt-3" aria-label="هشدار مستقل حساب‌ها">
+                  <p className="text-xs font-semibold">هشدار حساب‌ها؛ موجودی سایر حساب‌ها مارجین این حساب را پوشش نمی‌دهد</p>
+                  {aggregate.accountWarnings.map(({ snapshot: account, warnings }) => <div key={accountKey(account)} className={`rounded-lg border p-3 ${toneClass("warning")}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold">{accountName(account)}</p>
+                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setSelectedAccount(accountKey(account))}>بررسی حساب</Button>
+                    </div>
+                    <ul className="mt-2 list-disc space-y-1 pr-4 text-xs leading-6">{warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
+                  </div>)}
+                  <p className="text-xs leading-6 text-muted-foreground">پایش مارجین بر اساس حداقل شخصی یا ۱۰۰٪، هرکدام بزرگ‌تر باشد، انجام می‌شود؛ آستانه واقعی کال مارجین و استاپ‌اوت را بروکر تعیین می‌کند.</p>
+                </div>}
               </section>
 
           </div>
@@ -971,7 +995,7 @@ export default function RiskManagementCenter() {
       </CardContent>
     </Card>
 
-    {snapshot && <>
+    {snapshot && !allAccounts && <>
       <DailyPlanDialog open={dailyPlanOpen} onOpenChange={setDailyPlanOpen} rules={rules} setRules={setRules} rulesSaved={rulesSaved} onSaveRules={saveRules} history={history} maxTrades={maxTrades} />
       <ScenarioDialog open={scenarioOpen} onOpenChange={setScenarioOpen} scenarioSymbols={scenarioSymbols} selectedScenarioSymbol={selectedScenarioSymbol} onSymbolChange={setScenarioSymbol} shockPct={shockPct} onShockChange={setShockPct} scenario={scenario} />
       <TradeReviewPanel key={storageKey} open={reviewOpen} onOpenChange={setReviewOpen} snapshots={snapshots} onAccountChange={setSelectedAccount} snapshot={snapshot} rules={rules} openRisk={openRisk} draft={currentDraft} setDraft={updateDraft} onSavePlan={savePlan} saved={savedPlan} storageError={planStorageError} />

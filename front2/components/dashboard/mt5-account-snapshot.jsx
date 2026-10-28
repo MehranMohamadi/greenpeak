@@ -56,12 +56,14 @@ export default function MT5AccountSnapshot() {
 
   useEffect(() => {
     load()
+    const timer = window.setInterval(load, 60000)
     const handleDelete = (event) => {
       setSnapshots((current) => withoutBroker(current, event.detail.broker_company))
       load()
     }
     window.addEventListener(MT5_BROKER_DELETED_EVENT, handleDelete)
     return () => {
+      window.clearInterval(timer)
       requestController.current?.abort()
       window.removeEventListener(MT5_BROKER_DELETED_EVENT, handleDelete)
     }
@@ -112,7 +114,7 @@ export default function MT5AccountSnapshot() {
     </div>}
     {error && snapshots.length > 0 && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">به‌روزرسانی انجام نشد؛ آخرین Snapshot سالم نمایش داده می‌شود. {error}</p>}
     <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-      <BrokerAccountOverview snapshots={snapshots} accessToken={accessToken} onDeleteBroker={deleteBroker} />
+      <BrokerAccountOverview snapshots={snapshots} accessToken={accessToken} onDeleteBroker={deleteBroker} loading={loading} error={error} />
       <LastTrades snapshots={snapshots} />
     </div>
   </section>
