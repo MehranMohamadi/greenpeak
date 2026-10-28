@@ -54,6 +54,30 @@ export function availableSymbols(snapshot) {
     .sort((a, b) => a.localeCompare(b))]
 }
 
+export function scenarioSymbolOptions(snapshot) {
+  const symbols = new Map()
+  for (const collection of [snapshot?.symbol_metrics, snapshot?.positions, snapshot?.pending_orders]) {
+    for (const item of collection || []) {
+      const symbol = typeof item?.symbol === "string" ? item.symbol.trim() : ""
+      if (symbol && !symbols.has(normalizeSymbol(symbol))) symbols.set(normalizeSymbol(symbol), symbol)
+    }
+  }
+  const portfolioSymbols = [...symbols.values()]
+  const defaults = ["XAUUSD", "US500"]
+  const preferred = defaults.flatMap((symbol) => {
+    const matches = portfolioSymbols.filter((item) => matchingTradeSymbol(symbol, item))
+    return matches.length ? matches : [symbol]
+  })
+  const others = portfolioSymbols
+    .filter((symbol) => !defaults.some((item) => matchingTradeSymbol(item, symbol)))
+    .sort((a, b) => a.localeCompare(b))
+  return [...preferred, ...others].map((symbol) => ({
+    symbol,
+    label: matchingTradeSymbol("XAUUSD", symbol) ? `طلا (${symbol})`
+      : matchingTradeSymbol("US500", symbol) ? `اس‌اندپی ۵۰۰ (${symbol})` : symbol,
+  }))
+}
+
 export function tradeAssetVolume(draft) {
   const lots = positiveRule(draft?.volume)
   const contractSize = positiveRule(draft?.contractSize)

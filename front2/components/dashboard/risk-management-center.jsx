@@ -77,6 +77,7 @@ import {
   positionIdentifier,
   positiveRule,
   scenarioEstimate,
+  scenarioSymbolOptions,
   stepTradePrice,
   tradeAssetVolume,
   tradeInputErrors,
@@ -637,12 +638,21 @@ function ScenarioDialog({ open, onOpenChange, scenarioSymbols, selectedScenarioS
         <DialogDescription>اثر خطی یک شوک قیمتی روی Exposure خالص نماد انتخاب‌شده را بررسی کنید.</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
-        <div className="grid grid-cols-[1fr_110px] gap-3">
-          <Select value={selectedScenarioSymbol || undefined} onValueChange={onSymbolChange}><SelectTrigger><SelectValue placeholder="نماد سناریو" /></SelectTrigger><SelectContent>{scenarioSymbols.map((symbol) => <SelectItem key={symbol} value={symbol}>{symbol}</SelectItem>)}</SelectContent></Select>
-          <Input dir="ltr" type="number" min="-20" max="20" step="1" value={shockPct} onChange={(event) => onShockChange(Number(event.target.value))} />
+        <div className="grid grid-cols-[minmax(0,1fr)_130px] gap-3">
+          <div className="min-w-0 space-y-1.5">
+            <Label htmlFor="scenario-symbol">نماد</Label>
+            <Select dir="rtl" value={selectedScenarioSymbol || undefined} onValueChange={onSymbolChange}><SelectTrigger id="scenario-symbol"><SelectValue placeholder="نماد سناریو" /></SelectTrigger><SelectContent>{scenarioSymbols.map(({ symbol, label }) => <SelectItem key={symbol} value={symbol}>{label}</SelectItem>)}</SelectContent></Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="scenario-shock">تغییر قیمت (درصد)</Label>
+            <div className="relative" dir="ltr">
+              <Input id="scenario-shock" aria-describedby="scenario-shock-help" className="pr-7" type="number" min="-20" max="20" step="1" value={shockPct} onChange={(event) => onShockChange(Number(event.target.value))} />
+              <span aria-hidden="true" className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+            </div>
+          </div>
         </div>
-        <Slider dir="ltr" min={-20} max={20} step={1} value={[shockPct]} onValueChange={([value]) => onShockChange(value)} />
-        <p className="text-[10px] leading-5 text-muted-foreground">بازه شوک از ۲۰٪- تا ۲۰٪+ است. نتیجه بر اساس Exposure ثبت‌شده در آخرین داده محاسبه می‌شود.</p>
+        <Slider aria-label="درصد تغییر قیمت نماد" dir="ltr" min={-20} max={20} step={1} value={[shockPct]} onValueChange={([value]) => onShockChange(value)} />
+        <p id="scenario-shock-help" className="text-[10px] leading-5 text-muted-foreground">عدد منفی یعنی افت قیمت و عدد مثبت یعنی رشد قیمت؛ بازه از <bdi>-20%</bdi> تا <bdi>+20%</bdi> است. نتیجه بر اساس اکسپوژر ثبت‌شده در آخرین داده محاسبه می‌شود.</p>
       </div>
       <dl className="grid grid-cols-2 gap-2">
         <div className={`${insetClass} p-4`}><dt className="text-[10px] text-muted-foreground">اثر تقریبی بر Equity</dt><dd className={`mt-2 text-base font-semibold tabular-nums ${scenario.pnl < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`} dir="ltr">{scenario.available ? money(scenario.pnl, "USD") : "—"}</dd></div>
@@ -845,8 +855,8 @@ export default function RiskManagementCenter() {
   const maxLeverage = positiveRule(rules.maxGrossLeverage)
   const minMargin = positiveRule(rules.minMarginLevelPct)
   const maxTrades = positiveRule(rules.maxTradesPerDay)
-  const scenarioSymbols = (snapshot?.symbol_metrics || []).map((item) => item?.symbol).filter(Boolean)
-  const selectedScenarioSymbol = scenarioSymbols.includes(scenarioSymbol) ? scenarioSymbol : scenarioSymbols[0] || ""
+  const scenarioSymbols = scenarioSymbolOptions(snapshot)
+  const selectedScenarioSymbol = scenarioSymbols.some(({ symbol }) => symbol === scenarioSymbol) ? scenarioSymbol : scenarioSymbols[0]?.symbol || ""
   const scenario = scenarioEstimate(snapshot, selectedScenarioSymbol, shockPct)
   const overviewOpenRisk = allAccounts ? aggregate.openRisk : openRisk
   const symbolRisks = allAccounts ? serverSymbols : snapshot?.symbol_risks || []
