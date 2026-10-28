@@ -6,6 +6,9 @@ import logging
 import httpx
 from pydantic import ValidationError
 
+from ..llm_engine.provider import InvalidLLMResponse
+from ..llm_engine.routing import generate_validated_json
+
 from .schemas import Answer, RetrievalPlan
 from .store import ChatError, now_iso
 
@@ -106,9 +109,9 @@ def generate_reply(provider, data, user_id, conversation, request, history):
     }
     stage = "planning"
     try:
-        plan = RetrievalPlan.model_validate(provider.generate_json(PLANNER_PROMPT, {
+        plan = generate_validated_json(provider, PLANNER_PROMPT, {
             **context, "catalog": data.catalog(), "output_contract": RetrievalPlan.model_json_schema(),
-        }))
+        }, RetrievalPlan.model_validate)
         evidence = []
         seen = set()
         for retrieval in plan.requests:
@@ -124,15 +127,20 @@ def generate_reply(provider, data, user_id, conversation, request, history):
         if len(json.dumps(evidence, ensure_ascii=False, default=str)) > 65000:
             raise ChatError("CHAT_CONTEXT_TOO_LARGE", "سؤال را به یک شاخص یا بخش کوچک‌تر از حساب محدود کنید.", 422)
         stage = "answer"
-        answer = Answer.model_validate(provider.generate_json(ANSWER_PROMPT, {
+        available = {source["id"] for source in data.sources}
+
+        def validate_answer(value):
+            answer = Answer.model_validate(value)
+            # Citations must belong to this request, including after failover.
+            if any(ref not in available for ref in answer.evidence_refs):
+                raise InvalidLLMResponse("Unknown evidence reference")
+            return answer
+
+        answer = generate_validated_json(provider, ANSWER_PROMPT, {
             **context, "evidence": evidence,
             "premium_analysis_allowed": getattr(data, "premium_analysis_allowed", False),
             "output_contract": Answer.model_json_schema(),
-        }))
-        # Citations must belong to this request. An unavailable source cannot substantiate a claim.
-        available = {source["id"] for source in data.sources}
-        if any(ref not in available for ref in answer.evidence_refs):
-            raise ValueError("Unknown evidence reference")
+        }, validate_answer)
         return {"id": str(request.request_id) + ":assistant", "role": "assistant", "content": answer.answer_fa,
                 "created_at": now_iso(), "sources": data.sources, "attachments": data.attachments}
     except ChatError:

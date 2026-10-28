@@ -3,14 +3,26 @@
 from contextlib import contextmanager
 from email.utils import parsedate_to_datetime
 from hashlib import sha256
+import logging
 import math
 from pathlib import Path
 import sqlite3
 import time
 
 import httpx
+from pydantic import ValidationError
 
-from .provider import DisabledProvider, OpenAICompatibleProvider
+from .provider import DisabledProvider, InvalidLLMResponse, OpenAICompatibleProvider
+
+
+logger = logging.getLogger(__name__)
+
+
+def generate_validated_json(provider, system_prompt, evidence, validator):
+    """Validate inside the router, or directly for a single provider."""
+    if isinstance(provider, ProviderRouter):
+        return provider.generate_validated_json(system_prompt, evidence, validator)
+    return validator(provider.generate_json(system_prompt, evidence))
 
 
 DIRECT_URLS = {
@@ -109,6 +121,12 @@ class ProviderRouter:
                        (self._identity(provider), retry_at))
 
     def generate_json(self, system_prompt, evidence):
+        return self._generate(system_prompt, evidence)
+
+    def generate_validated_json(self, system_prompt, evidence, validator):
+        return self._generate(system_prompt, evidence, validator)
+
+    def _generate(self, system_prompt, evidence, validator=None):
         last_error = None
         earliest_retry = None
         for provider in self.providers:
@@ -119,6 +137,8 @@ class ProviderRouter:
                 continue
             try:
                 result = provider.generate_json(system_prompt, evidence)
+                if validator is not None:
+                    result = validator(result)
             except httpx.HTTPStatusError as exc:
                 status = exc.response.status_code
                 # Invalid prompts and permission errors must remain visible.
@@ -131,6 +151,11 @@ class ProviderRouter:
                 last_error = exc
             except httpx.TransportError as exc:
                 self._cooldown(provider, time.time() + 30)
+                last_error = exc
+            except (InvalidLLMResponse, ValidationError) as exc:
+                self._cooldown(provider, time.time() + 30)
+                logger.warning("LLM response rejected provider=%s error=%s",
+                               provider.provider_id, type(exc).__name__)
                 last_error = exc
             else:
                 self._selected = provider

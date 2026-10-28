@@ -6,6 +6,10 @@ from typing import Any, Protocol
 import httpx
 
 
+class InvalidLLMResponse(ValueError):
+    """The provider returned no usable JSON object."""
+
+
 def decode_json_content(content: str) -> dict[str, Any]:
     """Accept strict JSON and common fenced JSON from compatible providers."""
     value = content.strip()
@@ -61,4 +65,10 @@ class OpenAICompatibleProvider:
             timeout=self.timeout,
         )
         response.raise_for_status()
-        return decode_json_content(response.json()["choices"][0]["message"]["content"])
+        try:
+            content = response.json()["choices"][0]["message"]["content"]
+            if not isinstance(content, str) or not content.strip():
+                raise InvalidLLMResponse("LLM response content is empty")
+            return decode_json_content(content)
+        except (ValueError, KeyError, IndexError, TypeError) as exc:
+            raise InvalidLLMResponse("LLM response must contain a JSON object") from exc

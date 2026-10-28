@@ -90,7 +90,7 @@ def test_all_exhausted_do_not_call_again_during_cooldown(tmp_path, monkeypatch):
     assert len(calls) == 2
 
 
-def test_network_failure_switches_and_invalid_json_does_not(tmp_path, monkeypatch):
+def test_network_failure_switches(tmp_path, monkeypatch):
     calls = []
     def post(url, **kwargs):
         calls.append(url)
@@ -100,9 +100,62 @@ def test_network_failure_switches_and_invalid_json_does_not(tmp_path, monkeypatc
     monkeypatch.setattr(httpx, "post", post)
     assert routing.create_llm_provider(configuration(tmp_path)).generate_json("system", {}) == {"answer": "ok"}
     assert len(calls) == 2
-    monkeypatch.setattr(httpx, "post", lambda url, **kwargs: reply(url, body={"choices": [{"message": {"content": "invalid"}}]}))
-    with pytest.raises(ValueError):
+
+
+@pytest.mark.parametrize("body", [
+    {"choices": [{"message": {"content": "invalid"}}]},
+    {"choices": [{"message": {"content": None}}]},
+    {"choices": [{"message": {"content": "   "}}]},
+    {"choices": [{"message": {"content": "[]"}}]},
+    {"choices": []},
+    {},
+    [],
+])
+def test_invalid_response_fails_over_to_cloudflare(body, tmp_path, monkeypatch):
+    settings = configuration(tmp_path)
+    settings.greenpeak_llm_providers[1] = LLMEndpointSettings(
+        provider_id="cloudflare", model="test", api_key="cf-key",
+        base_url="https://api.cloudflare.com/client/v4/accounts/test/ai/v1")
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(url)
+        return reply(url, body=body) if "googleapis" in url else reply(url)
+
+    monkeypatch.setattr(httpx, "post", post)
+    provider = routing.create_llm_provider(settings)
+    assert provider.generate_json("system", {}) == {"answer": "ok"}
+    assert provider.provider_id == "cloudflare"
+    assert len(calls) == 2
+
+
+def test_all_invalid_responses_fail_without_accepting_invalid_output(tmp_path, monkeypatch):
+    from src.services.llm_engine.provider import InvalidLLMResponse
+
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(url)
+        return reply(url, body={"choices": [{"message": {"content": "invalid"}}]})
+
+    monkeypatch.setattr(httpx, "post", post)
+    with pytest.raises(InvalidLLMResponse):
         routing.create_llm_provider(configuration(tmp_path)).generate_json("system", {})
+    assert len(calls) == 2
+
+
+def test_timeout_fails_over(tmp_path, monkeypatch):
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(url)
+        if "googleapis" in url:
+            raise httpx.ReadTimeout("timeout")
+        return reply(url)
+
+    monkeypatch.setattr(httpx, "post", post)
+    assert routing.create_llm_provider(configuration(tmp_path)).generate_json("system", {}) == {"answer": "ok"}
+    assert len(calls) == 2
 
 
 def test_retry_hints():

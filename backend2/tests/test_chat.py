@@ -145,6 +145,48 @@ def test_chat_uses_direct_fallback_for_planning_and_answer(harness, tmp_path, mo
     assert len(store.get("alice", conversation_id)["messages"]) == 2
 
 
+@pytest.mark.parametrize("failure_stage", ["planning", "answer_schema", "answer_refs"])
+def test_chat_invalid_output_falls_back_to_cloudflare(harness, tmp_path, monkeypatch, failure_stage):
+    import json
+    from src.core.config import Settings
+    from src.services.llm_engine.routing import create_llm_provider
+
+    client, store, data, fake, app = harness
+    settings = Settings(_env_file=None, greenpeak_llm_providers=[
+        {"provider_id": "gemini", "model": "test", "api_key": "gemini-key"},
+        {"provider_id": "cloudflare", "model": "test", "api_key": "cf-key",
+         "base_url": "https://api.cloudflare.com/client/v4/accounts/test/ai/v1"},
+    ], greenpeak_llm_router_db_path=tmp_path / "router.db")
+    monkeypatch.setattr(chat, "chat_provider", lambda: create_llm_provider(settings))
+    calls = []
+
+    def post(url, **kwargs):
+        evidence = json.loads(kwargs["json"]["messages"][1]["content"])
+        planning = "catalog" in evidence
+        calls.append(("gemini" if "googleapis" in url else "cloudflare", planning))
+        result = {"requests": [{"kind": "prices"}]} if planning else {
+            "answer_fa": "Valid answer", "evidence_refs": ["S1"]}
+        if "googleapis" in url:
+            if planning and failure_stage == "planning":
+                result = {"requests": [{"kind": "unknown"}]}
+            elif not planning and failure_stage == "answer_schema":
+                result = {"answer_fa": ""}
+            elif not planning and failure_stage == "answer_refs":
+                result["evidence_refs"] = ["invented-source"]
+        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(result)}}]},
+                              request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(httpx, "post", post)
+    conversation_id = store.create("alice", "site", None)["id"]
+    result = client.post(f"/api/v1/chat/conversations/{conversation_id}/messages",
+                         json={"content": "market", "request_id": str(uuid4())})
+    assert result.status_code == 200
+    assert result.json()["content"] == "Valid answer"
+    assert calls[-1] == ("cloudflare", False)
+    assert len(calls) == 3
+    assert len(store.get("alice", conversation_id)["messages"]) == 2
+
+
 def test_round_trip_idempotency_and_private_history(harness):
     client, store, data, provider, app = harness
     created = client.post("/api/v1/chat/conversations", json={"scope": "site"})
