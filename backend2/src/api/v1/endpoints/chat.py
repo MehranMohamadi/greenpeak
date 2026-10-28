@@ -49,7 +49,7 @@ def chat_provider():
     settings = get_settings()
     if not llm_is_configured(settings):
         raise HTTPException(503, detail={"code": "CHAT_NOT_CONFIGURED", "message": "دستیار هنوز فعال نشده است؛ تنظیمات مدل باید توسط مدیر سایت تکمیل شود."})
-    return create_llm_provider(settings, timeout=60)
+    return create_llm_provider(settings)
 
 
 @router.get("/status")

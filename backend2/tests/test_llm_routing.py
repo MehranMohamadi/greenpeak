@@ -158,6 +158,24 @@ def test_timeout_fails_over(tmp_path, monkeypatch):
     assert len(calls) == 2
 
 
+@pytest.mark.parametrize("timeout,expected", [(None, 30), (10, 10), (120, 30)])
+def test_provider_timeout_is_capped_before_fallback(timeout, expected, tmp_path, monkeypatch):
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(url)
+        assert kwargs["timeout"] == expected
+        if "googleapis" in url:
+            raise httpx.ReadTimeout("timeout")
+        return reply(url)
+
+    monkeypatch.setattr(httpx, "post", post)
+    kwargs = {} if timeout is None else {"timeout": timeout}
+    provider = routing.create_llm_provider(configuration(tmp_path), **kwargs)
+    assert provider.generate_json("system", {}) == {"answer": "ok"}
+    assert len(calls) == 2
+
+
 def test_retry_hints():
     now = 1000
     date_header = format_datetime(datetime.fromtimestamp(1120, UTC), usegmt=True)

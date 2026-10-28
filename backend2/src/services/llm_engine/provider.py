@@ -6,6 +6,9 @@ from typing import Any, Protocol
 import httpx
 
 
+MAX_PROVIDER_TIMEOUT = 30.0
+
+
 class InvalidLLMResponse(ValueError):
     """The provider returned no usable JSON object."""
 
@@ -49,13 +52,13 @@ class DisabledProvider:
 class OpenAICompatibleProvider:
     provider_id = "openai-compatible"
 
-    def __init__(self, api_key: str, model: str, base_url: str, timeout: float = 60):
+    def __init__(self, api_key: str, model: str, base_url: str, timeout: float = MAX_PROVIDER_TIMEOUT):
         if not api_key or not model:
             raise ValueError("LLM API key and model are required")
         self.model_id = model
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
-        self.timeout = timeout
+        self.timeout = min(timeout, MAX_PROVIDER_TIMEOUT)
 
     def generate_json(self, system_prompt: str, evidence: dict[str, Any]) -> dict[str, Any]:
         response = httpx.post(

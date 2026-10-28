@@ -12,7 +12,7 @@ import time
 import httpx
 from pydantic import ValidationError
 
-from .provider import DisabledProvider, InvalidLLMResponse, OpenAICompatibleProvider
+from .provider import MAX_PROVIDER_TIMEOUT, DisabledProvider, InvalidLLMResponse, OpenAICompatibleProvider
 
 
 logger = logging.getLogger(__name__)
@@ -168,7 +168,7 @@ class ProviderRouter:
         raise httpx.HTTPStatusError("All configured LLM providers are cooling down", request=response.request, response=response)
 
 
-def create_llm_provider(settings, timeout=60):
+def create_llm_provider(settings, timeout=MAX_PROVIDER_TIMEOUT):
     if settings.greenpeak_llm_providers:
         providers = []
         for item in settings.greenpeak_llm_providers:
