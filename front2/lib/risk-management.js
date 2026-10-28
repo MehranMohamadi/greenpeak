@@ -453,14 +453,8 @@ export function aggregateRiskOverview(entries, now = new Date(), serverLeverage 
       warnings.push(`سطح مارجین ${marginLevel.toFixed(1)}٪ کمتر از حد پایش ${minMargin}٪ است؛ خطر کال مارجین را در همین حساب بررسی کنید`)
     }
     if (usedMargin !== 0 && marginLevel == null) warnings.push("سطح مارجین حساب قابل بررسی نیست")
-    if (openRisk.missingStopCount) warnings.push(`${openRisk.missingStopCount} پوزیشن بدون حد ضرر`)
-    if (!openRisk.complete) warnings.push("محاسبه ریسک پوزیشن‌های باز ناقص است")
-    const maxRisk = positiveRule(rules.maxOpenRiskPct)
-    if (maxRisk != null && openRisk.riskPct != null && openRisk.riskPct > maxRisk) warnings.push("ریسک باز حساب از سقف برنامه بیشتر است")
     const dailyLimit = positiveRule(rules.dailyLossLimitPct)
     if (dailyLimit != null && equity > 0 && history.realizedLossUsed > equity * dailyLimit / 100) warnings.push("بودجه زیان روزانه این حساب تمام شده است")
-    const freshness = freshnessSummary(snapshot, now)
-    if (!freshness.available || freshness.stale) warnings.push("داده حساب قدیمی است یا زمان آن مشخص نیست")
     return { snapshot, rules, currency, equity, exposure, openRisk, history, warnings }
   })
   const sum = (select) => {

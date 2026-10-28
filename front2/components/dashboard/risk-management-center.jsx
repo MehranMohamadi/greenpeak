@@ -134,10 +134,10 @@ function symbolMoveText(row) {
 
 function RiskOverviewTable({ columns, symbols, allAccounts }) {
   return <div className="space-y-3">
-    <div className="overflow-hidden rounded-lg border">
-      <Table className="min-w-[860px] text-right text-xs" aria-label="خلاصه مدیریت ریسک">
-        <TableHeader><TableRow className="bg-muted/40">{columns.map(({ key, label }) => <TableHead key={key} scope="col" className="h-10 whitespace-nowrap px-3 text-right text-xs">{label}</TableHead>)}</TableRow></TableHeader>
-        <TableBody><TableRow>{columns.map(({ key, value, detail, tone }) => <TableCell key={key} className={`px-3 py-4 text-right align-top ${tone === "danger" ? "text-rose-600 dark:text-rose-400" : tone === "warning" ? "text-amber-600 dark:text-amber-400" : ""}`}>
+    <div className="w-fit max-w-full overflow-hidden rounded-lg border">
+      <Table className="w-auto min-w-[800px] text-right text-xs" aria-label="خلاصه مدیریت ریسک">
+        <TableHeader><TableRow className="bg-muted/40">{columns.map(({ key, label }) => <TableHead key={key} scope="col" className="h-10 whitespace-nowrap px-2 text-right text-xs">{label}</TableHead>)}</TableRow></TableHeader>
+        <TableBody><TableRow>{columns.map(({ key, value, detail, tone }) => <TableCell key={key} className={`px-2 py-4 text-right align-top ${tone === "danger" ? "text-rose-600 dark:text-rose-400" : tone === "warning" ? "text-amber-600 dark:text-amber-400" : ""}`}>
           <bdi className="whitespace-nowrap font-semibold tabular-nums">{value}</bdi>
           {detail && <p className="mt-1 text-[10px] leading-5 text-muted-foreground">{detail}</p>}
         </TableCell>)}</TableRow></TableBody>
@@ -150,13 +150,13 @@ function RiskOverviewTable({ columns, symbols, allAccounts }) {
       </summary>
       <div className="space-y-3 border-t p-3">
         <p className="text-xs leading-6 text-muted-foreground">{allAccounts ? "خرید و فروش هر نماد در کل حساب‌ها خالص می‌شود؛ اکسپوژر کل، جمع قدر مطلق خالص نمادهاست." : "خرید و فروش هر نماد خالص می‌شود؛ اکسپوژر کل، جمع قدر مطلق خالص نمادهاست."}</p>
-        <Table className="min-w-[620px] text-right text-xs" aria-label="ریسک هر نماد">
-          <TableHeader><TableRow>{["نماد", "اکسپوژر خالص (دلار)", "اهرم نماد", "حرکت قیمت تا اهرم ۱۰ نماد"].map((label) => <TableHead key={label} scope="col" className="px-3 text-right text-xs">{label}</TableHead>)}</TableRow></TableHeader>
+        <Table className="min-w-[580px] text-right text-xs" aria-label="ریسک هر نماد">
+          <TableHeader><TableRow>{["نماد", "اکسپوژر خالص (دلار)", "اهرم نماد", "حرکت قیمت تا اهرم ۱۰ نماد"].map((label) => <TableHead key={label} scope="col" className="px-2 text-right text-xs">{label}</TableHead>)}</TableRow></TableHeader>
           <TableBody>{symbols.length ? symbols.map((row) => <TableRow key={row.symbol_id}>
-            <TableCell className="px-3 py-3 font-medium">{{ gold: "طلا", sp500: "S&P 500", bitcoin: "بیت‌کوین", ethereum: "اتریوم" }[row.symbol_id] || row.label}<p className="mt-1 text-[10px] text-muted-foreground" dir="ltr">{row.symbols.join(" / ")}</p></TableCell>
-            <TableCell className="px-3 py-3 tabular-nums"><bdi>{row.net_exposure_usd == null ? "داده کافی نیست" : money(row.net_exposure_usd, "USD")}</bdi></TableCell>
-            <TableCell className="px-3 py-3 tabular-nums"><bdi>{formatLeverage(row.leverage)}</bdi></TableCell>
-            <TableCell className="px-3 py-3 leading-6">{symbolMoveText(row)}</TableCell>
+            <TableCell className="px-2 py-3 font-medium">{{ gold: "طلا", sp500: "S&P 500", bitcoin: "بیت‌کوین", ethereum: "اتریوم" }[row.symbol_id] || row.label}<p className="mt-1 text-[10px] text-muted-foreground" dir="ltr">{row.symbols.join(" / ")}</p></TableCell>
+            <TableCell className="px-2 py-3 tabular-nums"><bdi>{row.net_exposure_usd == null ? "داده کافی نیست" : money(row.net_exposure_usd, "USD")}</bdi></TableCell>
+            <TableCell className="px-2 py-3 tabular-nums"><bdi>{formatLeverage(row.leverage)}</bdi></TableCell>
+            <TableCell className="px-2 py-3 leading-6">{symbolMoveText(row)}</TableCell>
           </TableRow>) : <TableRow><TableCell colSpan={4} className="p-3 text-right text-muted-foreground">نماد بازی برای نمایش وجود ندارد.</TableCell></TableRow>}</TableBody>
         </Table>
         <p className="text-[10px] leading-6 text-muted-foreground">برآورد با تغییر خطی قیمت همین نماد و ثابت‌بودن سایر نمادها، حجم و نرخ ارز محاسبه می‌شود؛ هزینه‌ها و تغییر مارجین لحاظ نشده‌اند. برای خالص فروش، افزایش قیمت حرکت نامطلوب است.</p>
@@ -961,7 +961,6 @@ export default function RiskManagementCenter() {
               <Button size="sm" className="h-9 w-auto" onClick={() => setReviewOpen(true)} disabled={!snapshot || allAccounts} title={allAccounts ? "برای بررسی معامله، یک حساب را انتخاب کنید" : undefined}><ClipboardCheck className="ml-2 h-4 w-4" />بررسی معامله جدید</Button>
               <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => { setAllocationFocus(""); setAllocationOpen(true) }} disabled={!snapshot || allAccounts} title={allAccounts ? "برای تخصیص معامله، یک حساب را انتخاب کنید" : undefined}><Link2 className="ml-2 h-4 w-4" />تخصیص و ارزیابی</Button>
             </div>
-            {allAccounts && <p className="text-xs text-muted-foreground">برای برنامه، سناریو یا بررسی معامله، حساب موردنظر را انتخاب کنید.</p>}
           </div>
         </div>
       </CardHeader>
