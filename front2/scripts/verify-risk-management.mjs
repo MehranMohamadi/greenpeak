@@ -340,7 +340,12 @@ const incompleteCombined = aggregateRiskOverview([
 ], aggregateNow)
 assert(incompleteCombined.openRisk.total === null && !incompleteCombined.openRisk.complete, "Missing stops in any account must make combined open risk incomplete")
 const staleCombined = aggregateRiskOverview([{ snapshot: { ...largeSafeAccount, timestamp_utc: "2000-01-01T00:00:00Z" }, rules: accountRules }], aggregateNow)
-assert(staleCombined.accountWarnings[0].warnings.some((warning) => warning.includes("قدیمی")), "A stale account must remain visible in the aggregate")
+assert(staleCombined.accountWarnings.length === 0, "Account data age must not appear in the warning list below risk management")
+const missingStopWarnings = aggregateRiskOverview([{ snapshot: { ...largeSafeAccount, positions: [{ ...largeSafeAccount.positions[0], stop_loss: 0 }] }, rules: accountRules }], aggregateNow)
+assert(missingStopWarnings.accountWarnings.length === 0, "Missing stops and incomplete open risk must not appear in the account warning list")
+assert(missingStopWarnings.openRisk.missingStopCount === 1 && !missingStopWarnings.openRisk.complete, "The summary table must retain missing-stop counts and incomplete open-risk values")
+const openRiskWarnings = aggregateRiskOverview([{ snapshot: largeSafeAccount, rules: { ...accountRules, maxOpenRiskPct: 0.01 } }], aggregateNow)
+assert(openRiskWarnings.accountWarnings.length === 0 && openRiskWarnings.openRisk.total === 200, "Open-risk rule breaches must stay out of account warnings while financial values remain available")
 const noAccounts = aggregateRiskOverview([], aggregateNow)
 assert(noAccounts.grossLeverage === null && noAccounts.marginLevel === null && noAccounts.openRisk.total === null, "Empty account lists must not produce valid totals")
 
