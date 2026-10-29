@@ -17,8 +17,22 @@ The administrator entry is the **کاربران و دسترسی‌ها** tab at
 `/workplace?tab=users`. `/admin` and `/admin/settings` redirect there behind the
 existing admin page guard; `/admin/employees` redirects to team attendance.
 The single account list displays usernames, roles, activation state,
-registration dates and premium-analysis access, never credentials. Inspection
+registration dates, last activity and premium-analysis access, never credentials. Inspection
 tools are in `/workplace?tab=tools`. Both tabs require administrator access.
+
+Last activity (`gp_users.last_active_at`) records UTC server time on successful
+login and authenticated `GET /api/v1/auth/me?record_activity=true` session checks.
+A single 60-second session timer checks the current role and session validity;
+only visible pages add `record_activity=true`, including passive reading with an
+existing session. Becoming visible also triggers a check. Hidden tabs continue
+session checks without recording activity. Ordinary `/auth/me` and `/auth/session`
+requests do not record presence. There is no separate activity request or timer.
+Writes are limited to one per minute per account and use a
+compare-and-set update across concurrent tabs/workers. This measures visible-page
+presence, not attention or attendance. The admin table displays Persian dates and
+time in Asia/Tehran; accounts with no recorded activity show «ثبت نشده». There is
+no historical backfill. Refresh the account list to see newer reports.
+
 Admins can promote a user with the user-list action or
 `POST /api/v1/auth/users/{user_id}/promote`. Admins can also demote another admin
 via `POST /api/v1/auth/users/{user_id}/demote`, or delete an account via

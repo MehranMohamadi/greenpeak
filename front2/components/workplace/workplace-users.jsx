@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { formatDate } from "@/lib/workplace-time.mjs"
+import { formatDate, formatInstant } from "@/lib/workplace-time.mjs"
 
 const roleLabels = { user: "کاربر", staff: "کارمند", admin: "مدیر" }
 
@@ -82,16 +82,18 @@ export default function WorkplaceUsers({ onUsersChanged }) {
     <CardHeader>
       <div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>کاربران و دسترسی‌ها</CardTitle><Button variant="outline" size="sm" disabled={loading || busy} onClick={() => setRevision(value => value + 1)}><RefreshCw className="me-2 h-4 w-4" />تازه‌سازی</Button></div>
       <CardDescription>نقش کاربران و کارکنان، دسترسی تحلیل‌های پرمیوم و مدیریت حساب‌ها</CardDescription>
+      <p className="text-xs text-muted-foreground">آخرین فعالیت: ورود موفق یا مشاهدهٔ صفحه با نشست معتبر؛ هنگام نمایان بودن تب هر یک دقیقه ثبت می‌شود. تب مخفی محاسبه نمی‌شود. تاریخ و ساعت به وقت تهران است.</p>
     </CardHeader>
     <CardContent>
       {feedback && <p role={feedback.ok ? "status" : "alert"} className={`mb-4 text-sm ${feedback.ok ? "text-primary" : "text-destructive"}`}>{feedback.text}</p>}
       {loading ? <p role="status" className="text-sm text-muted-foreground">در حال دریافت فهرست…</p> : error ? <p role="alert" className="text-sm text-destructive">{error}</p> : !users.length ? <p className="text-sm text-muted-foreground">کاربری ثبت نشده است.</p> : <div className="overflow-x-auto">
-        <table className="w-full text-right text-sm"><thead><tr className="border-b text-muted-foreground"><th className="p-3">نام کاربری</th><th className="p-3">نقش</th><th className="p-3">وضعیت</th><th className="p-3">تاریخ ثبت‌نام</th><th className="p-3">تحلیل‌های پرمیوم</th><th className="p-3">عملیات حساب</th></tr></thead><tbody>
+        <table className="w-full text-right text-sm"><thead><tr className="border-b text-muted-foreground"><th className="p-3">نام کاربری</th><th className="p-3">نقش</th><th className="p-3">وضعیت</th><th className="p-3">تاریخ ثبت‌نام</th><th className="p-3">آخرین فعالیت</th><th className="p-3">تحلیل‌های پرمیوم</th><th className="p-3">عملیات حساب</th></tr></thead><tbody>
           {users.map(account => <tr key={account.id} className="border-b last:border-0">
             <td className="p-3" dir="auto">{account.username}</td>
             <td className="p-3">{account.role === "admin" ? <Badge>مدیر</Badge> : <select className="h-9 rounded-md border border-input bg-background px-2 text-sm" aria-label={`نقش ${account.username}`} value={account.role} disabled={busy || !account.is_active} onChange={event => changeUser(account, "staff", event.target.value)}><option value="user">کاربر</option><option value="staff">کارمند</option></select>}</td>
             <td className="whitespace-nowrap p-3">{account.is_active ? "فعال" : "غیرفعال"}</td>
             <td className="whitespace-nowrap p-3">{account.created_at && !Number.isNaN(Date.parse(account.created_at)) ? formatDate(account.created_at) : "نامشخص"}</td>
+            <td className="whitespace-nowrap p-3">{account.last_active_at && !Number.isNaN(Date.parse(account.last_active_at)) ? formatInstant(account.last_active_at) : "ثبت نشده"}</td>
             <td className="p-3"><label className="flex items-center gap-2 whitespace-nowrap text-xs"><Switch aria-label={`دسترسی تحلیل‌های پرمیوم ${account.username}`} checked={account.role === "admin" || account.can_view_premium_analysis === true} disabled={busy || account.role === "admin"} onCheckedChange={enabled => changeUser(account, "analysis", enabled)} />{account.role === "admin" ? "دسترسی مدیر" : account.can_view_premium_analysis ? "فعال" : "غیرفعال"}</label></td>
             <td className="p-3"><div className="flex flex-wrap gap-2">
               {account.role !== "admin" ? <Button size="sm" variant="outline" disabled={busy} onClick={() => changeUser(account, "promote")}>ارتقا به مدیر</Button> : <Button size="sm" variant="outline" disabled={busy || account.id === currentUser?.id} onClick={() => changeUser(account, "demote")}>تبدیل به کاربر</Button>}

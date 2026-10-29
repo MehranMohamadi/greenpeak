@@ -158,11 +158,15 @@ def login(credentials: Credentials, request: Request, response: Response, servic
 def me(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
     service: Annotated[AuthService, Depends(get_auth_service)],
+    response: Response,
+    record_activity: bool = False,
 ):
+    """Return live access and optionally record visible-page presence."""
+    response.headers["Cache-Control"] = "no-store"
     if not credentials or credentials.scheme.lower() != "bearer":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
     try:
-        return UserResponse(**service.user_from_token(credentials.credentials))
+        return UserResponse(**service.user_from_token(credentials.credentials, record_activity=record_activity))
     except (AuthError, AuthStorageError, PyMongoError) as exc:
         raise auth_failure(exc) from exc
 

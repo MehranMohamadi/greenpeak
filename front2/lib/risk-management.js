@@ -78,6 +78,16 @@ export function scenarioSymbolOptions(snapshot) {
   }))
 }
 
+export function aggregateScenarioSymbolOptions(symbolRisks) {
+  const rows = new Map((symbolRisks || []).map((row) => [row.symbol_id, row]))
+  const keys = ["gold", "sp500", ...[...rows.keys()].filter((key) => !["gold", "sp500"].includes(key)).sort()]
+  return keys.map((symbol) => {
+    const row = rows.get(symbol)
+    const label = { gold: "طلا", sp500: "اس‌اندپی ۵۰۰", bitcoin: "بیت‌کوین", ethereum: "اتریوم" }[symbol] || row?.label || symbol
+    return { symbol, label: row?.symbols?.length ? `${label} (${row.symbols.join(" / ")})` : label }
+  })
+}
+
 export function tradeAssetVolume(draft) {
   const lots = positiveRule(draft?.volume)
   const contractSize = positiveRule(draft?.contractSize)
@@ -861,17 +871,44 @@ export function buildTradeReview(snapshot, draft, rules, openRisk) {
   }
 }
 
+function scenarioNumber(value) {
+  return typeof value === "boolean" ? null : finiteNumber(value)
+}
+
 export function scenarioEstimate(snapshot, symbol, shockPct) {
   const metric = (snapshot?.symbol_metrics || []).find(
     (item) => normalizeSymbol(item?.symbol) === normalizeSymbol(symbol),
   )
-  const exposure = finiteNumber(metric?.net_symbol_exposure_usd)
-  const shock = finiteNumber(shockPct)
-  const equity = finiteNumber(snapshot?.account?.equity)
+  const exposure = scenarioNumber(metric?.net_symbol_exposure_usd)
+  const shock = scenarioNumber(shockPct)
+  const equity = scenarioNumber(snapshot?.account?.equity)
   const currency = String(snapshot?.account?.currency || "")
   if (!metric || exposure == null || shock == null || equity == null || currency !== "USD") {
     return { available: false, pnl: null, equityAfter: null, reason: currency && currency !== "USD" ? "تبدیل Exposure دلاری به ارز حساب در Snapshot موجود نیست" : "داده کافی برای این سناریو موجود نیست" }
   }
-  const pnl = exposure * shock / 100
-  return { available: true, pnl, equityAfter: equity + pnl, reason: null }
+  return exposureScenario(exposure, equity, shock)
+}
+
+function exposureScenario(exposure, equity, shock) {
+  const pnl = exposure * (shock / 100)
+  const equityAfter = equity + pnl
+  if (!Number.isFinite(pnl) || !Number.isFinite(equityAfter)) {
+    return { available: false, pnl: null, equityAfter: null, reason: "نتیجه سناریو قابل محاسبه نیست" }
+  }
+  const impact = equity > 0 ? pnl / equity * 100 : null
+  return { available: true, pnl, equityAfter, equityBefore: equity, impactPct: Number.isFinite(impact) ? impact : null, reason: null }
+}
+
+export function aggregateScenarioEstimate(leverage, symbolRisks, symbolId, shockPct) {
+  const row = (symbolRisks || []).find((item) => item.symbol_id === symbolId)
+  const exposure = scenarioNumber(row?.net_exposure_usd)
+  const equity = scenarioNumber(leverage?.equity_usd)
+  const shock = scenarioNumber(shockPct)
+  if (equity == null) {
+    return { available: false, pnl: null, equityAfter: null, reason: "اکوییتی دلاری همه حساب‌ها موجود نیست؛ سناریوی کل بدون تبدیل معتبر ارز قابل محاسبه نیست." }
+  }
+  if (!row || exposure == null || shock == null) {
+    return { available: false, pnl: null, equityAfter: null, reason: "اکسپوژر خالص کامل نماد در همه بروکرها یا درصد تغییر قیمت موجود نیست؛ نتیجه ناقص نمایش داده نمی‌شود." }
+  }
+  return exposureScenario(exposure, equity, shock)
 }
