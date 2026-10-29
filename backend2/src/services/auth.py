@@ -23,6 +23,16 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
 PBKDF2_ITERATIONS = 600_000
+ACTIVITY_WRITE_INTERVAL_SECONDS = 60
+
+
+def _activity_instant(value):
+    """MongoDB returns naive UTC datetimes; SQLite stores ISO timestamps."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value)
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
 
 
 class AuthError(Exception):
@@ -235,10 +245,11 @@ class AuthService:
         return self.list_users(role="admin")
 
     def list_users(self, role=None):
-        projection = {"_id": 1, "username": 1, "role": 1, "is_active": 1, "created_at": 1, "can_view_premium_analysis": 1}
+        projection = {"_id": 1, "username": 1, "role": 1, "is_active": 1, "created_at": 1, "can_view_premium_analysis": 1, "last_active_at": 1}
         return sorted([
             {"id": str(row["_id"]), "username": row["username"], "role": row.get("role", "user"),
              "is_active": row.get("is_active", True), "created_at": row.get("created_at"),
+             "last_active_at": _activity_instant(row.get("last_active_at")),
              "can_view_premium_analysis": row.get("can_view_premium_analysis") is True}
             for row in self.collection.find({"role": role, "deleted_at": None} if role else {"deleted_at": None}, projection)
         ], key=lambda row: row["username"].casefold())
@@ -295,6 +306,7 @@ class AuthService:
             raise AuthError("Invalid username or password.")
         if document.get("email_verified") is False:
             raise AuthError("Please verify your email before signing in.")
+        self._record_activity(document)
         user = {"id": str(document["_id"]), "username": document["username"], "role": document.get("role", "user"),
                 "can_view_premium_analysis": document.get("can_view_premium_analysis") is True}
         return user, self.create_token({**user, "session_version": document.get("session_version", 0)})
@@ -354,7 +366,20 @@ class AuthService:
         signature = _b64encode(hmac.new(self.secret_key, encoded.encode("ascii"), hashlib.sha256).digest())
         return f"{encoded}.{signature}"
 
-    def user_from_token(self, token: str) -> dict[str, Any]:
+    def _record_activity(self, document):
+        """Record server time, with one write per minute across tabs/workers."""
+        now = datetime.now(timezone.utc)
+        previous = document.get("last_active_at")
+        instant = _activity_instant(previous)
+        if instant is not None and (now - instant).total_seconds() < ACTIVITY_WRITE_INTERVAL_SECONDS:
+            return
+        # Compare the stored value so an older concurrent request cannot regress it.
+        self.collection.update_one(
+            {"_id": document["_id"], "last_active_at": previous},
+            {"$set": {"last_active_at": now}},
+        )
+
+    def user_from_token(self, token: str, *, record_activity: bool = False) -> dict[str, Any]:
         try:
             encoded, supplied_signature = token.split(".", 1)
             expected_signature = _b64encode(hmac.new(self.secret_key, encoded.encode("ascii"), hashlib.sha256).digest())
@@ -371,6 +396,8 @@ class AuthService:
                 or document.get("email_verified") is False
                 or document.get("session_version", 0) != payload.get("ver", 0)):
             raise AuthError("Invalid or expired session.")
+        if record_activity:
+            self._record_activity(document)
         return {"id": str(document["_id"]), "username": document["username"], "role": document.get("role", "user"),
                 "can_view_premium_analysis": document.get("can_view_premium_analysis") is True}
 

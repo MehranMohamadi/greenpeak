@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises"
 const source = await readFile(new URL("../lib/risk-management.js", import.meta.url), "utf8")
 const {
   aggregateRiskOverview,
+  aggregateScenarioEstimate,
+  aggregateScenarioSymbolOptions,
   analyzeOpenRisk,
   assessAllocatedTrade,
   assessPlannedTrade,
@@ -152,6 +154,35 @@ const portfolioScenarioSymbols = scenarioSymbolOptions({
 assert(portfolioScenarioSymbols.map((item) => item.symbol).join(",") === "GOLD,US500.cash,BTCUSD,EURUSD", "Scenario choices must preserve portfolio broker aliases, include orders, deduplicate case variants, and exclude unheld broker instruments")
 assert(scenarioEstimate({ ...baseSnapshot, symbol_metrics: [{ symbol: "GOLD", net_symbol_exposure_usd: 10_000 }] }, portfolioScenarioSymbols[0].symbol, -5).pnl === -500, "Scenario selections must resolve the actual broker exposure")
 assert(!scenarioEstimate(baseSnapshot, "US500", -5).available, "A default symbol without exposure must not fabricate scenario results")
+
+// Use the server's cross-broker net exposure and total equity, including accounts
+// without this symbol. Broker lots and aliases must never be re-summed here.
+const combinedScenarioSymbols = [
+  { symbol_id: "gold", label: "Gold", symbols: ["GOLD.pro", "XAUUSD"], net_exposure_usd: 40_000 },
+  { symbol_id: "sp500", label: "S&P 500", symbols: ["US500.cash", "SPX500"], net_exposure_usd: -10_000 },
+  { symbol_id: "eurusd", label: "EUR/USD", symbols: ["EURUSD"], net_exposure_usd: null },
+]
+const totalScenarioEquity = { equity_usd: 20_000 }
+const combinedScenarioOptions = aggregateScenarioSymbolOptions(combinedScenarioSymbols)
+assert(combinedScenarioOptions.map((item) => item.symbol).join(",") === "gold,sp500,eurusd", "All-broker scenario choices must group the server's canonical symbols without duplicating aliases")
+assert(combinedScenarioOptions[0].label.includes("GOLD.pro") && combinedScenarioOptions[0].label.includes("XAUUSD"), "The aggregated gold choice must identify both broker aliases")
+const combinedScenario = aggregateScenarioEstimate(totalScenarioEquity, combinedScenarioSymbols, "gold", -5)
+assert(combinedScenario.pnl === -2_000 && combinedScenario.equityAfter === 18_000 && combinedScenario.equityBefore === 20_000, "An all-broker scenario must affect the total equity using the server's combined symbol exposure")
+assert(combinedScenario.impactPct === -10, "Scenario percentage must divide the combined P/L by total equity, never average account percentages")
+assert(aggregateScenarioEstimate(totalScenarioEquity, combinedScenarioSymbols, "sp500", 5).pnl === -500, "Rising prices must hurt a net short symbol across brokers")
+const hedgedScenario = aggregateScenarioEstimate(totalScenarioEquity, [{ ...combinedScenarioSymbols[0], net_exposure_usd: 0 }], "gold", -5)
+assert(hedgedScenario.available && hedgedScenario.pnl === 0 && hedgedScenario.impactPct === 0 && hedgedScenario.equityAfter === 20_000, "Fully offset cross-broker positions must preserve a valid zero effect")
+assert(!aggregateScenarioEstimate(totalScenarioEquity, combinedScenarioSymbols, "eurusd", -5).available, "Missing exposure in any contributing broker must not present a partial scenario")
+assert(!aggregateScenarioEstimate(totalScenarioEquity, [], "gold", -5).available, "A default symbol without positions must not fabricate zero exposure")
+for (const invalid of [null, undefined, "", true, false, NaN, Infinity, "invalid"]) {
+  assert(!aggregateScenarioEstimate({ equity_usd: invalid }, combinedScenarioSymbols, "gold", -5).available, "Missing or mixed-currency total equity must not fall back to a selected account")
+  assert(!aggregateScenarioEstimate(totalScenarioEquity, [{ ...combinedScenarioSymbols[0], net_exposure_usd: invalid }], "gold", -5).available, "Malformed aggregate exposure must remain unavailable")
+  assert(!aggregateScenarioEstimate(totalScenarioEquity, combinedScenarioSymbols, "gold", invalid).available, "Malformed price changes must not produce a scenario")
+}
+assert(!aggregateScenarioEstimate(null, combinedScenarioSymbols, "gold", -5).available, "An absent server result must not trigger browser aggregation")
+assert(!aggregateScenarioEstimate({ equity_usd: 1e308 }, [{ ...combinedScenarioSymbols[0], net_exposure_usd: 1e308 }], "gold", 200).available, "Overflow must not be displayed as scenario money")
+assert(aggregateScenarioEstimate({ equity_usd: 0 }, combinedScenarioSymbols, "gold", -5).impactPct === null, "A zero-equity portfolio must not show an infinite percent change")
+assert(scenario.impactPct === -5, "Single-account scenario percentage must retain its account equity denominator")
 
 assert(stepTradePrice("", 3000, 0.01, -1) === 2999.99, "An empty SL must step from the price, not zero")
 assert(stepTradePrice("", 3000, 0.01, 1) === 3000.01, "An empty TP must step from the price, not zero")

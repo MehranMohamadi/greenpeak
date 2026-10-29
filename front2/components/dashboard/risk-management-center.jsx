@@ -56,6 +56,8 @@ import { createRiskDemoSnapshot } from "@/lib/mt5-demo-snapshot"
 import { buildTradeLifecycles } from "@/lib/mt5-trade-lifecycles"
 import {
   aggregateRiskOverview,
+  aggregateScenarioEstimate,
+  aggregateScenarioSymbolOptions,
   analyzeOpenRisk,
   analyzeTradeHistory,
   assessAllocatedTrade,
@@ -147,8 +149,8 @@ function symbolMoveText(row) {
 
 function RiskOverviewTable({ columns, symbols, allAccounts }) {
   const [expanded, setExpanded] = useState(false)
-  return <Collapsible open={expanded} onOpenChange={setExpanded} className="w-fit max-w-full overflow-hidden rounded-lg border">
-      <Table className="w-auto min-w-[800px] text-right text-xs" aria-label="خلاصه مدیریت ریسک">
+  return <Collapsible open={expanded} onOpenChange={setExpanded} className="w-full min-w-0 overflow-hidden rounded-lg border">
+      <Table className="w-full min-w-[800px] text-right text-xs" aria-label="خلاصه مدیریت ریسک">
         <TableHeader><TableRow className="bg-muted/40">{columns.map(({ key, label }) => <TableHead key={key} scope="col" className="h-10 whitespace-nowrap px-2 text-right text-xs">{label}</TableHead>)}<TableHead scope="col" className="w-8 px-1"><span className="sr-only">جزئیات</span></TableHead></TableRow></TableHeader>
         <TableBody><TableRow>{columns.map(({ key, value, detail, tone }) => <TableCell key={key} className={`px-2 py-4 text-right align-top ${tone === "danger" ? "text-rose-600 dark:text-rose-400" : tone === "warning" ? "text-amber-600 dark:text-amber-400" : ""}`}>
           <bdi className="whitespace-nowrap font-semibold tabular-nums">{value}</bdi>
@@ -641,12 +643,12 @@ function DailyPlanDialog({ open, onOpenChange, snapshots, onAccountChange, snaps
   </Dialog>
 }
 
-function ScenarioDialog({ open, onOpenChange, scenarioSymbols, selectedScenarioSymbol, onSymbolChange, shockPct, onShockChange, scenario }) {
+function ScenarioDialog({ open, onOpenChange, scenarioSymbols, selectedScenarioSymbol, onSymbolChange, shockPct, onShockChange, scenario, allAccounts }) {
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent dir="rtl" className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-xl overflow-y-auto">
       <DialogHeader className="pl-8 text-right sm:text-right">
         <DialogTitle>سناریو</DialogTitle>
-        <DialogDescription>اثر خطی یک شوک قیمتی روی Exposure خالص نماد انتخاب‌شده را بررسی کنید.</DialogDescription>
+        <DialogDescription>{allAccounts ? "اثر تغییر قیمت نماد بر اکوییتی کل همه بروکرها؛ خرید و فروش نماد در تمام حساب‌ها خالص می‌شود و اندازه قرارداد هر بروکر در اکسپوژر لحاظ شده است." : "اثر خطی یک شوک قیمتی روی Exposure خالص نماد انتخاب‌شده را بررسی کنید."}</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
         <div className="grid grid-cols-[minmax(0,1fr)_130px] gap-3">
@@ -666,8 +668,8 @@ function ScenarioDialog({ open, onOpenChange, scenarioSymbols, selectedScenarioS
         <p id="scenario-shock-help" className="text-[10px] leading-5 text-muted-foreground">عدد منفی یعنی افت قیمت و عدد مثبت یعنی رشد قیمت؛ بازه از <bdi>-20%</bdi> تا <bdi>+20%</bdi> است. نتیجه بر اساس اکسپوژر ثبت‌شده در آخرین داده محاسبه می‌شود.</p>
       </div>
       <dl className="grid grid-cols-2 gap-2">
-        <div className={`${insetClass} p-4`}><dt className="text-[10px] text-muted-foreground">اثر تقریبی بر Equity</dt><dd className={`mt-2 text-base font-semibold tabular-nums ${scenario.pnl < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`} dir="ltr">{scenario.available ? money(scenario.pnl, "USD") : "—"}</dd></div>
-        <div className={`${insetClass} p-4`}><dt className="text-[10px] text-muted-foreground">Equity برآوردی</dt><dd className="mt-2 text-base font-semibold tabular-nums" dir="ltr">{scenario.available ? money(scenario.equityAfter, "USD") : "—"}</dd></div>
+        <div className={`${insetClass} p-4`}><dt className="text-[10px] text-muted-foreground">{allAccounts ? "اثر تقریبی بر اکوییتی کل" : "اثر تقریبی بر Equity"}</dt><dd className={`mt-2 text-base font-semibold tabular-nums ${scenario.pnl < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`} dir="ltr">{scenario.available ? money(scenario.pnl, "USD") : "—"}</dd>{scenario.available && scenario.impactPct != null && <dd className="mt-1 text-xs text-muted-foreground"><bdi>{number(scenario.impactPct, 2, 2)}٪</bdi> از {allAccounts ? "اکوییتی کل" : "اکوییتی حساب"}</dd>}</div>
+        <div className={`${insetClass} p-4`}><dt className="text-[10px] text-muted-foreground">{allAccounts ? "اکوییتی کل برآوردی" : "Equity برآوردی"}</dt><dd className="mt-2 text-base font-semibold tabular-nums" dir="ltr">{scenario.available ? money(scenario.equityAfter, "USD") : "—"}</dd>{scenario.available && <dd className="mt-1 text-xs text-muted-foreground">اکوییتی فعلی: <bdi>{money(scenario.equityBefore, "USD")}</bdi></dd>}</div>
       </dl>
       <div className={`${insetClass} p-4 text-xs leading-6 text-muted-foreground`}>{scenario.available ? "این برآورد تغییر خطی P/L را فرض می‌کند. تغییر Margin Level، گپ، لغزش، هم‌بستگی و واکنش سایر نمادها در آن محاسبه نشده است." : scenario.reason}</div>
     </DialogContent>
@@ -870,9 +872,9 @@ export default function RiskManagementCenter() {
   const maxLeverage = positiveRule(rules.maxGrossLeverage)
   const minMargin = positiveRule(rules.minMarginLevelPct)
   const maxTrades = positiveRule(rules.maxTradesPerDay)
-  const scenarioSymbols = scenarioSymbolOptions(snapshot)
+  const scenarioSymbols = allAccounts ? aggregateScenarioSymbolOptions(serverSymbols) : scenarioSymbolOptions(snapshot)
   const selectedScenarioSymbol = scenarioSymbols.some(({ symbol }) => symbol === scenarioSymbol) ? scenarioSymbol : scenarioSymbols[0]?.symbol || ""
-  const scenario = scenarioEstimate(snapshot, selectedScenarioSymbol, shockPct)
+  const scenario = allAccounts ? aggregateScenarioEstimate(serverLeverage, serverSymbols, selectedScenarioSymbol, shockPct) : scenarioEstimate(snapshot, selectedScenarioSymbol, shockPct)
   const overviewOpenRisk = allAccounts ? aggregate.openRisk : openRisk
   const symbolRisks = allAccounts ? serverSymbols : snapshot?.symbol_risks || []
   const overviewColumns = [
@@ -971,7 +973,7 @@ export default function RiskManagementCenter() {
           </div>
           <div className="grid gap-2 lg:justify-items-end">
             <div className={`grid w-full items-center gap-2 lg:w-auto ${snapshots.length > 0 ? "grid-cols-[auto_minmax(0,1fr)_auto]" : "grid-cols-[auto_auto]"}`}>
-              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setScenarioOpen(true)} disabled={!snapshot || allAccounts} title={allAccounts ? "برای بررسی سناریو، یک حساب را انتخاب کنید" : undefined}><Gauge className="ml-2 h-4 w-4" />سناریو</Button>
+              <Button variant="outline" size="sm" className="h-9 w-auto" onClick={() => setScenarioOpen(true)} disabled={!snapshot}><Gauge className="ml-2 h-4 w-4" />سناریو</Button>
               {snapshots.length > 0 && <Select value={selectedAccount || accountKey(snapshots[0])} onValueChange={setSelectedAccount}>
                 <SelectTrigger aria-label="انتخاب حساب یا همه بروکرها" className="h-9 w-56 min-w-0 max-w-full [&>span]:min-w-0 [&>span]:truncate"><SelectValue><span className="block truncate">{allAccounts ? `همه بروکرها (${snapshots.length} حساب)` : accountName(snapshot || snapshots[0])}</span></SelectValue></SelectTrigger>
                 <SelectContent dir="rtl" className="w-[min(90vw,32rem)] max-w-[calc(100vw-2rem)]">
@@ -1021,7 +1023,7 @@ export default function RiskManagementCenter() {
 
     {snapshot && <>
       <DailyPlanDialog open={dailyPlanOpen} onOpenChange={setDailyPlanOpen} snapshots={snapshots} onAccountChange={onToolAccountChange} snapshot={snapshot} rules={rules} setRules={setRules} rulesSaved={rulesSaved} onSaveRules={saveRules} history={history} maxTrades={maxTrades} />
-      {!allAccounts && <ScenarioDialog open={scenarioOpen} onOpenChange={setScenarioOpen} scenarioSymbols={scenarioSymbols} selectedScenarioSymbol={selectedScenarioSymbol} onSymbolChange={setScenarioSymbol} shockPct={shockPct} onShockChange={setShockPct} scenario={scenario} />}
+      <ScenarioDialog open={scenarioOpen} onOpenChange={setScenarioOpen} scenarioSymbols={scenarioSymbols} selectedScenarioSymbol={selectedScenarioSymbol} onSymbolChange={setScenarioSymbol} shockPct={shockPct} onShockChange={setShockPct} scenario={scenario} allAccounts={allAccounts} />
       <TradeReviewPanel key={storageKey} open={reviewOpen} onOpenChange={setReviewOpen} snapshots={snapshots} onAccountChange={onToolAccountChange} snapshot={snapshot} rules={rules} openRisk={openRisk} draft={currentDraft} setDraft={updateDraft} onSavePlan={savePlan} saved={savedPlan} storageError={planStorageError} />
       <TradeAllocationDialog open={allocationOpen} onOpenChange={setAllocationOpen} snapshots={snapshots} onAccountChange={onToolAccountChange} snapshot={snapshot} plans={tradePlans} openRisk={openRisk} onConfirmTicket={confirmTicket} onDeletePlan={deletePlan} analysis={behaviorAnalysis} focusSection={allocationFocus} storageError={planStorageError} />
     </>}

@@ -28,7 +28,7 @@ const filters = [
   { id: "closed", label: "معاملات بسته‌شده" },
 ]
 
-const tradeGridClass = "grid-cols-[6rem_minmax(0,1.15fr)_minmax(0,.72fr)_minmax(0,.48fr)_8rem_minmax(0,.76fr)_minmax(0,.76fr)_minmax(0,.64fr)_minmax(0,.64fr)_minmax(0,.95fr)]"
+const tradeGridClass = "grid-cols-[6rem_minmax(0,.75fr)_minmax(0,.72fr)_minmax(0,.48fr)_8rem_minmax(0,.76fr)_minmax(0,.76fr)_minmax(0,.64fr)_minmax(0,.64fr)_minmax(0,.95fr)]"
 
 const orderTypes = {
   0: { label: "Buy", direction: "long" },
@@ -198,6 +198,14 @@ function LifecycleDetails({ lifecycle }) {
   </div>
 }
 
+function SymbolAccount({ symbol, accountLabel }) {
+  // Two compact lines fit within the existing 22px direction badge height.
+  return <p className="flex h-[22px] min-w-0 flex-col justify-center text-right">
+    <span className="block truncate text-[11px] font-semibold leading-[11px] text-foreground" title={symbol}>{symbol}</span>
+    <span className="block truncate text-[9px] leading-[11px] text-muted-foreground" title={accountLabel}>{accountLabel}</span>
+  </p>
+}
+
 function LifecycleRow({ lifecycle }) {
   const destinationPrice = lifecycle.status === "closed" ? lifecycle.closePrice : lifecycle.valuationPrice
 
@@ -206,7 +214,7 @@ function LifecycleRow({ lifecycle }) {
       <ChevronDown aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform group-open:rotate-180" />
       <div className={`grid ${tradeGridClass} items-center gap-1.5 whitespace-nowrap text-center text-[11px]`}>
         <span className="select-all truncate font-medium tabular-nums" dir="ltr" title={lifecycle.ticket || undefined}>{lifecycle.ticket || "—"}</span>
-        <p className="min-w-0 truncate text-right"><span className="font-semibold text-foreground">{lifecycle.symbol}</span><span className="text-[10px] text-muted-foreground"> · {lifecycle.accountLabel}</span></p>
+        <SymbolAccount symbol={lifecycle.symbol} accountLabel={lifecycle.accountLabel} />
         <Badge variant="outline" className={`mx-auto max-w-full truncate ${directionTone(lifecycle.direction)}`} title={lifecycle.directionLabel}>{lifecycle.directionLabel}</Badge>
         <span className="tabular-nums" dir="ltr">{formatTradeNumber(lifecycle.volume, 2, 2)}</span>
         <time className="tabular-nums text-muted-foreground">{formatTradeTime(lifecycle.openTime)}</time>
@@ -240,7 +248,7 @@ function PendingRow({ order }) {
       <ChevronDown aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform group-open:rotate-180" />
       <div className={`grid ${tradeGridClass} items-center gap-1.5 whitespace-nowrap text-center text-[11px]`}>
         <span className="select-all truncate font-medium tabular-nums" dir="ltr" title={order.ticket || undefined}>{order.ticket || "—"}</span>
-        <p className="min-w-0 truncate text-right"><span className="font-semibold text-foreground">{order.symbol}</span><span className="text-[10px] text-muted-foreground"> · {order.accountLabel}</span></p>
+        <SymbolAccount symbol={order.symbol} accountLabel={order.accountLabel} />
         <Badge variant="outline" className={`mx-auto max-w-full truncate ${directionTone(order.direction)}`} title={order.orderTypeLabel}>{order.orderTypeLabel}</Badge>
         <span className="tabular-nums" dir="ltr">{formatTradeNumber(order.volume, 2, 2)}</span>
         <time className="tabular-nums text-muted-foreground">{formatTradeTime(order.setupTime)}</time>

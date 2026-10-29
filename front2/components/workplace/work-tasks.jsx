@@ -1,12 +1,13 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Bell, Plus, RefreshCw, Search } from "lucide-react"
+import { Bell, ChevronDown, Plus, RefreshCw, Search } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
 import { endpoints } from "@/api/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { formatInstant, parsePersianDate } from "@/lib/workplace-time.mjs"
@@ -152,12 +153,15 @@ export default function WorkTasks({ initialTaskId = null, accountsRevision = 0 }
     {actionError && !selectedId && !creating && <p role="alert" className="rounded-lg border p-3 text-sm text-destructive">{actionError}</p>}
     <Card><CardContent className="pt-5"><details><summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 text-sm font-medium"><Bell className="h-4 w-4" />اعلان‌های کارها<Badge variant={notifications.unread_count ? "default" : "secondary"}>{notifications.unread_count.toLocaleString("fa-IR")} خوانده‌نشده</Badge></summary><div className="mt-4 max-h-80 space-y-2 overflow-y-auto">{notifications.items.length ? notifications.items.map(notice => <button key={notice.id} type="button" disabled={busy} onClick={() => openNotice(notice)} className={`block w-full space-y-1 rounded-lg border p-3 text-right text-sm transition-colors hover:bg-accent ${notice.read ? "text-muted-foreground" : "bg-primary/5"}`}><span className="block break-words font-medium">{workEvents[notice.kind] || "تغییر کار"}: {notice.task_title}</span><span className="block text-xs">{notice.actor.username} · {formatInstant(notice.created_at)}{notice.read ? " · خوانده‌شده" : ""}</span></button>) : <p className="text-sm text-muted-foreground">اعلانی برای شما ثبت نشده است.</p>}</div></details></CardContent></Card>
     <div className="flex flex-wrap gap-2" role="group" aria-label="نمای کارها">{views.map(([key, label]) => <Button key={key} size="sm" variant={view === key ? "default" : "outline"} aria-pressed={view === key} disabled={busy} onClick={() => changeView(key)}>{label}<span className="ms-2 tabular-nums">{(listing.counts[key] || 0).toLocaleString("fa-IR")}</span></Button>)}</div>
-    <Card><CardHeader><CardTitle className="text-base">جست‌وجو و فیلتر کارها</CardTitle><CardDescription>تکمیل‌شده‌ها و لغوشده‌ها از فهرست فعال کنار گذاشته شده‌اند.</CardDescription></CardHeader><CardContent><form onSubmit={applyFilters} className="space-y-4">
+    <Collapsible defaultOpen={false} className="space-y-3">
+      <CollapsibleTrigger asChild><Button type="button" variant="outline" size="sm" className="group"><Search className="me-2 h-4 w-4" />جست‌وجو و فیلتر کارها<ChevronDown className="ms-2 h-4 w-4 transition-transform group-data-[state=open]:rotate-180" aria-hidden="true" /></Button></CollapsibleTrigger>
+      <CollapsibleContent><Card><CardHeader><CardDescription>تکمیل‌شده‌ها و لغوشده‌ها از فهرست فعال کنار گذاشته شده‌اند.</CardDescription></CardHeader><CardContent><form onSubmit={applyFilters} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><label className="block space-y-2 text-sm"><span>جست‌وجوی عنوان</span><Input type="search" value={draftFilters.search} maxLength={180} onChange={event => setDraftFilters({ ...draftFilters, search: event.target.value })} /></label><label className="block space-y-2 text-sm"><span>وضعیت</span><select className={workSelectClass} value={draftFilters.status} onChange={event => setDraftFilters({ ...draftFilters, status: event.target.value })}><option value="active">کارهای فعال</option><option value="all">همه وضعیت‌ها</option>{Object.entries(workStates).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><label className="block space-y-2 text-sm"><span>مهلت</span><select className={workSelectClass} value={draftFilters.deadline} onChange={event => setDraftFilters({ ...draftFilters, deadline: event.target.value })}><option value="any">همه مهلت‌ها</option><option value="overdue">گذشته از مهلت</option><option value="today">مهلت امروز</option><option value="no_due">بدون مهلت</option></select></label>
         {isAdmin && <label className="block space-y-2 text-sm"><span>مسئول انجام</span><select className={workSelectClass} value={draftFilters.assignee_id} onChange={event => setDraftFilters({ ...draftFilters, assignee_id: event.target.value })}><option value="">همه کارکنان</option>{people.map(person => <option key={person.id} value={person.id}>{person.username}</option>)}</select></label>}
         <WorkDateInput label="مهلت از تاریخ (شمسی)" value={draftFilters.due_from} onChange={value => setDraftFilters({ ...draftFilters, due_from: value })} /><WorkDateInput label="مهلت تا تاریخ (شمسی)" value={draftFilters.due_to} onChange={value => setDraftFilters({ ...draftFilters, due_to: value })} />
       </div><div className="flex flex-wrap gap-2"><Button type="submit" disabled={loading || busy} size="sm"><Search className="me-2 h-4 w-4" />اعمال فیلتر</Button><Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => { setDraftFilters(emptyFilters); setFilters(emptyFilters); setOffset(0); setError("") }}>پاک‌کردن فیلترها</Button></div>
-    </form></CardContent></Card>
+    </form></CardContent></Card></CollapsibleContent>
+    </Collapsible>
     {loading && <p role="status" className="text-sm text-muted-foreground">در حال دریافت کارها…</p>}
     {!loading && !error && !listing.items.length && <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">کاری با این فیلترها پیدا نشد.</p>}
     <ul className="space-y-1.5" aria-label="فهرست کارها">{listing.items.map(task => {

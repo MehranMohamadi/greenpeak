@@ -53,7 +53,7 @@ def test_admin_list_contains_only_safe_admin_fields_and_uses_live_role(harness):
     assert response.headers["cache-control"] == "no-store"
     assert [row["username"] for row in response.json()["admins"]] == ["operator"]
     assert "private-hash" not in response.text
-    assert set(response.json()["admins"][0]) == {"id", "username", "role", "is_active", "created_at", "can_view_premium_analysis"}
+    assert set(response.json()["admins"][0]) == {"id", "username", "role", "is_active", "created_at", "can_view_premium_analysis", "last_active_at"}
     service.collection.update_one({"username_normalized": "operator"}, {"$set": {"role": "user"}})
     assert client.get("/api/v1/auth/admins", headers=headers["admin"]).status_code == 403
 
@@ -65,7 +65,7 @@ def test_user_list_contains_all_accounts_and_only_safe_fields(harness):
     assert response.headers["cache-control"] == "no-store"
     assert [(row["username"], row["role"]) for row in response.json()["users"]] == [("member", "user"), ("operator", "admin")]
     for row in response.json()["users"]:
-        assert set(row) == {"id", "username", "role", "is_active", "created_at", "can_view_premium_analysis"}
+        assert set(row) == {"id", "username", "role", "is_active", "created_at", "can_view_premium_analysis", "last_active_at"}
     assert "private-hash" not in response.text
     service.collection.update_one({"username_normalized": "operator"}, {"$set": {"role": "user"}})
     assert client.get("/api/v1/auth/users", headers=headers["admin"]).status_code == 403

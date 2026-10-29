@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { endpoints } from "@/api/api"
+import { startSessionHeartbeat } from "@/lib/user-activity.mjs"
 
 const AuthContext = createContext(undefined)
 const TOKEN_KEY = "sp500_access_token"
@@ -37,22 +38,18 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!accessToken) return
-    const controller = new AbortController()
-    const refresh = async () => {
+    return startSessionHeartbeat({ document, window, refresh: async ({ signal, recordActivity }) => {
       try {
-        const response = await fetch(endpoints.auth.me, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store", signal: controller.signal })
+        const url = recordActivity ? `${endpoints.auth.me}?record_activity=true` : endpoints.auth.me
+        const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store", signal })
         if (response.ok) {
           const nextUser = await response.json()
-          if (!controller.signal.aborted) setUser(nextUser)
+          if (!signal.aborted) setUser(nextUser)
         } else if ([401, 403].includes(response.status)) {
-          if (!controller.signal.aborted) { setUser(null); setAccessToken(null) }
+          if (!signal.aborted) { setUser(null); setAccessToken(null) }
         }
       } catch { /* Keep session usable during a temporary network failure. */ }
-    }
-    const onVisibility = () => { if (!document.hidden) refresh() }
-    const timer = window.setInterval(refresh, 60000)
-    document.addEventListener("visibilitychange", onVisibility)
-    return () => { controller.abort(); window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisibility) }
+    } })
   }, [accessToken])
 
   useEffect(() => {
