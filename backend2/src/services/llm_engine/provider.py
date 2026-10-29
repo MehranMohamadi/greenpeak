@@ -67,11 +67,15 @@ class OpenAICompatibleProvider:
 
     def generate_json(self, system_prompt: str, evidence: dict[str, Any]) -> dict[str, Any]:
         response, payload = None, None
+        request = {"model": self.model_id, "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": json.dumps(evidence, ensure_ascii=False, default=str)}]}
+        if self.provider_id == "cloudflare":
+            # Domain/market JSON can exceed the provider's default output cap.
+            request["max_tokens"] = 8192
         try:
             response = httpx.post(
                 f"{self.base_url}/chat/completions",
                 headers={"Authorization": f"Bearer {self.api_key}"},
-                json={"model": self.model_id, "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": json.dumps(evidence, ensure_ascii=False, default=str)}]},
+                json=request,
                 timeout=self.timeout,
             )
             response.raise_for_status()

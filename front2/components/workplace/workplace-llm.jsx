@@ -1,13 +1,13 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ArrowDown, ArrowUp, RefreshCw, PlugZap } from "lucide-react"
+import { ArrowDown, ArrowUp, RefreshCw, PlugZap, Sparkles, Cpu, ChevronDown, CheckCircle2, AlertCircle } from "lucide-react"
 import { endpoints } from "@/api/api"
 import { useAuth } from "@/components/auth/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 
 const number = value => value == null ? "نامشخص" : new Intl.NumberFormat("fa-IR").format(value)
 const date = value => new Date(value).toLocaleString("fa-IR", { timeZone: "Asia/Tehran" })
@@ -19,8 +19,24 @@ const testErrors = {
   invalid_response: "ارتباط برقرار شد، اما پاسخ JSON معتبر برای تست دریافت نشد.",
 }
 
-function Metric({ label, value }) {
-  return <div className="rounded-md bg-muted/50 p-3"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-2 font-semibold tabular-nums">{number(value)}</dd></div>
+const providerAccents = {
+  groq: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
+  cloudflare: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  gemini: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+}
+
+function RemainingTokens({ row }) {
+  const known = Number.isFinite(row.estimated_remaining_tokens) && Number.isFinite(row.daily_token_limit) && row.daily_token_limit > 0
+  const percentage = known ? Math.min(100, Math.max(0, row.estimated_remaining_tokens / row.daily_token_limit * 100)) : null
+  return <div className="min-w-0 space-y-2">
+    <div className="flex items-center justify-between gap-2 text-[11px]">
+      <span className="text-muted-foreground">باقی‌ماندهٔ تخمینی</span>
+      <span className="font-medium tabular-nums">{known ? `${number(Math.round(percentage))}٪` : "نامشخص"}</span>
+    </div>
+    {known ? <Progress dir="ltr" value={percentage} aria-label={`توکن باقی‌ماندهٔ ${row.provider}`} aria-valuetext={`${number(row.estimated_remaining_tokens)} توکن، ${number(Math.round(percentage))} درصد باقی‌مانده`} className={`h-1.5 bg-muted ${percentage <= 20 ? "[&>div]:bg-rose-500" : percentage <= 50 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500"}`} />
+      : <div aria-hidden="true" className="h-1.5 rounded-full border border-dashed border-muted-foreground/25 bg-muted/60" />}
+    <p className="truncate text-[10px] text-muted-foreground tabular-nums">{known ? `${number(row.estimated_remaining_tokens)} از ${number(row.daily_token_limit)} توکن` : row.daily_token_limit == null ? "سقف روزانه را در جزئیات ثبت کنید" : "مصرف کامل گزارش نشده است"}</p>
+  </div>
 }
 
 export default function WorkplaceLLM() {

@@ -52,9 +52,9 @@ def test_daily_scheduler_uses_configured_time(monkeypatch):
     job = scheduler.get_job("greenpeak-daily-analysis")
     assert str(job.trigger) == "cron[hour='6', minute='30']"
     retry_job = scheduler.get_job("greenpeak-daily-analysis-notification-retry")
-    assert str(retry_job.trigger) == "cron[minute='*/10']"
+    assert str(retry_job.trigger) == "cron[minute='*/2']"
     analysis_retry_job = scheduler.get_job("greenpeak-daily-analysis-retry")
-    assert str(analysis_retry_job.trigger) == "cron[minute='*/30']"
+    assert str(analysis_retry_job.trigger) == "cron[minute='*/5']"
 
 
 class FakeClaimRuns:

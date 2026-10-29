@@ -16,6 +16,10 @@ the old single-provider configuration for existing installations.
 The same router serves chat, daily/manual analysis, news analysis and the CLI.
 On HTTP 402/429, an explicit 403 quota error, temporary server failure or network failure, it tries the next
 provider. It respects `Retry-After` (seconds or HTTP date) and Gemini `RetryInfo`.
+HTTP 413 tries the next provider without a shared cooldown because payload limits
+can differ between providers.
+Cloudflare requests reserve up to 8192 output tokens so structured domain/market
+JSON is not limited by the provider's smaller default output cap.
 Without a retry hint it probes HTTP failures again after 60 seconds, or network
 failures after 30 seconds. A 429 alone does not prove the daily quota is exhausted.
 Cooldowns persist in `backend2/instance/llm_router.db` and are shared by workers
@@ -23,6 +27,11 @@ using that file on one host. Concurrent requests already in flight can still
 reach the same provider; multiple hosts require a shared coordination store.
 Requests stop with an error if all providers are unavailable. Invalid requests,
 authentication/permission errors and invalid JSON responses are surfaced.
+
+Daily analysis starts at 16:00 Asia/Tehran by default. Incomplete generation is
+retried every five minutes, with at most three generation attempts per day.
+Failed Telegram delivery is retried every two minutes without regenerating the
+analysis. These schedules require the backend process to remain running.
 
 Use a **Free Tier** Gemini project and **Workers Free** Cloudflare account if you
 require free-only operation. Routing cannot infer billing status: a paid account
