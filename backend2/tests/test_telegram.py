@@ -49,7 +49,7 @@ def test_send_telegram_market_report_sends_current_tab_then_summary(monkeypatch)
     assert captured["data"]["parse_mode"] == "HTML"
     assert captured["data"]["message_thread_id"] == "42"
     assert captured["data"]["text"] == (
-        "<b>اکنون</b>\n"
+        "<b>جریان بازار</b>\n"
         "حرکت &lt;فعلی&gt; بازار\n\n"
         "تحلیل اکنون\n\n"
         "<b>جمع‌بندی</b>\n"

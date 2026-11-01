@@ -274,7 +274,7 @@ def test_failed_task_commit_does_not_send_or_leave_an_outbox_event(harness, tele
 def test_existing_market_report_keeps_its_own_destination_topic(telegram):
     assert send_telegram_market_report({"current_market_move_fa": "حرکت بازار", "summary_points_fa": ["جمع‌بندی"]})
     assert len(telegram) == 1 and telegram[0]["message_thread_id"] == "42"
-    assert "اکنون" in telegram[0]["text"] and "جمع‌بندی" in telegram[0]["text"]
+    assert "جریان بازار" in telegram[0]["text"] and "جمع‌بندی" in telegram[0]["text"]
 
 
 @pytest.mark.parametrize("value", [None, "", "Task", "0", "1", -2, True, 1.5])

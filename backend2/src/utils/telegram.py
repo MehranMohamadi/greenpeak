@@ -101,7 +101,7 @@ def _report_sections(report: dict) -> list[str]:
     )
 
     return [
-        f"<b>اکنون</b>\n{current_content}",
+        f"<b>جریان بازار</b>\n{current_content}",
         f"<b>جمع‌بندی</b>\n{summary_content}",
     ]
 

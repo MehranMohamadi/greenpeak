@@ -23,6 +23,8 @@ const routeLabels = {
   "/analytics/mt5-snapshots": "MetaTrader Snapshot JSON",
   "/profile": "پروفایل",
   "/help": "Help",
+  "/learn": "آموزش",
+  "/learn/risk-management": "مدیریت ریسک",
   "/support": "پشتیبانی",
   "/test-charts": "Test Charts",
   "/fun": "حیاط",
@@ -34,6 +36,7 @@ export default function TopNav() {
   const pathname = normalizeNavigationPath(usePathname());
   const { hoveredItem } = useSidebarHover();
   const isFunRoute = pathname === "/fun" || pathname.startsWith("/fun/");
+  const isRightRoute = isFunRoute || pathname === "/learn" || pathname.startsWith("/learn/");
   const pathSegments = pathname.split("/").filter(Boolean);
   const breadcrumbs = isFunRoute
     ? [{ label: "حال خوب", href: "/fun" }]
@@ -50,14 +53,14 @@ export default function TopNav() {
   });
 
   // Hover previews supplement the true route; an action never replaces breadcrumbs.
-  const preview = hoveredItem?.side === (isFunRoute ? "right" : "left") ? hoveredItem : null;
+  const preview = hoveredItem?.side === (isRightRoute ? "right" : "left") ? hoveredItem : null;
 
   return (
-    <nav aria-label={isFunRoute ? "مسیر راهنما" : "Breadcrumb"} className={`flex h-full min-w-0 items-center gap-4 border-b border-border bg-card px-14 lg:px-6 ${isFunRoute ? "justify-end" : "justify-start"}`}>
-      <ol dir={isFunRoute ? "rtl" : "ltr"} className="flex min-w-0 items-center gap-1 text-sm font-medium">
+    <nav aria-label={isRightRoute ? "مسیر راهنما" : "Breadcrumb"} className={`flex h-full min-w-0 items-center gap-4 border-b border-border bg-card px-14 lg:px-6 ${isRightRoute ? "justify-end" : "justify-start"}`}>
+      <ol dir={isRightRoute ? "rtl" : "ltr"} className="flex min-w-0 items-center gap-1 text-sm font-medium">
         {breadcrumbs.map((item, index) => (
           <li key={`${item.label}-${index}`} className={`min-w-0 items-center ${index < breadcrumbs.length - 2 ? "hidden sm:flex" : "flex"}`}>
-            {index > 0 && (isFunRoute
+            {index > 0 && (isRightRoute
               ? <ChevronLeft aria-hidden="true" className="mx-1 h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
               : <ChevronRight aria-hidden="true" className="mx-1 h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />)}
             {item.href ? (
@@ -70,7 +73,7 @@ export default function TopNav() {
           </li>
         ))}
       </ol>
-      {preview && <span dir="auto" aria-label={isFunRoute ? "پیش‌نمایش گزینه" : "Navigation preview"} className="hidden min-w-0 truncate border-s border-gray-200 ps-4 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400 xl:block">{isFunRoute ? "پیش‌نمایش: " : "Preview: "}{preview.label}</span>}
+      {preview && <span dir="auto" aria-label={isRightRoute ? "پیش‌نمایش گزینه" : "Navigation preview"} className="hidden min-w-0 truncate border-s border-gray-200 ps-4 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400 xl:block">{isRightRoute ? "پیش‌نمایش: " : "Preview: "}{preview.label}</span>}
     </nav>
   );
 }

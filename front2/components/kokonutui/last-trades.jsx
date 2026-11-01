@@ -28,7 +28,7 @@ const filters = [
   { id: "closed", label: "معاملات بسته‌شده" },
 ]
 
-const tradeGridClass = "grid-cols-[4.5rem_minmax(0,.75fr)_minmax(0,.72fr)_minmax(0,.48fr)_8rem_minmax(0,.45fr)_minmax(0,.45fr)_minmax(0,.35fr)_minmax(0,.35fr)_minmax(0,.6fr)]"
+const tradeGridClass = "grid-cols-[4.5rem_minmax(0,.55fr)_minmax(0,.48fr)_minmax(0,.28fr)_8rem_minmax(0,.45fr)_minmax(0,.45fr)_minmax(0,.35fr)_minmax(0,.35fr)_minmax(0,.6fr)]"
 
 const orderTypes = {
   0: { label: "Buy", direction: "long" },

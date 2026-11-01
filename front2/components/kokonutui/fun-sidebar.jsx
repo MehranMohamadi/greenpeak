@@ -58,6 +58,7 @@ export default function FunSidebar() {
   const activeHref = getActiveNavHref(pathname, funHrefs);
   const isFunRoute = activeHref !== null;
   const isHelpActive = pathname === "/help" || pathname.startsWith("/help/");
+  const isLearningActive = pathname === "/learn" || pathname.startsWith("/learn/");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openCategories, setOpenCategories] = useState(() => categoryExpansionState);
   const showLabels = isMobileMenuOpen;
@@ -142,6 +143,11 @@ export default function FunSidebar() {
                   </AnimatePresence>
                 </section>;
               })}
+              <Link href="/learn" aria-label="آموزش" aria-current={isLearningActive ? "page" : undefined} title="آموزش" onClick={() => { setSelectedRightItem(null); setIsMobileMenuOpen(false); clearPreview(); }} onFocus={() => preview("آموزش", [{ label: "آموزش", href: "/learn" }], "/learn")} onBlur={clearPreview} className={`relative mt-3 flex h-9 min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors ${itemFocus} ${isLearningActive ? "bg-primary/10 font-medium text-primary" : neutralItem}`}>
+                {isLearningActive && <span aria-hidden="true" className="absolute inset-y-2 right-0 w-[3px] rounded-full bg-primary" />}
+                <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><GraduationCap className="h-5 w-5" /></span>
+                {showLabels && <span className="truncate">آموزش</span>}
+              </Link>
             </div>
           </div>
           <div className="shrink-0 border-t border-gray-200 bg-white px-2 py-2 dark:border-[#1F1F23] dark:bg-[#0F0F12]">
