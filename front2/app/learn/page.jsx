@@ -4,10 +4,12 @@ import Layout from "@/components/kokonutui/layout"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { comingSoonTopics, riskCards, riskLessons } from "@/lib/learning-content.mjs"
+import { requireAdminPage } from "@/lib/admin-page"
 
 export const metadata = { title: "آموزش | GreenPeak", description: "یادگیری روزانه مفاهیم سرمایه‌گذاری؛ درس، تمرین و مرور مدیریت ریسک." }
 
-export default function LearningPage() {
+export default async function LearningPage() {
+  await requireAdminPage()
   return <Layout>
     <div lang="fa" dir="rtl" className="mx-auto max-w-6xl space-y-8 py-5 text-right md:py-8">
       <header className="space-y-4 border-b pb-7">

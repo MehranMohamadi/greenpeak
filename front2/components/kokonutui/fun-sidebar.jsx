@@ -46,7 +46,7 @@ const neutralItem = "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:te
 const itemFocus = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 motion-reduce:transition-none";
 
 export default function FunSidebar() {
-  const { isAuthenticated, accessToken } = useAuth();
+  const { isAuthenticated, accessToken, isAdmin, isLoading } = useAuth();
   const { open: chatOpen, setOpen: setChatOpen, triggerRef: chatTriggerRef } = useChat();
   const pathname = usePathname();
   const submenuId = useId();
@@ -143,11 +143,11 @@ export default function FunSidebar() {
                   </AnimatePresence>
                 </section>;
               })}
-              <Link href="/learn" aria-label="آموزش" aria-current={isLearningActive ? "page" : undefined} title="آموزش" onClick={() => { setSelectedRightItem(null); setIsMobileMenuOpen(false); clearPreview(); }} onFocus={() => preview("آموزش", [{ label: "آموزش", href: "/learn" }], "/learn")} onBlur={clearPreview} className={`relative mt-3 flex h-9 min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors ${itemFocus} ${isLearningActive ? "bg-primary/10 font-medium text-primary" : neutralItem}`}>
+              {isAdmin && !isLoading && <Link href="/learn" aria-label="آموزش" aria-current={isLearningActive ? "page" : undefined} title="آموزش" onClick={() => { setSelectedRightItem(null); setIsMobileMenuOpen(false); clearPreview(); }} onFocus={() => preview("آموزش", [{ label: "آموزش", href: "/learn" }], "/learn")} onBlur={clearPreview} className={`relative mt-3 flex h-9 min-w-0 items-center justify-start gap-3 rounded-lg px-3 text-sm transition-colors ${itemFocus} ${isLearningActive ? "bg-primary/10 font-medium text-primary" : neutralItem}`}>
                 {isLearningActive && <span aria-hidden="true" className="absolute inset-y-2 right-0 w-[3px] rounded-full bg-primary" />}
                 <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><GraduationCap className="h-5 w-5" /></span>
                 {showLabels && <span className="truncate">آموزش</span>}
-              </Link>
+              </Link>}
             </div>
           </div>
           <div className="shrink-0 border-t border-gray-200 bg-white px-2 py-2 dark:border-[#1F1F23] dark:bg-[#0F0F12]">

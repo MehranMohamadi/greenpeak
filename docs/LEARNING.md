@@ -24,7 +24,10 @@
 
 ذخیره فقط در localStorage همان مرورگر با کلید شامل نسخه محتوا و شناسه حساب
 است. داده‌ها میان دستگاه‌ها همگام نمی‌شوند. خطای ذخیره به کاربر اعلام می‌شود.
-احراز هویت موجود سایت حفظ شده است. سرویس تلگرام، ارسال روزانه و API جدید
+آموزش فعلاً فقط برای مدیران فعال است. آیکون برای کاربران دیگر و هنگام بررسی
+نشست پنهان است. هر دو صفحه نقش مدیر را با نشست فعلی در سرور بررسی می‌کنند؛
+کاربر غیرمدیر به پروفایل و نشست نامعتبر به ورود هدایت می‌شود. کنترل نقش در
+پوسته کلاینت نیز اعمال می‌شود. سرویس تلگرام، ارسال روزانه و API جدید
 بخشی از این تغییر نیستند.
 
 ## بررسی
@@ -32,7 +35,7 @@
 از `front2/`:
 
 ```powershell
-node --test tests/learning-progress.test.mjs tests/navigation-state.test.mjs
+node --test tests/learning-access.test.mjs tests/learning-progress.test.mjs tests/navigation-state.test.mjs tests/workplace-pages.test.mjs
 npx.cmd tsc --noEmit
 npm.cmd run build
 ```
