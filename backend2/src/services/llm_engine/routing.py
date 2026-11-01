@@ -151,6 +151,11 @@ class ProviderRouter:
                     result = validator(result)
             except httpx.HTTPStatusError as exc:
                 status = exc.response.status_code
+                if status == 413:
+                    # Payload limits differ by provider; smaller requests may
+                    # still work here, so do not set a global cooldown.
+                    last_error = exc
+                    continue
                 # Invalid prompts and permission errors must remain visible.
                 if status not in {402, 429, 500, 502, 503, 504} and not is_quota_error(exc.response):
                     raise

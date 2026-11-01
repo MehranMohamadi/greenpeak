@@ -76,6 +76,36 @@ def test_bad_requests_and_permissions_do_not_switch(status, tmp_path, monkeypatc
     assert len(calls) == 1
 
 
+def test_oversized_request_switches_without_cooling_down_smaller_requests(tmp_path, monkeypatch):
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(url)
+        return reply(url, 413, {"error": {}}) if len(calls) == 1 else reply(url)
+
+    monkeypatch.setattr(httpx, "post", post)
+    provider = routing.create_llm_provider(configuration(tmp_path))
+    assert provider.generate_json("system", {"large": True}) == {"answer": "ok"}
+    assert provider.provider_id == "mistral"
+    assert provider.generate_json("system", {}) == {"answer": "ok"}
+    assert provider.provider_id == "gemini"
+    assert len(calls) == 3
+
+
+@pytest.mark.parametrize("provider_id,expected", [("cloudflare", 8192), ("gemini", None)])
+def test_cloudflare_reserves_enough_output_for_analysis_json(provider_id, expected, monkeypatch):
+    from src.services.llm_engine.provider import OpenAICompatibleProvider
+
+    def post(url, **kwargs):
+        assert kwargs["json"].get("max_tokens") == expected
+        return reply(url)
+
+    monkeypatch.setattr(httpx, "post", post)
+    provider = OpenAICompatibleProvider("test-key", "test-model", "https://test.invalid")
+    provider.provider_id = provider_id
+    assert provider.generate_json("system", {}) == {"answer": "ok"}
+
+
 def test_all_exhausted_do_not_call_again_during_cooldown(tmp_path, monkeypatch):
     calls = []
     def post(url, **kwargs):

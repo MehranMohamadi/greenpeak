@@ -16,8 +16,8 @@ from ..utils.telegram import build_telegram_market_report, send_telegram_market_
 
 logger = logging.getLogger(__name__)
 RUN_COLLECTION = "gp_scheduled_analysis_runs"
-NOTIFICATION_RETRY_MINUTES = 10
-ANALYSIS_RETRY_MINUTES = 30
+NOTIFICATION_RETRY_MINUTES = 2
+ANALYSIS_RETRY_MINUTES = 5
 MAX_ANALYSIS_ATTEMPTS = 3
 STALE_ANALYSIS_AFTER = timedelta(hours=3)
 
