@@ -484,8 +484,14 @@ export default function MarketIntelligenceSections({ market, onRefresh, loading 
       <div className="grid items-stretch gap-4 lg:h-64 lg:grid-cols-[1.35fr_0.65fr]">
       <Card className="h-64 min-h-0 overflow-hidden border-border bg-card lg:h-full">
         <Tabs defaultValue="current" dir="rtl" className="flex h-full min-h-0 flex-col">
-        <CardHeader className="shrink-0 space-y-2 pb-3">
-          <div className="flex items-center justify-end gap-2">
+        <CardHeader className="shrink-0 flex-row flex-wrap items-center gap-x-3 gap-y-2 space-y-0 pb-3">
+          <TabsList className="grid h-12 min-w-0 max-w-full flex-auto grid-cols-4 items-stretch p-1.5">
+            <TabsTrigger value="current" className={analysisTabClass}>جریان بازار</TabsTrigger>
+            <TabsTrigger value="short-term" className={analysisTabClass}>کوتاه‌مدت</TabsTrigger>
+            <TabsTrigger value="medium-term" className={analysisTabClass}>میان‌مدت</TabsTrigger>
+            <TabsTrigger value="summary" className={analysisTabClass}>جمع‌بندی</TabsTrigger>
+          </TabsList>
+          <div className="ms-auto flex shrink-0 items-center justify-end gap-2">
             {onRefresh && <button type="button" disabled={loading} onClick={onRefresh} aria-label="دریافت آخرین تحلیل ذخیره‌شده" title="دریافت آخرین تحلیل" className="rounded-md p-1.5 text-primary hover:bg-muted disabled:opacity-50"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></button>}
             <div className="flex min-w-0 items-center gap-2">
               <time dateTime={market.analysis_generated_at} dir="ltr" className="truncate text-left text-xs tabular-nums text-muted-foreground">
@@ -510,12 +516,6 @@ export default function MarketIntelligenceSections({ market, onRefresh, loading 
               </Dialog>
             </div>
           </div>
-          <TabsList className="mt-3 grid h-12 w-full grid-cols-4 items-stretch p-1.5">
-            <TabsTrigger value="current" className={analysisTabClass}>جریان بازار</TabsTrigger>
-            <TabsTrigger value="short-term" className={analysisTabClass}>کوتاه‌مدت</TabsTrigger>
-            <TabsTrigger value="medium-term" className={analysisTabClass}>میان‌مدت</TabsTrigger>
-            <TabsTrigger value="summary" className={analysisTabClass}>جمع‌بندی</TabsTrigger>
-          </TabsList>
         </CardHeader>
         <CardContent className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
           <TabsContent value="current" className="mt-0 space-y-3">
