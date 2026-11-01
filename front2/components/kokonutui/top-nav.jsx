@@ -25,7 +25,7 @@ const routeLabels = {
   "/help": "Help",
   "/support": "پشتیبانی",
   "/test-charts": "Test Charts",
-  "/fun": "حیات",
+  "/fun": "حیاط",
   "/fun/mashhad": "در شهر",
   "/fun/investment-course": "دوره سرمایه‌گذاری",
 };

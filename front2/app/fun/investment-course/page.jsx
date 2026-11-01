@@ -84,7 +84,7 @@ export default function InvestmentCoursePage() {
           <div className="relative grid items-center gap-8 lg:grid-cols-[1.6fr_1fr]">
             <div className="space-y-5">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary" className="gap-1.5"><GraduationCap className="h-3.5 w-3.5" />حیات · یادگیری و گفت‌وگو</Badge>
+                <Badge variant="secondary" className="gap-1.5"><GraduationCap className="h-3.5 w-3.5" />حیاط · یادگیری و گفت‌وگو</Badge>
                 <Badge variant="outline">دوره مقدماتی</Badge>
               </div>
               <div className="space-y-3">

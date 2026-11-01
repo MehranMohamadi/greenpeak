@@ -25,7 +25,7 @@ const funNavigation = [
   },
   {
     id: "yard",
-    label: "حیات",
+    label: "حیاط",
     href: "/fun",
     icon: Flower2,
     children: [
