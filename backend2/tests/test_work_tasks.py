@@ -400,7 +400,7 @@ def test_full_app_work_and_attendance_coexist(harness, monkeypatch):
     from src.services.workplace import WorkplaceService
     from src.services.workplace_repository import WorkplaceRepository
     h = harness
-    for factory in ("create_daily_analysis_scheduler", "create_news_scheduler", "create_official_sentiment_scheduler", "create_work_task_notification_scheduler"):
+    for factory in ("create_daily_analysis_scheduler", "create_news_scheduler", "create_official_sentiment_scheduler", "create_work_task_notification_scheduler", "create_support_notification_scheduler"):
         monkeypatch.setattr(main, factory, lambda: None)
     app = main.create_app()
     app.dependency_overrides[auth.get_auth_service] = lambda: h.identity

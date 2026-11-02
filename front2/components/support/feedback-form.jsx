@@ -53,7 +53,7 @@ export default function FeedbackForm() {
       <CardHeader className="pb-3">
         <CardTitle className="text-lg">نظرات و پیشنهادها</CardTitle>
         <p className="text-sm leading-6 text-muted-foreground">
-          پیشنهاد، سؤال یا مشکلی درباره استفاده از GreenPeak دارید؟ پیام را بفرستید تا به ایمیل پشتیبانی برسد.
+          پیشنهاد، سؤال یا مشکلی درباره استفاده از GreenPeak دارید؟ پیام را برای تیم پشتیبانی بفرستید.
         </p>
       </CardHeader>
       <CardContent>
@@ -111,7 +111,7 @@ export default function FeedbackForm() {
             />
           </label>
           <p className="text-xs leading-5 text-muted-foreground">
-            پیام شما به ایمیل GreenPeak ارسال می‌شود؛ پاسخ را از طریق ایمیلی که وارد کرده‌اید دریافت می‌کنید.
+            پیام شما برای پیگیری ثبت می‌شود؛ پاسخ را از طریق ایمیلی که وارد کرده‌اید دریافت می‌کنید.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" disabled={isSending} className="gap-2">

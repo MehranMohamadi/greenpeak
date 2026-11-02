@@ -20,7 +20,7 @@ export default function SupportPage() {
               <p className="max-w-3xl text-sm leading-8 text-muted-foreground md:text-base">
                 برای پشتیبانی، پرسش درباره سایت یا پیگیری پیام، از این ایمیل استفاده کنید:
                 {" "}
-                <a dir="ltr" className="inline-block font-bold text-primary hover:underline" href="mailto:greenpeak.fin@gmail.com">greenpeak.fin@gmail.com</a>
+                <a dir="ltr" className="inline-block font-bold text-primary hover:underline" href="mailto:info@greenpeak.ir">info@greenpeak.ir</a>
               </p>
             </div>
           </div>
