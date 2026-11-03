@@ -1,4 +1,4 @@
-"""Public support feedback submissions delivered to the support mailbox."""
+"""Public support feedback, persisted before independent notifications."""
 
 import re
 import time
@@ -6,12 +6,12 @@ from collections import deque
 from threading import Lock
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator
 
 from ....core.config import get_settings
 from ....services.auth import AuthStorageError
-from ....services.auth_email import EmailSender
+from ....services.support_notifications import SupportNotifications, process_support_notifications
 
 
 router = APIRouter(prefix="/support", tags=["Support"])
@@ -78,17 +78,13 @@ def limit_feedback_requests(request: Request):
     status_code=status.HTTP_202_ACCEPTED,
     dependencies=[Depends(limit_feedback_requests)],
 )
-def submit_support_feedback(payload: SupportFeedbackRequest):
+def submit_support_feedback(payload: SupportFeedbackRequest, background_tasks: BackgroundTasks):
     try:
-        EmailSender(get_settings()).send_support_message(
-            name=payload.name,
-            email=payload.email,
-            category=payload.category,
-            message=payload.message,
-        )
+        identifier = SupportNotifications(get_settings()).submit(payload.model_dump())
     except AuthStorageError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="ارسال پیام در حال حاضر ممکن نیست. لطفاً از ایمیل پشتیبانی استفاده کنید.",
         ) from exc
-    return SupportFeedbackResponse(message="پیام شما به تیم پشتیبانی ارسال شد.")
+    background_tasks.add_task(process_support_notifications, identifier)
+    return SupportFeedbackResponse(message="پیام شما برای پیگیری توسط تیم پشتیبانی ثبت شد.")

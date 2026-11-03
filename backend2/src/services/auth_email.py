@@ -53,7 +53,7 @@ class EmailSender:
         except requests.RequestException as exc:
             raise AuthStorageError("Email delivery is temporarily unavailable.") from exc
 
-    def send_support_message(self, name, email, category, message):
+    def send_support_message(self, name, email, category, message, *, idempotency_key=None):
         self.check()
         category_labels = {
             "comment": "Comment",
@@ -64,18 +64,23 @@ class EmailSender:
         label = category_labels[category]
         payload = {
             "from": self.settings.auth_email_from,
-            "to": [self.settings.support_contact_email],
+            "to": list(dict.fromkeys(address for address in (
+                self.settings.support_contact_email, self.settings.support_copy_email,
+            ) if address)),
             "reply_to": email,
             "subject": f"GreenPeak Support: {label}",
             "text": f"Category: {label}\nName: {name}\nEmail: {email}\n\n{message}",
         }
+        headers = {"Authorization": f"Bearer {self.settings.resend_api_key}"}
+        if idempotency_key:
+            headers["Idempotency-Key"] = idempotency_key
         try:
             response = requests.post(
                 "https://api.resend.com/emails",
                 json=payload,
                 timeout=15,
                 allow_redirects=False,
-                headers={"Authorization": f"Bearer {self.settings.resend_api_key}"},
+                headers=headers,
             )
             if not 200 <= response.status_code < 300:
                 raise AuthStorageError("Support message delivery is temporarily unavailable.")

@@ -153,6 +153,15 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     auth_email_from: str = ""
     support_contact_email: str = "greenpeak.fin@gmail.com"
+    support_copy_email: str = "info@greenpeak.ir"
+    support_db_path: Path = Path(__file__).parent.parent.parent / "instance" / "support" / "support.db"
+    # Dedicated support topic in the existing bot group; never use market/task topics.
+    telegram_support_message_thread_id: int | None = None
+
+    @field_validator("telegram_support_message_thread_id", mode="before")
+    @classmethod
+    def support_topic_or_disabled(cls, value):
+        return cls.task_topic_or_disabled(value)
 
     # Persist the last validated narrative snapshot for local development so
     # read-only analysis pages remain usable while MongoDB is offline.
