@@ -26,6 +26,17 @@ class MongoFeatureRepository:
         return adapt_mongo_documents(documents, definition["indicator_id"])
 
     def load_raw_documents(self, definition: dict, as_of_date: date) -> list[dict[str, Any]]:
+        if (definition["indicator_id"] == "sp500_eps"
+                and definition["source"]["provider"] == "Multpl"
+                and definition["source"]["series_id"] == "MULTPL_SP500_REAL_EPS_TTM"):
+            # Read the same validated monthly source as the EPS chart. These
+            # adapter documents stay in memory; raw Mongo collections are immutable.
+            from ..corporate_fundamentals import load_multpl_sp500_real_eps
+            series = load_multpl_sp500_real_eps()
+            return [{"date": point.date, "value": point.value,
+                     "source_series_id": "MULTPL_SP500_REAL_EPS_TTM",
+                     "metadata": {"source": "Multpl"}}
+                    for point in series.points if point.date <= as_of_date.isoformat()]
         query = {"indicator": definition["raw_indicator"], "date": {"$lte": as_of_date.isoformat()}}
         collection_name = definition["source"].get("collection", "monetary_policy")
         return list(self.db[collection_name].find(query).sort([("date", ASCENDING), ("updated_at", ASCENDING)]))

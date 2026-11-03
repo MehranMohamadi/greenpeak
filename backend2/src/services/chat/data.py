@@ -37,7 +37,7 @@ RAW_METHODS = {
     "vix": "get_vix_data", "financial_stress_index": "get_stress_index",
     "high_yield_credit_spread": "get_credit_spread_data", "bbb_credit_spread": "get_cds_spreads",
     "nonfarm_payrolls": "get_macro_nonfarm_payrolls_data", "consumer_confidence": "get_macro_consumer_confidence_data",
-    "sp500_eps": "get_sp500_eps_data", "revenue_growth": "get_revenue_growth_data",
+    "sp500_eps": "get_sp500_real_eps_data", "revenue_growth": "get_revenue_growth_data",
     "profit_margins": "get_profit_margins_data", "return_on_assets": "get_return_on_assets_data",
     "corporate_pe_ratio": "get_pe_ratio_data", "corporate_dividend_yield": "get_dividend_yield_data",
     "valuation_pe_ratio": "get_valuation_pe_ratio_data", "valuation_dividend_yield": "get_valuation_dividend_yield_data",

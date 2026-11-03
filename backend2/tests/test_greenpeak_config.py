@@ -9,9 +9,9 @@ os.environ["DEBUG"] = "false"
 from src.services.greenpeak_config import CONFIG_ROOT, load_registry, stable_hash
 
 
-def test_registry_loads_utf8_and_has_eight_domains():
+def test_registry_loads_utf8_and_has_seven_domains():
     domains, templates, indicators = load_registry()
-    assert len(domains.domains) == 8
+    assert len(domains.domains) == 7
     assert {
         "us_10y_treasury_yield",
         "federal_funds_rate",

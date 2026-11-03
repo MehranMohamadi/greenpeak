@@ -24,7 +24,7 @@ test("the combined group retains all ten chart and narrative identities", () => 
     ["dividend-yield", "dividendYield", "valuation_dividend_yield"],
   ])
   assert.equal(new Set(corporateValuationFactors.map((factor) => factor.id)).size, 10)
-  assert.deepEqual(corporateValuationDomains.map((domain) => domain.id), ["corporate_fundamentals", "valuation"])
+  assert.deepEqual(corporateValuationDomains.map((domain) => domain.id), ["corporate_fundamentals_valuation"])
 })
 
 test("a failed source does not hide the other domain's observations or metadata", () => {

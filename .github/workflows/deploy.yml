@@ -172,6 +172,7 @@ jobs:
             "greenpeak-backend-${RELEASE_SHA}.tar.gz" \
             nginx.conf \
             deploy/deploy-production.sh \
+            deploy/backend-environment.sh \
             "$DEPLOY_USER@$DEPLOY_HOST:$remote_dir/"
 
       - name: Activate production release

@@ -2,6 +2,8 @@
 
 set -Eeuo pipefail
 
+source "$(dirname -- "${BASH_SOURCE[0]}")/backend-environment.sh"
+
 if [[ $# -ne 4 ]]; then
   echo "Usage: $0 <release-id> <frontend-archive> <backend-archive> <nginx-config>" >&2
   exit 64
@@ -121,21 +123,7 @@ ln -s "$legacy_root/backend2/instance/chat" "$release_root/backend2/instance/cha
 mkdir -p "$legacy_root/backend2/instance/llm"
 ln -s "$legacy_root/backend2/instance/llm" "$release_root/backend2/instance/llm"
 
-if [[ -n "$previous_target" \
-  && -x "$previous_target/backend2/.venv/bin/python" \
-  && -f "$previous_target/backend2/requirements.txt" ]] \
-  && cmp -s \
-    "$previous_target/backend2/requirements.txt" \
-    "$release_root/backend2/requirements.txt"; then
-  echo "Reusing the active release backend environment"
-  ln -s "$previous_target/backend2/.venv" "$release_root/backend2/.venv"
-else
-  echo "Creating isolated backend environment"
-  python3 -m venv "$release_root/backend2/.venv"
-  "$release_root/backend2/.venv/bin/python" -m pip install --upgrade pip
-  "$release_root/backend2/.venv/bin/python" -m pip install -r "$release_root/backend2/requirements.txt"
-fi
-"$release_root/backend2/.venv/bin/python" -m compileall -q "$release_root/backend2/src"
+prepare_backend_environment "$previous_target" "$release_root"
 
 # Apply the requested account rename once, before switching the active release.
 # A collision or unavailable MongoDB stops deployment without replacing accounts.

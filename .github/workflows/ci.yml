@@ -16,6 +16,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  deployment:
+    name: Deployment regression checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Check deployment shell syntax
+        run: |
+          for script in deploy/deploy-production.sh deploy/backend-environment.sh deploy/tests/test-backend-environment.sh; do
+            bash -n "$script"
+          done
+      - name: Check backend environment reuse
+        run: bash deploy/tests/test-backend-environment.sh
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest

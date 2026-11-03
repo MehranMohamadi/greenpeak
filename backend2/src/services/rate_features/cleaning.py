@@ -36,7 +36,7 @@ def adapt_mongo_documents(documents: Iterable[dict[str, Any]], indicator_id: str
             "observation_date": observation_date,
             "value_pct": value,
             "source_provider": metadata.get("source", "FRED"),
-            "source_series_id": document.get("fred_series_id"),
+            "source_series_id": document.get("fred_series_id") or document.get("source_series_id"),
             "ingested_at": pd.to_datetime(document.get("updated_at"), errors="coerce", utc=True),
             "raw_document_id": str(document.get("_id")) if document.get("_id") is not None else None,
             "is_valid": not flags,

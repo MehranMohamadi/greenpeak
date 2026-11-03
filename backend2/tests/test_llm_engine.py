@@ -171,7 +171,7 @@ def test_domain_contract_and_prompt_include_compact_dashboard_analysis():
     schema = DomainNarrative.model_json_schema()["properties"]
     assert {"stance_label_fa", "key_insights_fa", "outlook_items"} <= set(schema)
     prompt = load_prompt("domain")
-    assert prompt.version == "0.3.0+0.5.0"
+    assert prompt.version == "0.3.0+0.6.0"
     assert "monetary_liquidity" in prompt.content
     assert "outlook_items" in prompt.content
     assert "under 10 Persian words" in prompt.content

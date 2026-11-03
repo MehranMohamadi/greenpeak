@@ -19,8 +19,7 @@ export const valuationFactors = [
 export const corporateValuationFactors = [...corporateFactors, ...valuationFactors]
 
 export const corporateValuationDomains = [
-  { id: "corporate_fundamentals", title: "تحلیل بنیادهای شرکتی و سودآوری" },
-  { id: "valuation", title: "تحلیل ارزش‌گذاری" },
+  { id: "corporate_fundamentals_valuation", title: "تحلیل یکپارچهٔ بنیادهای شرکتی و ارزش‌گذاری" },
 ]
 
 export function buildCorporateValuationResults(corporate, valuation) {
