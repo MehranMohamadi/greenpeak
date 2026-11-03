@@ -40,7 +40,7 @@ const row = {
 }
 const render = props => renderToStaticMarkup(React.createElement(LLMModelCard, {
   row, index: 0, total: 2, saving: false, testingId: null,
-  onTest() {}, onMove() {}, onBudgetChange() {}, ...props,
+  onTest() {}, onToggle() {}, onMove() {}, onBudgetChange() {}, ...props,
 }))
 
 test("a populated model renders its card and all six usage metrics", () => {
@@ -58,6 +58,17 @@ test("unknown usage stays unknown and the last priority cannot move down", () =>
   assert.equal((html.match(/>نامشخص<\/dd>/g) || []).length, 2)
   assert.match(html, /مصرف واقعی می‌تواند بیشتر باشد/)
   assert.equal((html.match(/disabled=""/g) || []).length, 1)
+})
+
+test("enabled models expose a disable action and disabled models cannot be probed", () => {
+  const enabled = render({ row: { ...row, enabled: true } })
+  assert.match(enabled, /aria-pressed="true"/)
+  assert.match(enabled, /aria-label="غیرفعال‌سازی groq test-model"/)
+  const disabled = render({ row: { ...row, enabled: false } })
+  assert.match(disabled, /aria-pressed="false"/)
+  assert.match(disabled, /aria-label="فعال‌سازی groq test-model"/)
+  assert.match(disabled, /<button[^>]*disabled=""[^>]*aria-label="تست اتصال groq test-model"/)
+  assert.match(disabled, /test-model/)
 })
 
 test("connection results and reported quota render without undefined helpers", () => {

@@ -15,6 +15,7 @@ os.environ["DEBUG"] = "false"
 
 from src.services.llm_engine import job
 from src.services.llm_engine.schemas import MarketNarrative
+from src.services.llm_engine.schemas import factor_evidence_references, resolve_factor_evidence
 
 
 @pytest.fixture
@@ -201,6 +202,36 @@ def test_generation_repairs_an_incomplete_factor_before_saving(factors, evidence
     assert provider.generate_json.call_count == 2
     retry = provider.generate_json.call_args.args[1]
     assert "sentiment" in retry["validation_feedback"]["errors"][0]["message"]
+
+
+def test_market_requests_include_only_resolvable_source_object_citations(factors, evidence):
+    evidence.update({
+        "horizontal_evidence": {
+            "sp500_session_move": {"session_date": "2026-10-14"},
+            "recent_market_news": [None, {}, {"title": "Synthetic source"}],
+            "current_market_context": {"released_us_events": [{"event_id": "fixture"}]},
+            "warnings": ["not_source_evidence"],
+        },
+        "retained_factor_evidence": {"source/key~1": {"date": "2026-10-01", "title": "Retained fixture"}},
+        "previous_market_factors": {"market_drivers": [{"title_fa": "Not a source"}]},
+    })
+    refs = factor_evidence_references(evidence)
+    assert "/domain_narratives/0" in refs
+    assert "/horizontal_evidence/recent_market_news/2" in refs
+    assert "/horizontal_evidence/current_market_context/released_us_events/0" in refs
+    assert "/retained_factor_evidence/source~1key~01" in refs
+    assert all(resolve_factor_evidence(evidence, ref) for ref in refs)
+    assert "/horizontal_evidence/recent_market_news/0" not in refs
+    assert "/horizontal_evidence/recent_market_news/1" not in refs
+    assert not any("previous_market_factors" in ref or "warnings" in ref for ref in refs)
+    (_, _), _, provider = generate(factors, evidence)
+    request = provider.generate_json.call_args.args[1]
+    assert request["valid_factor_evidence_refs"] == refs
+    assert "valid_factor_evidence_refs" not in request["evidence"]
+
+
+def test_empty_source_catalog_does_not_invent_citations():
+    assert factor_evidence_references({}) == []
 
 
 def test_old_snapshots_remain_readable_without_inventing_classification(factors, evidence):

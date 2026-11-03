@@ -1,9 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { AlertTriangle, RefreshCw, Server } from "lucide-react"
+import { AlertTriangle, RefreshCw } from "lucide-react"
 import Link from "next/link"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import BrokerAccountOverview from "@/components/kokonutui/broker-account-overview"
@@ -92,16 +91,8 @@ export default function MT5AccountSnapshot() {
     </Card>
   }
 
-  return <section className="relative space-y-3 overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-cyan-500/[0.035] via-background to-background p-3 shadow-sm ring-1 ring-black/[0.02] dark:border-cyan-400/15 dark:from-cyan-400/[0.04] dark:ring-white/[0.025] md:space-y-4 md:p-5" aria-labelledby="trading-accounts-title" dir="rtl">
-    <div aria-hidden="true" className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-cyan-500/70 to-transparent" />
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-2">
-        <Server className="h-5 w-5 text-primary" />
-        <h2 id="trading-accounts-title" className="text-lg font-semibold text-gray-900 dark:text-white">حساب‌های معاملاتی متصل</h2>
-        <Badge variant="secondary">{snapshots.length}</Badge>
-      </div>
-      <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={load} disabled={loading} aria-label="به‌روزرسانی حساب‌ها" title="به‌روزرسانی حساب‌ها"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
-    </div>
+  return <section id="trading-accounts-title" className="space-y-3" aria-label="حساب‌ها، معاملات و سفارش‌ها" dir="rtl">
+    <BrokerAccountOverview snapshots={snapshots} accessToken={accessToken} onDeleteBroker={deleteBroker} onRefresh={load} loading={loading} error={error} />
     {snapshots.length === 0 && <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-amber-800 dark:text-amber-200">
       <div className="flex items-center gap-3">
         <AlertTriangle className="h-5 w-5 shrink-0" />
@@ -113,9 +104,6 @@ export default function MT5AccountSnapshot() {
       </div>
     </div>}
     {error && snapshots.length > 0 && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">به‌روزرسانی انجام نشد؛ آخرین Snapshot سالم نمایش داده می‌شود. {error}</p>}
-    <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-      <BrokerAccountOverview snapshots={snapshots} accessToken={accessToken} onDeleteBroker={deleteBroker} loading={loading} error={error} />
-      <LastTrades snapshots={snapshots} />
-    </div>
+    <LastTrades snapshots={snapshots} />
   </section>
 }

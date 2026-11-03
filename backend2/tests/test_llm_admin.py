@@ -10,7 +10,7 @@ from src.api.v1.endpoints import llm_admin
 from src.api.v1.endpoints.auth import require_user
 from src.core.config import Settings
 from src.services.llm_engine.control import ConfigurationConflict, LLMControlStore, configured_models
-from src.services.llm_engine.provider import InvalidLLMResponse
+from src.services.llm_engine.provider import InvalidLLMResponse, ModelDisabledError
 from src.services.llm_engine.routing import create_llm_provider
 
 
@@ -48,6 +48,117 @@ def test_priority_applies_to_existing_router_and_survives_recreation(setup, monk
     raw = store.path.read_bytes()
     for secret in [b'private-groq-key', b'private-cf-key', b'secret-prompt', b'secret-evidence']:
         assert secret not in raw
+
+
+def test_disabling_and_reenabling_applies_to_existing_router_and_keeps_priority(setup, monkeypatch):
+    settings, store, models = setup
+    router = create_llm_provider(settings)
+    calls = []
+    monkeypatch.setattr(httpx, 'post', lambda url, **_: calls.append(url) or response(url))
+    preferences = rows(models, 1000)
+    preferences[0]['enabled'] = False
+    store.save(models, preferences, 0, 'admin')
+    assert router.generate_json('system', {}) == {}
+    assert calls == ['https://cloudflare.invalid/v1/chat/completions']
+    assert create_llm_provider(settings).provider_id == 'cloudflare'
+    overview = store.overview(models)['models']
+    assert [row['enabled'] for row in overview] == [False, True]
+    assert [row['id'] for row in overview] == [row['id'] for row in models]
+    assert overview[0]['daily_token_limit'] == 1000
+    preferences[0]['enabled'] = True
+    store.save(models, preferences, 1, 'admin')
+    router.generate_json('system', {})
+    assert 'groq' in calls[-1]
+    assert store.overview(models)['models'][0]['requests'] == 1
+
+
+def test_all_disabled_models_make_no_requests_and_can_be_reenabled(setup, monkeypatch):
+    settings, store, models = setup
+    router = create_llm_provider(settings)
+    calls = []
+    monkeypatch.setattr(httpx, 'post', lambda url, **_: calls.append(url) or response(url))
+    store.save(models, [{**row, 'enabled': False} for row in rows(models)], 0, 'admin')
+    for instance in [router, create_llm_provider(settings)]:
+        with pytest.raises(ModelDisabledError) as error:
+            instance.generate_json('system', {})
+        assert error.value.response.status_code == 503
+    assert calls == []
+    assert all(row['requests'] == 0 for row in store.overview(models)['models'])
+    store.save(models, [{**row, 'enabled': True} for row in rows(models)], 1, 'admin')
+    router.generate_json('system', {})
+    assert len(calls) == 1 and 'groq' in calls[0]
+
+
+def test_legacy_single_provider_respects_live_enabled_setting(tmp_path, monkeypatch):
+    settings = Settings(_env_file=None, greenpeak_llm_providers=[], greenpeak_llm_api_key='test-key',
+                        greenpeak_llm_model='test-model', greenpeak_llm_router_db_path=tmp_path / 'router.db')
+    store = LLMControlStore(settings.greenpeak_llm_router_db_path)
+    models = configured_models(settings)
+    provider = create_llm_provider(settings)
+    calls = []
+    monkeypatch.setattr(httpx, 'post', lambda url, **_: calls.append(url) or response(url))
+    store.save(models, [{**row, 'enabled': False} for row in rows(models)], 0, 'admin')
+    with pytest.raises(ModelDisabledError):
+        provider.generate_json('system', {})
+    assert calls == []
+    store.save(models, [{**row, 'enabled': True} for row in rows(models)], 1, 'admin')
+    assert provider.generate_json('system', {}) == {}
+    assert len(calls) == 1
+
+
+def test_disabling_after_router_selection_blocks_call_without_cooldown(setup, monkeypatch):
+    settings, store, models = setup
+    router = create_llm_provider(settings)
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(url)
+        if 'groq' in url:
+            store.save(models, [{**row, 'enabled': index == 0} for index, row in enumerate(rows(models))], 0, 'admin')
+            return response(url, status=503)
+        return response(url)
+
+    monkeypatch.setattr(httpx, 'post', post)
+    with pytest.raises(ModelDisabledError):
+        router.generate_json('system', {})
+    assert len(calls) == 1 and 'groq' in calls[0]
+    store.save(models, [{**row, 'enabled': True} for row in rows(models)], 1, 'admin')
+    # The first model is still cooling down after its real 503. The second can
+    # be used immediately: administrative disablement added no cooldown.
+    assert router.generate_json('system', {}) == {}
+    assert len(calls) == 2 and 'cloudflare' in calls[-1]
+
+
+def test_admin_toggle_round_trip_and_older_clients_preserve_disabled_state(setup):
+    _, _, models = setup
+    client = client_for('admin')
+    result = client.get('/api/v1/admin/llm')
+    assert all(row['enabled'] is True for row in result.json()['models'])
+    preferences = [{**row, 'enabled': index != 0} for index, row in enumerate(rows(models, 1000))]
+    result = client.put('/api/v1/admin/llm', json={'expected_revision': 0, 'models': preferences})
+    assert result.status_code == 200
+    assert [row['enabled'] for row in result.json()['models']] == [False, True]
+    assert result.json()['revision'] == 1
+    # Updating budgets/order from a pre-toggle client must not enable a model.
+    result = client.put('/api/v1/admin/llm', json={'expected_revision': 1, 'models': rows(models, 2000)})
+    assert result.status_code == 200
+    assert [row['enabled'] for row in result.json()['models']] == [False, True]
+    assert result.json()['models'][0]['daily_token_limit'] == 2000
+    preferences[0]['enabled'] = 'false'
+    assert client.put('/api/v1/admin/llm', json={'expected_revision': 2, 'models': preferences}).status_code == 422
+
+
+def test_disabled_model_probe_makes_no_external_request(setup, monkeypatch):
+    _, store, models = setup
+    store.save(models, [{**row, 'enabled': False} for row in rows(models)], 0, 'admin')
+    def unexpected(*args, **kwargs):
+        pytest.fail('Disabled models must not send a connectivity probe')
+    monkeypatch.setattr(httpx, 'post', unexpected)
+    result = client_for('admin').post(f"/api/v1/admin/llm/{models[0]['id']}/test")
+    assert result.status_code == 200
+    assert result.json()['error_code'] == 'model_disabled'
+    assert result.json()['status'] == 'failed'
+    assert all(row['requests'] == 0 for row in store.overview(models)['models'])
 
 
 def test_all_http_attempts_and_invalid_paid_output_are_counted(setup, monkeypatch):

@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/components/auth/auth-context"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, ChevronDown, Loader2, RefreshCw, Scale, Trash2, Wifi, WifiOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { MT5_BROKER_DELETED_EVENT } from "@/lib/mt5-account-changes"
@@ -17,11 +17,6 @@ import {
   formatField,
   money,
   number,
-  tradingCardClass,
-  tradingCardContentClass,
-  tradingCardHeaderClass,
-  tradingTabClass,
-  tradingTabListClass,
 } from "./mt5-data-view"
 
 const hasNumber = (value) => value !== null && value !== "" && Number.isFinite(Number(value))
@@ -403,9 +398,8 @@ function AssetComparisonRows({ asset, brokers, symbolFor, renderSwap }) {
   </>
 }
 
-export default function BrokerAccountOverview({ snapshots = [], accessToken = "", onDeleteBroker, loading = false, error = "" }) {
-  const { isAdmin } = useAuth()
-  const [tab, setTab] = useState("accounts")
+export default function BrokerAccountOverview({ snapshots = [], accessToken = "", onDeleteBroker, onRefresh, loading = false, error = "" }) {
+  const [tab, setTab] = useState(null)
   const [comparison, setComparison] = useState(null)
   const [comparisonLoading, setComparisonLoading] = useState(false)
   const [comparisonError, setComparisonError] = useState("")
@@ -413,6 +407,7 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState("")
   const comparisonController = useRef(null)
+  const panelTrigger = useRef(null)
 
   const confirmDelete = async (event) => {
     event.preventDefault()
@@ -475,7 +470,10 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
 
   useEffect(() => {
     const focusComparison = (event) => {
-      if (event.detail === "broker-comparison") setTab("comparison")
+      if (event.detail === "broker-comparison") {
+        panelTrigger.current = document.activeElement
+        setTab("comparison")
+      }
     }
     window.addEventListener("greenpeak:broker-focus", focusComparison)
     return () => window.removeEventListener("greenpeak:broker-focus", focusComparison)
@@ -485,29 +483,44 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
     if ((accessToken || tab === "comparison") && !comparison && !comparisonLoading && !comparisonError) loadComparison()
   }, [tab, accessToken, comparison, comparisonLoading, comparisonError, loadComparison])
 
-  const tabs = [
-    { id: "accounts", label: "حساب‌های من", count: snapshots.length },
+  const panels = [
+    { id: "accounts", label: "حساب‌های من", icon: Building2, count: snapshots.length },
     {
       id: "comparison",
       label: "مقایسه بروکرها",
+      icon: Scale,
       count: comparison?.brokers?.length ?? (comparisonLoading || (accessToken && !comparisonError) ? "…" : "—"),
     },
   ]
+  const activePanel = panels.find((item) => item.id === tab)
+  const refreshing = loading || comparisonLoading
+  const refresh = () => {
+    onRefresh?.()
+    loadComparison()
+  }
 
-  return <><Card className={`${tradingCardClass} !h-[16rem] xl:col-span-2`}>
-    <CardHeader className={`${tradingCardHeaderClass} flex-row flex-wrap items-center justify-between gap-3 space-y-0`}>
-      <CardTitle className="flex items-center gap-2 text-base text-gray-900 dark:text-white">
-        <Building2 className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-        حساب بروکرها
-        {isAdmin && <Badge variant="secondary">{tab === "accounts" ? snapshots.length : (comparison?.eligible_broker_count ?? "—")}</Badge>}
-      </CardTitle>
-      <div className={tradingTabListClass} aria-label="بخش حساب‌ها و مقایسه بروکرها">
-        {tabs.map((item) => <button key={item.id} type="button" aria-pressed={tab === item.id} onClick={() => setTab(item.id)} className={tradingTabClass(tab === item.id)}>
-          {item.label}{item.count !== undefined && <span className="tabular-nums opacity-70">{item.count}</span>}
-        </button>)}
-      </div>
-    </CardHeader>
-    <CardContent className={`${tradingCardContentClass} ${tab === "accounts" ? "!overflow-x-hidden !overflow-y-auto" : "!overflow-auto"}`}>
+  return <>
+    <div className="flex flex-wrap items-center gap-2" aria-label="حساب‌ها و مقایسه بروکرها">
+      {panels.map(({ id, label, icon: Icon, count }) => <Button key={id} type="button" variant="outline" size="sm" className="h-9 gap-2"
+        aria-haspopup="dialog" aria-expanded={tab === id} onClick={(event) => { panelTrigger.current = event.currentTarget; setTab(id) }}>
+        <Icon className="h-4 w-4" />{label}<span className="tabular-nums text-muted-foreground">{count}</span>
+      </Button>)}
+      <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={refresh} disabled={refreshing}
+        aria-label="به‌روزرسانی حساب‌ها و مقایسه بروکرها" title="به‌روزرسانی حساب‌ها و مقایسه بروکرها">
+        <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+      </Button>
+    </div>
+    <Dialog open={tab !== null} onOpenChange={(open) => { if (!open && !deleting) setTab(null) }}>
+      <DialogContent dir="rtl" className="flex max-h-[92dvh] w-[calc(100vw-1rem)] max-w-[1440px] flex-col gap-0 overflow-hidden p-0 sm:w-[calc(100vw-3rem)]"
+        onCloseAutoFocus={(event) => { if (panelTrigger.current?.isConnected) { event.preventDefault(); panelTrigger.current.focus() } }}>
+        <DialogHeader className="shrink-0 border-b p-4 pl-12 text-right sm:p-5 sm:pl-12 sm:text-right">
+          <DialogTitle className="flex items-center gap-2">
+            {tab === "comparison" ? <Scale className="h-5 w-5 text-primary" /> : <Building2 className="h-5 w-5 text-primary" />}
+            {activePanel?.label || "حساب‌های من"}
+          </DialogTitle>
+          <DialogDescription className="sr-only">{tab === "comparison" ? "مقایسه شرایط و هزینه‌های بروکرها با داده‌های بی‌نام و تفکیک نوع حساب" : "موجودی، وضعیت و جزئیات حساب‌های معاملاتی شما"}</DialogDescription>
+        </DialogHeader>
+        <div className={`min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-5 ${tab === "accounts" ? "overflow-x-hidden" : "overflow-x-auto"}`}>
       {tab === "comparison" ? <ComparisonTable comparison={comparison} loading={comparisonLoading} error={comparisonError} onRetry={loadComparison} /> :
       <div className="min-w-0 space-y-2">
         <div className={`sticky top-0 z-10 hidden gap-1.5 border-b bg-white py-2 pl-[4.5rem] pr-3 text-center text-[10px] font-medium text-muted-foreground dark:bg-[#1F1F23] lg:grid ${accountGridClass}`}>
@@ -516,8 +529,9 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
         {!snapshots.length && <EmptyCollection>حساب بروکری برای نمایش وجود ندارد.</EmptyCollection>}
         {snapshots.map((snapshot) => <AccountRow key={accountKey(snapshot)} snapshot={snapshot} loading={loading} error={error} deleting={deleting} onDelete={onDeleteBroker ? (broker) => { setDeleteError(""); setBrokerToDelete(broker) } : undefined} />)}
       </div>}
-    </CardContent>
-  </Card>
+        </div>
+      </DialogContent>
+    </Dialog>
   <AlertDialog open={brokerToDelete !== null} onOpenChange={(open) => { if (!open && !deleting) setBrokerToDelete(null) }}>
     <AlertDialogContent dir="rtl" className="w-[calc(100vw-2rem)]">
       <AlertDialogHeader className="text-right sm:text-right">

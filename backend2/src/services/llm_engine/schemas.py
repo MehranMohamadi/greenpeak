@@ -241,6 +241,29 @@ def _factor_evidence_exists(evidence: dict, reference: str) -> bool:
     return resolve_factor_evidence(evidence, reference) is not None
 
 
+def factor_evidence_references(evidence: dict) -> list[str]:
+    """Give the model exact, resolvable source-object citations to choose from."""
+    candidates = []
+
+    def add_list(prefix, values):
+        if isinstance(values, list):
+            candidates.extend(f"{prefix}/{index}" for index in range(len(values)))
+
+    add_list("/domain_narratives", evidence.get("domain_narratives"))
+    horizontal = evidence.get("horizontal_evidence") or {}
+    if isinstance(horizontal, dict):
+        candidates.append("/horizontal_evidence/sp500_session_move")
+        for name in ("recent_market_news", "upcoming_us_events", "observed_indicators"):
+            add_list(f"/horizontal_evidence/{name}", horizontal.get(name))
+        context = horizontal.get("current_market_context") or {}
+        if isinstance(context, dict):
+            add_list("/horizontal_evidence/current_market_context/released_us_events", context.get("released_us_events"))
+    retained = evidence.get("retained_factor_evidence") or {}
+    if isinstance(retained, dict):
+        candidates.extend(f"/retained_factor_evidence/{str(key).replace('~', '~0').replace('/', '~1')}" for key in retained)
+    return [reference for reference in candidates if resolve_factor_evidence(evidence, reference) is not None]
+
+
 def resolve_factor_evidence(evidence: dict, reference: str) -> dict | None:
     """Resolve a factor citation against the exact evidence sent to the model."""
     if not reference.startswith("/") or reference.startswith("/previous_market_factors"):

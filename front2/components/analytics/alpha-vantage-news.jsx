@@ -4,15 +4,11 @@ import { useEffect, useState } from "react"
 import { ExternalLink, Loader2, Newspaper } from "lucide-react"
 import { endpoints } from "@/api/api"
 import { formatGregorianTehranDateTime } from "@/lib/date-format"
+import { NEWS_SOURCES as SOURCES, DEFAULT_NEWS_SOURCE } from "@/lib/news-sources"
+import NewsAccessReview from "@/components/analytics/news-access-review"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-
-const SOURCES = [
-  { id: "alpha_vantage", label: "Alpha Vantage" },
-  { id: "cnbc_rss", label: "CNBC" },
-  { id: "investing_rss", label: "Investing.com" },
-]
 
 function formatTime(value) {
   return formatGregorianTehranDateTime(value)
@@ -21,7 +17,7 @@ function formatTime(value) {
 const formatScore = (value) => typeof value === "number" ? value.toFixed(3) : "—"
 
 export default function AlphaVantageNews({ selectedArticleId, onArticleSelect }) {
-  const [activeSource, setActiveSource] = useState("cnbc_rss")
+  const [activeSource, setActiveSource] = useState(DEFAULT_NEWS_SOURCE)
   const [feeds, setFeeds] = useState({})
   const [loadingSource, setLoadingSource] = useState(null)
   const [errors, setErrors] = useState({})
@@ -74,10 +70,11 @@ export default function AlphaVantageNews({ selectedArticleId, onArticleSelect })
       <CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-primary" />اخبار بازار</CardTitle>
     </CardHeader>
     <CardContent className="flex min-h-0 flex-1">
-      <Tabs value={activeSource} onValueChange={setActiveSource} className="flex min-h-0 w-full flex-col" dir="ltr">
-        <TabsList className="mb-4 grid h-auto w-full shrink-0 grid-cols-3">
-          {SOURCES.map((source) => <TabsTrigger key={source.id} value={source.id}>{source.label}</TabsTrigger>)}
+      <Tabs value={activeSource} onValueChange={(source) => { setActiveSource(source); onArticleSelect?.(null) }} className="flex min-h-0 w-full flex-col" dir="ltr">
+        <TabsList className="mb-3 grid h-auto w-full shrink-0 grid-cols-2 gap-1 sm:grid-cols-3 xl:grid-cols-5">
+          {SOURCES.map((source) => <TabsTrigger key={source.id} value={source.id} className="min-w-0 whitespace-normal px-2 text-xs">{source.label}</TabsTrigger>)}
         </TabsList>
+        <NewsAccessReview source={activeSource} />
         {SOURCES.map((source) => {
           const feed = feeds[source.id]
           const error = errors[source.id]
@@ -91,11 +88,19 @@ export default function AlphaVantageNews({ selectedArticleId, onArticleSelect })
                 {feed.searched_topics?.length > 0 && <div className="flex flex-wrap items-center gap-1.5"><span className="text-xs text-muted-foreground">تاپیک‌های جست‌وجوشده:</span>{feed.searched_topics.map((topic) => <Badge key={topic} variant="secondary" dir="ltr">{topic}</Badge>)}</div>}
               </div>
               {!feed.native_importance_score_available && <p className="mb-4 text-right text-xs text-muted-foreground">‏این ‎RSS‎ امتیاز اهمیت بومی ارائه نمی‌کند؛ اخبار این تب بر اساس زمان انتشار مرتب شده‌اند.</p>}
+              {feed.coverage_sections?.length > 0 && <div className="mb-3 flex flex-wrap items-center gap-1.5 text-xs" dir="rtl">
+                <span className="text-muted-foreground">پوشش CNBC:</span>
+                {feed.coverage_sections.map((section) => <Badge key={section.id} variant="outline" title={section.label}>{section.label_fa}{section.role === "supplement" ? " (مکمل)" : ""}</Badge>)}
+              </div>}
               <div className="divide-y rounded-lg border" dir="ltr">
                 {visibleItems.map((article) => <article key={article.item_id || article.url} className={`px-4 py-3.5 text-left transition-colors ${selectedArticleId === article.item_id ? "bg-primary/10 ring-1 ring-inset ring-primary/30" : "hover:bg-muted/30"}`}>
                   <button type="button" aria-pressed={selectedArticleId === article.item_id} onClick={() => onArticleSelect?.(article)} className="block w-full text-left">
                     <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <time dir="rtl">{formatTime(article.published_at)}</time>
+                      {article.sections?.map((sectionId) => {
+                        const section = feed.coverage_sections?.find((item) => item.id === sectionId)
+                        return section ? <Badge key={sectionId} variant="secondary" dir="rtl">{section.label_fa}</Badge> : null
+                      })}
                       {source.id === "alpha_vantage" && <>
                         <Badge variant="outline">Relevance: {formatScore(article.source_score)}</Badge>
                         {article.importance && <Badge variant={article.importance === "high" ? "default" : "secondary"}>{article.importance === "high" ? "High" : "Medium"}</Badge>}

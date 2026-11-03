@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 
 class RawNewsItem(BaseModel):
-    source: Literal["alpha_vantage", "cnbc_rss", "investing_rss"]
+    source: Literal["alpha_vantage", "cnbc_rss", "investing_rss", "bloomberg_rss", "wsj_rss", "nytimes_rss", "economist_rss"]
     source_item_id: str | None = None
     url: HttpUrl
     canonical_url: HttpUrl | None = None
@@ -14,10 +14,55 @@ class RawNewsItem(BaseModel):
     published_at: datetime
     fetched_at: datetime
     topics: list[str] = []
+    sections: list[str] = []
     tickers: list[str] = []
     alpha_overall_sentiment_score: float | None = None
     alpha_overall_sentiment_label: str | None = None
     raw_payload: dict[str, Any] = {}
+
+
+class NewsAccessSample(BaseModel):
+    item_id: str
+    url: HttpUrl
+    checked_at: datetime
+    status: str
+    http_status: int | None = None
+    character_count: int = Field(ge=0)
+
+
+class NewsAccessDay(BaseModel):
+    review_id: str
+    source: str
+    date: str
+    feed_status: Literal["available", "empty", "error"]
+    feed_error: str | None = None
+    samples: list[NewsAccessSample]
+
+
+class NewsSourceAccessReport(BaseModel):
+    source: str
+    label: str
+    sampled_days: int
+    attempts: int
+    page_text_available: int
+    status_counts: dict[str, int]
+    feed_error_days: int
+    days: list[NewsAccessDay]
+
+
+class NewsAccessReport(BaseModel):
+    review_id: str
+    duration_days: int
+    samples_per_source_per_day: int
+    start_date: str | None
+    end_date_exclusive: str | None
+    status: Literal["pending", "active", "completed"]
+    sources: list[NewsSourceAccessReport]
+
+
+class NewsAccessReportResponse(BaseModel):
+    ok: Literal[True] = True
+    data: NewsAccessReport
 
 
 class CNBCNewsHighlight(BaseModel):

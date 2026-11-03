@@ -18,18 +18,48 @@ class MongoNewsRepository:
         for document in documents:
             try: self.db.gp_news_raw.insert_one(document); written += 1
             except DuplicateKeyError: pass
+            if document.get("source") == "cnbc_rss" and document.get("sections"):
+                # Feed membership can expand without rewriting the raw observation.
+                self.db.gp_news_item_sections.update_one(
+                    {"_id": document["item_id"]},
+                    {"$addToSet": {"sections": {"$each": document["sections"]}}}, upsert=True,
+                )
         return written
 
     def recent_raw(self, since: datetime) -> list[dict]:
         return list(self.db.gp_news_raw.find({"published_at": {"$gte": since}}, {"_id": False}))
 
     def source_raw(self, source: str, since: datetime, limit: int = 500) -> list[dict]:
-        return list(self.db.gp_news_raw.find(
+        documents = list(self.db.gp_news_raw.find(
             {"source": source, "published_at": {"$gte": since}}, {"_id": False}
         ).sort("published_at", DESCENDING).limit(limit))
+        if source == "cnbc_rss" and documents:
+            memberships = {item["_id"]: item.get("sections", []) for item in self.db.gp_news_item_sections.find(
+                {"_id": {"$in": [document["item_id"] for document in documents]}},
+                {"sections": True},
+            )}
+            for document in documents:
+                document["sections"] = list(dict.fromkeys([*document.get("sections", []), *memberships.get(document["item_id"], [])]))
+        return documents
 
     def item_by_id(self, item_id: str) -> dict | None:
         return self.db.gp_news_raw.find_one({"item_id": item_id}, {"_id": False})
+
+    def start_access_review(self, review_id: str, start_date: str) -> dict:
+        # _id is already unique: restarts/workers cannot reset the ten-day window.
+        self.db.gp_news_access_reviews.update_one(
+            {"_id": review_id}, {"$setOnInsert": {"start_date": start_date}}, upsert=True
+        )
+        return self.access_review(review_id)
+
+    def access_review(self, review_id: str) -> dict | None:
+        return self.db.gp_news_access_reviews.find_one({"_id": review_id}, {"_id": False})
+
+    def access_review_runs(self, review_id: str) -> list[dict]:
+        return list(self.db.gp_news_runs.find(
+            {"kind": "news_access_review", "status": "success", "metrics.review_id": review_id},
+            {"_id": False, "metrics": True},
+        ))
 
     def article_analysis(self, item_id: str, analysis_version: str) -> dict | None:
         return self.db.gp_news_article_analyses.find_one(

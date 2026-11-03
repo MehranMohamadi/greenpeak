@@ -9,13 +9,12 @@ from pymongo import MongoClient
 from ...core.config import get_settings
 from .feed import stable_item_id
 from .repository import MongoNewsRepository
-from .sources import fetch_alpha, fetch_rss
+from .sources import fetch_rss
+from .source_config import rss_sources
+from .access_review import review_source_access
+from .cnbc import fetch_cnbc_sections
 
 logger = logging.getLogger(__name__)
-ALPHA_TOPIC_ROTATION = (
-    "financial_markets", "economy_monetary", "economy_macro", "financial_markets",
-    "economy_monetary", "economy_macro", "financial_markets", "earnings",
-)
 
 
 def _ten_minute_bucket(value: datetime) -> str:
@@ -24,6 +23,7 @@ def _ten_minute_bucket(value: datetime) -> str:
 
 
 def ingest_news(alpha_topics: tuple[str, ...] | None = None, run_prefix: str = "ingest") -> None:
+    # Keep the old call signature for bootstrap callers; only the five RSS feeds run.
     settings = get_settings(); now = datetime.now(UTC); interval_key = _ten_minute_bucket(now)
     client = MongoClient(settings.mongodb_url, serverSelectionTimeoutMS=5000); repository = MongoNewsRepository(client, settings.mongodb_database)
     metrics = {"sources": {}, "errors": {}}
@@ -31,37 +31,35 @@ def ingest_news(alpha_topics: tuple[str, ...] | None = None, run_prefix: str = "
         repository.ensure_indexes()
         run_key = f"{run_prefix}:{interval_key}"
         if not repository.claim_run(run_key, "ingest"): return
-        topics = alpha_topics or (ALPHA_TOPIC_ROTATION[(now.timetuple().tm_yday * 24 + now.hour) % len(ALPHA_TOPIC_ROTATION)],)
-        def fetch_alpha_topics():
-            values, last_error = [], None
-            if settings.alpha_vantage_key:
-                for topic in topics:
-                    try:
-                        values.extend(fetch_alpha(settings.alpha_vantage_key, topic))
-                    except Exception as exc:
-                        # Keep successful topic feeds. Alpha Vantage may rate-limit
-                        # a later request in the same multi-topic bootstrap.
-                        last_error = exc
-                        logger.warning("Alpha Vantage topic %s failed: %s", topic, type(exc).__name__)
-            if not values and last_error:
-                raise last_error
-            return values
-        fetches = {
-            "alpha_vantage": fetch_alpha_topics,
-            "cnbc_rss": lambda: fetch_rss(settings.greenpeak_cnbc_rss_url, "cnbc_rss"),
-            "investing_rss": lambda: fetch_rss(settings.greenpeak_investing_rss_url, "investing_rss"),
-        }
-        for source, fetch in fetches.items():
+        for source, url in rss_sources(settings).items():
+            documents, feed_error = [], None
             try:
-                items = fetch(); documents = []
+                section_results = None
+                if source == "cnbc_rss":
+                    items, section_results = fetch_cnbc_sections(settings, fetcher=fetch_rss)
+                    if any(result["status"] == "error" for result in section_results.values()):
+                        metrics["errors"][source] = "CNBC_SECTION_UNAVAILABLE"
+                        if not items:
+                            feed_error = "CNBC_SECTION_UNAVAILABLE"
+                else:
+                    items = fetch_rss(url, source)
+                documents = []
                 for item in items:
                     document = item.model_dump(mode="python")
                     document["url"] = str(item.url)
                     document["canonical_url"] = str(item.canonical_url) if item.canonical_url else None
                     documents.append({"item_id": stable_item_id(item), **document})
                 metrics["sources"][source] = {"received": len(items), "inserted": repository.save_raw(documents)}
+                if section_results is not None:
+                    metrics["sources"][source]["sections"] = section_results
             except Exception as exc:
-                metrics["errors"][source] = type(exc).__name__; logger.warning("News source %s failed: %s", source, type(exc).__name__)
+                feed_error = type(exc).__name__
+                metrics["errors"][source] = feed_error; logger.warning("News source %s failed: %s", source, feed_error)
+            try:
+                review_source_access(repository, source, documents, now=now, feed_error=feed_error)
+            except Exception as exc:
+                # A monitoring failure must not prevent the other feeds being saved.
+                logger.warning("News access review %s failed: %s", source, type(exc).__name__)
         status = "partial" if metrics["errors"] else "success"
         repository.finish_run(run_key, status, metrics)
     except Exception as exc:

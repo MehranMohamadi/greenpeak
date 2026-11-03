@@ -12,18 +12,41 @@ import time
 import httpx
 from pydantic import ValidationError
 
-from .provider import MAX_PROVIDER_TIMEOUT, DisabledProvider, InvalidLLMResponse, OpenAICompatibleProvider
+from .provider import MAX_PROVIDER_TIMEOUT, DisabledProvider, InvalidLLMResponse, ModelDisabledError, OpenAICompatibleProvider
 from .control import LLMControlStore, model_key
 
 
 logger = logging.getLogger(__name__)
 
 
-def generate_validated_json(provider, system_prompt, evidence, validator):
+def _generate_validated(provider, system_prompt, evidence, validator, validation_attempts):
+    request = evidence
+    for attempt in range(validation_attempts):
+        generated = provider.generate_json(system_prompt, request)
+        try:
+            return validator(generated)
+        except ValidationError as exc:
+            if attempt == validation_attempts - 1:
+                raise
+            request = {
+                **evidence,
+                "validation_feedback": {
+                    "instruction": "Correct the JSON so it matches the output contract exactly.",
+                    "errors": [
+                        {"location": list(item["loc"]), "type": item["type"], "message": item["msg"]}
+                        for item in exc.errors(include_input=False)
+                    ],
+                },
+            }
+
+
+def generate_validated_json(provider, system_prompt, evidence, validator, *, validation_attempts=1):
     """Validate inside the router, or directly for a single provider."""
+    if validation_attempts not in {1, 2}:
+        raise ValueError("Validation attempts must be one or two")
     if isinstance(provider, ProviderRouter):
-        return provider.generate_validated_json(system_prompt, evidence, validator)
-    return validator(provider.generate_json(system_prompt, evidence))
+        return provider.generate_validated_json(system_prompt, evidence, validator, validation_attempts=validation_attempts)
+    return _generate_validated(provider, system_prompt, evidence, validator, validation_attempts)
 
 
 DIRECT_URLS = {
@@ -88,14 +111,14 @@ class ProviderRouter:
             db.execute("CREATE TABLE IF NOT EXISTS provider_cooldowns (identity TEXT PRIMARY KEY, retry_at REAL NOT NULL)")
         now = time.time()
         ordered = self._ordered_providers()
-        self._selected = next((p for p in ordered if self._retry_at(p) <= now), ordered[0])
+        self._selected = next((p for p in ordered if self._retry_at(p) <= now), ordered[0] if ordered else DisabledProvider())
 
     def _ordered_providers(self):
         if self.control_store is None:
             return self.providers
         by_id = {p.usage_key: p for p in self.providers}
         return [by_id[item['id']] for item in self.control_store.ordered(
-            [{'id': p.usage_key} for p in self.providers])]
+            [{'id': p.usage_key} for p in self.providers], active_only=True)]
 
     @property
     def provider_id(self):
@@ -133,22 +156,31 @@ class ProviderRouter:
     def generate_json(self, system_prompt, evidence):
         return self._generate(system_prompt, evidence)
 
-    def generate_validated_json(self, system_prompt, evidence, validator):
-        return self._generate(system_prompt, evidence, validator)
+    def generate_validated_json(self, system_prompt, evidence, validator, *, validation_attempts=1):
+        if validation_attempts not in {1, 2}:
+            raise ValueError("Validation attempts must be one or two")
+        return self._generate(system_prompt, evidence, validator, validation_attempts)
 
-    def _generate(self, system_prompt, evidence, validator=None):
+    def _generate(self, system_prompt, evidence, validator=None, validation_attempts=1):
         last_error = None
         earliest_retry = None
-        for provider in self._ordered_providers():
+        providers = self._ordered_providers()
+        if not providers:
+            raise ModelDisabledError()
+        for provider in providers:
             now = time.time()
             retry_at = self._retry_at(provider)
             if retry_at > now:
                 earliest_retry = min(earliest_retry or retry_at, retry_at)
                 continue
             try:
-                result = provider.generate_json(system_prompt, evidence)
-                if validator is not None:
-                    result = validator(result)
+                result = (provider.generate_json(system_prompt, evidence) if validator is None
+                          else _generate_validated(provider, system_prompt, evidence, validator, validation_attempts))
+            except ModelDisabledError as exc:
+                # An admin may disable a model after this request selected it.
+                # Re-enabling it must not inherit a quota cooldown.
+                last_error = exc
+                continue
             except httpx.HTTPStatusError as exc:
                 status = exc.response.status_code
                 if status == 413:

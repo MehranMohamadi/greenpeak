@@ -9,11 +9,21 @@ import httpx
 
 
 MAX_PROVIDER_TIMEOUT = 30.0
+MARKET_PROVIDER_TIMEOUT = 120.0
 logger = logging.getLogger(__name__)
 
 
 class InvalidLLMResponse(ValueError):
     """The provider returned no usable JSON object."""
+
+
+class ModelDisabledError(httpx.HTTPStatusError):
+    """Administrative disablement; never an upstream request or quota error."""
+
+    def __init__(self):
+        response = httpx.Response(503, request=httpx.Request("POST", "https://llm-router.invalid"),
+                                  json={"error": {"code": "model_disabled"}})
+        super().__init__("No enabled LLM model is available", request=response.request, response=response)
 
 
 def decode_json_content(content: str) -> dict[str, Any]:
@@ -66,6 +76,8 @@ class OpenAICompatibleProvider:
         self.usage_key = None
 
     def generate_json(self, system_prompt: str, evidence: dict[str, Any]) -> dict[str, Any]:
+        if self.usage_store is not None and not self.usage_store.is_enabled(self.usage_key):
+            raise ModelDisabledError()
         response, payload = None, None
         request = {"model": self.model_id, "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": json.dumps(evidence, ensure_ascii=False, default=str)}]}
         if self.provider_id == "cloudflare":
@@ -76,7 +88,10 @@ class OpenAICompatibleProvider:
                 f"{self.base_url}/chat/completions",
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 json=request,
-                timeout=self.timeout,
+                # The final market report is substantially larger than a
+                # chat or indicator response and needs its own bounded read
+                # deadline. Keep the short deadline for other requests.
+                timeout=max(self.timeout, MARKET_PROVIDER_TIMEOUT) if evidence.get("contract_level") == "market" else self.timeout,
             )
             response.raise_for_status()
             try:

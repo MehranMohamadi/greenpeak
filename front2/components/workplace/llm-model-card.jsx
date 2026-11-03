@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowDown, ArrowUp, PlugZap } from "lucide-react"
+import { ArrowDown, ArrowUp, PlugZap, Power } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -13,19 +13,26 @@ const testErrors = {
   quota_exhausted: "اعتبار سرویس کافی نیست.", rate_limited: "محدودیت تعداد درخواست یا سهمیه فعال است.",
   provider_unavailable: "سرویس مدل در دسترس نیست.", connection_failed: "ارتباط با سرویس برقرار نشد.",
   invalid_response: "ارتباط برقرار شد، اما پاسخ JSON معتبر برای تست دریافت نشد.",
+  model_disabled: "این مدل غیرفعال است؛ برای تست اتصال ابتدا آن را فعال کنید.",
 }
 
 function Metric({ label, value }) {
   return <div className="rounded-md bg-muted/50 p-3"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-2 font-semibold tabular-nums">{number(value)}</dd></div>
 }
 
-export default function LLMModelCard({ row, index, total, saving, testingId, result, onTest, onMove, onBudgetChange }) {
+export default function LLMModelCard({ row, index, total, saving, togglingId, testingId, result, onTest, onToggle, onMove, onBudgetChange }) {
+  const enabled = row.enabled !== false
   return <Card>
     <CardHeader>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 space-y-2"><CardTitle className="flex items-center gap-2 text-base"><Badge variant="outline">اولویت {number(index + 1)}</Badge><span dir="ltr">{row.provider}</span></CardTitle><CardDescription className="break-all" dir="ltr">{row.model}</CardDescription></div>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" disabled={saving || Boolean(testingId)} aria-label={`تست اتصال ${row.provider} ${row.model}`} onClick={() => onTest(row)}><PlugZap className="me-2 h-4 w-4" />{testingId === row.id ? "در حال تست…" : "تست اتصال"}</Button>
+        <div className="min-w-0 space-y-2"><CardTitle className="flex flex-wrap items-center gap-2 text-base"><Badge variant="outline">اولویت {number(index + 1)}</Badge><span dir="ltr">{row.provider}</span><Badge variant="outline" className={enabled ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-400" : "text-muted-foreground"}>{enabled ? "فعال" : "غیرفعال"}</Badge></CardTitle><CardDescription className="break-all" dir="ltr">{row.model}</CardDescription></div>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" disabled={saving || Boolean(testingId)} aria-pressed={enabled}
+            aria-label={`${enabled ? "غیرفعال‌سازی" : "فعال‌سازی"} ${row.provider} ${row.model}`} onClick={() => onToggle(row)}>
+            <Power className={`me-2 h-4 w-4 ${enabled ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`} />
+            {togglingId === row.id ? "در حال ذخیره…" : enabled ? "غیرفعال‌سازی" : "فعال‌سازی"}
+          </Button>
+          <Button size="sm" variant="outline" disabled={saving || Boolean(testingId) || !enabled} aria-label={`تست اتصال ${row.provider} ${row.model}`} onClick={() => onTest(row)}><PlugZap className="me-2 h-4 w-4" />{testingId === row.id ? "در حال تست…" : "تست اتصال"}</Button>
           <Button size="icon" variant="outline" disabled={saving || index === 0} aria-label={`بالا بردن اولویت ${row.provider} ${row.model}`} onClick={() => onMove(index, -1)}><ArrowUp className="h-4 w-4" /></Button>
           <Button size="icon" variant="outline" disabled={saving || index === total - 1} aria-label={`پایین بردن اولویت ${row.provider} ${row.model}`} onClick={() => onMove(index, 1)}><ArrowDown className="h-4 w-4" /></Button>
         </div>

@@ -63,7 +63,14 @@ class Settings(BaseSettings):
     greenpeak_news_enabled: bool = True
     greenpeak_official_sentiment_enabled: bool = True
     sec_user_agent: str = "GreenPeak/1.0 admin@greenpeak.ir"
-    greenpeak_cnbc_rss_url: str = "https://www.cnbc.com/id/10000664/device/rss/rss.html"
+    greenpeak_cnbc_rss_url: str = "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258"
+    greenpeak_cnbc_earnings_rss_url: str = "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839135"
+    greenpeak_cnbc_us_top_news_rss_url: str = "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114"
+    greenpeak_cnbc_finance_rss_url: str = "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664"
+    greenpeak_bloomberg_rss_url: str = "https://www.bloomberg.com/feeds/markets/news.rss"
+    greenpeak_wsj_rss_url: str = "https://feeds.content.dowjones.io/public/rss/WSJcomUSBusiness"
+    greenpeak_nytimes_rss_url: str = "https://rss.nytimes.com/services/xml/rss/nyt/Economy.xml"
+    greenpeak_economist_rss_url: str = "https://www.economist.com/finance-and-economics/rss.xml"
     greenpeak_investing_rss_url: str = "https://www.investing.com/rss/news_25.rss"
 
     # Server Configuration

@@ -10,6 +10,8 @@ export { API_BASE };
 export const endpoints = {
     llmAdmin: `${API_BASE}/admin/llm`,
     llmConnectionTest: id => `${API_BASE}/admin/llm/${encodeURIComponent(id)}/test`,
+    llmPrompts: `${API_BASE}/admin/llm/prompts`,
+    llmPrompt: id => `${API_BASE}/admin/llm/prompts/${encodeURIComponent(id)}`,
     workplace: {
         tasks: `${API_BASE}/workplace/tasks`,
         task: id => `${API_BASE}/workplace/tasks/${encodeURIComponent(id)}`,
@@ -65,6 +67,7 @@ export const endpoints = {
     },
     news: {
         cnbcHighlights: `${API_BASE}/news/highlights/cnbc`,
+        accessReview: `${API_BASE}/news/access-review`,
         bootstrap: `${API_BASE}/news/bootstrap`,
         source: (sourceId, limit = 20) => `${API_BASE}/news/sources/${sourceId}?limit=${limit}`,
     },

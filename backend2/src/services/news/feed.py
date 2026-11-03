@@ -6,9 +6,14 @@ import re
 from datetime import datetime
 from typing import Any
 
+from .source_config import ACTIVE_SOURCE_IDS
+from .source_config import cnbc_section_catalog
+from .cnbc import cnbc_article_key
+
 ALPHA_MEDIUM_RELEVANCE = 0.5
 SEARCH_TOPICS = ("financial_markets", "economy_monetary", "economy_macro", "earnings")
-SOURCE_IDS = ("alpha_vantage", "cnbc_rss", "investing_rss")
+# Keep historical API consumers working; only ACTIVE_SOURCE_IDS are ingested.
+SOURCE_IDS = (*ACTIVE_SOURCE_IDS, "alpha_vantage", "investing_rss")
 
 TOPIC_LABELS_FA = {
     "Financial Markets": "بازارهای مالی",
@@ -94,6 +99,16 @@ def _persian_news_analysis(document: dict, score: float | None) -> dict[str, str
 
 
 def build_source_feed(source: str, documents: list[dict], limit: int) -> dict:
+    if source == "cnbc_rss":
+        unique = {}
+        # Collapse both new overlapping feeds and legacy rows with tracking variants.
+        for document in documents:
+            key = cnbc_article_key(str(document.get("canonical_url") or document.get("url") or document.get("item_id")))
+            if key not in unique:
+                unique[key] = {**document, "sections": list(document.get("sections") or [])}
+            else:
+                unique[key]["sections"] = list(dict.fromkeys([*unique[key]["sections"], *(document.get("sections") or [])]))
+        documents = list(unique.values())
     items = []
     for document in documents:
         score = alpha_source_score(document) if source == "alpha_vantage" else None
@@ -103,6 +118,7 @@ def build_source_feed(source: str, documents: list[dict], limit: int) -> dict:
             "item_id": document.get("item_id"), "title": document.get("title"),
             "summary": _plain_text(document.get("summary")), "url": str(document.get("url")),
             "published_at": published, "topics": document.get("topics") or [],
+            "sections": document.get("sections") or [],
             "tickers": document.get("tickers") or [], "source_score": score,
             "importance": "high" if score is not None and score >= .75 else "medium" if score is not None and score >= ALPHA_MEDIUM_RELEVANCE else None,
             "alpha_sentiment_score": document.get("alpha_overall_sentiment_score"),
@@ -129,4 +145,5 @@ def build_source_feed(source: str, documents: list[dict], limit: int) -> dict:
         "searched_topics": list(SEARCH_TOPICS) if source == "alpha_vantage" else [],
         "ranking": "alpha_vantage_relevance_score" if source == "alpha_vantage" else "published_at_desc",
         "native_importance_score_available": source == "alpha_vantage",
+        "coverage_sections": cnbc_section_catalog() if source == "cnbc_rss" else [],
     }

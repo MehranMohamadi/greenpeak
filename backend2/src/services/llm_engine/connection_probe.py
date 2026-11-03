@@ -7,7 +7,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from .control import configured_models
-from .provider import InvalidLLMResponse
+from .provider import InvalidLLMResponse, ModelDisabledError
 from .routing import ProviderRouter, create_llm_provider
 
 
@@ -37,6 +37,8 @@ def probe_connection(settings, model_id):
                                        {'output_contract': ProbeReply.model_json_schema()})
         ProbeReply.model_validate(reply)
         result['http_status'] = 200
+    except ModelDisabledError:
+        result.update(status='failed', error_code='model_disabled')
     except httpx.TimeoutException:
         result.update(status='failed', error_code='timeout')
     except httpx.HTTPStatusError as exc:

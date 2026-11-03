@@ -8,6 +8,7 @@ class ModelPreference(BaseModel):
     model_config = ConfigDict(extra='forbid')
     id: str = Field(pattern=r'^[a-f0-9]{24}$')
     daily_token_limit: Annotated[int, Field(strict=True, ge=1, le=10**12)] | None = None
+    enabled: Annotated[bool, Field(strict=True)] = True
 
 
 class UpdateLLMConfiguration(BaseModel):
@@ -52,6 +53,6 @@ class ModelConnectionResult(BaseModel):
     model: str
     status: Literal['succeeded', 'failed']
     error_code: Literal['timeout', 'access_denied', 'quota_exhausted', 'rate_limited',
-                        'provider_unavailable', 'connection_failed', 'invalid_response'] | None
+                        'provider_unavailable', 'connection_failed', 'invalid_response', 'model_disabled'] | None
     http_status: int | None
     elapsed_ms: int = Field(ge=0)

@@ -12,7 +12,8 @@ from pydantic import ValidationError
 from ..greenpeak_config import load_registry
 from ..rate_features.job import code_version
 from .prompts import load_prompt
-from .schemas import DomainNarrative, IndicatorNarrative, MarketNarrative, resolve_factor_evidence
+from .routing import generate_validated_json
+from .schemas import DomainNarrative, IndicatorNarrative, MarketNarrative, factor_evidence_references, resolve_factor_evidence
 
 ANALYSIS_VERSION = "0.5.0"
 MODELS = {"indicator": IndicatorNarrative, "domain": DomainNarrative, "market": MarketNarrative}
@@ -53,41 +54,35 @@ def _analyze(repository, provider, level: str, subject_id: str, as_of: date, evi
         "revision_id": str(uuid4()),
     }
     request = {"contract_level": level, "output_contract": MODELS[level].model_json_schema(), "evidence": evidence, "coverage": coverage}
-    validation_error = None
-    for attempt in range(2):
-        generated = provider.generate_json(prompt.content, request)
-        # Failover may have changed the actual provider/model after the cache lookup.
-        digest = input_hash(level, subject_id, as_of, evidence, prompt.hash, provider, versions)
-        metadata["provenance"].update(model=provider.model_id, provider=provider.provider_id, input_hash=digest)
+    if level == "market":
+        request["valid_factor_evidence_refs"] = factor_evidence_references(evidence)
+
+    def validate(generated):
         allowed_fields = MODELS[level].model_fields
         generated = {key: value for key, value in generated.items() if key in allowed_fields}
         if level == "market":
             # Source excerpts are copied from actual input by Python, never
             # accepted from the model as purported source material.
             generated["factor_source_evidence"] = {}
-        try:
-            value = MODELS[level].model_validate(
-                {**generated, **metadata},
-                context={"validate_market_factors": level == "market", "evidence": evidence},
-            )
-            break
-        except ValidationError as exc:
-            validation_error = exc
-            if attempt == 1:
-                existing = repository.find_reusable(level, digest, provider.model_id)
-                if existing:
-                    return _validate_stored(level, existing), "reused_after_validation_error"
-                raise
-            request = {
-                **request,
-                "validation_feedback": {
-                    "instruction": "Correct the JSON so it matches the output contract exactly.",
-                    "errors": [
-                        {"location": list(item["loc"]), "type": item["type"], "message": item["msg"]}
-                        for item in validation_error.errors(include_input=False)
-                    ],
-                },
-            }
+        return MODELS[level].model_validate(
+            {**generated, **metadata},
+            context={"validate_market_factors": level == "market", "evidence": evidence},
+        )
+
+    try:
+        # Repair once within each provider before failing over, so shared
+        # cooldowns cannot hide a validation error or prevent its correction.
+        value = generate_validated_json(provider, prompt.content, request, validate, validation_attempts=2)
+    except ValidationError:
+        digest = input_hash(level, subject_id, as_of, evidence, prompt.hash, provider, versions)
+        existing = repository.find_reusable(level, digest, provider.model_id)
+        if existing:
+            return _validate_stored(level, existing), "reused_after_validation_error"
+        raise
+    # The router selects the successful provider only after validation.
+    value.provenance.model = provider.model_id
+    value.provenance.provider = provider.provider_id
+    value.provenance.input_hash = input_hash(level, subject_id, as_of, evidence, prompt.hash, provider, versions)
     if level == "market":
         for item in [*value.market_drivers, *value.market_potentials, *value.risk_monitor]:
             for reference in item.evidence_refs:

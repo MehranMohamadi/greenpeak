@@ -188,6 +188,33 @@ def test_timeout_fails_over(tmp_path, monkeypatch):
     assert len(calls) == 2
 
 
+def test_validation_repair_stays_with_provider_before_failing_over(tmp_path, monkeypatch):
+    from pydantic import BaseModel
+
+    class Answer(BaseModel):
+        answer: str
+
+    calls = []
+
+    def post(url, **kwargs):
+        import json
+        request = json.loads(kwargs["json"]["messages"][1]["content"])
+        calls.append((url, request))
+        if len(calls) == 1:
+            return reply(url, body={"choices": [{"message": {"content": "{}"}}]})
+        assert request["validation_feedback"]["errors"][0]["location"] == ["answer"]
+        return reply(url)
+
+    monkeypatch.setattr(httpx, "post", post)
+    provider = routing.create_llm_provider(configuration(tmp_path))
+    value = routing.generate_validated_json(provider, "system", {"evidence": "input"},
+                                            Answer.model_validate, validation_attempts=2)
+    assert value.answer == "ok"
+    assert len(calls) == 2 and calls[0][0] == calls[1][0]
+    assert provider.provider_id == "gemini"
+    assert "validation_feedback" not in calls[0][1]
+
+
 @pytest.mark.parametrize("timeout,expected", [(None, 30), (10, 10), (120, 30)])
 def test_provider_timeout_is_capped_before_fallback(timeout, expected, tmp_path, monkeypatch):
     calls = []
@@ -204,6 +231,20 @@ def test_provider_timeout_is_capped_before_fallback(timeout, expected, tmp_path,
     provider = routing.create_llm_provider(configuration(tmp_path), **kwargs)
     assert provider.generate_json("system", {}) == {"answer": "ok"}
     assert len(calls) == 2
+
+
+def test_market_report_has_longer_bounded_deadline_and_keeps_primary_priority(tmp_path, monkeypatch):
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(url)
+        assert kwargs["timeout"] == 120
+        return reply(url)
+
+    monkeypatch.setattr(httpx, "post", post)
+    provider = routing.create_llm_provider(configuration(tmp_path), timeout=180)
+    assert provider.generate_json("system", {"contract_level": "market"}) == {"answer": "ok"}
+    assert len(calls) == 1 and "googleapis" in calls[0]
 
 
 def test_retry_hints():

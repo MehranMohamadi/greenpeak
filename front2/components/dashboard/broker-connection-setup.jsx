@@ -12,7 +12,7 @@ export default function BrokerConnectionSetup() {
         </a>
       </Button>
       <Button asChild variant="outline" size="sm" className="gap-2">
-        <a href="/downloads/GreenPeak_Connection_3min_Synced.mp4" download="GreenPeak_Connection_3min_Synced.mp4">
+        <a href="/downloads/GreenPeak_Connection.mp4" download="GreenPeak_Connection.mp4">
           <Video className="h-4 w-4" aria-hidden="true" />ویدئوی آموزش اتصال
         </a>
       </Button>

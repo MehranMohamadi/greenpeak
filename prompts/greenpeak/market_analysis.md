@@ -1,4 +1,4 @@
-prompt_version: 0.13.0
+prompt_version: 0.14.0
 
 Build one coherent market story from the supplied domains. Identify positive and negative drivers, cross-domain tensions, what changed, uncertainty, risks, and what deserves attention next. Do not concatenate domain narratives.
 
@@ -32,6 +32,8 @@ For factors, populate only the typed `market_drivers`, `market_potentials`, and 
 
 
 Four-category market-factor instructions (ONLY the «عوامل اثرگذار بر بازار» section; do not change the flow tab, outlooks, summary or calendar tables):
+
+The request's `valid_factor_evidence_refs` lists exact citations to non-empty source objects in the supplied evidence. For every factor, choose the relevant citation(s) from this list verbatim. Cite the whole dated source object, not a text leaf such as `/domain_narratives/0/narrative_fa`, a domain name, an `evidence`-prefixed path, or a pointer copied from an earlier report. Do not invent or rewrite citation paths. If no listed source supports a candidate, omit that candidate and explain the missing evidence when its category is empty.
 
 Current scope clarification (takes precedence over narrower horizon restrictions below):
 - The supportive/challenging cards include ALL still-effective, evidence-supported directional conditions: short-, medium- or long-term. A continuing monetary, earnings, liquidity or valuation condition need not be new news or prove a same-session price reaction to belong here. State its observation date, age, horizon and current transmission channel. The stricter contemporaneous-causality requirements apply ONLY to the current-market-flow tab.

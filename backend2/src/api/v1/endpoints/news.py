@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
+import sqlite3
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query
@@ -9,15 +10,18 @@ from pymongo.errors import PyMongoError
 from ....core.config import get_settings
 from ....services.economic_calendar import TRADAYS_BASE_URL, fetch_recent_us_events, fetch_upcoming_us_events
 from ....services.llm_engine.routing import create_llm_provider, llm_is_configured
+from ....services.llm_engine.prompts import default_prompt, load_text_prompt
 from ....services.news.article_analysis import NEWS_ANALYSIS_VERSION, analyze_news_document
 from ....services.news.feed import SEARCH_TOPICS, SOURCE_IDS, build_source_feed
 from ....services.news.highlights import NewsHighlightsUnavailableError, get_cnbc_highlights
 from ....services.news.repository import MongoNewsRepository
-from ....services.news.schemas import CNBCNewsHighlightsResponse
+from ....services.news.schemas import CNBCNewsHighlightsResponse, NewsAccessReportResponse
 from ....services.news.scheduler import ingest_news
+from ....services.news.source_config import ACTIVE_SOURCE_IDS
+from ....services.news.access_review import REVIEW_ID, build_access_report
 
 router = APIRouter(prefix="/news", tags=["S&P 500 News"])
-BOOTSTRAP_VERSION = "v5"
+BOOTSTRAP_VERSION = "v6"
 
 
 def _repository():
@@ -29,7 +33,7 @@ def _run_bootstrap(run_key: str) -> None:
     client, repository = _repository()
     try:
         ingest_news(SEARCH_TOPICS, f"bootstrap-ingest-{BOOTSTRAP_VERSION}")
-        counts = {source: len(repository.source_raw(source, datetime.now(UTC) - timedelta(days=7))) for source in SOURCE_IDS}
+        counts = {source: len(repository.source_raw(source, datetime.now(UTC) - timedelta(days=7))) for source in ACTIVE_SOURCE_IDS}
         repository.finish_run(run_key, "success" if any(counts.values()) else "failed", {"source_counts": counts}, None if any(counts.values()) else "NEWS_NOT_FETCHED")
     except Exception as exc:
         repository.finish_run(run_key, "failed", {}, type(exc).__name__)
@@ -45,7 +49,7 @@ def source_news(source: str, limit: int = Query(default=50, ge=20, le=100)):
         documents = repository.source_raw(source, datetime.now(UTC) - timedelta(days=7))
         if not documents: raise HTTPException(404, detail={"code": "NEWS_SOURCE_EMPTY", "message": "This source has not been fetched yet."})
         feed = build_source_feed(source, documents, limit)
-        if source == "alpha_vantage":
+        if source in SOURCE_IDS:
             item_ids = [item["item_id"] for item in feed["items"] if item.get("item_id")]
             analyses = repository.article_analyses(item_ids, NEWS_ANALYSIS_VERSION)
             titles_fa = {
@@ -59,6 +63,19 @@ def source_news(source: str, limit: int = Query(default=50, ge=20, le=100)):
     except HTTPException: raise
     except PyMongoError: raise HTTPException(503, detail={"code": "NEWS_STORE_UNAVAILABLE", "message": "News storage is temporarily unavailable."})
     finally: client.close()
+
+
+@router.get("/access-review", response_model=NewsAccessReportResponse)
+def news_access_review():
+    client, repository = _repository()
+    try:
+        return NewsAccessReportResponse(data=build_access_report(
+            repository.access_review(REVIEW_ID), repository.access_review_runs(REVIEW_ID)
+        ))
+    except PyMongoError:
+        raise HTTPException(503, detail={"code": "NEWS_STORE_UNAVAILABLE", "message": "News access review is temporarily unavailable."})
+    finally:
+        client.close()
 
 
 @router.get("/highlights/cnbc", response_model=CNBCNewsHighlightsResponse)
@@ -86,8 +103,11 @@ def news_item_analysis(item_id: str = Path(pattern=r"^[a-zA-Z0-9_-]{1,80}$")):
     settings = get_settings()
     client, repository = _repository()
     try:
+        prompt = load_text_prompt("news")
         cached = repository.article_analysis(item_id, NEWS_ANALYSIS_VERSION)
-        if cached:
+        if cached and (cached.get("prompt_hash") == prompt.hash or (
+            not cached.get("prompt_hash") and prompt.hash == default_prompt("news").hash
+        )):
             return {"ok": True, "data": cached}
         document = repository.item_by_id(item_id)
         if not document:
@@ -95,13 +115,15 @@ def news_item_analysis(item_id: str = Path(pattern=r"^[a-zA-Z0-9_-]{1,80}$")):
         if not llm_is_configured(settings):
             raise HTTPException(503, detail={"code": "LLM_NOT_CONFIGURED", "message": "News analysis is not configured."})
         provider = create_llm_provider(settings, timeout=120)
-        analysis = analyze_news_document(document, provider)
+        analysis = analyze_news_document(document, provider, prompt=prompt)
         repository.save_article_analysis(analysis)
         return {"ok": True, "data": analysis}
     except HTTPException:
         raise
     except PyMongoError:
         raise HTTPException(503, detail={"code": "NEWS_STORE_UNAVAILABLE", "message": "News storage is temporarily unavailable."})
+    except (sqlite3.Error, OSError):
+        raise HTTPException(503, detail={"code": "PROMPT_STORE_UNAVAILABLE", "message": "Analysis prompts are temporarily unavailable."})
     except (httpx.HTTPError, ValueError):
         raise HTTPException(502, detail={"code": "NEWS_ANALYSIS_UNAVAILABLE", "message": "The source article could not be analyzed."})
     finally:
@@ -164,7 +186,7 @@ def bootstrap_news(background_tasks: BackgroundTasks):
     client, repository = _repository()
     try:
         repository.ensure_indexes()
-        counts = {source: len(repository.source_raw(source, datetime.now(UTC) - timedelta(days=7), 1)) for source in SOURCE_IDS}
+        counts = {source: len(repository.source_raw(source, datetime.now(UTC) - timedelta(days=7), 1)) for source in ACTIVE_SOURCE_IDS}
         if all(counts.values()): return {"ok": True, "data": {"status": "ready", "source_counts": counts}}
         local_day = datetime.now(ZoneInfo("Asia/Tehran")).date().isoformat(); run_key = f"source-bootstrap-{BOOTSTRAP_VERSION}:{local_day}"
         if repository.claim_run(run_key, "bootstrap"):

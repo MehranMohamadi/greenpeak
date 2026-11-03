@@ -1,6 +1,8 @@
 import os
 from datetime import date
 
+import pytest
+
 os.environ["DEBUG"] = "false"
 
 from src.services.greenpeak_config import load_registry
@@ -48,6 +50,84 @@ def test_failover_persists_actual_provider_and_cache_identity():
     assert stored["input_hash"] == input_hash("indicator", "federal_funds_rate", day, evidence, load_prompt("indicator").hash, provider, {})
     _, status = _analyze(repository, provider, "indicator", "federal_funds_rate", day, evidence, coverage, day, False)
     assert status == "reused" and provider.calls == 1
+
+
+@pytest.mark.parametrize("level,subject_id", [
+    ("indicator", "federal_funds_rate"), ("domain", "monetary_liquidity"), ("market", "sp500"),
+])
+def test_narrative_validation_failure_tries_next_provider(level, subject_id, tmp_path, monkeypatch):
+    import httpx
+    from src.core.config import LLMEndpointSettings, Settings
+    from src.services.llm_engine.routing import create_llm_provider
+
+    settings = Settings(_env_file=None, greenpeak_llm_providers=[
+        LLMEndpointSettings(provider_id="gemini", model="first-model", api_key="test-first"),
+        LLMEndpointSettings(provider_id="mistral", model="fallback-model", api_key="test-second"),
+    ], greenpeak_llm_router_db_path=tmp_path / "router.db")
+    calls = []
+    valid = {
+        **FakeProvider().generate_json("Rule Engine", {}),
+        "dominant_story_fa": "Test domain narrative",
+        "market_story_fa": "Test market story",
+        "current_market_move_fa": "Observed session",
+        "current_analysis_fa": "Limited evidence",
+        "short_term_outlook_fa": "Short-term uncertainty",
+        "medium_term_outlook_fa": "Medium-term uncertainty",
+        "summary_points_fa": ["Session", "Short term", "Medium term", "Risk", "Summary"],
+        "factor_classification_version": "1.0.0",
+        "factor_empty_reasons": {key: "Insufficient evidence" for key in ("supportive", "challenging", "potentials", "risks")},
+    }
+
+    def post(url, **kwargs):
+        import json
+        calls.append(url)
+        # Valid JSON from the first provider still violates the narrative contract.
+        generated = {} if "googleapis" in url else valid
+        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(generated)}}]},
+                              request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(httpx, "post", post)
+    provider = create_llm_provider(settings)
+    repository = MemoryRepository()
+    coverage = {"status": "full", "ratio": 1, "configured_count": 1, "available_count": 1, "missing_inputs": []}
+    day = date(2026, 11, 3)
+    value, status = _analyze(repository, provider, level, subject_id, day,
+                             {"versions": {}}, coverage, day, True)
+
+    assert status == "generated"
+    assert len(calls) == 3 and "mistral" in calls[-1]
+    assert len(repository.values) == 1
+    assert value.provenance.provider == "mistral"
+    assert value.provenance.model == "fallback-model"
+    assert value.provenance.input_hash == input_hash(level, subject_id, day,
+        {"versions": {}}, load_prompt(level).hash, provider, {})
+
+
+def test_invalid_narratives_preserve_validation_error_after_router_exhaustion(tmp_path, monkeypatch):
+    import httpx
+    from pydantic import ValidationError
+    from src.core.config import LLMEndpointSettings, Settings
+    from src.services.llm_engine.routing import create_llm_provider
+
+    settings = Settings(_env_file=None, greenpeak_llm_providers=[
+        LLMEndpointSettings(provider_id="gemini", model="first-model", api_key="test-first"),
+        LLMEndpointSettings(provider_id="mistral", model="fallback-model", api_key="test-second"),
+    ], greenpeak_llm_router_db_path=tmp_path / "router.db")
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(url)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "{}"}}]},
+                              request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(httpx, "post", post)
+    repository = MemoryRepository()
+    coverage = {"status": "full", "ratio": 1, "configured_count": 1, "available_count": 1, "missing_inputs": []}
+    with pytest.raises(ValidationError):
+        _analyze(repository, create_llm_provider(settings), "indicator", "federal_funds_rate",
+                 date(2026, 11, 3), {}, coverage, None, True)
+    assert len(calls) == 4
+    assert repository.values == []
 
 
 class InvalidThenValidProvider(FakeProvider):
@@ -115,7 +195,7 @@ def test_market_contract_and_prompt_include_structured_dashboard_sections():
         "glance_summary",
     } <= set(schema)
     prompt = load_prompt("market")
-    assert prompt.version == "0.3.0+0.13.0"
+    assert prompt.version == "0.3.0+0.14.0"
     assert "market_drivers" in prompt.content
     assert "exactly five concise Persian strings" in prompt.content
     assert "six-to-twelve-month" in prompt.content

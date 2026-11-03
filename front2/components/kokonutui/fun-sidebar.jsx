@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Dices, Flower2, GraduationCap, HelpCircle, Landmark, Menu, MessageCircle, Mic2, Smile, UsersRound, X } from "lucide-react";
+import { BookOpen, Dices, Flower2, GraduationCap, HelpCircle, Landmark, Menu, MessageCircle, Smile, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -19,8 +19,8 @@ const funNavigation = [
     href: "/fun/mashhad",
     icon: Landmark,
     children: [
-      { id: "book-club", label: "کتاب‌خوانی", icon: BookOpen },
-      { id: "poetry", label: "شعرخوانی", icon: Mic2 },
+      { id: "cultural-events", label: "رویدادهای فرهنگی", icon: BookOpen },
+      { id: "financial-events", label: "رویدادهای مالی", icon: Landmark },
     ],
   },
   {

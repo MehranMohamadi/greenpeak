@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Database, FileJson2, ShieldCheck } from "lucide-react"
+import { Database, FileJson2, FilePenLine, ShieldCheck } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,6 +12,7 @@ export default function WorkplaceTools() {
   return <section className="space-y-4" aria-label="تنظیمات و ابزارها">
     <h2 className="text-xl font-semibold">تنظیمات و ابزارها</h2>
     <div className="grid gap-4 md:grid-cols-3">{[
+      { href: "/admin/prompts", title: "پرامپت‌های تحلیل", description: "مشاهده، ویرایش و ذخیرهٔ دستورهای ارسالی به هوش مصنوعی", icon: FilePenLine },
       { href: "/analytics/feature-pipeline-debug", title: "پایپ‌لاین شاخص‌ها", description: "ورودی خام و مراحل تبدیل داده", icon: Database },
       { href: "/analytics/mt5-snapshots", title: "JSON متاتریدر", description: "خروجی فنی حساب‌های متصل خودتان", icon: FileJson2 },
       { href: "/architecture/ai-market-analysis", title: "معماری تحلیل", description: "مستندات داخلی سیستم تحلیل", icon: ShieldCheck },

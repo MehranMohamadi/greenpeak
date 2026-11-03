@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import LLMModelCard, { llmDate } from "@/components/workplace/llm-model-card"
 
 const number = value => value == null ? "نامشخص" : new Intl.NumberFormat("fa-IR").format(value)
-const preferences = rows => rows.map(row => ({ id: row.id, daily_token_limit: row.budget === "" ? null : Number(row.budget) }))
+const preferences = rows => rows.map(row => ({ id: row.id, daily_token_limit: row.budget === "" ? null : Number(row.budget), enabled: row.enabled !== false }))
 
 const providerAccents = {
   groq: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
@@ -37,6 +37,7 @@ export default function WorkplaceLLM() {
   const [draft, setDraft] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [togglingId, setTogglingId] = useState(null)
   const [revision, setRevision] = useState(0)
   const [feedback, setFeedback] = useState(null)
   const saveLock = useRef(false)
@@ -70,7 +71,7 @@ export default function WorkplaceLLM() {
   useEffect(() => () => { saveController.current?.abort(); testController.current?.abort() }, [])
 
   const testConnection = async row => {
-    if (!isAdmin || !accessToken || loading || testLock.current || saveLock.current) return
+    if (!isAdmin || !accessToken || row.enabled === false || loading || testLock.current || saveLock.current) return
     testLock.current = true
     setTestingId(row.id)
     const controller = new AbortController()
@@ -115,6 +116,41 @@ export default function WorkplaceLLM() {
     return next
   })
 
+  const toggleModel = async row => {
+    if (!isAdmin || !accessToken || !report || loading || saveLock.current || testLock.current) return
+    saveLock.current = true
+    setSaving(true)
+    setTogglingId(row.id)
+    setFeedback(null)
+    const controller = new AbortController()
+    saveController.current = controller
+    const enabled = row.enabled === false
+    try {
+      // Change only the saved enabled flag. Keep pending priority/budget edits
+      // in the draft until the administrator explicitly saves those changes.
+      const response = await fetch(endpoints.llmAdmin, {
+        method: "PUT", cache: "no-store", signal: controller.signal,
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ expected_revision: report.revision, models: report.models.map(model => ({
+          id: model.id, daily_token_limit: model.daily_token_limit,
+          enabled: model.id === row.id ? enabled : model.enabled !== false,
+        })) }),
+      })
+      if (!response.ok) throw new Error(response.status === 409 ? "تنظیمات هم‌زمان تغییر کرده؛ تازه‌سازی کنید و دوباره تلاش کنید." : "تغییر وضعیت مدل ممکن نشد.")
+      const data = await response.json()
+      if (!controller.signal.aborted) {
+        setReport(data)
+        setDraft(current => current.map(item => ({ ...item, ...data.models.find(model => model.id === item.id), budget: item.budget })))
+        setFeedback({ ok: true, text: `مدل ${row.model} ${enabled ? "فعال" : "غیرفعال"} شد؛ این وضعیت از درخواست بعدی اعمال می‌شود.` })
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) setFeedback({ ok: false, text: error.message })
+    } finally {
+      saveLock.current = false
+      if (!controller.signal.aborted) { setSaving(false); setTogglingId(null) }
+    }
+  }
+
   const save = async () => {
     if (!isAdmin || !accessToken || !report || saveLock.current || testLock.current) return
     if (draft.some(row => row.budget !== "" && (!/^\d+$/.test(row.budget) || !Number.isSafeInteger(Number(row.budget)) || Number(row.budget) < 1 || Number(row.budget) > 1e12))) {
@@ -134,7 +170,7 @@ export default function WorkplaceLLM() {
       })
       if (!response.ok) throw new Error(response.status === 409 ? "تنظیمات هم‌زمان تغییر کرده؛ تازه‌سازی کنید و دوباره ترتیب را انتخاب کنید." : "ذخیره تنظیمات مدل‌ها ممکن نشد.")
       const data = await response.json()
-      if (!controller.signal.aborted) { accept(data); setFeedback({ ok: true, text: "تنظیمات ذخیره شد؛ ترتیب جدید از درخواست بعدی اعمال می‌شود." }) }
+      if (!controller.signal.aborted) { accept(data); setFeedback({ ok: true, text: "تنظیمات ذخیره شد؛ اولویت جدید از درخواست بعدی اعمال می‌شود." }) }
     } catch (error) {
       if (!controller.signal.aborted) setFeedback({ ok: false, text: error.message })
     } finally {
@@ -144,7 +180,7 @@ export default function WorkplaceLLM() {
   }
 
   if (!isAdmin) return null
-  const dirty = report && JSON.stringify(preferences(draft)) !== JSON.stringify(report.models.map(row => ({ id: row.id, daily_token_limit: row.daily_token_limit })))
+  const dirty = report && JSON.stringify(preferences(draft)) !== JSON.stringify(report.models.map(row => ({ id: row.id, daily_token_limit: row.daily_token_limit, enabled: row.enabled !== false })))
   return <section className="space-y-4" aria-label="مدیریت مدل‌های هوش مصنوعی">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-xl font-semibold">مدل‌های هوش مصنوعی</h2><p className="mt-1 text-sm text-muted-foreground">مصرف درخواست‌ها و ترتیب جایگزینی مدل‌ها</p></div>
@@ -161,10 +197,12 @@ export default function WorkplaceLLM() {
         <p>فقط مصرف ثبت‌شده در GreenPeak نمایش داده می‌شود؛ مصرف گذشته و برنامه‌های دیگر در این اعداد نیست. هر پیام چت معمولاً دو درخواست مدل دارد.</p>
         <p>برای محاسبهٔ باقی‌ماندهٔ تخمینی در روز UTC، سقف توکن را وارد کنید. این سقف فقط برای نمایش است و سهمیهٔ سرویس را تغییر نمی‌دهد. سهمیه‌های نامعلوم به‌صورت «نامشخص» نمایش داده می‌شوند.</p>
         <p>تست اتصال یک درخواست کوتاه فقط به مدل انتخابی می‌فرستد؛ مدل جایگزین امتحان نمی‌شود و مصرف تست در همین آمار ثبت می‌شود.</p>
+        <p>دکمهٔ فعال‌سازی یا غیرفعال‌سازی بلافاصله ذخیره می‌شود؛ مدل غیرفعال در درخواست‌های جدید استفاده نمی‌شود. تغییر اولویت و سقف توکن با «ذخیره تغییرات» اعمال می‌شود.</p>
       </div>
       {!draft.length && <p className="text-sm text-muted-foreground">مدلی در تنظیمات سرور فعال نیست.</p>}
+      {draft.length > 0 && draft.every(row => row.enabled === false) && <p role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200">همهٔ مدل‌ها غیرفعال‌اند؛ برای تولید تحلیل یا پاسخ چت، حداقل یک مدل را فعال کنید.</p>}
       {draft.map((row, index) => <LLMModelCard key={row.id} row={row} index={index} total={draft.length}
-        saving={saving} testingId={testingId} result={testResults[row.id]} onTest={testConnection} onMove={move}
+        saving={saving} togglingId={togglingId} testingId={testingId} result={testResults[row.id]} onTest={testConnection} onToggle={toggleModel} onMove={move}
         onBudgetChange={(id, value) => setDraft(rows => rows.map(item => item.id === id ? { ...item, budget: value } : item))} />)}
     </>}
   </section>

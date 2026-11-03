@@ -65,22 +65,32 @@ class LLMControlStore:
             row = db.execute('SELECT revision, value FROM preferences WHERE id=1').fetchone()
         return row['revision'], json.loads(row['value'])
 
-    def ordered(self, models):
+    def is_enabled(self, key):
+        _, preferences = self.preferences()
+        return preferences.get('enabled', {}).get(key, True)
+
+    def ordered(self, models, *, active_only=False):
         _, preferences = self.preferences()
         ranks = {key: i for i, key in enumerate(preferences['order'])}
+        if active_only:
+            models = [item for item in models if preferences.get('enabled', {}).get(item['id'], True)]
         return sorted(models, key=lambda item: ranks.get(item['id'], len(ranks)))
 
     def save(self, models, rows, expected_revision, actor_id):
         ids = [item['id'] for item in rows]
         if len(ids) != len(set(ids)) or set(ids) != {m['id'] for m in models}:
             raise ValueError('Include each currently configured model exactly once')
+        if any('enabled' in row and type(row['enabled']) is not bool for row in rows):
+            raise ValueError('Enabled must be a boolean')
         with self.connect() as db:
             db.execute('BEGIN IMMEDIATE')
             row = db.execute('SELECT revision, value FROM preferences WHERE id=1').fetchone()
             if row['revision'] != expected_revision:
                 raise ConfigurationConflict('Configuration changed; refresh before saving')
             value = json.loads(row['value'])
-            value.update(order=ids, budgets={r['id']: r['daily_token_limit'] for r in rows},
+            enabled = value.get('enabled', {})
+            value.update(order=ids, budgets={r['id']: r.get('daily_token_limit') for r in rows},
+                         enabled={r['id']: r.get('enabled', enabled.get(r['id'], True)) for r in rows},
                          updated_at=datetime.now(UTC).isoformat(), updated_by=actor_id)
             db.execute('UPDATE preferences SET revision=revision+1, value=? WHERE id=1', (json.dumps(value),))
 
@@ -127,6 +137,7 @@ class LLMControlStore:
                 remaining = (max(0, limit - (observed or 0))
                              if limit is not None and usage['unmetered_requests'] == 0 else None)
                 rows.append({**model, **usage, 'priority': len(rows) + 1,
+                             'enabled': preferences.get('enabled', {}).get(model['id'], True),
                              'daily_token_limit': limit, 'estimated_remaining_tokens': remaining,
                              'reported_quota': {**json.loads(last['quota']), 'observed_at': last['recorded_at']}
                              if last else None})

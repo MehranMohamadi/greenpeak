@@ -78,7 +78,8 @@ def test_news_analysis_reads_source_page_then_calls_llm(monkeypatch):
     assert "Navigation noise" not in provider.evidence["article_text"]
     assert "inflation report" in provider.evidence["article_text"]
     assert result["title_fa"] == "سهام پس از گزارش تورم رشد کردند"
-    assert result["analysis_version"] == "2.0.0"
+    assert result["analysis_version"] == "2.1.0"
+    assert result["article_access"]["status"] == "page_text_available"
     assert result["article_character_count"] > 200
     assert "article_text" not in result
     assert result["impact_graph"]["edges"][0]["from"] == "news-1"
@@ -102,6 +103,7 @@ def test_news_analysis_uses_source_summary_when_page_is_blocked(monkeypatch):
     )
 
     assert result["evidence_type"] == "source_summary"
+    assert result["article_access"]["status"] == "text_unavailable"
 
 
 def test_news_analysis_rejects_graph_with_unknown_node_reference(monkeypatch):

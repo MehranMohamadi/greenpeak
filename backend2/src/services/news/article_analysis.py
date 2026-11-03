@@ -7,30 +7,36 @@ from html.parser import HTMLParser
 from ipaddress import ip_address
 import re
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 
 from ..llm_engine.provider import LLMProvider
+from ..llm_engine.prompts import default_prompt, load_text_prompt
 from .schemas import NewsImpactGraph
 
 MAX_ARTICLE_CHARS = 20_000
 ARTICLE_USER_AGENT = "GreenPeak-News-Analysis/1.0"
-NEWS_ANALYSIS_VERSION = "2.0.0"
+NEWS_ANALYSIS_VERSION = "2.1.0"
 
-NEWS_ANALYSIS_PROMPT = """You analyze one English-language market news article for a Persian financial dashboard.
-Return one JSON object with these fields:
-- title_fa: a faithful, natural Persian translation of english_headline; do not replace it with a generic analysis title.
-- interpretation_fa: a concise Persian interpretation of the article and its plausible relevance to markets.
-- impact_graph: an object with exactly this structure:
-  - title: Persian title for this specific causal graph.
-  - evidence: array of {id, claim, source?, publishedAt?, status}, where status is reported, derived, or unknown.
-  - nodes: array of {id, label, role, direction?, confidence?, horizon?, summary?, evidenceIds, meta}, where role is news, driver, or market; direction is up, down, mixed, or unclear; confidence is low, medium, or high.
-  - edges: array of {id, from, to, direction, confidence, reason, evidenceIds, condition?, horizon?, meta}.
-  - uncertainties: array of Persian strings.
-  - scenarios: array of {condition, edgeIds}.
 
-All user-facing graph text must be Persian. Build a dynamic causal graph for only this article: خبر → سازوکار انتقال → پیامد بازار. Do not use a fixed taxonomy, fixed asset list, or template mapping from news type to outcome. Extract only relevant drivers and market outputs from the supplied evidence. Keep reported facts separate from derived interpretation. Every edge needs its own short reason, direction, confidence, evidence references, and any material condition or horizon. Preserve competing paths and different horizons; mixed and unclear are valid. Explicitly record missing data and uncertainty. Prefer the shortest defensible causal paths and omit redundant nodes. Use only the supplied article_text, headline, publisher metadata, and publication time. Do not invent missing details, do not give investment advice, and do not reproduce long passages from the article."""
+class ArticleAccessError(ValueError):
+    def __init__(self, code: str, http_status: int | None = None):
+        super().__init__(code)
+        self.code = code
+        self.http_status = http_status
+
+
+def access_failure(exc: Exception) -> dict:
+    if isinstance(exc, ArticleAccessError):
+        return {"status": exc.code, "http_status": exc.http_status}
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code
+        code = {401: "authentication_required", 402: "paywall", 403: "blocked", 429: "rate_limited"}.get(status, "http_error")
+        return {"status": code, "http_status": status}
+    return {"status": "network_error" if isinstance(exc, httpx.HTTPError) else "text_unavailable", "http_status": None}
+
+NEWS_ANALYSIS_PROMPT = default_prompt("news").content
 
 
 class _ArticleTextParser(HTMLParser):
@@ -39,6 +45,7 @@ class _ArticleTextParser(HTMLParser):
     _ignored_tags = {"script", "style", "noscript", "svg", "canvas", "form", "nav", "footer"}
     _preferred_tags = {"article", "main"}
     _text_tags = {"h1", "h2", "p", "li", "blockquote"}
+    _void_tags = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -46,26 +53,36 @@ class _ArticleTextParser(HTMLParser):
         self._preferred_depth = 0
         self._text_depth = 0
         self.preferred_parts: list[str] = []
-        self.fallback_parts: list[str] = []
+        self._elements: list[tuple[str, bool, bool, bool]] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        del attrs
         tag = tag.lower()
-        if tag in self._ignored_tags:
-            self._ignored_depth += 1
-        if tag in self._preferred_tags:
-            self._preferred_depth += 1
-        if tag in self._text_tags:
-            self._text_depth += 1
+        if tag in self._void_tags:
+            return
+        identifiers = " ".join(value or "" for key, value in attrs if key in {"class", "id"})
+        ignored = tag in self._ignored_tags
+        preferred = tag in self._preferred_tags or bool(re.search(r"article[-_]?body|story[-_]?(?:body|content)|body[-_]?copy", identifiers, re.I))
+        text = tag in self._text_tags
+        self._elements.append((tag, ignored, preferred, text))
+        self._ignored_depth += ignored
+        self._preferred_depth += preferred
+        self._text_depth += text
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag.lower() not in self._void_tags:
+            self.handle_endtag(tag)
 
     def handle_endtag(self, tag: str) -> None:
         tag = tag.lower()
-        if tag in self._text_tags and self._text_depth:
-            self._text_depth -= 1
-        if tag in self._preferred_tags and self._preferred_depth:
-            self._preferred_depth -= 1
-        if tag in self._ignored_tags and self._ignored_depth:
-            self._ignored_depth -= 1
+        for index in range(len(self._elements) - 1, -1, -1):
+            if self._elements[index][0] == tag:
+                for _, ignored, preferred, text in self._elements[index:]:
+                    self._ignored_depth -= ignored
+                    self._preferred_depth -= preferred
+                    self._text_depth -= text
+                del self._elements[index:]
+                break
 
     def handle_data(self, data: str) -> None:
         if self._ignored_depth or not self._text_depth:
@@ -73,12 +90,12 @@ class _ArticleTextParser(HTMLParser):
         value = " ".join(data.split())
         if len(value) < 2:
             return
-        self.fallback_parts.append(value)
         if self._preferred_depth:
             self.preferred_parts.append(value)
 
     def text(self) -> str:
-        parts = self.preferred_parts if len(" ".join(self.preferred_parts)) >= 300 else self.fallback_parts
+        # Navigation and subscription pages must not count as article access.
+        parts = self.preferred_parts
         return "\n".join(dict.fromkeys(parts))[:MAX_ARTICLE_CHARS]
 
 
@@ -100,20 +117,35 @@ def _validate_source_url(value: str) -> str:
 
 def fetch_article_text(url: str, *, timeout: float = 20) -> str:
     source_url = _validate_source_url(url)
-    response = httpx.get(
-        source_url,
-        headers={"User-Agent": ARTICLE_USER_AGENT, "Accept": "text/html,application/xhtml+xml"},
-        timeout=timeout,
-        follow_redirects=True,
-    )
+    for _ in range(6):
+        response = httpx.get(
+            source_url,
+            headers={"User-Agent": ARTICLE_USER_AGENT, "Accept": "text/html,application/xhtml+xml"},
+            timeout=timeout,
+            follow_redirects=False,
+        )
+        if getattr(response, "status_code", 200) not in {301, 302, 303, 307, 308}:
+            break
+        location = response.headers.get("location")
+        if not location:
+            raise ArticleAccessError("redirect_unavailable")
+        source_url = _validate_source_url(urljoin(source_url, location))
+    else:
+        raise ArticleAccessError("redirect_unavailable")
     response.raise_for_status()
     if "html" not in response.headers.get("content-type", "text/html").lower():
-        raise ValueError("Article source did not return HTML")
+        raise ArticleAccessError("non_html")
+    page = response.text
+    # Respect declared paid content; never treat a subscription teaser as the article.
+    if re.search(r'"isAccessibleForFree"\s*:\s*(?:false|"false")', page, re.I):
+        raise ArticleAccessError("paywall", 200)
+    if re.search(r'<title[^>]*>[^<]*(?:just a moment|access denied|robot check|captcha|verify you are human)', page, re.I):
+        raise ArticleAccessError("blocked", 200)
     parser = _ArticleTextParser()
-    parser.feed(response.text)
+    parser.feed(page)
     text = parser.text()
     if len(text) < 200:
-        raise ValueError("Article text was not available on the source page")
+        raise ArticleAccessError("text_unavailable", 200)
     return text
 
 
@@ -122,16 +154,18 @@ def _source_summary_text(value: Any) -> str:
     return " ".join(clean.split())
 
 
-def analyze_news_document(document: dict[str, Any], provider: LLMProvider) -> dict[str, Any]:
+def analyze_news_document(document: dict[str, Any], provider: LLMProvider, *, prompt=None) -> dict[str, Any]:
     headline = str(document.get("title") or "").strip()
     source_url = str(document.get("url") or "").strip()
     if not headline or not source_url:
         raise ValueError("News item is missing its headline or source URL")
 
     evidence_type = "source_page"
+    article_access = {"status": "page_text_available", "http_status": 200}
     try:
         article_text = fetch_article_text(source_url)
-    except (httpx.HTTPError, ValueError):
+    except (httpx.HTTPError, ValueError) as exc:
+        article_access = access_failure(exc)
         article_text = _source_summary_text(document.get("summary"))
         evidence_type = "source_summary"
     if len(article_text) < 80:
@@ -144,8 +178,10 @@ def analyze_news_document(document: dict[str, Any], provider: LLMProvider) -> di
         "published_at": document.get("published_at"),
         "source_url": source_url,
         "evidence_type": evidence_type,
+        "article_access": article_access,
     }
-    generated = provider.generate_json(NEWS_ANALYSIS_PROMPT, evidence)
+    prompt = prompt or load_text_prompt("news")
+    generated = provider.generate_json(prompt.content, evidence)
     title_fa = str(generated.get("title_fa") or "").strip()
     interpretation_fa = str(generated.get("interpretation_fa") or "").strip()
     if not title_fa or not interpretation_fa:
@@ -157,11 +193,14 @@ def analyze_news_document(document: dict[str, Any], provider: LLMProvider) -> di
     return {
         "item_id": str(document.get("item_id") or ""),
         "analysis_version": NEWS_ANALYSIS_VERSION,
+        "prompt_version": prompt.version,
+        "prompt_hash": prompt.hash,
         "title_fa": title_fa,
         "interpretation_fa": interpretation_fa,
         "impact_graph": impact_graph,
         "source_url": source_url,
         "evidence_type": evidence_type,
+        "article_access": article_access,
         "article_content_hash": sha256(article_text.encode("utf-8")).hexdigest(),
         "article_character_count": len(article_text),
         "model": provider.model_id,

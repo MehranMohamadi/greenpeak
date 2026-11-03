@@ -6,6 +6,7 @@ import { ArrowLeft, CircleAlert, ExternalLink, GitBranch, HelpCircle, Loader2, N
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatGregorianTehranDateTime } from "@/lib/date-format"
+import { NEWS_ACCESS_LABELS } from "@/lib/news-sources"
 
 const directionConfig = {
   up: { label: "صعودی", className: "border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300", Icon: TrendingUp },
@@ -153,7 +154,13 @@ export default function NewsImpactAnalysis({ article }) {
       {!article && <div className="flex h-full flex-col items-center justify-center px-6 text-center"><span className="rounded-full bg-primary/10 p-4 text-primary"><Newspaper className="h-7 w-7" /></span><p className="mt-4 font-medium">یک خبر را انتخاب کنید</p><p className="mt-2 max-w-sm text-sm leading-7 text-muted-foreground">با انتخاب هر خبر از باکس سمت راست، شواهد، مسیرهای علّی، پیامدهای بازار و ابهام‌های همان خبر اینجا نمایش داده می‌شوند.</p></div>}
       {article && loadingId === itemId && !graph && <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-muted-foreground"><Loader2 className="h-6 w-6 animate-spin text-primary" /><span>در حال ساخت نقشه اثر این خبر…</span></div>}
       {article && errors[itemId] && !graph && <div className="rounded-lg border border-amber-500/30 bg-amber-500/[0.08] p-4 text-sm leading-7 text-amber-800 dark:text-amber-200"><p className="font-medium">نقشه اثر آماده نشد</p><p className="mt-1">{errors[itemId]}</p>{article.analysis_fa && <p className="mt-3 border-t border-amber-500/20 pt-3 text-muted-foreground">{article.analysis_fa}</p>}</div>}
-      {graph && <ImpactGraph graph={graph} interpretation={analysis.interpretation_fa} />}
+      {graph && <>
+        <p className={`mb-3 rounded-lg border p-3 text-xs leading-6 ${analysis.evidence_type === "source_page" ? "text-muted-foreground" : "border-amber-500/30 text-amber-700 dark:text-amber-300"}`}>
+          {analysis.evidence_type === "source_page" ? "مبنای تحلیل: متن استخراج‌شده از صفحهٔ خبر" : "مبنای تحلیل: فقط خلاصهٔ RSS؛ متن صفحه خوانده نشد"}
+          {analysis.article_access?.status && <span className="block">{NEWS_ACCESS_LABELS[analysis.article_access.status] || analysis.article_access.status}</span>}
+        </p>
+        <ImpactGraph graph={graph} interpretation={analysis.interpretation_fa} />
+      </>}
     </CardContent>
   </Card>
 }
