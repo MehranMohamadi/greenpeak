@@ -44,6 +44,22 @@ original="$fixture/original"
 make_release "$original"
 python3 -m venv "$original/backend2/.venv"
 physical_venv="$(readlink -e -- "$original/backend2/.venv")"
+
+# Match the caller's readonly globals before exercising either preparation path.
+(
+  readonly release_root="$fixture/readonly-release"
+  readonly_release_reuse="$fixture/readonly-release-reuse"
+  make_release "$release_root"
+  make_release "$readonly_release_reuse"
+  prepare_backend_environment "" "$release_root" >/dev/null
+  [[ -d "$release_root/backend2/.venv" && ! -L "$release_root/backend2/.venv" ]]
+  prepare_backend_environment "$original" "$readonly_release_reuse" >/dev/null
+  [[ -L "$readonly_release_reuse/backend2/.venv" ]]
+  [[ "$(readlink -- "$readonly_release_reuse/backend2/.venv")" == "$physical_venv" ]]
+  [[ "$release_root" == "$fixture/readonly-release" ]]
+)
+echo "PASS: readonly release_root in the deployment caller supports new and reused environments"
+
 previous="$original"
 for number in {1..50}; do
   release="$fixture/release-$number"

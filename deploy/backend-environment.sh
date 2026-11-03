@@ -3,9 +3,10 @@
 # Sourced by deploy-production.sh; importing this file does not deploy anything.
 prepare_backend_environment() {
   local previous_target="$1"
-  local release_root="$2"
+  # The deployment caller declares release_root readonly; do not shadow it.
+  local target_release_root="$2"
   local previous_venv=""
-  local destination="$release_root/backend2/.venv"
+  local destination="$target_release_root/backend2/.venv"
 
   if [[ -e "$destination" || -L "$destination" ]]; then
     echo "New release backend environment already exists" >&2
@@ -18,7 +19,7 @@ prepare_backend_environment() {
 
   if [[ -n "$previous_venv" && -d "$previous_venv" \
     && -f "$previous_target/backend2/requirements.txt" ]] \
-    && cmp -s "$previous_target/backend2/requirements.txt" "$release_root/backend2/requirements.txt" \
+    && cmp -s "$previous_target/backend2/requirements.txt" "$target_release_root/backend2/requirements.txt" \
     && "$previous_venv/bin/python" -c 'import sys' >/dev/null 2>&1; then
     echo "Reusing the resolved backend environment"
     # Pin the physical directory, never another release's .venv symlink. This
@@ -28,7 +29,7 @@ prepare_backend_environment() {
     echo "Creating isolated backend environment"
     python3 -m venv "$destination"
     "$destination/bin/python" -m pip install --upgrade pip
-    "$destination/bin/python" -m pip install -r "$release_root/backend2/requirements.txt"
+    "$destination/bin/python" -m pip install -r "$target_release_root/backend2/requirements.txt"
   fi
-  "$destination/bin/python" -m compileall -q "$release_root/backend2/src"
+  "$destination/bin/python" -m compileall -q "$target_release_root/backend2/src"
 }

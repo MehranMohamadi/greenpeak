@@ -3,6 +3,11 @@
 `deploy/deploy-production.sh` sources `deploy/backend-environment.sh`. The CD
 workflow uploads both files into the same temporary directory on the server.
 
+The helper uses `target_release_root` for its destination argument because the
+deployment caller declares `release_root` readonly. Bash rejects a local variable
+with that same name. Regression checks cover fresh and reused environments with
+the caller's readonly variable present.
+
 When requirements are identical, the helper resolves the prior `.venv` with
 `readlink -e`, verifies that its Python interpreter actually runs, and links the
 new release directly to that physical environment directory. Linking to the
