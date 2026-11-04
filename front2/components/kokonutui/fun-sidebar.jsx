@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Dices, Flower2, GraduationCap, HelpCircle, Landmark, Menu, MessageCircle, Smile, UsersRound, X } from "lucide-react";
+import { BookOpen, Dices, Flower2, GraduationCap, HelpCircle, Landmark, Menu, MessageCircle, Smile, TrendingUp, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -20,7 +20,7 @@ const funNavigation = [
     icon: Landmark,
     children: [
       { id: "cultural-events", label: "رویدادهای فرهنگی", icon: BookOpen },
-      { id: "financial-events", label: "رویدادهای مالی", icon: Landmark },
+      { id: "financial-events", label: "رویدادهای مالی", icon: TrendingUp },
     ],
   },
   {
@@ -39,7 +39,7 @@ const funNavigation = [
 const funHrefs = funNavigation.flatMap((item) => [item.href, ...item.children.map((child) => child.href)]).filter(Boolean);
 let categoryExpansionState = { mashhad: false, yard: false };
 const makeTrail = (...labels) => [
-  { label: "حال خوب", href: "/fun" },
+  { label: "رویدادها", href: "/fun" },
   ...labels.map((label) => ({ label })),
 ];
 const neutralItem = "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-[#1F1F23] dark:hover:text-white";
@@ -98,14 +98,14 @@ export default function FunSidebar() {
 
   return (
     <>
-      <button ref={mobileToggleRef} type="button" aria-label="باز کردن منوی سرگرمی" aria-expanded={isMobileMenuOpen} aria-controls={navId} className={`fixed right-4 top-2 z-40 rounded-lg bg-white p-1 shadow-md dark:bg-[#0F0F12] lg:hidden ${itemFocus}`} onClick={() => setIsMobileMenuOpen((open) => !open)}>
+      <button ref={mobileToggleRef} type="button" aria-label="باز کردن منوی رویدادها" aria-expanded={isMobileMenuOpen} aria-controls={navId} className={`fixed right-4 top-2 z-40 rounded-lg bg-white p-1 shadow-md dark:bg-[#0F0F12] lg:hidden ${itemFocus}`} onClick={() => setIsMobileMenuOpen((open) => !open)}>
         <Menu className="h-5 w-5 text-primary" />
       </button>
-      <nav id={navId} dir="rtl" aria-label="ناوبری سرگرمی" onKeyDown={(event) => { if (event.key === "Escape" && isMobileMenuOpen) closeMobileMenu(); }} className={`fixed inset-y-0 right-0 z-40 max-w-[calc(100vw-3rem)] flex-shrink-0 transform border-l border-gray-200 bg-white shadow-xl shadow-black/5 transition-[width,transform,visibility] duration-200 ease-out motion-reduce:transition-none dark:border-[#1F1F23] dark:bg-[#0F0F12] dark:shadow-black/20 lg:visible lg:translate-x-0 ${isMobileMenuOpen ? "visible translate-x-0" : "invisible translate-x-full"} ${showLabels ? "w-64" : "w-16"}`}>
+      <nav id={navId} dir="rtl" aria-label="ناوبری رویدادها" onKeyDown={(event) => { if (event.key === "Escape" && isMobileMenuOpen) closeMobileMenu(); }} className={`fixed inset-y-0 right-0 z-40 max-w-[calc(100vw-3rem)] flex-shrink-0 transform border-l border-gray-200 bg-white shadow-xl shadow-black/5 transition-[width,transform,visibility] duration-200 ease-out motion-reduce:transition-none dark:border-[#1F1F23] dark:bg-[#0F0F12] dark:shadow-black/20 lg:visible lg:translate-x-0 ${isMobileMenuOpen ? "visible translate-x-0" : "invisible translate-x-full"} ${showLabels ? "w-64" : "w-16"}`}>
         <div className="flex h-full min-h-0 flex-col">
           <div className={`flex h-11 shrink-0 items-center border-b border-gray-200 px-3 dark:border-[#1F1F23] ${showLabels ? "justify-between gap-1" : "justify-center"}`}>
-            <Link aria-label="حال خوب" title="حال خوب" href="/fun" onClick={() => { setSelectedRightItem(null); setIsMobileMenuOpen(false); }} className={`flex min-w-0 items-center gap-3 rounded-md whitespace-nowrap font-semibold text-gray-900 dark:text-white ${itemFocus}`}><Dices aria-hidden="true" className="h-8 w-8 shrink-0 text-primary" />{showLabels && <span>حال خوب</span>}</Link>
-            <button ref={mobileCloseRef} type="button" aria-label="بستن منوی سرگرمی" onClick={closeMobileMenu} className={`rounded-md p-1.5 lg:hidden ${itemFocus}`}><X aria-hidden="true" className="h-5 w-5" /></button>
+            <Link aria-label="رویدادها" title="رویدادها" href="/fun" onClick={() => { setSelectedRightItem(null); setIsMobileMenuOpen(false); }} className={`flex min-w-0 items-center gap-3 rounded-md whitespace-nowrap font-semibold text-gray-900 dark:text-white ${itemFocus}`}><Dices aria-hidden="true" className="h-8 w-8 shrink-0 text-primary" />{showLabels && <span>رویدادها</span>}</Link>
+            <button ref={mobileCloseRef} type="button" aria-label="بستن منوی رویدادها" onClick={closeMobileMenu} className={`rounded-md p-1.5 lg:hidden ${itemFocus}`}><X aria-hidden="true" className="h-5 w-5" /></button>
           </div>
 
           <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2 py-3">
@@ -167,7 +167,7 @@ export default function FunSidebar() {
         </div>
       </nav>
       <div className="hidden w-16 flex-shrink-0 lg:block" aria-hidden="true" />
-      {isMobileMenuOpen && <button type="button" aria-label="بستن منوی سرگرمی" className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={closeMobileMenu} />}
+      {isMobileMenuOpen && <button type="button" aria-label="بستن منوی رویدادها" className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={closeMobileMenu} />}
     </>
   );
 }

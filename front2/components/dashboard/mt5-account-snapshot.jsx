@@ -21,6 +21,7 @@ export default function MT5AccountSnapshot() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(true)
   const requestController = useRef(null)
+  const containerRef = useRef(null)
 
   const load = useCallback(async () => {
     if (authLoading) return
@@ -91,8 +92,7 @@ export default function MT5AccountSnapshot() {
     </Card>
   }
 
-  return <section id="trading-accounts-title" className="space-y-3" aria-label="حساب‌ها، معاملات و سفارش‌ها" dir="rtl">
-    <BrokerAccountOverview snapshots={snapshots} accessToken={accessToken} onDeleteBroker={deleteBroker} onRefresh={load} loading={loading} error={error} />
+  return <section ref={containerRef} id="trading-accounts-title" className="space-y-3" aria-label="حساب‌ها، معاملات و سفارش‌ها" dir="rtl">
     {snapshots.length === 0 && <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-amber-800 dark:text-amber-200">
       <div className="flex items-center gap-3">
         <AlertTriangle className="h-5 w-5 shrink-0" />
@@ -104,6 +104,8 @@ export default function MT5AccountSnapshot() {
       </div>
     </div>}
     {error && snapshots.length > 0 && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">به‌روزرسانی انجام نشد؛ آخرین Snapshot سالم نمایش داده می‌شود. {error}</p>}
-    <LastTrades snapshots={snapshots} />
+    <LastTrades snapshots={snapshots} actions={
+      <BrokerAccountOverview snapshots={snapshots} accessToken={accessToken} onDeleteBroker={deleteBroker} onRefresh={load} loading={loading} error={error} containerRef={containerRef} />
+    } />
   </section>
 }

@@ -39,7 +39,7 @@ export default function TopNav() {
   const isRightRoute = isFunRoute || pathname === "/learn" || pathname.startsWith("/learn/");
   const pathSegments = pathname.split("/").filter(Boolean);
   const breadcrumbs = isFunRoute
-    ? [{ label: "حال خوب", href: "/fun" }]
+    ? [{ label: "رویدادها", href: "/fun" }]
     : [{ label: "GreenPeak", href: "/" }];
 
   if (pathname === "/") breadcrumbs.push({ label: "Dashboard" });

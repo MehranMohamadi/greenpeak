@@ -398,8 +398,9 @@ function AssetComparisonRows({ asset, brokers, symbolFor, renderSwap }) {
   </>
 }
 
-export default function BrokerAccountOverview({ snapshots = [], accessToken = "", onDeleteBroker, onRefresh, loading = false, error = "" }) {
+export default function BrokerAccountOverview({ snapshots = [], accessToken = "", onDeleteBroker, onRefresh, loading = false, error = "", containerRef }) {
   const [tab, setTab] = useState(null)
+  const [panelWidth, setPanelWidth] = useState(null)
   const [comparison, setComparison] = useState(null)
   const [comparisonLoading, setComparisonLoading] = useState(false)
   const [comparisonError, setComparisonError] = useState("")
@@ -408,6 +409,16 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
   const [deleteError, setDeleteError] = useState("")
   const comparisonController = useRef(null)
   const panelTrigger = useRef(null)
+
+  useEffect(() => {
+    if (!tab || !containerRef?.current) return
+    const container = containerRef.current
+    const updateWidth = () => setPanelWidth(container.getBoundingClientRect().width)
+    updateWidth()
+    const observer = new ResizeObserver(updateWidth)
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [tab, containerRef])
 
   const confirmDelete = async (event) => {
     event.preventDefault()
@@ -511,7 +522,7 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
       </Button>
     </div>
     <Dialog open={tab !== null} onOpenChange={(open) => { if (!open && !deleting) setTab(null) }}>
-      <DialogContent dir="rtl" className="flex max-h-[92dvh] w-[calc(100vw-1rem)] max-w-[1440px] flex-col gap-0 overflow-hidden p-0 sm:w-[calc(100vw-3rem)]"
+      <DialogContent dir="rtl" style={{ width: panelWidth ?? undefined }} className="flex max-h-[92dvh] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0"
         onCloseAutoFocus={(event) => { if (panelTrigger.current?.isConnected) { event.preventDefault(); panelTrigger.current.focus() } }}>
         <DialogHeader className="shrink-0 border-b p-4 pl-12 text-right sm:p-5 sm:pl-12 sm:text-right">
           <DialogTitle className="flex items-center gap-2">

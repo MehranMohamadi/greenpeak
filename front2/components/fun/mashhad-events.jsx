@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarDays, Clock3, ExternalLink, Landmark, MapPin, Sparkles, Ticket } from "lucide-react";
+import { CalendarDays, Clock3, ExternalLink, MapPin, Sparkles, Ticket, TrendingUp } from "lucide-react";
 import { useSidebarHover } from "@/app/context/sidebar-hover-context";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -60,7 +60,7 @@ export function CityEventsSection({ section, today }) {
       {!today ? <p role="status" className="text-sm text-muted-foreground">در حال بررسی تاریخ رویدادها…</p> : categories.map((key) => {
         const category = mashhadEventCategories[key];
         const events = getUpcomingMashhadEvents(key, today);
-        const Icon = key === "financial" ? Landmark : Sparkles;
+        const Icon = key === "financial" ? TrendingUp : Sparkles;
         return <section key={key} aria-labelledby={`events-${key}`} className="space-y-4">
           <div className="flex items-center gap-3">
             <Icon aria-hidden="true" className="h-5 w-5 shrink-0 text-primary" />

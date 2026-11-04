@@ -28,7 +28,7 @@ const filters = [
   { id: "closed", label: "معاملات بسته‌شده" },
 ]
 
-const tradeGridClass = "grid-cols-[4.5rem_minmax(0,.55fr)_minmax(0,.48fr)_minmax(0,.28fr)_8rem_minmax(0,.45fr)_minmax(0,.45fr)_minmax(0,.35fr)_minmax(0,.35fr)_minmax(0,.6fr)]"
+const tradeGridClass = "grid-cols-[4.05rem_minmax(0,.55fr)_minmax(0,.48fr)_minmax(0,.28fr)_7.2rem_minmax(0,.45fr)_minmax(0,.45fr)_minmax(0,.35fr)_minmax(0,.35fr)_minmax(0,.6fr)]"
 
 const orderTypes = {
   0: { label: "Buy", direction: "long" },
@@ -273,7 +273,7 @@ const emptyMessages = {
   closed: "معامله بسته‌شده‌ای در بازه تاریخچه گزارش نشده است.",
 }
 
-export default function LastTrades({ snapshots = [] }) {
+export default function LastTrades({ snapshots = [], actions }) {
   const [filter, setFilter] = useState("open")
   const lifecycles = useMemo(() => buildTradeLifecycles(snapshots), [snapshots])
   const pendingOrders = useMemo(() => buildPendingOrders(snapshots), [snapshots])
@@ -291,6 +291,7 @@ export default function LastTrades({ snapshots = [] }) {
         معاملات و سفارش‌ها
         <Badge variant="secondary">{visible.length}</Badge>
       </CardTitle>
+      {actions}
       <div className={tradingTabListClass} aria-label="فیلتر معاملات و سفارش‌ها">
         {filters.map((item) => <button key={item.id} type="button" aria-pressed={filter === item.id} onClick={() => setFilter(item.id)} className={tradingTabClass(filter === item.id)}>
           {item.label}<span className="tabular-nums opacity-70">{groups[item.id].length}</span>
@@ -298,7 +299,7 @@ export default function LastTrades({ snapshots = [] }) {
       </div>
     </CardHeader>
     <CardContent className={`${tradingCardContentClass} !overflow-auto`}>
-      <div className="min-w-[960px]">
+      <div className="w-[90%] min-w-[864px]">
         <div className={`sticky top-0 z-10 grid ${tradeGridClass} gap-1.5 border-b bg-white py-2 pl-9 pr-3 text-center text-[9px] font-medium text-muted-foreground dark:bg-[#1F1F23]`}>
           <span>تیکت</span><span className="text-right">نماد / حساب</span><span>جهت / نوع</span><span>حجم</span><span>زمان ورود / ثبت</span><span>قیمت ورود</span><span>خروج / فعلی</span><span>SL</span><span>TP</span><span>سود/زیان خالص</span>
         </div>
