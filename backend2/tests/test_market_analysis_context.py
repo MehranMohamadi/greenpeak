@@ -1,5 +1,5 @@
 import os
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import httpx
 import pytest
@@ -109,6 +109,40 @@ def test_flow_reuses_published_and_upcoming_calendar_services(monkeypatch):
     fetch_move.assert_called_once_with(now)
     fetch_released.assert_called_once_with(now=now, days=7, limit=12)
     fetch_upcoming.assert_called_once_with(now=now, days=21, limit=12)
+
+
+def test_recent_news_supplies_latest_cnbc_evidence_with_dates_and_sources(monkeypatch):
+    now = datetime(2026, 11, 8, 14, tzinfo=UTC)
+    documents = [
+        {"item_id": f"story-{index}", "title": f"Headline {index}",
+         "summary": "<p>Source summary</p>",
+         "url": f"https://www.cnbc.com/story-{index}.html",
+         "published_at": (now - timedelta(hours=index)).replace(tzinfo=None)}
+        for index in range(15)
+    ]
+    documents.extend([
+        {**documents[0], "item_id": "tracking-duplicate", "url": documents[0]["url"] + "?tracking=rss"},
+        {**documents[0], "item_id": "future", "published_at": now + timedelta(hours=1)},
+        {**documents[0], "item_id": "old", "published_at": now - timedelta(days=8)},
+        {**documents[0], "item_id": "invalid", "published_at": "invalid"},
+    ])
+    repository = Mock()
+    repository.source_raw.return_value = list(reversed(documents))
+    repository.article_analyses.return_value = [{"item_id": "story-1", "title_fa": "تیتر ترجمه‌شده"}]
+    monkeypatch.setattr(context, "MongoNewsRepository", Mock(return_value=repository))
+
+    result = context._recent_news(object(), "test", now)
+
+    repository.source_raw.assert_called_once_with("cnbc_rss", now - timedelta(days=7), limit=100)
+    assert len(result) == 12
+    assert result[0]["published_at"] == now
+    assert result[1]["title_fa"] == "تیتر ترجمه‌شده"
+    assert all(item["source"] == "CNBC RSS" and item["summary"] == "Source summary" for item in result)
+    assert all(item["source_url"].startswith("https://www.cnbc.com/") for item in result)
+    assert [item["published_at"] for item in result] == sorted(
+        [item["published_at"] for item in result], reverse=True,
+    )
+    assert not {"future", "old", "invalid"} & {item["item_id"] for item in result}
 
 
 @pytest.mark.parametrize("released_error", [None, httpx.ReadTimeout("calendar unavailable")])

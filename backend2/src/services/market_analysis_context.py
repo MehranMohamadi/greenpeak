@@ -125,8 +125,18 @@ def fetch_sp500_session_move(now: datetime, timeout: float = 12) -> dict[str, An
 
 def _recent_news(client, database: str, now: datetime) -> list[dict[str, Any]]:
     repository = MongoNewsRepository(client, database)
-    documents = repository.source_raw("alpha_vantage", now - timedelta(days=7), limit=100)
-    feed = build_source_feed("alpha_vantage", documents, limit=12)
+    documents = repository.source_raw("cnbc_rss", now - timedelta(days=7), limit=100)
+    # Include only news already published at analysis time, newest first.
+    published_documents = []
+    for item in documents:
+        published = item.get("published_at")
+        if not isinstance(published, datetime):
+            continue
+        # PyMongo returns naive UTC datetimes unless tz_aware is enabled.
+        published = published.replace(tzinfo=UTC) if published.tzinfo is None else published.astimezone(UTC)
+        if now - timedelta(days=7) <= published <= now:
+            published_documents.append({**item, "published_at": published})
+    feed = build_source_feed("cnbc_rss", published_documents, limit=12)
     item_ids = [item["item_id"] for item in feed["items"] if item.get("item_id")]
     analyses = {
         item["item_id"]: item
@@ -136,6 +146,7 @@ def _recent_news(client, database: str, now: datetime) -> list[dict[str, Any]]:
     return [
         {
             "item_id": item.get("item_id"),
+            "source": "CNBC RSS",
             "title": item.get("title"),
             "title_fa": analyses.get(item.get("item_id"), {}).get("title_fa") or item.get("title_fa"),
             "summary": item.get("summary"),
