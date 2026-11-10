@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     greenpeak_daily_analysis_hour: int = 16
     greenpeak_daily_analysis_minute: int = 0
     greenpeak_daily_analysis_timezone: str = "Asia/Tehran"
+    greenpeak_market_evening_analysis_enabled: bool = True
+    greenpeak_market_evening_analysis_hour: int = 21
+    greenpeak_market_evening_analysis_minute: int = 30
+    greenpeak_market_evening_analysis_timezone: str = "Asia/Tehran"
     greenpeak_news_enabled: bool = True
     greenpeak_official_sentiment_enabled: bool = True
     sec_user_agent: str = "GreenPeak/1.0 admin@greenpeak.ir"

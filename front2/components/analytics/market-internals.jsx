@@ -26,8 +26,9 @@ import {
 } from "recharts"
 
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import useMarketStructureData from "@/hooks/useMarketStructureData"
+import useReducedAnalysisHeight from "@/hooks/useReducedAnalysisHeight"
 import IndicatorGuide from "@/components/analytics/indicator-guide"
 import DomainUnderstandingPanel from "./domain-understanding-panel"
 import { AnalysisPageHeader, AnalysisPageShell, AnalysisState, TimeframeSelector } from "./analysis-page"
@@ -95,22 +96,17 @@ function MetadataStrip({ metadata, status, proxy = false }) {
   )
 }
 
-function BlockHeader({ number, title, description, guideId, icon: Icon, status, proxy = false }) {
+function BlockHeader({ number, title, description, guideId, icon: Icon, status, metadata, proxy = false }) {
   return (
     <CardHeader className="space-y-2 pb-3">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="mb-1 text-xs font-medium uppercase tracking-[0.16em] text-primary">Block {number}</p>
-          <CardTitle className="flex items-center gap-2 text-lg text-slate-900 dark:text-white">{title}{guideId && <IndicatorGuide indicatorId={guideId} title={title} />}</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-lg text-slate-900 dark:text-white">{title}<IndicatorGuide indicatorId={guideId} indicators={guideId ? undefined : []} title={title} chartDescription={description} chartSource={metadata ? <MetadataStrip metadata={metadata} status={status} proxy={proxy} /> : "Source unavailable"} /></CardTitle>
         </div>
         <span className="rounded-xl bg-primary/10 p-2.5 text-primary">
           <Icon className="h-5 w-5" />
         </span>
-      </div>
-      <CardDescription className="leading-5">{description}</CardDescription>
-      <div className="flex flex-wrap gap-2">
-        <Badge variant="outline" className={statusClasses(status)}>{status || "unavailable"}</Badge>
-        {proxy && <Badge variant="outline">ETF proxy</Badge>}
       </div>
     </CardHeader>
   )
@@ -134,7 +130,7 @@ function UnavailablePanel({ block, children }) {
 
 function CompanyConcentrationChart({ holdings, dark }) {
   return (
-    <div className="h-[390px] min-w-0" aria-label="Top ten SPY constituent weights">
+    <div className="h-[343.2px] min-w-0" aria-label="Top ten SPY constituent weights">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={holdings} layout="vertical" margin={{ top: 4, right: 36, bottom: 8, left: 12 }}>
           <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={dark ? "#27272a" : "#e2e8f0"} />
@@ -175,7 +171,7 @@ function SectorTile(props) {
 function SectorWeightTreemap({ sectors }) {
   const data = sectors.map((item) => ({ name: item.sector, size: item.weight_pct }))
   return (
-    <div className="h-[360px] min-w-0" aria-label="SPY GICS sector weight treemap">
+    <div className="h-[316.8px] min-w-0" aria-label="SPY GICS sector weight treemap">
       <ResponsiveContainer width="100%" height="100%">
         <Treemap data={data} dataKey="size" nameKey="name" stroke="#fff" content={<SectorTile />}>
           <Tooltip formatter={(value) => [formatPercent(value), "SPY weight"]} />
@@ -198,16 +194,16 @@ function ChartLegend({ series }) {
   )
 }
 
-function ComparisonChart({ title, description, guideId, series, textColor, height = 290 }) {
+function ComparisonChart({ title, description, guideId, series, textColor, metadata, height = 290 }) {
+  const { panelRef, bodyRef, bodyHeight } = useReducedAnalysisHeight(height, { reduction: 0.12 })
   const validSeries = series.filter((item) => Array.isArray(item.data) && item.data.length > 1)
   return (
-    <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
-      <h3 className="flex items-center gap-2 font-medium text-foreground">{title}{guideId && <IndicatorGuide indicatorId={guideId} title={title} />}</h3>
-      {description && <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>}
+    <div ref={panelRef} className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+      <h3 className="flex items-center gap-2 font-medium text-foreground">{title}<IndicatorGuide indicatorId={guideId} indicators={guideId ? undefined : []} title={title} chartDescription={description} chartSource={metadata ? <MetadataStrip metadata={metadata} /> : "Source unavailable"} /></h3>
       {validSeries.length ? (
         <div className="mt-4">
           <ChartLegend series={validSeries} />
-          <MultiLineChart dataSets={validSeries.map((item) => item.data)} height={height} textColor={textColor} seriesColors={COLORS} />
+          <div ref={bodyRef} style={{ height: bodyHeight }} className="w-full overflow-hidden"><MultiLineChart dataSets={validSeries.map((item) => item.data)} height={bodyHeight} textColor={textColor} seriesColors={COLORS} /></div>
         </div>
       ) : (
         <AnalysisState tone="neutral" title="No verified observations" description="The selected comparison cannot be drawn from the current snapshot." />
@@ -297,10 +293,10 @@ export default function MarketInternals() {
         page="market-internals"
         title="Market Structure, Sectors & Concentration"
         description="Concentration, breadth, sector leadership and style participation across the S&P 500 ecosystem."
-        actions={<TimeframeSelector periods={PERIODS} value={period} onChange={setPeriod} />}
+        actions={<TimeframeSelector periods={PERIODS} value={period} onChange={setPeriod} compact />}
       />
 
-      <Card dir="rtl">
+      <Card dir="rtl" data-analysis-group-card>
         <CardContent className="p-6">
           <DomainUnderstandingPanel
             domainId="market_internals_sectors"
@@ -336,7 +332,7 @@ export default function MarketInternals() {
       {data && (
         <>
           <Card id="group6-company-concentration">
-            <BlockHeader number="01" guideId="company-concentration" title="Company Concentration" description="Largest current SPY constituent weights from the official daily fund holdings file." icon={Building2} status={concentration?.status} proxy />
+            <BlockHeader number="01" guideId="company-concentration" title="Company Concentration" description="Largest current SPY constituent weights from the official daily fund holdings file." icon={Building2} status={concentration?.status} metadata={concentration?.metadata} proxy />
             <CardContent className="space-y-5">
               {concentration?.holdings?.length ? (
                 <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_250px]">
@@ -351,40 +347,40 @@ export default function MarketInternals() {
                   </div>
                 </div>
               ) : <UnavailablePanel block={concentration} />}
-              <MetadataStrip metadata={concentration?.metadata} status={concentration?.status} proxy />
+
             </CardContent>
           </Card>
 
           <Card id="group6-company-contribution">
-            <BlockHeader number="02" guideId="company-contribution" title="Company Contribution to S&P 500 Return" description="A valid contribution calculation requires membership and weights measured at the start of the same return period." icon={Layers3} status={contribution?.status} />
+            <BlockHeader number="02" guideId="company-contribution" title="Company Contribution to S&P 500 Return" description="A valid contribution calculation requires membership and weights measured at the start of the same return period." icon={Layers3} status={contribution?.status} metadata={contribution?.metadata} />
             <CardContent className="space-y-5">
               <UnavailablePanel block={contribution}>
                 <code className="mt-3 block rounded-lg bg-white/70 px-3 py-2 text-xs text-slate-700 dark:bg-black/20 dark:text-slate-200">{contribution?.formula || "contribution_i = previous_weight_i x total_return_i"}</code>
               </UnavailablePanel>
-              <MetadataStrip metadata={contribution?.metadata} status={contribution?.status} />
+
             </CardContent>
           </Card>
 
           <Card id="group6-cap-vs-equal-weight">
-            <BlockHeader number="03" guideId="cap-vs-equal-weight" title="S&P 500 vs Equal Weight" description={`SPY and RSP adjusted-close series rebased to 100 at the start of the selected ${period} window.`} icon={Scale} status={capVsEqual?.status} proxy />
+            <BlockHeader number="03" guideId="cap-vs-equal-weight" title="S&P 500 vs Equal Weight" description={`SPY and RSP adjusted-close series rebased to 100 at the start of the selected ${period} window.`} icon={Scale} status={capVsEqual?.status} metadata={capVsEqual?.metadata} proxy />
             <CardContent className="space-y-5">
               {capVsEqual?.series?.length ? (
-                <ComparisonChart title="Market-cap leadership versus broad participation" description="A widening gap highlights whether the cap-weighted benchmark is being driven by its largest constituents." series={capVsEqual.series} textColor={chartTextColor} height={340} />
+                <ComparisonChart title="Market-cap leadership versus broad participation" description="A widening gap highlights whether the cap-weighted benchmark is being driven by its largest constituents." series={capVsEqual.series} metadata={capVsEqual.metadata} textColor={chartTextColor} height={340} />
               ) : <UnavailablePanel block={capVsEqual} />}
-              <MetadataStrip metadata={capVsEqual?.metadata} status={capVsEqual?.status} proxy />
+
             </CardContent>
           </Card>
 
           <Card id="group6-sector-weights">
-            <BlockHeader number="04" guideId="sector-weights" title="S&P 500 Sector Weights" description="Current 11-sector GICS allocation reported for SPY by State Street." icon={Grid3X3} status={sectorWeights?.status} proxy />
+            <BlockHeader number="04" guideId="sector-weights" title="S&P 500 Sector Weights" description="Current 11-sector GICS allocation reported for SPY by State Street." icon={Grid3X3} status={sectorWeights?.status} metadata={sectorWeights?.metadata} proxy />
             <CardContent className="space-y-5">
               {sectorWeights?.sectors?.length ? <SectorWeightTreemap sectors={sectorWeights.sectors} /> : <UnavailablePanel block={sectorWeights} />}
-              <MetadataStrip metadata={sectorWeights?.metadata} status={sectorWeights?.status} proxy />
+
             </CardContent>
           </Card>
 
           <Card id="group6-sector-relative-returns">
-            <BlockHeader number="05" guideId="sector-relative-returns" title="Sector Relative Return Heatmap" description="Adjusted total-return proxy for each Select Sector ETF minus SPY over five standard horizons." icon={BarChart3} status={relative?.status} proxy />
+            <BlockHeader number="05" guideId="sector-relative-returns" title="Sector Relative Return Heatmap" description="Adjusted total-return proxy for each Select Sector ETF minus SPY over five standard horizons." icon={BarChart3} status={relative?.status} metadata={relative?.metadata} proxy />
             <CardContent className="space-y-5">
               {relative?.heatmap?.length ? (
                 <>
@@ -394,29 +390,30 @@ export default function MarketInternals() {
                     title={`${selectedHeatmap?.sector || "Selected sector"} (${selectedHeatmap?.symbol || "N/A"}) relative to SPY`}
                     description={`Historical relative total-return path for the selected ${period} window; 0 marks equal cumulative performance from the shared start date.`}
                     series={[{ label: `${selectedHeatmap?.symbol || "Sector"} minus SPY`, symbol: selectedHeatmap?.symbol || "", data: selectedSeries }]}
+                    metadata={relative?.metadata}
                     textColor={chartTextColor}
                     height={320}
                   />
                 </>
               ) : <UnavailablePanel block={relative} />}
-              <MetadataStrip metadata={relative?.metadata} status={relative?.status} proxy />
+
             </CardContent>
           </Card>
 
           <Card id="group6-style-comparisons">
-            <BlockHeader number="06" title="Style & Participation Comparisons" description={`Three compact adjusted-return views, each rebased to 100 at the selected ${period} start.`} icon={TrendingUp} status={styles?.status} proxy />
+            <BlockHeader number="06" title="Style & Participation Comparisons" description={`Three compact adjusted-return views, each rebased to 100 at the selected ${period} start.`} icon={TrendingUp} status={styles?.status} metadata={styles?.metadata} proxy />
             <CardContent className="space-y-5">
               <div className="grid gap-5 xl:grid-cols-3">
-                <ComparisonChart guideId="growth-value" title="Growth vs Value" description="IVW versus IVE S&P 500 style proxies." series={styleSeries.growthValue} textColor={chartTextColor} height={260} />
-                <ComparisonChart guideId="large-small" title="Large vs Small" description="SPY versus the IJR S&P SmallCap 600 proxy." series={styleSeries.size} textColor={chartTextColor} height={260} />
-                <ComparisonChart guideId="cyclical-defensive" title="Cyclical vs Defensive" description="Fixed equal-weight sector baskets calculated from adjusted ETF series." series={styleSeries.baskets} textColor={chartTextColor} height={260} />
+                <ComparisonChart guideId="growth-value" title="Growth vs Value" description="IVW versus IVE S&P 500 style proxies." series={styleSeries.growthValue} metadata={styles?.metadata} textColor={chartTextColor} height={260} />
+                <ComparisonChart guideId="large-small" title="Large vs Small" description="SPY versus the IJR S&P SmallCap 600 proxy." series={styleSeries.size} metadata={styles?.metadata} textColor={chartTextColor} height={260} />
+                <ComparisonChart guideId="cyclical-defensive" title="Cyclical vs Defensive" description="Fixed equal-weight sector baskets calculated from adjusted ETF series." series={styleSeries.baskets} metadata={styles?.metadata} textColor={chartTextColor} height={260} />
               </div>
               <div className="grid gap-3 rounded-xl bg-slate-50 p-4 text-xs leading-5 text-slate-600 dark:bg-slate-900/60 dark:text-slate-300 md:grid-cols-3">
                 <div><strong className="text-slate-900 dark:text-white">Formula:</strong> {styles?.formula || "N/A"}</div>
                 <div><strong className="text-slate-900 dark:text-white">Cyclical:</strong> {(styles?.basket_composition?.cyclical || []).join(", ") || "N/A"}</div>
                 <div><strong className="text-slate-900 dark:text-white">Defensive:</strong> {(styles?.basket_composition?.defensive || []).join(", ") || "N/A"}</div>
               </div>
-              <MetadataStrip metadata={styles?.metadata} status={styles?.status} proxy />
+
             </CardContent>
           </Card>
         </>

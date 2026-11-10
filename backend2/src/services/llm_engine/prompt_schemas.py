@@ -16,6 +16,12 @@ class UpdatePrompt(BaseModel):
         return value
 
 
+class PromptUpdateSchedule(BaseModel):
+    default_summary_fa: str
+    configured_summary_fa: str
+    details_fa: str
+
+
 class PromptDocument(BaseModel):
     id: str
     title: str
@@ -28,6 +34,7 @@ class PromptDocument(BaseModel):
     updated_at: datetime | None
     effective_content: str
     effective_hash: str
+    update_schedule: PromptUpdateSchedule
 
 
 class PromptCatalog(BaseModel):

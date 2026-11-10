@@ -1,5 +1,5 @@
 #property copyright "GreenPeak"
-#property version   "1.04"
+#property version   "1.05"
 #property strict
 #property description "Read-only portfolio risk monitor and GreenPeak snapshot sender"
 
@@ -15,6 +15,7 @@ input string Sp500BrokerSymbol="";
 input string GoldBrokerSymbol="";
 input string ForexBrokerSymbol="";
 input string CryptoBrokerSymbol="";
+input string Nasdaq100BrokerSymbol="";
 input string GreenPeakApiUrl="https://greenpeak.ir/api/v1/mt5/snapshots";
 input string GreenPeakApiToken=""; // کلید اتصال / API Key
 input bool EnableLocalBackup=false;
@@ -26,7 +27,7 @@ input int YOffset=15;
 input int LineSpacing=22;
 
 #define EA_NAME "GreenPeak MT5 Risk Monitor"
-#define EA_VERSION "1.04"
+#define EA_VERSION "1.05"
 #define SCHEMA_VERSION "1.0"
 #define PREFIX "GP_RISK_"
 
@@ -46,7 +47,7 @@ datetime last_send=0;
 
 string JEsc(string s) {
   StringReplace(s,"\\","\\\\"); StringReplace(s,"\"","\\\"");
-  StringReplace(s,"\r","\\r"); StringReplace(s,"\n","\\n"); return s;
+  StringReplace(s,"\r","\\r"); StringReplace(s,"\n","\\n"); StringReplace(s,"\t","\\t"); return s;
 }
 double Unavailable(){ return MathArcsin(2.0); }
 string JStr(string s){ return "\""+JEsc(s)+"\""; }
@@ -166,8 +167,48 @@ string PositionJson() {
 }
 string OrdersJson(){string out="[";bool first=true;for(int i=0;i<OrdersTotal();i++){ulong t=OrderGetTicket(i);if(t==0)continue;if(!first)out+=",";first=false;out+="{\"ticket\":"+JStr((string)t)+",\"symbol\":"+JStr(OrderGetString(ORDER_SYMBOL))+",\"order_type\":"+IntegerToString((int)OrderGetInteger(ORDER_TYPE))+",\"volume\":"+JNum(OrderGetDouble(ORDER_VOLUME_CURRENT))+",\"requested_price\":"+JNum(OrderGetDouble(ORDER_PRICE_OPEN))+",\"stop_loss\":"+JNum(OrderGetDouble(ORDER_SL))+",\"take_profit\":"+JNum(OrderGetDouble(ORDER_TP))+",\"expiration_utc\":"+JStr(Iso((datetime)OrderGetInteger(ORDER_TIME_EXPIRATION)))+",\"magic_number\":"+IntegerToString((int)OrderGetInteger(ORDER_MAGIC))+",\"comment\":"+JStr(OrderGetString(ORDER_COMMENT))+",\"setup_time_utc\":"+JStr(Iso((datetime)OrderGetInteger(ORDER_TIME_SETUP)))+"}";}return out+"]";}
 string TradeHistoryJson(){datetime to=TimeCurrent(),from=to-7*86400;string out="[";bool first=true;if(!HistorySelect(from,to))return out+"]";int total=HistoryDealsTotal();for(int i=0;i<total;i++){ulong ticket=HistoryDealGetTicket(i);if(ticket==0)continue;long type=HistoryDealGetInteger(ticket,DEAL_TYPE);if(type!=DEAL_TYPE_BUY&&type!=DEAL_TYPE_SELL)continue;if(!first)out+=",";first=false;out+="{\"deal_identifier\":"+JStr((string)ticket)+",\"order_identifier\":"+JStr((string)HistoryDealGetInteger(ticket,DEAL_ORDER))+",\"position_identifier\":"+JStr((string)HistoryDealGetInteger(ticket,DEAL_POSITION_ID))+",\"timestamp_utc\":"+JStr(Iso((datetime)HistoryDealGetInteger(ticket,DEAL_TIME)))+",\"symbol\":"+JStr(HistoryDealGetString(ticket,DEAL_SYMBOL))+",\"direction\":"+JStr(type==DEAL_TYPE_BUY?"BUY":"SELL")+",\"entry_type\":"+IntegerToString((int)HistoryDealGetInteger(ticket,DEAL_ENTRY))+",\"volume\":"+JNum(HistoryDealGetDouble(ticket,DEAL_VOLUME))+",\"executed_price\":"+JNum(HistoryDealGetDouble(ticket,DEAL_PRICE))+",\"profit\":"+JNum(HistoryDealGetDouble(ticket,DEAL_PROFIT))+",\"commission\":"+JNum(HistoryDealGetDouble(ticket,DEAL_COMMISSION))+",\"swap\":"+JNum(HistoryDealGetDouble(ticket,DEAL_SWAP))+",\"magic_number\":"+IntegerToString((int)HistoryDealGetInteger(ticket,DEAL_MAGIC))+",\"comment\":"+JStr(HistoryDealGetString(ticket,DEAL_COMMENT))+"}";}return out+"]";}
+string CompactAssetName(string value) {
+  StringToUpper(value);string result="";
+  for(int i=0;i<StringLen(value);i++){
+    ushort code=StringGetCharacter(value,i);
+    if((code>='A'&&code<='Z')||(code>='0'&&code<='9'))result+=ShortToString(code);
+  }
+  return result;
+}
+
+bool HasNasdaq100Alias(string value) {
+  string aliases[]={"NASDAQ100","NAS100","US100","USTECH100","USTEC100","USATECH100","USATEC100","NDX100","NDQ100","NQ100","TECH100"};
+  for(int i=0;i<ArraySize(aliases);i++){
+    int start=StringFind(value,aliases[i]);
+    if(start<0)continue;
+    int end=start+StringLen(aliases[i]);
+    if(end==StringLen(value)||StringGetCharacter(value,end)<'0'||StringGetCharacter(value,end)>'9')return true;
+  }
+  return false;
+}
+
+bool MatchesNasdaq100(string symbol) {
+  string name=CompactAssetName(symbol),description=SymbolInfoString(symbol,SYMBOL_DESCRIPTION),detail=CompactAssetName(description);
+  string excluded[]={"COMPOSITE","EQUALWEIGHT","BIOTECH","NASDAQNEXTGEN","NASDAQINC","NASDAQ100ESG","EXCHANGETRADEDFUND"};
+  for(int i=0;i<ArraySize(excluded);i++)if(StringFind(name,excluded[i])>=0||StringFind(detail,excluded[i])>=0)return false;
+  StringToUpper(description);
+  if(StringFind(description,"ETF")>=0||StringFind(description,"ETN")>=0||StringFind(description,"UCITS")>=0)return false;
+  if(HasNasdaq100Alias(name)||HasNasdaq100Alias(detail))return true;
+  string bases[]={"NASDAQ","USTEC","USTECH","NDX","NDQ"},suffixes[]={"","CASH","SPOT","CFD","USD","ECN","PRO","RAW"};
+  for(int i=0;i<ArraySize(bases);i++){
+    for(int j=0;j<ArraySize(suffixes);j++){
+      string base=bases[i]+suffixes[j];
+      if(name==base)return true;
+      if(StringLen(name)==StringLen(base)+1&&StringGetCharacter(name,0)>='A'&&StringGetCharacter(name,0)<='Z'&&StringSubstr(name,1)==base)return true;
+    }
+    if(StringLen(name)==StringLen(bases[i])+1&&StringSubstr(name,0,StringLen(bases[i]))==bases[i]&&StringGetCharacter(name,StringLen(bases[i]))>='A'&&StringGetCharacter(name,StringLen(bases[i]))<='Z')return true;
+  }
+  return false;
+}
+
 bool MatchesDashboardAsset(string symbol,int asset) {
   string value=symbol;StringToUpper(value);
+  if(asset==4)return MatchesNasdaq100(symbol);
   if(asset==1)return StringFind(value,"XAUUSD")>=0||StringFind(value,"GOLD")>=0;
   if(asset==2)return StringFind(value,"EURUSD")>=0;
   if(asset==3)return StringFind(value,"BTCUSD")>=0||StringFind(value,"XBTUSD")>=0||StringFind(value,"BITCOIN")>=0;
@@ -194,7 +235,7 @@ bool AppendBrokerSymbolJson(string symbol,string &out,bool &first) {
   bool long_ok=notional_ok&&AnnualSwapRate(symbol,true,notional,long_rate,long_status);
   bool short_ok=notional_ok&&AnnualSwapRate(symbol,false,notional,short_rate,short_status);
   if(!first)out+=",";first=false;
-  out+="{\"symbol\":"+JStr(symbol)+",\"bid\":"+JNum(tick.bid)+",\"ask\":"+JNum(tick.ask)+",\"spread_points\":"+JNum(point>0?(tick.ask-tick.bid)/point:Unavailable())+",\"point\":"+JNum(point)+",\"tick_size\":"+JNum(SymbolInfoDouble(symbol,SYMBOL_TRADE_TICK_SIZE))+",\"tick_value\":"+JNum(SymbolInfoDouble(symbol,SYMBOL_TRADE_TICK_VALUE))+",\"contract_size\":"+JNum(SymbolInfoDouble(symbol,SYMBOL_TRADE_CONTRACT_SIZE))+",\"minimum_volume\":"+JNum(SymbolInfoDouble(symbol,SYMBOL_VOLUME_MIN))+",\"volume_step\":"+JNum(SymbolInfoDouble(symbol,SYMBOL_VOLUME_STEP))+",\"swap_long_raw\":"+JNum(SymbolInfoDouble(symbol,SYMBOL_SWAP_LONG))+",\"swap_short_raw\":"+JNum(SymbolInfoDouble(symbol,SYMBOL_SWAP_SHORT))+",\"swap_mode\":"+IntegerToString((int)SymbolInfoInteger(symbol,SYMBOL_SWAP_MODE))+",\"annualized_long_swap_rate_pct\":"+JNum(long_ok?long_rate:Unavailable())+",\"annualized_short_swap_rate_pct\":"+JNum(short_ok?short_rate:Unavailable())+",\"annualized_long_swap_status\":"+JStr(long_status)+",\"annualized_short_swap_status\":"+JStr(short_status)+",\"trade_calculation_mode\":"+IntegerToString((int)SymbolInfoInteger(symbol,SYMBOL_TRADE_CALC_MODE))+",\"execution_mode\":"+IntegerToString((int)SymbolInfoInteger(symbol,SYMBOL_TRADE_EXEMODE))+",\"trading_status\":"+IntegerToString((int)SymbolInfoInteger(symbol,SYMBOL_TRADE_MODE))+",\"quote_timestamp_utc\":"+JStr(Iso(tick.time))+"}";
+  out+="{\"symbol\":"+JStr(symbol)+",\"description\":"+JStr(SymbolInfoString(symbol,SYMBOL_DESCRIPTION))+",\"bid\":"+JNum(tick.bid)+",\"ask\":"+JNum(tick.ask)+",\"spread_points\":"+JNum(point>0?(tick.ask-tick.bid)/point:Unavailable())+",\"point\":"+JNum(point)+",\"tick_size\":"+JNum(SymbolInfoDouble(symbol,SYMBOL_TRADE_TICK_SIZE))+",\"tick_value\":"+JNum(SymbolInfoDouble(symbol,SYMBOL_TRADE_TICK_VALUE))+",\"contract_size\":"+JNum(SymbolInfoDouble(symbol,SYMBOL_TRADE_CONTRACT_SIZE))+",\"minimum_volume\":"+JNum(SymbolInfoDouble(symbol,SYMBOL_VOLUME_MIN))+",\"volume_step\":"+JNum(SymbolInfoDouble(symbol,SYMBOL_VOLUME_STEP))+",\"swap_long_raw\":"+JNum(SymbolInfoDouble(symbol,SYMBOL_SWAP_LONG))+",\"swap_short_raw\":"+JNum(SymbolInfoDouble(symbol,SYMBOL_SWAP_SHORT))+",\"swap_mode\":"+IntegerToString((int)SymbolInfoInteger(symbol,SYMBOL_SWAP_MODE))+",\"annualized_long_swap_rate_pct\":"+JNum(long_ok?long_rate:Unavailable())+",\"annualized_short_swap_rate_pct\":"+JNum(short_ok?short_rate:Unavailable())+",\"annualized_long_swap_status\":"+JStr(long_status)+",\"annualized_short_swap_status\":"+JStr(short_status)+",\"trade_calculation_mode\":"+IntegerToString((int)SymbolInfoInteger(symbol,SYMBOL_TRADE_CALC_MODE))+",\"execution_mode\":"+IntegerToString((int)SymbolInfoInteger(symbol,SYMBOL_TRADE_EXEMODE))+",\"trading_status\":"+IntegerToString((int)SymbolInfoInteger(symbol,SYMBOL_TRADE_MODE))+",\"quote_timestamp_utc\":"+JStr(Iso(tick.time))+"}";
   return true;
 }
 
@@ -212,6 +253,7 @@ string BrokerJson(){
   AppendUniqueBrokerSymbol(ResolveDashboardSymbol(GoldBrokerSymbol,1),out,first,added,count);
   AppendUniqueBrokerSymbol(ResolveDashboardSymbol(ForexBrokerSymbol,2),out,first,added,count);
   AppendUniqueBrokerSymbol(ResolveDashboardSymbol(CryptoBrokerSymbol,3),out,first,added,count);
+  AppendUniqueBrokerSymbol(ResolveDashboardSymbol(Nasdaq100BrokerSymbol,4),out,first,added,count);
   for(int i=0;i<PositionsTotal();i++){
     ulong ticket=PositionGetTicket(i);
     if(ticket>0)AppendUniqueBrokerSymbol(PositionGetString(POSITION_SYMBOL),out,first,added,count);

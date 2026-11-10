@@ -2,6 +2,7 @@
 import PremiumAnalysisGate from "@/components/analytics/premium-analysis-gate"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import useReducedAnalysisHeight from "@/hooks/useReducedAnalysisHeight"
 import { ChevronDown, Loader2, RefreshCw } from "lucide-react"
 
 import { endpoints } from "@/api/api"
@@ -31,6 +32,7 @@ export default function DomainUnderstandingPanel(props) {
 
 function DomainUnderstandingPanelContent({ domainId, title = "تحلیل گروه", simple = false, onUpdated }) {
   const { isAdmin, accessToken } = useAuth()
+  const { panelRef, bodyRef, bodyHeight } = useReducedAnalysisHeight(224, { contentSized: true, frameSelector: "[data-analysis-group-card]" })
   const [analysis, setAnalysis] = useState(null)
   const [expanded, setExpanded] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -112,7 +114,7 @@ function DomainUnderstandingPanelContent({ domainId, title = "تحلیل گرو�
 
   if (simple) {
     const analysisDate = analysis?.analysis_generated_at?.slice(0, 10)
-    return <div dir="rtl" className="text-right">
+    return <div ref={panelRef} dir="rtl" className="text-right">
       <div className="mb-4 flex flex-row flex-wrap items-center gap-3">
         <h3 className="me-auto text-lg font-semibold">{title}</h3>
         {analysisDate && <time dateTime={analysisDate} dir="ltr" className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">{analysisDate}</time>}
@@ -120,7 +122,7 @@ function DomainUnderstandingPanelContent({ domainId, title = "تحلیل گرو�
           <RunButton running={running} onClick={runAnalysis} simple />
         </div>}
       </div>
-      <div className="max-h-[14rem] space-y-4 overflow-y-auto pe-1">
+      <div ref={bodyRef} style={{ maxHeight: bodyHeight }} className="space-y-4 overflow-y-auto pe-1">
         {loading ? <p role="status" className="text-sm">در حال دریافت تحلیل…</p> : !analysis ? <p className="text-sm">{loadError ? "دریافت تحلیل گروه ممکن نشد." : "هنوز تحلیلی برای این گروه ثبت نشده است."}</p> : <>
           {analysis.stance_label_fa && <p className="text-sm font-medium">{analysis.stance_label_fa}</p>}
           {[...new Set([analysis.dominant_story_fa, analysis.narrative_fa].filter(Boolean))].map((text) => <p key={text} className="whitespace-pre-line text-sm leading-7">{text}</p>)}

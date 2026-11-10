@@ -1,10 +1,12 @@
 "use client"
 
 import { motion, AnimatePresence } from "framer-motion"
+import { useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, Minus, Globe } from "lucide-react"
 import useMarketWatch from "@/hooks/use-market-watch"
 import MarketWatchLoadingSkeleton from "./market-watch-loading"
+import MarketWatchChartDialog, { watchIntervalLabel } from "@/components/dashboard/market-watch-chart-dialog"
 
 function trendColor(trend) {
   if (trend === "up") return "text-cyan-600 dark:text-cyan-400"
@@ -18,7 +20,7 @@ function trendStroke(trend) {
   return "#9ca3af"
 }
 
-function MiniChart({ data, trend }) {
+function MiniChart({ data, trend, interval }) {
   if (data.length === 0) {
     return <div className="h-full w-full rounded border-b border-dashed border-gray-300 dark:border-gray-600" />
   }
@@ -42,7 +44,7 @@ function MiniChart({ data, trend }) {
   const stroke = trendStroke(trend)
 
   return (
-    <div className="h-8 w-full" aria-label="نمودار داده واقعی یک هفته اخیر">
+    <div className="h-full w-full" aria-label={`نمودار داده واقعی با فاصله ${interval}`}>
       <svg viewBox="0 0 100 100" className="h-full w-full" preserveAspectRatio="none">
         <motion.polyline
           fill="none"
@@ -77,11 +79,14 @@ function TrendIcon({ trend }) {
 
 export default function MarketWatch() {
   const { data, isLoading } = useMarketWatch()
+  const [selectedId, setSelectedId] = useState(null)
+  const triggerRef = useRef(null)
+  const selectedItem = data.find(item => item.id === selectedId) || null
 
   if (isLoading) return <MarketWatchLoadingSkeleton />
 
   return (
-    <Card className="card-glow w-full border-gray-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
+    <><Card className="card-glow w-full border-gray-200 bg-white shadow-sm dark:border-[#2B2B30] dark:bg-[#1F1F23]">
       <CardHeader className="pb-2">
         <CardTitle
           dir="rtl"
@@ -112,8 +117,12 @@ export default function MarketWatch() {
         >
           <AnimatePresence>
             {data.map((item, index) => (
-              <motion.div
+              <motion.button
                 key={item.id}
+                type="button"
+                aria-label={`باز کردن چارت ${item.symbol}`}
+                aria-haspopup="dialog"
+                onClick={event => { triggerRef.current = event.currentTarget; setSelectedId(item.id) }}
                 dir="rtl"
                 variants={{
                   hidden: { y: 20, opacity: 0 },
@@ -123,11 +132,13 @@ export default function MarketWatch() {
                 whileHover={{ y: -4, scale: 1.02, transition: { duration: 0.2 } }}
                 whileTap={{ scale: 0.98 }}
                 title={item.source ? `منبع: ${item.source}` : item.error || undefined}
-                className="market-watch-item relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-[#2B2B30] dark:bg-[#0F0F12] md:p-2.5"
+                className="market-watch-item relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-lg border border-gray-200 bg-gray-50 px-2 py-[5px] text-right focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-[#2B2B30] dark:bg-[#0F0F12] md:px-2.5 md:py-[6.5px]"
               >
                 <div className="mb-1 flex items-center justify-between">
                   <motion.span
-                    className="ml-1 flex-1 truncate text-xs font-medium text-gray-900 dark:text-white"
+                    dir="auto"
+                    title={item.symbol}
+                    className="ml-1 flex-1 truncate text-right text-xs font-medium text-gray-900 dark:text-white"
                     initial={{ opacity: 0, x: 10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 + 0.3 }}
@@ -178,17 +189,17 @@ export default function MarketWatch() {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.1 + 0.6 }}
                 >
-                  <MiniChart data={item.chartData} trend={item.trend} />
+                  <MiniChart data={item.chartData} trend={item.trend} interval={watchIntervalLabel(item)} />
                 </motion.div>
 
-                <div className="mt-1 truncate text-[10px] text-gray-500 dark:text-gray-400">
-                  {item.observationDate || item.error}
+                <div title={item.error || `${item.observationDate} · ${watchIntervalLabel(item)}`} className="mt-1 truncate text-[10px] text-gray-500 dark:text-gray-400">
+                  {item.observationDate ? `${item.observationDate} · ${watchIntervalLabel(item)}` : "داده در دسترس نیست"}
                 </div>
-              </motion.div>
+              </motion.button>
             ))}
           </AnimatePresence>
         </motion.div>
       </CardContent>
-    </Card>
+    </Card><MarketWatchChartDialog item={selectedItem} onClose={() => setSelectedId(null)} triggerRef={triggerRef} /></>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CircleHelp } from "lucide-react"
+import { Info } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { formatGregorianDate, formatGregorianTehranDateTime } from "@/lib/date-format"
 
@@ -83,7 +83,7 @@ export default function MarketStatusCards() {
         return <Dialog key={key}>
           <DialogTrigger asChild>
             <button type="button" aria-label={`منطق و منابع ${label}`} className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-border bg-card p-2.5 text-right transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-              <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">{label}<CircleHelp className="h-3.5 w-3.5 shrink-0 text-primary" /></span>
+              <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">{label}<Info className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" /></span>
               <span className={`shrink-0 rounded-full border px-3 py-0.5 text-xs font-medium ${tone(key, value)}`}>{loading ? "در حال بررسی" : LABELS[value] || "نامشخص"}</span>
             </button>
           </DialogTrigger>

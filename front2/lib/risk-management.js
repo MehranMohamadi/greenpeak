@@ -32,26 +32,46 @@ export function positiveRule(value) {
   return parsed != null && parsed > 0 ? parsed : null
 }
 
+export function accountMarginStatus(snapshot) {
+  const numeric = value => typeof value === "boolean" ? null : finiteNumber(value)
+  const usedMargin = numeric(snapshot?.account?.used_margin)
+  const equity = numeric(snapshot?.account?.equity)
+  const reported = numeric(snapshot?.account?.margin_level_pct)
+  const positions = snapshot?.positions
+  const orders = snapshot?.pending_orders
+  const confirmedIdle = Array.isArray(positions) && positions.length === 0 && Array.isArray(orders) && orders.length === 0
+  // MT5 can report zero for the undefined equity / zero-margin ratio.
+  // Pending orders may reserve margin even without an open position.
+  if (usedMargin === 0 || (usedMargin == null && confirmedIdle)) return { applicable: false, levelPct: null, usedMargin }
+  if (usedMargin != null && usedMargin < 0) return { applicable: null, levelPct: null, usedMargin }
+  if (usedMargin > 0) {
+    const level = equity != null ? equity / usedMargin * 100 : reported
+    return { applicable: true, levelPct: Number.isFinite(level) ? level : null, usedMargin }
+  }
+  if (reported != null && (reported > 0 || (Array.isArray(positions) && positions.length > 0))) {
+    return { applicable: true, levelPct: reported, usedMargin }
+  }
+  return { applicable: null, levelPct: null, usedMargin }
+}
+
 function normalizeSymbol(value) {
   return String(value || "").trim().toUpperCase()
 }
 
 export function availableSymbols(snapshot) {
-  const defaults = ["US500", "XAUUSD"]
-  const symbols = new Set()
+  const symbols = new Map()
   for (const collection of [
     snapshot?.broker_symbol_data,
     snapshot?.symbol_metrics,
     snapshot?.positions,
     snapshot?.pending_orders,
   ]) {
-    for (const item of collection || []) {
-      if (item?.symbol) symbols.add(String(item.symbol))
+    for (const item of Array.isArray(collection) ? collection : []) {
+      const symbol = typeof item?.symbol === "string" ? item.symbol.trim() : ""
+      if (symbol && !symbols.has(normalizeSymbol(symbol))) symbols.set(normalizeSymbol(symbol), symbol)
     }
   }
-  return [...defaults, ...[...symbols]
-    .filter((symbol) => !defaults.includes(normalizeSymbol(symbol)))
-    .sort((a, b) => a.localeCompare(b))]
+  return [...symbols.values()].sort((a, b) => a.localeCompare(b))
 }
 
 export function scenarioSymbolOptions(snapshot) {
@@ -471,9 +491,8 @@ export function aggregateRiskOverview(entries, now = new Date(), serverLeverage 
     const history = analyzeTradeHistory(snapshot, now)
     const maxLeverage = positiveRule(rules.maxGrossLeverage)
     const minMargin = Math.max(100, positiveRule(rules.minMarginLevelPct) || 100)
-    const usedMargin = finiteNumber(snapshot?.account?.used_margin)
-    const marginLevel = usedMargin != null && usedMargin > 0 && equity != null
-      ? equity / usedMargin * 100 : finiteNumber(snapshot?.account?.margin_level_pct)
+    const margin = accountMarginStatus(snapshot)
+    const marginLevel = margin.levelPct
     const leverage = finiteNumber(snapshot?.leverage?.value)
     const warnings = []
     if (equity == null) warnings.push("اکوییتی حساب موجود نیست")
@@ -483,10 +502,10 @@ export function aggregateRiskOverview(entries, now = new Date(), serverLeverage 
     }
     if (maxLeverage == null) warnings.push("سقف اهرم این حساب تعیین نشده است")
     if (leverage == null) warnings.push(leverageReason(snapshot?.leverage?.reason))
-    if (usedMargin !== 0 && marginLevel != null && marginLevel < minMargin) {
+    if (margin.applicable === true && marginLevel != null && marginLevel < minMargin) {
       warnings.push(`سطح مارجین ${marginLevel.toFixed(1)}٪ کمتر از حد پایش ${minMargin}٪ است؛ خطر کال مارجین را در همین حساب بررسی کنید`)
     }
-    if (usedMargin !== 0 && marginLevel == null) warnings.push("سطح مارجین حساب قابل بررسی نیست")
+    if (margin.applicable !== false && marginLevel == null) warnings.push("سطح مارجین حساب قابل بررسی نیست")
     const dailyLimit = positiveRule(rules.dailyLossLimitPct)
     if (dailyLimit != null && equity > 0 && history.realizedLossUsed > equity * dailyLimit / 100) warnings.push("بودجه زیان روزانه این حساب تمام شده است")
     return { snapshot, rules, currency, equity, exposure, openRisk, history, warnings }
@@ -626,11 +645,12 @@ export function buildBehaviorAnalysis({ snapshot, rules = {}, plans = [], lifecy
     label: "ریسک هر معامله", status: perTradeLimit == null || equity == null ? "unknown"
       : oversized ? "fail" : positionRisks.length === openRisk.positions.length ? "pass" : "unknown",
   }]
+  const margin = accountMarginStatus(snapshot)
   for (const [label, limitValue, observed, minimum] of [
     ["ریسک کل باز", rules.maxOpenRiskPct, openRisk.riskPct, false],
     ["زیان روزانه", rules.dailyLossLimitPct, equity == null || !hasReportedHistory ? null : history.realizedLossUsed / equity * 100, false],
     ["اهرم", rules.maxGrossLeverage, snapshot?.leverage?.value, false],
-    ["مارجین", rules.minMarginLevelPct, snapshot?.account?.margin_level_pct, true],
+    ...(margin.applicable === false ? [] : [["مارجین", rules.minMarginLevelPct, margin.levelPct, true]]),
   ]) {
     const limit = positiveRule(limitValue)
     const value = finiteNumber(observed)
@@ -873,6 +893,89 @@ export function buildTradeReview(snapshot, draft, rules, openRisk) {
 
 function scenarioNumber(value) {
   return typeof value === "boolean" ? null : finiteNumber(value)
+}
+
+export function scenarioRiskRow(rows, symbol) {
+  const valid = (Array.isArray(rows) ? rows : []).filter((row) => row && typeof row === "object")
+  return valid.find((row) => normalizeSymbol(row.symbol_id) === normalizeSymbol(symbol))
+    || valid.find((row) => matchingTradeSymbol(row.symbol_id, symbol) || (row.symbols || []).some((alias) => matchingTradeSymbol(alias, symbol)))
+    || null
+}
+
+export function scenarioBrokerUnitQuote(snapshots, symbol, rows = [], now = Date.now()) {
+  const row = scenarioRiskRow(rows, symbol)
+  const market = tradeMarketRequest(row?.symbol_id || symbol)
+  const aliases = [symbol, ...(row?.symbols || [])].map(normalizeSymbol)
+  const candidates = []
+  for (const snapshot of snapshots || []) {
+    for (const spec of snapshot.broker_symbol_data || []) {
+      if (!aliases.includes(normalizeSymbol(spec.symbol)) && !matchingTradeSymbol(symbol, spec.symbol)) continue
+      const bid = scenarioNumber(spec.bid)
+      const ask = scenarioNumber(spec.ask)
+      if ((bid != null && bid <= 0) || (ask != null && ask <= 0) || (bid != null && ask != null && bid > ask)) continue
+      const price = bid != null && ask != null ? bid / 2 + ask / 2 : bid ?? ask
+      const observedAt = spec.quote_timestamp_utc || snapshot.timestamp_utc
+      const time = Date.parse(observedAt)
+      if (!(price > 0) || !Number.isFinite(time) || time > now) continue
+      let unitPriceUsd = market ? price : null
+      if (!market && snapshot.account?.currency === "USD") {
+        const mode = String(spec.trade_calculation_mode ?? "").replace(/^SYMBOL_CALC_MODE_/, "")
+        const linear = ["0", "1", "2", "3", "4", "5", "32", "33", "36", "FOREX", "FOREX_NO_LEVERAGE", "FUTURES", "CFD", "CFDINDEX", "CFDLEVERAGE", "EXCH_STOCKS", "EXCH_FUTURES", "EXCH_STOCKS_MOEX"].includes(mode)
+        const size = scenarioNumber(spec.contract_size ?? spec.trade_contract_size)
+        const tickSize = scenarioNumber(spec.tick_size)
+        const tickValue = scenarioNumber(spec.tick_value)
+        if (linear && size > 0 && tickSize > 0 && tickValue > 0) unitPriceUsd = price * (tickValue / tickSize / size)
+      }
+      if (!(unitPriceUsd > 0) || !Number.isFinite(unitPriceUsd)) continue
+      candidates.push({ price: unitPriceUsd, observedAt, source: `Snapshot · ${snapshot.source?.broker_company || spec.symbol}`, time })
+    }
+  }
+  return candidates.sort((a, b) => b.time - a.time)[0] || null
+}
+
+// Hypothetical units are underlying units, not lots: units = lots * contract size.
+// Start from the server's net-by-symbol exposure; do not sum broker lots here.
+export function volumeScenarioEstimate(leverage, rows, symbol, shockPct, addedUnits = 0, unitPriceUsd = null) {
+  const equity = scenarioNumber(leverage?.equity_usd)
+  const gross = scenarioNumber(leverage?.gross_exposure_usd)
+  const shock = scenarioNumber(shockPct)
+  const units = scenarioNumber(addedUnits)
+  const price = scenarioNumber(unitPriceUsd)
+  const added = units === 0 ? 0 : units != null && price > 0 ? units * price : null
+  const priceChange = shock != null && price > 0 ? price * (shock / 100) : null
+  const addedNotionalUsd = Number.isFinite(added) ? added : null
+  const priceChangeUsd = Number.isFinite(priceChange) ? priceChange : null
+  const unavailable = (reason) => ({ available: false, pnl: null, equityAfter: null, addedNotionalUsd, priceChangeUsd, reason })
+  if (!symbol || !Array.isArray(rows) || equity == null || gross == null || gross < 0
+    || (leverage?.reason && leverage.reason !== "non_positive_equity")) {
+    return unavailable("اکوییتی و اکسپوژر کامل دلاری حساب‌های انتخاب‌شده موجود نیست؛ نتیجه ناقص نمایش داده نمی‌شود.")
+  }
+  if (shock == null || shock <= -100 || units == null) return unavailable("تغییر قیمت و تعداد واحد باید عدد معتبر باشند؛ قیمت پس از سناریو باید مثبت بماند.")
+  if (units !== 0 && !(price > 0)) return unavailable("قیمت دلاری معتبر هر واحد موجود نیست؛ افزایش حجم قابل محاسبه نیست.")
+  const row = scenarioRiskRow(rows, symbol)
+  // A missing row means no open exposure only when the server's complete total
+  // is known. An explicitly unknown row must never be interpreted as zero.
+  const net = row ? scenarioNumber(row.net_exposure_usd) : 0
+  if (net == null || row?.reason) return unavailable("اکسپوژر خالص معتبر نماد موجود نیست.")
+  const remainder = gross - Math.abs(net)
+  if (remainder < -Math.max(1, gross) * 1e-12) return unavailable("اکسپوژر نماد با اکسپوژر کل هم‌خوان نیست.")
+  const netAfterVolume = net + addedNotionalUsd
+  const pnl = netAfterVolume * (shock / 100)
+  const equityAfter = equity + pnl
+  const grossAfterVolume = Math.max(0, remainder) + Math.abs(netAfterVolume)
+  const grossAfter = Math.max(0, remainder) + Math.abs(netAfterVolume * (1 + shock / 100))
+  if (addedNotionalUsd == null || ![netAfterVolume, pnl, equityAfter, grossAfterVolume, grossAfter].every(Number.isFinite)
+    || (priceChange != null && !Number.isFinite(priceChange))) return unavailable("نتیجه سناریو خارج از محدوده محاسبه است.")
+  const ratio = (amount, denominator) => denominator > 0 && Number.isFinite(amount / denominator) ? amount / denominator : null
+  const leverageBefore = ratio(gross, equity)
+  const leverageAfterVolume = ratio(grossAfterVolume, equity)
+  const leverageAfter = ratio(grossAfter, equityAfter)
+  const impact = ratio(pnl * 100, equity)
+  return {
+    available: true, pnl, equityBefore: equity, equityAfter, impactPct: impact,
+    addedNotionalUsd, priceChangeUsd, netAfterVolume, grossAfterVolume, grossAfter,
+    leverageBefore, leverageAfterVolume, leverageAfter, reason: null,
+  }
 }
 
 export function scenarioEstimate(snapshot, symbol, shockPct) {

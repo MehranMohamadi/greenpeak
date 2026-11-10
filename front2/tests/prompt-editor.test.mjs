@@ -11,11 +11,13 @@ test("refresh adopts new server text for unedited prompts without creating a sta
 })
 
 test("refresh preserves unsaved text and its original revision when another admin edits", () => {
-  const result = mergePromptCatalog({ documents: [document("market", 1, "old")], drafts: { market: "unsaved" } }, [document("market", 2, "remote")])
+  const update_schedule = { default_summary_fa: "daily at 16:00", configured_summary_fa: "disabled", details_fa: "daily cycle" }
+  const result = mergePromptCatalog({ documents: [document("market", 1, "old")], drafts: { market: "unsaved" } }, [{ ...document("market", 2, "remote"), update_schedule }])
   assert.equal(result.documents[0].revision, 1)
   assert.equal(result.documents[0].content, "old")
   assert.equal(result.documents[0].effective_content, "remote")
   assert.equal(result.drafts.market, "unsaved")
+  assert.deepEqual(result.documents[0].update_schedule, update_schedule)
 })
 
 test("saving one prompt retains other drafts and their concurrency baselines", () => {

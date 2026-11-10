@@ -1,8 +1,11 @@
 import os
 from datetime import date, datetime
+from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
 os.environ["DEBUG"] = "false"
+
+import pytest
 
 from src.core.config import get_settings
 from src.services.daily_analysis import (
@@ -15,6 +18,17 @@ from src.services.daily_analysis import (
     next_scheduled_analysis_at,
     should_schedule_catchup,
 )
+
+
+@pytest.fixture(autouse=True)
+def evening_schedule(monkeypatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "greenpeak_daily_analysis_enabled", True)
+    monkeypatch.setattr(settings, "greenpeak_daily_analysis_timezone", "Asia/Tehran")
+    monkeypatch.setattr(settings, "greenpeak_market_evening_analysis_enabled", True)
+    monkeypatch.setattr(settings, "greenpeak_market_evening_analysis_hour", 21)
+    monkeypatch.setattr(settings, "greenpeak_market_evening_analysis_minute", 30)
+    monkeypatch.setattr(settings, "greenpeak_market_evening_analysis_timezone", "Asia/Tehran")
 
 
 class FakeRuns:
@@ -51,6 +65,10 @@ def test_daily_scheduler_uses_configured_time(monkeypatch):
     assert scheduler is not None
     job = scheduler.get_job("greenpeak-daily-analysis")
     assert str(job.trigger) == "cron[hour='6', minute='30']"
+    evening_job = scheduler.get_job("greenpeak-market-evening-analysis")
+    assert str(evening_job.trigger) == "cron[hour='21', minute='30']"
+    assert str(evening_job.trigger.timezone) == "Asia/Tehran"
+    assert evening_job.kwargs == {"slot_id": "market-evening"}
     retry_job = scheduler.get_job("greenpeak-daily-analysis-notification-retry")
     assert str(retry_job.trigger) == "cron[minute='*/2']"
     analysis_retry_job = scheduler.get_job("greenpeak-daily-analysis-retry")
@@ -106,7 +124,10 @@ def test_catchup_only_runs_after_the_configured_tehran_time():
     assert should_schedule_catchup(datetime(2026, 9, 17, 16, 0, tzinfo=timezone), 16, 0)
 
 
-def test_next_scheduled_analysis_uses_configured_tehran_time(monkeypatch):
+@pytest.mark.parametrize("hour,minute,next_day,next_hour,next_minute", [
+    (15, 59, 17, 16, 0), (16, 1, 17, 21, 30), (21, 30, 17, 21, 30), (21, 31, 18, 16, 0),
+])
+def test_next_scheduled_analysis_uses_configured_tehran_time(monkeypatch, hour, minute, next_day, next_hour, next_minute):
     settings = get_settings()
     monkeypatch.setattr(settings, "greenpeak_daily_analysis_enabled", True)
     monkeypatch.setattr(settings, "greenpeak_llm_provider", "openai-compatible")
@@ -116,9 +137,88 @@ def test_next_scheduled_analysis_uses_configured_tehran_time(monkeypatch):
     monkeypatch.setattr(settings, "greenpeak_daily_analysis_minute", 0)
     timezone = ZoneInfo("Asia/Tehran")
 
-    next_run = next_scheduled_analysis_at(datetime(2026, 9, 17, 16, 1, tzinfo=timezone))
+    next_run = next_scheduled_analysis_at(datetime(2026, 9, 17, hour, minute, tzinfo=timezone))
 
-    assert next_run == datetime(2026, 9, 18, 16, 0, tzinfo=timezone)
+    assert next_run == datetime(2026, 9, next_day, next_hour, next_minute, tzinfo=timezone)
+
+
+def test_slots_run_independently_once_and_evening_only_builds_market(monkeypatch):
+    from src.services import daily_analysis
+    from pymongo.errors import DuplicateKeyError
+
+    documents, calls, delivered = {}, [], []
+
+    class Runs:
+        def create_index(self, *args, **kwargs):
+            pass
+
+        def insert_one(self, document):
+            key = document["run_key"]
+            if key in documents:
+                raise DuplicateKeyError("duplicate")
+            documents[key] = document
+
+        def update_one(self, query, update):
+            documents[query["run_key"]].update(update["$set"])
+
+    runs = Runs()
+    database = {daily_analysis.RUN_COLLECTION: runs}
+
+    class Client:
+        def __getitem__(self, key):
+            return database
+
+        def close(self):
+            pass
+
+    def build(kind):
+        def run(*args, **kwargs):
+            calls.append(kind)
+            return {"llm": {"market": {"status": "generated"}}, "errors": []}
+        return run
+
+    monkeypatch.setattr(daily_analysis, "MongoClient", lambda *args, **kwargs: Client())
+    monkeypatch.setattr(daily_analysis, "create_llm_provider", lambda *args, **kwargs: object())
+    monkeypatch.setattr(daily_analysis, "run_persisted_analysis", build("full"))
+    monkeypatch.setattr(daily_analysis, "run_persisted_market_analysis", build("market"))
+    monkeypatch.setattr(daily_analysis, "_deliver_daily_notification", lambda client, runs, key, day: delivered.append(key))
+    for slot_id in ("daily", "market-evening", "daily", "market-evening"):
+        daily_analysis.run_daily_analysis(slot_id=slot_id)
+    assert calls == ["full", "market"]
+    assert len(documents) == len(delivered) == 2
+    assert {key.split(":")[0] for key in documents} == {"daily", "market-evening"}
+    assert all(document["status"] == "success" for document in documents.values())
+
+
+def test_disabling_evening_slot_preserves_daily_schedule(monkeypatch):
+    from src.services.analysis_schedule import analysis_slots
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "greenpeak_market_evening_analysis_enabled", False)
+    assert [slot.slot_id for slot in analysis_slots(settings)] == ["daily"]
+
+
+def test_identical_slots_do_not_duplicate_a_market_run(monkeypatch):
+    from src.services.analysis_schedule import analysis_slots
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "greenpeak_daily_analysis_hour", 21)
+    monkeypatch.setattr(settings, "greenpeak_daily_analysis_minute", 30)
+    assert [slot.slot_id for slot in analysis_slots(settings)] == ["daily"]
+
+
+@pytest.mark.parametrize("hour,expected", [(15, []), (18, ["daily"]), (22, ["daily", "market-evening"])])
+def test_catchup_and_retry_only_run_due_slots_in_order(monkeypatch, hour, expected):
+    from src.services import daily_analysis
+
+    now = datetime(2026, 11, 9, hour, tzinfo=ZoneInfo("Asia/Tehran"))
+    calls = []
+    monkeypatch.setattr(get_settings(), "greenpeak_daily_analysis_hour", 16)
+    monkeypatch.setattr(get_settings(), "greenpeak_daily_analysis_minute", 0)
+    monkeypatch.setattr(daily_analysis, "datetime", SimpleNamespace(now=lambda zone: now.astimezone(zone)))
+    monkeypatch.setattr(daily_analysis, "run_daily_analysis", lambda **kwargs: calls.append(kwargs))
+    daily_analysis.retry_daily_analysis()
+    assert calls == [{"retry_failed": True, "slot_id": slot} for slot in expected]
 
 
 def test_partial_run_with_market_analysis_is_notification_eligible():

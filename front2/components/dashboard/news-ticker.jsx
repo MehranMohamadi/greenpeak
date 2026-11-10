@@ -26,6 +26,7 @@ import { endpoints } from "@/api/api"
 import { accountKey, money, number } from "@/components/kokonutui/mt5-data-view"
 import { IMPORTANT_US_NEWS_FA } from "@/lib/important-us-news-fa"
 import {
+  accountMarginStatus,
   analyzeOpenRisk,
   analyzeTradeHistory,
   concentrationSummary,
@@ -172,7 +173,7 @@ export function buildDashboardInsights({ snapshots, comparison, articles, snooze
       const freshness = freshnessSummary(snapshot, now)
       const equity = finiteNumber(snapshot?.account?.equity)
       const leverage = finiteNumber(snapshot?.portfolio_metrics?.gross_portfolio_leverage)
-      const margin = finiteNumber(snapshot?.account?.margin_level_pct)
+      const margin = accountMarginStatus(snapshot).levelPct
       totalPositions += openRisk.positions.length
       totalPending += openRisk.pendingOrders.length
 

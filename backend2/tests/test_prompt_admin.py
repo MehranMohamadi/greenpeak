@@ -80,6 +80,44 @@ def test_shared_prompt_edits_are_versioned_apply_to_every_analysis_and_preserve_
     assert PromptStore(store.path.with_name("router.db")).current()["core_system"]["updated_by"] == "test-actor"
 
 
+@pytest.mark.parametrize("enabled", [True, False])
+def test_catalog_distinguishes_default_configured_and_on_demand_schedules(store, monkeypatch, enabled):
+    from src.core.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "greenpeak_daily_analysis_enabled", enabled)
+    monkeypatch.setattr(settings, "greenpeak_daily_analysis_hour", 6)
+    monkeypatch.setattr(settings, "greenpeak_daily_analysis_minute", 30)
+    monkeypatch.setattr(settings, "greenpeak_daily_analysis_timezone", "UTC")
+    monkeypatch.setattr(settings, "greenpeak_market_evening_analysis_enabled", True)
+    monkeypatch.setattr(settings, "greenpeak_market_evening_analysis_hour", 21)
+    monkeypatch.setattr(settings, "greenpeak_market_evening_analysis_minute", 30)
+    monkeypatch.setattr(settings, "greenpeak_market_evening_analysis_timezone", "Asia/Tehran")
+    client = client_for()
+    response = client.get("/api/v1/admin/llm/prompts")
+    assert response.status_code == 200
+    for prompt_id in ("core_system", "indicator", "domain", "market"):
+        schedule = document(response, prompt_id)["update_schedule"]
+        assert "۱۶:۰۰" in schedule["default_summary_fa"]
+        assert "تهران" in schedule["default_summary_fa"]
+        if prompt_id in ("core_system", "market"):
+            assert "۲۱:۳۰" in schedule["default_summary_fa"]
+            assert "روزانه دو نوبت" in schedule["default_summary_fa"]
+        if enabled:
+            assert "۰۶:۳۰" in schedule["configured_summary_fa"]
+            assert "UTC" in schedule["configured_summary_fa"]
+        else:
+            assert "غیرفعال" in schedule["configured_summary_fa"]
+    assert "اجرای مستقل ندارد" in document(response, "core_system")["update_schedule"]["details_fa"]
+    for prompt_id in ("news", "chat_planner", "chat_answer"):
+        schedule = document(response, prompt_id)["update_schedule"]
+        assert "بدون ساعت ثابت" in schedule["default_summary_fa"]
+        assert schedule["default_summary_fa"] == schedule["configured_summary_fa"]
+    saved = client.put("/api/v1/admin/llm/prompts/market", json={"content": "Edited", "expected_revision": 0})
+    assert saved.status_code == 200
+    assert document(saved, "market")["update_schedule"] == document(response, "market")["update_schedule"]
+
+
 def test_conflict_preserves_first_edit_and_default_reset_creates_a_new_revision(store):
     client = client_for()
     url = "/api/v1/admin/llm/prompts/market"

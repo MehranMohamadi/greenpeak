@@ -1,9 +1,11 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { Activity, ChevronDown } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Activity, ChevronDown, Maximize2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { orderIdentifier } from "@/lib/risk-management"
 import {
   buildTradeLifecycles,
@@ -28,7 +30,12 @@ const filters = [
   { id: "closed", label: "معاملات بسته‌شده" },
 ]
 
-const tradeGridClass = "grid-cols-[4.05rem_minmax(0,.55fr)_minmax(0,.48fr)_minmax(0,.28fr)_7.2rem_minmax(0,.45fr)_minmax(0,.45fr)_minmax(0,.35fr)_minmax(0,.35fr)_minmax(0,.6fr)]"
+const tradeGridStyle = {
+  // Keep the original flexible-column unit (11.25rem fixed tracks + nine .375rem gaps).
+  // Scaling fr weights alone would redistribute the saved space into the columns.
+  "--trade-column-unit": "calc((100% - 14.625rem) / 3.51)",
+  gridTemplateColumns: "3.8475rem minmax(0, calc(var(--trade-column-unit) * .605)) minmax(0, calc(var(--trade-column-unit) * .456)) minmax(0, calc(var(--trade-column-unit) * .266)) 6.84rem minmax(0, calc(var(--trade-column-unit) * .4275)) minmax(0, calc(var(--trade-column-unit) * .4275)) minmax(0, calc(var(--trade-column-unit) * .3325)) minmax(0, calc(var(--trade-column-unit) * .3325)) minmax(0, calc(var(--trade-column-unit) * .57))",
+}
 
 const orderTypes = {
   0: { label: "Buy", direction: "long" },
@@ -216,7 +223,7 @@ function LifecycleRow({ lifecycle }) {
   return <details className="group border-b border-gray-200 last:border-b-0 dark:border-[#2B2B30]">
     <summary className="relative cursor-pointer list-none p-3 pl-9 [&::-webkit-details-marker]:hidden">
       <ChevronDown aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform group-open:rotate-180" />
-      <div className={`grid ${tradeGridClass} items-center gap-1.5 whitespace-nowrap text-center text-[11px]`}>
+      <div style={tradeGridStyle} className="grid items-center gap-1.5 whitespace-nowrap text-center text-[11px]">
         <span className="select-all truncate font-medium tabular-nums" dir="ltr" title={lifecycle.ticket || undefined}>{lifecycle.ticket || "—"}</span>
         <SymbolAccount symbol={lifecycle.symbol} accountLabel={lifecycle.accountLabel} />
         <Badge variant="outline" className={`mx-auto max-w-full truncate ${directionTone(lifecycle.direction)}`} title={lifecycle.directionLabel}>{lifecycle.directionLabel}</Badge>
@@ -250,7 +257,7 @@ function PendingRow({ order }) {
   return <details className="group border-b border-gray-200 last:border-b-0 dark:border-[#2B2B30]">
     <summary className="relative cursor-pointer list-none p-3 pl-9 [&::-webkit-details-marker]:hidden">
       <ChevronDown aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform group-open:rotate-180" />
-      <div className={`grid ${tradeGridClass} items-center gap-1.5 whitespace-nowrap text-center text-[11px]`}>
+      <div style={tradeGridStyle} className="grid items-center gap-1.5 whitespace-nowrap text-center text-[11px]">
         <span className="select-all truncate font-medium tabular-nums" dir="ltr" title={order.ticket || undefined}>{order.ticket || "—"}</span>
         <SymbolAccount symbol={order.symbol} accountLabel={order.accountLabel} />
         <Badge variant="outline" className={`mx-auto max-w-full truncate ${directionTone(order.direction)}`} title={order.orderTypeLabel}>{order.orderTypeLabel}</Badge>
@@ -273,8 +280,47 @@ const emptyMessages = {
   closed: "معامله بسته‌شده‌ای در بازه تاریخچه گزارش نشده است.",
 }
 
+function TradeFilters({ filter, groups, onFilterChange }) {
+  return <div className={`${tradingTabListClass} ms-auto`} aria-label="فیلتر معاملات و سفارش‌ها">
+    {filters.map((item) => <button key={item.id} type="button" aria-pressed={filter === item.id} onClick={() => onFilterChange(item.id)} className={tradingTabClass(filter === item.id)}>
+      {item.label}<span className="tabular-nums opacity-70">{groups[item.id].length}</span>
+    </button>)}
+  </div>
+}
+
+function TradeList({ filter, items }) {
+  return <div className="w-[90%] min-w-[864px]">
+    <div style={tradeGridStyle} className="sticky top-0 z-10 grid gap-1.5 border-b bg-white py-2 pl-9 pr-3 text-center text-[9px] font-medium text-muted-foreground dark:bg-[#1F1F23]">
+      <span>تیکت</span><span className="text-right">نماد / حساب</span><span>جهت / نوع</span><span>حجم</span><span>زمان ورود / ثبت</span><span>قیمت ورود</span><span>خروج / فعلی</span><span>SL</span><span>TP</span><span>سود/زیان خالص</span>
+    </div>
+    {!items.length && <EmptyCollection>{emptyMessages[filter]}</EmptyCollection>}
+    {filter === "pending"
+      ? items.map((order) => <PendingRow key={order.key} order={order} />)
+      : items.map((lifecycle) => <LifecycleRow key={lifecycle.key} lifecycle={lifecycle} />)}
+  </div>
+}
+
 export default function LastTrades({ snapshots = [], actions }) {
   const [filter, setFilter] = useState("open")
+  const [expanded, setExpanded] = useState(false)
+  const [panelWidth, setPanelWidth] = useState(null)
+  const cardRef = useRef(null)
+
+  useEffect(() => {
+    if (!expanded || !cardRef.current) return
+    const card = cardRef.current
+    const updateWidth = () => setPanelWidth(card.getBoundingClientRect().width)
+    updateWidth()
+    const observer = new ResizeObserver(updateWidth)
+    observer.observe(card)
+    return () => observer.disconnect()
+  }, [expanded])
+
+  const handleOpenChange = (open) => {
+    if (open && cardRef.current) setPanelWidth(cardRef.current.getBoundingClientRect().width)
+    setExpanded(open)
+  }
+
   const lifecycles = useMemo(() => buildTradeLifecycles(snapshots), [snapshots])
   const pendingOrders = useMemo(() => buildPendingOrders(snapshots), [snapshots])
   const groups = useMemo(() => ({
@@ -284,30 +330,41 @@ export default function LastTrades({ snapshots = [], actions }) {
   }), [lifecycles, pendingOrders])
   const visible = groups[filter]
 
-  return <Card className={`${tradingCardClass} !h-[16rem] xl:col-span-2`}>
-    <CardHeader className={`${tradingCardHeaderClass} flex-row flex-wrap items-center justify-between gap-3 space-y-0`}>
-      <CardTitle className="flex items-center gap-2 text-base text-gray-900 dark:text-white">
-        <Activity className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-        معاملات و سفارش‌ها
-        <Badge variant="secondary">{visible.length}</Badge>
-      </CardTitle>
-      {actions}
-      <div className={tradingTabListClass} aria-label="فیلتر معاملات و سفارش‌ها">
-        {filters.map((item) => <button key={item.id} type="button" aria-pressed={filter === item.id} onClick={() => setFilter(item.id)} className={tradingTabClass(filter === item.id)}>
-          {item.label}<span className="tabular-nums opacity-70">{groups[item.id].length}</span>
-        </button>)}
+  return <Dialog open={expanded} onOpenChange={handleOpenChange}>
+    <Card ref={cardRef} className={`${tradingCardClass} !h-[16rem] xl:col-span-2`}>
+      <CardHeader className={`${tradingCardHeaderClass} flex-row flex-wrap items-center justify-between gap-3 space-y-0`}>
+        <CardTitle className="flex items-center gap-2 text-base text-gray-900 dark:text-white">
+          <Activity className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+          معاملات و سفارش‌ها
+          <Badge variant="secondary">{visible.length}</Badge>
+        </CardTitle>
+        <DialogTrigger asChild>
+          <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" aria-label="باز کردن معاملات و سفارش‌ها در پنجره بزرگ‌تر" title="نمایش معاملات در پنجره بزرگ‌تر">
+            <Maximize2 className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        </DialogTrigger>
+        {actions}
+        <TradeFilters filter={filter} groups={groups} onFilterChange={setFilter} />
+      </CardHeader>
+      <CardContent className={`${tradingCardContentClass} !overflow-auto`}>
+        <TradeList filter={filter} items={visible} />
+      </CardContent>
+    </Card>
+    <DialogContent dir="rtl" style={{ width: panelWidth ?? undefined }} className="flex h-[85dvh] max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden bg-white p-0 dark:bg-[#1F1F23]">
+      <DialogHeader className="shrink-0 border-b p-4 pl-12 text-right sm:text-right">
+        <DialogTitle className="flex items-center gap-2 text-base">
+          <Activity className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+          معاملات و سفارش‌ها
+          <Badge variant="secondary">{visible.length}</Badge>
+        </DialogTitle>
+        <DialogDescription className="sr-only">نمایش معاملات باز، سفارش‌های در انتظار و معاملات بسته‌شده با فضای بیشتر و جزئیات هر ردیف</DialogDescription>
+      </DialogHeader>
+      <div className="flex min-w-0 shrink-0 px-4 py-3">
+        <TradeFilters filter={filter} groups={groups} onFilterChange={setFilter} />
       </div>
-    </CardHeader>
-    <CardContent className={`${tradingCardContentClass} !overflow-auto`}>
-      <div className="w-[90%] min-w-[864px]">
-        <div className={`sticky top-0 z-10 grid ${tradeGridClass} gap-1.5 border-b bg-white py-2 pl-9 pr-3 text-center text-[9px] font-medium text-muted-foreground dark:bg-[#1F1F23]`}>
-          <span>تیکت</span><span className="text-right">نماد / حساب</span><span>جهت / نوع</span><span>حجم</span><span>زمان ورود / ثبت</span><span>قیمت ورود</span><span>خروج / فعلی</span><span>SL</span><span>TP</span><span>سود/زیان خالص</span>
-        </div>
-        {!visible.length && <EmptyCollection>{emptyMessages[filter]}</EmptyCollection>}
-        {filter === "pending"
-          ? visible.map((order) => <PendingRow key={order.key} order={order} />)
-          : visible.map((lifecycle) => <LifecycleRow key={lifecycle.key} lifecycle={lifecycle} />)}
+      <div className={`${tradingCardContentClass} overflow-x-auto overscroll-contain`}>
+        <TradeList filter={filter} items={visible} />
       </div>
-    </CardContent>
-  </Card>
+    </DialogContent>
+  </Dialog>
 }

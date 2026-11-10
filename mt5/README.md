@@ -18,7 +18,7 @@ one versioned JSON snapshot to GreenPeak. It contains no trading functions.
 4. Keep `AutoSendEnabled=false` for manual use. Click **Send to GreenPeak**.
 
 The EA includes the active chart symbol, every open-position and pending-order
-symbol, plus benchmark specifications for S&P 500, gold, EUR/USD, and Bitcoin
+symbol, plus benchmark specifications for S&P 500, Nasdaq 100, gold, EUR/USD, and Bitcoin
 in each snapshot. It recognizes common aliases such as `US500`, `SP500`,
 `SPX500`, `XAUUSD`, `GOLD`, `EURUSD`, `BTCUSD`, and `XBTUSD`. If auto-detection
 does not select the intended contracts, set their exact broker names in
@@ -26,6 +26,14 @@ does not select the intended contracts, set their exact broker names in
 `CryptoBrokerSymbol`. Where the exposed MT5 contract details support it, each
 sample also contains comparable annualized long/short swap rates; otherwise an
 explicit unavailable status is sent instead of an estimate.
+
+Version 1.05 also recognizes Nasdaq-100 names such as `NAS100`, `US100`,
+`USTEC`, `USTECH`, and `NDX100`, and uses the broker's symbol description.
+Set `Nasdaq100BrokerSymbol` to the exact contract name when an override is
+needed. Each sampled instrument now sends its official `SYMBOL_DESCRIPTION`
+in `broker_symbol_data[].description`; the site uses this to group unusual
+broker names under the same Nasdaq 100 comparison row. Compile/install the
+updated expert and send a fresh snapshot to supply missing descriptions.
 
 The key can be shown again using **نمایش کلید** beside its connection in the
 profile. GreenPeak keeps the SHA-256 hash for authentication and a Fernet-encrypted

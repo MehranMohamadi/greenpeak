@@ -2,6 +2,7 @@
 import PremiumAnalysisGate from "@/components/analytics/premium-analysis-gate"
 
 import { useEffect, useState } from "react"
+import useReducedAnalysisHeight, { INDICATOR_PANEL_REDUCTION } from "@/hooks/useReducedAnalysisHeight"
 import { endpoints } from "@/api/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -12,6 +13,7 @@ export default function TreasuryYieldAnalysis(props) {
 }
 
 function TreasuryYieldAnalysisContent({ revision = 0 }) {
+  const { panelRef, bodyRef, bodyHeight } = useReducedAnalysisHeight(200, { contentSized: true, reduction: INDICATOR_PANEL_REDUCTION })
   const [snapshot, setSnapshot] = useState(null)
   const [error, setError] = useState("")
   useEffect(() => {
@@ -37,9 +39,9 @@ function TreasuryYieldAnalysisContent({ revision = 0 }) {
     return () => controller.abort()
   }, [revision])
   const features = snapshot?.features || {}
-  return <Card dir="rtl" className="flex min-h-0 flex-col lg:absolute lg:inset-0">
+  return <Card ref={panelRef} dir="rtl" style={{ "--analysis-body-height": `${bodyHeight}px` }} className="flex min-h-0 flex-col lg:absolute lg:inset-0">
     <CardHeader className="shrink-0 pb-2 !pt-2.5"><CardTitle className="text-base">تحلیل شاخص</CardTitle><p className="text-xs leading-5 text-muted-foreground">آمار تاریخی از داده‌های روزانهٔ Yahoo Finance · Cboe (^TNX)</p></CardHeader>
-    <CardContent className="max-h-[12.5rem] min-h-0 space-y-3 overflow-y-auto pb-2 text-right lg:max-h-none lg:flex-1">
+    <CardContent ref={bodyRef} className="max-h-[var(--analysis-body-height)] min-h-0 space-y-3 overflow-y-auto pb-2 text-right lg:max-h-none lg:flex-1">
       {error ? <p role="status" className="text-sm text-amber-700 dark:text-amber-300">{error}</p> : !snapshot ? <p role="status" className="text-sm">در حال دریافت تحلیل…</p> : <>
         <p className="text-sm leading-6">{snapshot.llm_context?.summary_template_fa}</p>
         <ul className="list-disc space-y-2 pr-4 text-sm leading-6">

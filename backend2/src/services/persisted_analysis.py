@@ -13,6 +13,16 @@ from .rule_engine.engine import evaluate_rule_set
 from .rule_engine.repository import MongoRuleRepository
 
 
+def run_persisted_market_analysis(client, database: str, provider, as_of: date, force_llm: bool = True) -> dict:
+    """Refresh the market report with fresh context and validated stored domain narratives."""
+    result = run_llm_pipeline(
+        None, MongoNarrativeRepository(client, database), provider, as_of,
+        force=force_llm, market_only=True,
+        horizontal_evidence=build_market_analysis_context(client, database, as_of),
+    )
+    return {"as_of_date": as_of.isoformat(), "llm": result, "errors": result["errors"]}
+
+
 def run_persisted_analysis(client, database: str, provider, as_of: date, force_llm: bool = True) -> dict:
     """Run feature -> rule -> LLM stages against the shared server store."""
     feature_repository = MongoFeatureRepository(client, database)

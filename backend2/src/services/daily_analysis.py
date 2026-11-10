@@ -1,4 +1,4 @@
-"""Once-daily persisted LLM analysis, coordinated across API workers."""
+"""Daily pipeline and evening market analysis, coordinated across API workers."""
 
 import logging
 from datetime import UTC, date, datetime, timedelta
@@ -11,7 +11,8 @@ from pymongo.errors import DuplicateKeyError
 
 from ..core.config import get_settings
 from .llm_engine.routing import create_llm_provider, llm_is_configured
-from .persisted_analysis import run_persisted_analysis
+from .persisted_analysis import run_persisted_analysis, run_persisted_market_analysis
+from .analysis_schedule import analysis_slots
 from ..utils.telegram import build_telegram_market_report, send_telegram_market_report
 
 logger = logging.getLogger(__name__)
@@ -29,24 +30,22 @@ def should_schedule_catchup(now: datetime, hour: int, minute: int) -> bool:
 
 
 def next_scheduled_analysis_at(now: datetime | None = None) -> datetime | None:
-    """Return the next configured daily-analysis run in its local timezone."""
+    """Return the next configured market-report run across both daily slots."""
     settings = get_settings()
     if not settings.greenpeak_daily_analysis_enabled:
         return None
     if not llm_is_configured(settings):
         return None
     try:
-        timezone = ZoneInfo(settings.greenpeak_daily_analysis_timezone)
+        current = now or datetime.now(UTC)
+        candidates = [
+            slot.scheduled_at(current, offset)
+            for slot in analysis_slots(settings) for offset in (0, 1)
+        ]
     except ZoneInfoNotFoundError:
         return None
 
-    current = now.astimezone(timezone) if now else datetime.now(timezone)
-    trigger = CronTrigger(
-        hour=settings.greenpeak_daily_analysis_hour,
-        minute=settings.greenpeak_daily_analysis_minute,
-        timezone=timezone,
-    )
-    return trigger.get_next_fire_time(None, current)
+    return min(value for value in candidates if value >= current)
 
 
 def market_analysis_completed(result: dict) -> bool:
@@ -101,20 +100,20 @@ def _deliver_daily_notification(client, runs, run_key: str, local_day: date) -> 
 
 
 def retry_daily_notification() -> None:
-    """Retry today's failed Telegram delivery without regenerating analysis."""
+    """Retry each slot's failed Telegram delivery without regenerating analysis."""
     settings = get_settings()
     try:
-        timezone = ZoneInfo(settings.greenpeak_daily_analysis_timezone)
+        current = datetime.now(UTC)
+        slots = [(slot, slot.scheduled_at(current).date()) for slot in analysis_slots(settings)]
     except ZoneInfoNotFoundError:
         logger.error("Daily analysis timezone is invalid; notification retry skipped")
         return
 
-    local_day = datetime.now(timezone).date()
-    run_key = f"daily:{local_day.isoformat()}"
     client = MongoClient(settings.mongodb_url, serverSelectionTimeoutMS=5000)
     try:
         runs = client[settings.mongodb_database][RUN_COLLECTION]
-        _deliver_daily_notification(client, runs, run_key, local_day)
+        for slot, local_day in slots:
+            _deliver_daily_notification(client, runs, slot.run_key(local_day), local_day)
     except Exception:
         logger.exception("Daily Telegram notification retry failed")
     finally:
@@ -173,17 +172,20 @@ def _claim_daily_run(runs, run_key: str, local_day: date, allow_retry: bool) -> 
     return claimed is not None
 
 
-def run_daily_analysis(*, retry_failed: bool = False) -> None:
-    """Generate one shared analysis per configured local calendar day."""
+def run_daily_analysis(*, retry_failed: bool = False, slot_id: str = "daily") -> None:
+    """Generate once per slot and local day; each slot has its own retry budget."""
     settings = get_settings()
+    slot = next((item for item in analysis_slots(settings) if item.slot_id == slot_id), None)
+    if slot is None:
+        return
     try:
-        timezone = ZoneInfo(settings.greenpeak_daily_analysis_timezone)
+        timezone = ZoneInfo(slot.timezone)
     except ZoneInfoNotFoundError:
         logger.error("Daily analysis timezone is invalid; scheduled run skipped")
         return
 
     local_day = datetime.now(timezone).date()
-    run_key = f"daily:{local_day.isoformat()}"
+    run_key = slot.run_key(local_day)
     client = MongoClient(settings.mongodb_url, serverSelectionTimeoutMS=5000)
     runs = client[settings.mongodb_database][RUN_COLLECTION]
     try:
@@ -192,7 +194,8 @@ def run_daily_analysis(*, retry_failed: bool = False) -> None:
             return
 
         provider = create_llm_provider(settings, timeout=180)
-        result = run_persisted_analysis(
+        build = run_persisted_market_analysis if slot.market_only else run_persisted_analysis
+        result = build(
             client,
             settings.mongodb_database,
             provider,
@@ -234,13 +237,17 @@ def retry_daily_analysis() -> None:
     """Retry today's failed, incomplete, or abandoned analysis a limited number of times."""
     settings = get_settings()
     try:
-        timezone = ZoneInfo(settings.greenpeak_daily_analysis_timezone)
+        now = datetime.now(UTC)
+        due_slots = sorted(
+            ((slot.scheduled_at(now), slot) for slot in analysis_slots(settings)),
+            key=lambda item: item[0],
+        )
     except ZoneInfoNotFoundError:
         logger.error("Daily analysis timezone is invalid; analysis retry skipped")
         return
-    now = datetime.now(timezone)
-    if should_schedule_catchup(now, settings.greenpeak_daily_analysis_hour, settings.greenpeak_daily_analysis_minute):
-        run_daily_analysis(retry_failed=True)
+    for scheduled, slot in due_slots:
+        if now >= scheduled:
+            run_daily_analysis(retry_failed=True, slot_id=slot.slot_id)
 
 
 def create_daily_analysis_scheduler() -> BackgroundScheduler | None:
@@ -254,18 +261,16 @@ def create_daily_analysis_scheduler() -> BackgroundScheduler | None:
 
     timezone = ZoneInfo(settings.greenpeak_daily_analysis_timezone)
     scheduler = BackgroundScheduler(timezone=timezone, daemon=True)
-    scheduler.add_job(
-        run_daily_analysis,
-        CronTrigger(
-            hour=settings.greenpeak_daily_analysis_hour,
-            minute=settings.greenpeak_daily_analysis_minute,
-            timezone=timezone,
-        ),
-        id="greenpeak-daily-analysis",
-        replace_existing=True,
-        coalesce=True,
-        max_instances=1,
-    )
+    for slot in analysis_slots(settings):
+        scheduler.add_job(
+            run_daily_analysis,
+            CronTrigger(hour=slot.hour, minute=slot.minute, timezone=ZoneInfo(slot.timezone)),
+            kwargs={"slot_id": slot.slot_id},
+            id="greenpeak-daily-analysis" if slot.slot_id == "daily" else "greenpeak-market-evening-analysis",
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1,
+        )
     scheduler.add_job(
         retry_daily_notification,
         CronTrigger(minute=f"*/{NOTIFICATION_RETRY_MINUTES}", timezone=timezone),
@@ -282,12 +287,12 @@ def create_daily_analysis_scheduler() -> BackgroundScheduler | None:
         coalesce=True,
         max_instances=1,
     )
-    # A restart before the configured local run time must not generate an early analysis. If the server
-    # comes back after the configured run time, catch up once; the shared Mongo
-    # run key prevents a second generation for the same Tehran calendar day.
-    if should_schedule_catchup(datetime.now(timezone), settings.greenpeak_daily_analysis_hour, settings.greenpeak_daily_analysis_minute):
+    # Catch up due slots in order; separate shared run keys avoid duplicate work
+    # across workers without allowing a successful afternoon run to block the evening.
+    now = datetime.now(UTC)
+    if any(now >= slot.scheduled_at(now) for slot in analysis_slots(settings)):
         scheduler.add_job(
-            run_daily_analysis,
+            retry_daily_analysis,
             id="greenpeak-daily-analysis-catchup",
             replace_existing=True,
             max_instances=1,

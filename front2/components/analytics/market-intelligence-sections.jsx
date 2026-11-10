@@ -3,7 +3,7 @@ import PremiumAnalysisGate from "@/components/analytics/premium-analysis-gate"
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
-import { CalendarDays, CircleHelp, Clock3, Link2, LoaderCircle, Newspaper, RefreshCw, ShieldAlert, TrendingUp, Triangle } from "lucide-react"
+import { CalendarDays, Clock3, Info, Link2, LoaderCircle, Newspaper, RefreshCw, ShieldAlert, TrendingUp, Triangle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -261,7 +261,7 @@ function InfoDialog({ title, description }) {
   return <Dialog>
     <DialogTrigger asChild>
       <button type="button" aria-label={`راهنمای ${title}`} className="shrink-0 rounded-full text-primary transition hover:text-primary/80">
-        <CircleHelp className="h-4 w-4" />
+        <Info className="h-4 w-4" aria-hidden="true" />
       </button>
     </DialogTrigger>
     <DialogContent dir="rtl">
@@ -276,10 +276,12 @@ function InfoDialog({ title, description }) {
 function FactorSection({ title, subtitle, items, positive, emptyText }) {
   return <section className="flex h-72 min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
     <div className="shrink-0 px-6 pb-3 pt-5">
-      <h3 className={`flex items-center gap-2 text-base font-semibold ${positive ? "text-primary" : "text-destructive"}`}>
-        {positive ? <TrendingUp className="h-5 w-5" /> : <ShieldAlert className="h-5 w-5" />}{title}
-      </h3>
-      <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+      <div className="flex items-center gap-2">
+        <h3 className={`flex items-center gap-2 text-base font-semibold ${positive ? "text-primary" : "text-destructive"}`}>
+          {positive ? <TrendingUp className="h-5 w-5" /> : <ShieldAlert className="h-5 w-5" />}{title}
+        </h3>
+        <InfoDialog title={title} description={subtitle} />
+      </div>
     </div>
     <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-5"><DialogAnalysisList items={items} emptyText={emptyText} /></div>
   </section>
@@ -319,10 +321,7 @@ function DialogAnalysisList({ items, emptyText }) {
   })
   return values.length ? <div>{values.map(item => <HelpDialog key={item.key} title={item.title} item={item.dialogItem} factorDetails>
     <button type="button" aria-label={`نمایش جزئیات ${item.title}`} className="flex w-full items-center justify-between gap-3 border-b border-border py-3 text-right text-sm font-medium leading-6 text-foreground transition last:border-b-0 hover:text-foreground/80">
-      <span className="min-w-0">
-        <span className="block">{item.title}</span>
-        {item.dialogItem.mechanism_fa && <span className="mt-1 block text-xs font-normal leading-6 text-muted-foreground">{item.dialogItem.detail_fa}</span>}
-      </span>
+      <span className="min-w-0">{item.title}</span>
       <DisclosureTriangle className="opacity-75" />
     </button>
   </HelpDialog>)}</div> : <p className="text-sm text-muted-foreground">{emptyText}</p>
@@ -500,7 +499,7 @@ export default function MarketIntelligenceSections({ market, onRefresh, loading 
               <Dialog>
                 <DialogTrigger asChild>
                   <button type="button" aria-label="راهنمای تحلیل بازار" className="shrink-0 rounded-full text-primary hover:text-primary/80">
-                    <CircleHelp className="h-4 w-4" />
+                    <Info className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </DialogTrigger>
                 <DialogContent dir="rtl">

@@ -8,7 +8,8 @@ export function mergePromptCatalog(current, incoming, savedId = null) {
     // Preserve the editor's baseline revision for optimistic concurrency,
     // while refreshing the read-only preview of what is currently active.
     return { ...previous.get(item.id), default_content: item.default_content,
-      effective_content: item.effective_content, effective_hash: item.effective_hash }
+      effective_content: item.effective_content, effective_hash: item.effective_hash,
+      update_schedule: item.update_schedule }
   })
   const drafts = Object.fromEntries(documents.map(item => [item.id,
     dirtyIds.has(item.id) && item.id !== savedId ? current.drafts[item.id] : item.content,

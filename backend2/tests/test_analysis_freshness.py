@@ -23,6 +23,10 @@ def configured_schedule(monkeypatch):
     monkeypatch.setattr(settings, "greenpeak_daily_analysis_hour", 16)
     monkeypatch.setattr(settings, "greenpeak_daily_analysis_minute", 0)
     monkeypatch.setattr(settings, "greenpeak_daily_analysis_timezone", "Asia/Tehran")
+    monkeypatch.setattr(settings, "greenpeak_market_evening_analysis_enabled", True)
+    monkeypatch.setattr(settings, "greenpeak_market_evening_analysis_hour", 21)
+    monkeypatch.setattr(settings, "greenpeak_market_evening_analysis_minute", 30)
+    monkeypatch.setattr(settings, "greenpeak_market_evening_analysis_timezone", "Asia/Tehran")
 
 
 def snapshot(day="2026-10-15", generated="2026-10-15T12:34:34Z"):
@@ -41,7 +45,7 @@ def test_yesterdays_analysis_is_overdue_after_todays_scheduled_time():
 
 
 def test_previous_analysis_is_expected_before_todays_run():
-    freshness = market_analysis_freshness(snapshot(), now=datetime(2026, 10, 16, 15, 59, tzinfo=TEHRAN))
+    freshness = market_analysis_freshness(snapshot(generated="2026-10-15T18:04:00Z"), now=datetime(2026, 10, 16, 15, 59, tzinfo=TEHRAN))
     assert freshness["status"] == "scheduled"
     assert freshness["is_stale"] is False
     assert freshness["expected_as_of_date"] == "2026-10-15"
@@ -60,9 +64,19 @@ def test_fresh_narrative_can_use_older_observations():
 
 def test_calendar_boundary_uses_tehran_instead_of_utc_date():
     now = datetime(2026, 10, 16, 21, 30, tzinfo=UTC)
-    freshness = market_analysis_freshness(snapshot("2026-10-16", "2026-10-16T13:00:00Z"), now=now)
+    freshness = market_analysis_freshness(snapshot("2026-10-16", "2026-10-16T18:04:00Z"), now=now)
     assert freshness["status"] == "scheduled"
     assert freshness["scheduled_for"].startswith("2026-10-17")
+
+
+def test_evening_deadline_requires_a_new_report_even_on_the_same_day():
+    afternoon = snapshot("2026-10-16", "2026-10-16T12:34:00Z")
+    assert market_analysis_freshness(afternoon, now=datetime(2026, 10, 16, 21, 29, tzinfo=TEHRAN))["status"] == "current"
+    freshness = market_analysis_freshness(afternoon, now=datetime(2026, 10, 16, 21, 30, tzinfo=TEHRAN))
+    assert freshness["status"] == "overdue"
+    assert freshness["scheduled_for"] == "2026-10-16T21:30:00+03:30"
+    evening = snapshot("2026-10-16", "2026-10-16T18:04:00Z")
+    assert market_analysis_freshness(evening, now=datetime(2026, 10, 16, 22, 0, tzinfo=TEHRAN))["status"] == "current"
 
 
 @pytest.mark.parametrize("document", [

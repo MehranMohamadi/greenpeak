@@ -14,6 +14,7 @@ MAX_DYNAMIC_SYMBOLS = 12
 
 ASSET_LABELS = {
     "sp500": "S&P 500",
+    "nasdaq100": "Nasdaq 100",
     "gold": "Gold",
     "eurusd": "EUR/USD",
     "bitcoin": "Bitcoin",
@@ -29,8 +30,6 @@ COMMON_SYMBOLS = (
     "NZDUSD",
     "EURJPY",
     "GBPJPY",
-    "NASDAQ",
-    "NAS100",
     "US30",
     "DAX40",
     "UK100",
@@ -59,7 +58,26 @@ def _normalized_symbol(symbol: Any) -> str:
     return "".join(character for character in str(symbol or "").upper() if character.isalnum())
 
 
-def _asset_identity(symbol: Any) -> tuple[str, str]:
+def _is_nasdaq100(symbol: Any, description: Any = None) -> bool:
+    name = _normalized_symbol(symbol)
+    detail = _normalized_symbol(description) if isinstance(description, str) else ""
+    # Other Nasdaq indices and listed funds are different instruments.
+    excluded = ("COMPOSITE", "EQUALWEIGHT", "BIOTECH", "NASDAQNEXTGEN", "NASDAQINC", "NASDAQ100ESG", "EXCHANGETRADEDFUND")
+    if any(word in name or word in detail for word in excluded):
+        return False
+    if re.search(r"\b(?:ETF|ETN|UCITS)\b", str(description or ""), re.IGNORECASE):
+        return False
+    aliases = r"(?:NASDAQ100|NAS100|US100|USTECH100|USTEC100|USATECH100|USATEC100|NDX100|NDQ100|NQ100|TECH100)"
+    if re.search(aliases + r"(?!\d)", name) or re.search(aliases + r"(?!\d)", detail):
+        return True
+    # Legacy broker names omit 100; accept their usual suffixes, not arbitrary
+    # Nasdaq-listed companies or other numbered indices (e.g. NAS1000).
+    return bool(re.fullmatch(
+        r"[A-Z]?(?:NASDAQ|USTEC|USTECH|NDX|NDQ)(?:CASH|SPOT|CFD|USD|ECN|PRO|RAW|[A-Z])?", name,
+    ))
+
+
+def _asset_identity(symbol: Any, description: Any = None) -> tuple[str, str]:
     normalized = _normalized_symbol(symbol)
     if not normalized:
         return "", "Unknown"
@@ -67,6 +85,8 @@ def _asset_identity(symbol: Any) -> tuple[str, str]:
         return "gold", ASSET_LABELS["gold"]
     if normalized == "SPX" or any(alias in normalized for alias in ("US500", "SP500", "SPX500", "USA500", "SANDP500")):
         return "sp500", ASSET_LABELS["sp500"]
+    if _is_nasdaq100(symbol, description):
+        return "nasdaq100", ASSET_LABELS["nasdaq100"]
     if "EURUSD" in normalized:
         return "eurusd", ASSET_LABELS["eurusd"]
     if any(alias in normalized for alias in ("BTCUSD", "XBTUSD", "BTCEUR", "BITCOIN")):
@@ -146,7 +166,7 @@ def _account_symbol_rows(snapshot: dict[str, Any]) -> dict[str, dict[str, Any]]:
         }
     )
     for item in snapshot.get("broker_symbol_data") or []:
-        key, label = _asset_identity(item.get("symbol"))
+        key, label = _asset_identity(item.get("symbol"), item.get("description") or item.get("symbol_description"))
         if not key:
             continue
         bucket = buckets[key]

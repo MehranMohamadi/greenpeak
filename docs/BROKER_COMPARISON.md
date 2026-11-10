@@ -32,3 +32,25 @@ are not remotely modified.
 
 References: [MQL5 account properties](https://www.mql5.com/en/docs/constants/environment_state/accountinformation),
 [MetaEditor compilation](https://www.metatrader5.com/en/metaeditor/help/beginning/integration_ide).
+
+## Nasdaq 100 symbol identity
+
+Nasdaq-100 aliases such as `NAS100`, `US100`, `USTEC`, `USTECH`, `NASDAQ100`,
+`NDX100`, and broker suffixes share `asset_key=nasdaq100` and the label
+`Nasdaq 100`. Explicit descriptions such as `Nasdaq 100 Index` or
+`US Tech 100` also identify opaque broker symbols. Nasdaq Composite,
+equal-weight/other Nasdaq indices, and descriptions identifying ETFs are
+excluded. Unknown instruments are not assigned a Nasdaq identity by price.
+
+This normalization runs while reading snapshots, without rewriting raw data.
+Aliases within an account still contribute one account/asset observation.
+Existing median formulas, swap-unit handling, account-type separation and
+private identifier redaction remain unchanged.
+
+Expert version 1.05 adds `broker_symbol_data[].description` from
+[`SYMBOL_DESCRIPTION`](https://www.mql5.com/en/docs/marketinformation/symbolinfostring),
+automatic Nasdaq-100 benchmark sampling, and an optional
+`Nasdaq100BrokerSymbol` override. Existing stored aliases work immediately
+with the updated backend. Opaque symbols without descriptions require a new
+snapshot from the updated expert. Existing installed experts are not remotely
+modified; compile/install the updated source before using these new fields.

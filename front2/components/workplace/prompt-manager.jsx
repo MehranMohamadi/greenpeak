@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
-import { ArrowRight, FilePenLine, RefreshCw, RotateCcw, Save } from "lucide-react"
+import { ArrowRight, Clock3, FilePenLine, RefreshCw, RotateCcw, Save } from "lucide-react"
 import { endpoints } from "@/api/api"
 import { useAuth } from "@/components/auth/auth-context"
 import Layout from "@/components/kokonutui/layout"
@@ -97,7 +97,7 @@ export default function PromptManager() {
       <div><h1 className="flex items-center gap-2 text-2xl font-bold"><FilePenLine className="h-6 w-6 text-primary" />پرامپت‌های تحلیل</h1><p className="mt-2 text-sm text-muted-foreground">دستورهای فعال ارسالی به هوش مصنوعی را مشاهده و ویرایش کنید.</p></div>
       <Button asChild variant="outline"><Link href="/workplace?tab=tools"><ArrowRight className="me-2 h-4 w-4" />تنظیمات و ابزارها</Link></Button>
     </header>
-    <p className="rounded-lg border bg-muted/30 p-4 text-sm leading-7 text-muted-foreground">این متن‌ها دستور تحلیل‌اند؛ داده‌های روز، سؤال کاربر و قالب پاسخ هنگام اجرا به آن‌ها افزوده می‌شوند. تغییر متن از درخواست بعدی اعمال می‌شود و نسخه‌های ذخیره‌شده برای پیگیری تغییرات نگه داشته می‌شوند.</p>
+    <p className="rounded-lg border bg-muted/30 p-4 text-sm leading-7 text-muted-foreground">این متن‌ها دستور تحلیل‌اند؛ داده‌های روز، سؤال کاربر و قالب پاسخ هنگام اجرا به آن‌ها افزوده می‌شوند. تغییر متن از درخواست بعدی اعمال می‌شود و نسخه‌های ذخیره‌شده برای پیگیری تغییرات نگه داشته می‌شوند. زمان‌های زیر مربوط به تولید خروجی تحلیل‌اند؛ متن پرامپت فقط با ذخیرهٔ مدیر تغییر می‌کند.</p>
     {feedback && <p role={feedback.ok ? "status" : "alert"} className={`text-sm ${feedback.ok ? "text-primary" : "text-destructive"}`}>{feedback.text}</p>}
     <div className="grid items-start gap-4 lg:grid-cols-[17rem_minmax(0,1fr)]">
       <nav aria-label="انواع پرامپت" className="space-y-2">
@@ -106,12 +106,24 @@ export default function PromptManager() {
           className={`w-full rounded-lg border p-3 text-right transition disabled:opacity-60 ${selectedId === item.id ? "border-primary/40 bg-primary/10" : "bg-card hover:bg-muted/50"}`}>
           <span className="flex items-center justify-between gap-2 text-sm font-medium">{item.title}{drafts[item.id] !== item.content && <span className="h-2 w-2 rounded-full bg-amber-500" title="ویرایش ذخیره‌نشده"><span className="sr-only">ویرایش ذخیره‌نشده</span></span>}</span>
           <span className="mt-1 block text-xs leading-5 text-muted-foreground">{item.description}</span>
+          {item.update_schedule && <span className="mt-2 block border-t pt-2 text-xs leading-6 text-muted-foreground">
+            <span className="block"><Clock3 aria-hidden="true" className="me-1 inline h-3.5 w-3.5" />پیش‌فرض: {item.update_schedule.default_summary_fa}</span>
+            {item.update_schedule.configured_summary_fa !== item.update_schedule.default_summary_fa && <span className="block font-medium text-foreground">تنظیم فعلی: {item.update_schedule.configured_summary_fa}</span>}
+          </span>}
         </button>)}
       </nav>
       {loading && !selected ? <p role="status" className="p-4 text-sm">در حال دریافت پرامپت‌ها…</p> : selected && <Card className="min-w-0">
         <CardHeader className="space-y-3">
           <CardTitle className="text-lg">{selected.title}</CardTitle>
           <CardDescription>{selected.description}</CardDescription>
+          {selected.update_schedule && <div className="rounded-lg border bg-muted/30 p-3 text-sm leading-7">
+            <p className="flex items-center gap-2 font-medium"><Clock3 aria-hidden="true" className="h-4 w-4 shrink-0 text-primary" />زمان‌بندی به‌روزرسانی تحلیل</p>
+            <dl className="mt-2 space-y-1 text-muted-foreground">
+              <div><dt className="inline font-medium">پیش‌فرض: </dt><dd className="inline">{selected.update_schedule.default_summary_fa}</dd></div>
+              {selected.update_schedule.configured_summary_fa !== selected.update_schedule.default_summary_fa && <div><dt className="inline font-medium text-foreground">تنظیم فعلی سرور: </dt><dd className="inline text-foreground">{selected.update_schedule.configured_summary_fa}</dd></div>}
+              <div><dt className="sr-only">نحوهٔ اجرا</dt><dd>{selected.update_schedule.details_fa}</dd></div>
+            </dl>
+          </div>}
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><Badge variant="outline"><span dir="ltr">{selected.version}</span></Badge><Badge variant="secondary">{selected.customized ? "ویرایش مدیریتی" : "متن پیش‌فرض"}</Badge>{selected.updated_at && <span>آخرین ذخیره: {date(selected.updated_at)} تهران</span>}</div>
         </CardHeader>
         <CardContent className="space-y-4">

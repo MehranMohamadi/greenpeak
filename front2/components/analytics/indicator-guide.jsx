@@ -13,8 +13,8 @@ const FIELDS = [
   ["decrease", "اگر کاهش یابد"],
 ]
 
-/** @param {{ indicatorId?: string, title: string, indicators?: { id: string, label?: string }[], className?: string }} props */
-export default function IndicatorGuide({ indicatorId = "", title, indicators, className = "" }) {
+/** @param {{ indicatorId?: string, title: string, indicators?: { id: string, label?: string }[], className?: string, chartDescription?: string, chartSource?: import("react").ReactNode }} props */
+export default function IndicatorGuide({ indicatorId = "", title, indicators, className = "", chartDescription, chartSource }) {
   const items = indicators || [{ id: indicatorId, label: title }]
   return (
     <Dialog>
@@ -31,6 +31,11 @@ export default function IndicatorGuide({ indicatorId = "", title, indicators, cl
           <DialogDescription>معنی شاخص و تفسیر افزایش و کاهش آن</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 space-y-5 overflow-y-auto overscroll-contain">
+          {(chartDescription || chartSource) && <section className="space-y-3 rounded-lg border p-4">
+            <h3 className="text-sm font-medium text-primary">اطلاعات چارت</h3>
+            {chartDescription && <p dir="ltr" className="whitespace-pre-line text-left text-sm leading-6">{chartDescription}</p>}
+            {chartSource && <div dir="ltr" className="space-y-1 text-left text-xs leading-6 text-muted-foreground"><p className="font-medium text-foreground">Data source & observation</p><div>{chartSource}</div></div>}
+          </section>}
           {items.map((item) => {
             const guide = getIndicatorGuide(item.id)
             const note = indicatorGuideNote(item.id)

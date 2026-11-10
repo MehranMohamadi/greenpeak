@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { MT5_BROKER_DELETED_EVENT } from "@/lib/mt5-account-changes"
-import { freshnessSummary } from "@/lib/risk-management"
+import { accountMarginStatus, freshnessSummary } from "@/lib/risk-management"
 import { formatTradeTime } from "@/lib/mt5-trade-lifecycles"
 import {
   EmptyCollection,
@@ -20,7 +20,11 @@ import {
 } from "./mt5-data-view"
 
 const hasNumber = (value) => value !== null && value !== "" && Number.isFinite(Number(value))
-const accountGridClass = "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,.75fr)_minmax(0,.85fr)_minmax(0,.75fr)_2rem]"
+const accountGridStyle = {
+  // Preserve the original column unit: 2rem data column + seven .375rem gaps.
+  "--account-column-unit": "calc((100% - 4.625rem) / 6.45)",
+  gridTemplateColumns: "minmax(0, calc(var(--account-column-unit) * 1.32)) minmax(0, calc(var(--account-column-unit) * .9)) minmax(0, calc(var(--account-column-unit) * .9)) minmax(0, calc(var(--account-column-unit) * .9)) minmax(0, calc(var(--account-column-unit) * .675)) minmax(0, calc(var(--account-column-unit) * .765)) minmax(0, calc(var(--account-column-unit) * .675)) 2rem",
+}
 
 const normalizeSymbol = (symbol) => String(symbol || "").toUpperCase().replace(/[^A-Z0-9]/g, "")
 
@@ -201,6 +205,8 @@ function AccountRow({ snapshot, onDelete, deleting, loading, error }) {
   const accountIdentifier = snapshot.source?.account_identifier || "—"
   const totalLeverage = portfolio.gross_portfolio_leverage
   const drawdown = portfolio.account_current_drawdown_pct
+  const margin = accountMarginStatus(snapshot)
+  const marginValue = margin.applicable === false ? "بدون مارجین" : hasNumber(margin.levelPct) ? `${number(margin.levelPct, 2)}%` : "—"
 
   return <details className="group rounded-lg border bg-gray-50 open:border-cyan-500/30 open:bg-cyan-500/[0.03] dark:border-[#2B2B30] dark:bg-[#0F0F12]">
     <summary className="relative cursor-pointer list-none p-3 pl-[4.5rem] [&::-webkit-details-marker]:hidden">
@@ -216,13 +222,13 @@ function AccountRow({ snapshot, onDelete, deleting, loading, error }) {
         disabled={deleting || !snapshot.source?.broker_company?.trim()}
         onClick={(event) => { event.preventDefault(); event.stopPropagation(); onDelete(snapshot.source.broker_company) }}
       ><Trash2 className="h-4 w-4" /></Button>}
-      <div className={`hidden items-center gap-1.5 text-center text-[11px] lg:grid ${accountGridClass}`}>
-        <div className="min-w-0 text-right"><p className="truncate text-sm font-semibold text-foreground">{broker}</p><p className="truncate text-[10px] text-muted-foreground">حساب {accountIdentifier}</p></div>
+      <div style={accountGridStyle} className="hidden items-center gap-1.5 text-center text-[11px] lg:grid">
+        <div className="min-w-0 text-right"><p title={broker} className="truncate text-sm font-semibold text-foreground">{broker}</p><p title={`حساب ${accountIdentifier}`} className="truncate text-[10px] text-muted-foreground">حساب {accountIdentifier}</p></div>
         <Value value={money(account.balance, currency)} />
         <Value value={money(account.equity, currency)} />
         <Value value={money(account.floating_profit_loss, currency)} tone={profitTone(account.floating_profit_loss)} />
         <Value value={hasNumber(totalLeverage) ? `${number(totalLeverage, 2, 2)}×` : "—"} />
-        <Value value={hasNumber(account.margin_level_pct) ? `${number(account.margin_level_pct, 2)}%` : "—"} tone={marginTone(account.margin_level_pct)} />
+        <Value value={marginValue} tone={marginTone(margin.levelPct)} />
         <Value value={hasNumber(drawdown) ? `${number(drawdown, 2)}%` : "—"} tone={drawdownTone(drawdown)} />
         <AccountFreshnessIndicator snapshot={snapshot} loading={loading} error={error} />
       </div>
@@ -239,7 +245,7 @@ function AccountRow({ snapshot, onDelete, deleting, loading, error }) {
           <div><dt className="text-[10px] text-muted-foreground">موجودی</dt><dd><Value value={money(account.balance, currency)} /></dd></div>
           <div><dt className="text-[10px] text-muted-foreground">سود/زیان شناور</dt><dd><Value value={money(account.floating_profit_loss, currency)} tone={profitTone(account.floating_profit_loss)} /></dd></div>
           <div><dt className="text-[10px] text-muted-foreground">اهرم کل</dt><dd><Value value={hasNumber(totalLeverage) ? `${number(totalLeverage, 2, 2)}×` : "—"} /></dd></div>
-          <div><dt className="text-[10px] text-muted-foreground">سطح مارجین</dt><dd><Value value={hasNumber(account.margin_level_pct) ? `${number(account.margin_level_pct, 2)}%` : "—"} tone={marginTone(account.margin_level_pct)} /></dd></div>
+          <div><dt className="text-[10px] text-muted-foreground">سطح مارجین</dt><dd><Value value={marginValue} tone={marginTone(margin.levelPct)} /></dd></div>
           <div><dt className="text-[10px] text-muted-foreground">افت سرمایه</dt><dd><Value value={hasNumber(drawdown) ? `${number(drawdown, 2)}%` : "—"} tone={drawdownTone(drawdown)} /></dd></div>
         </dl>
       </div>
@@ -264,7 +270,7 @@ function AccountRow({ snapshot, onDelete, deleting, loading, error }) {
   </details>
 }
 
-const comparisonAssetPriority = { sp500: 0, gold: 1, eurusd: 2, bitcoin: 3, ethereum: 4 }
+const comparisonAssetPriority = { sp500: 0, nasdaq100: 1, gold: 2, eurusd: 3, bitcoin: 4, ethereum: 5 }
 
 const comparisonAccountTypeLabel = (type) => ({
   real: "ریل",
@@ -274,6 +280,7 @@ const comparisonAccountTypeLabel = (type) => ({
 
 const comparisonAssetLabel = (asset) => ({
   sp500: "S&P 500",
+  nasdaq100: "Nasdaq 100",
   gold: "طلا",
   eurusd: "EUR/USD",
   bitcoin: "بیت‌کوین",
@@ -534,7 +541,7 @@ export default function BrokerAccountOverview({ snapshots = [], accessToken = ""
         <div className={`min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-5 ${tab === "accounts" ? "overflow-x-hidden" : "overflow-x-auto"}`}>
       {tab === "comparison" ? <ComparisonTable comparison={comparison} loading={comparisonLoading} error={comparisonError} onRetry={loadComparison} /> :
       <div className="min-w-0 space-y-2">
-        <div className={`sticky top-0 z-10 hidden gap-1.5 border-b bg-white py-2 pl-[4.5rem] pr-3 text-center text-[10px] font-medium text-muted-foreground dark:bg-[#1F1F23] lg:grid ${accountGridClass}`}>
+        <div style={accountGridStyle} className="sticky top-0 z-10 hidden gap-1.5 border-b bg-white py-2 pl-[4.5rem] pr-3 text-center text-[10px] font-medium text-muted-foreground dark:bg-[#1F1F23] lg:grid">
           <span className="text-right">بروکر / حساب</span><span>موجودی</span><span>خالص دارایی</span><span>سود/زیان شناور</span><span>اهرم کل</span><span>سطح مارجین</span><span>افت سرمایه</span><span>داده</span>
         </div>
         {!snapshots.length && <EmptyCollection>حساب بروکری برای نمایش وجود ندارد.</EmptyCollection>}

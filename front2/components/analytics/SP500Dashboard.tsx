@@ -63,44 +63,44 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
   if (compact) {
     return (
       <Card className="flex h-64 min-h-0 flex-col overflow-hidden border-border" dir="ltr">
-        <CardHeader className="shrink-0 space-y-2 border-b border-border p-3 pb-2">
-          <div className="flex items-center justify-between gap-2">
-            <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
-              <Activity className="h-4 w-4 shrink-0 text-primary" />
-              <span className="truncate">S&amp;P 500</span>
-              <IndicatorGuide indicatorId="sp500" title="S&P 500" />
-            </CardTitle>
+        <CardHeader className="shrink-0 flex-row flex-wrap items-center gap-x-1.5 gap-y-1 space-y-0 border-b border-border px-2 pb-1.5 !pt-1.5">
+          <CardTitle className="flex shrink-0 items-center gap-1 text-sm">
+            <Activity className="h-4 w-4 shrink-0 text-primary" />
+            <span className="truncate">S&amp;P 500</span>
+            <IndicatorGuide indicatorId="sp500" title="S&P 500" />
+          </CardTitle>
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            <div className="flex items-center gap-0.5" role="group" aria-label="S&P 500 chart timeframe">
+              {["1D", "5D", "1M", "6M"].map((timeframe) => (
+                <button
+                  key={timeframe}
+                  type="button"
+                  onClick={() => setSelectedTimeframe(timeframe)}
+                  aria-pressed={selectedTimeframe === timeframe}
+                  className={`h-6 min-w-7 rounded px-1 text-[10px] font-medium transition-colors ${
+                    selectedTimeframe === timeframe
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  }`}
+                >
+                  {timeframe}
+                </button>
+              ))}
+            </div>
             <Button
               type="button"
               variant="ghost"
               size="icon"
               onClick={refresh}
               disabled={loading || refreshing}
-              className="h-7 w-7 shrink-0 text-muted-foreground hover:bg-accent hover:text-primary"
+              className="h-6 w-6 shrink-0 text-muted-foreground hover:bg-accent hover:text-primary"
               aria-label="Refresh S&P 500 chart"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
             </Button>
           </div>
-          <div className="grid grid-cols-4 gap-1" role="group" aria-label="S&P 500 chart timeframe">
-            {["1D", "5D", "1M", "6M"].map((timeframe) => (
-              <button
-                key={timeframe}
-                type="button"
-                onClick={() => setSelectedTimeframe(timeframe)}
-                aria-pressed={selectedTimeframe === timeframe}
-                className={`rounded px-1 py-1 text-[10px] font-medium transition-colors ${
-                  selectedTimeframe === timeframe
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                }`}
-              >
-                {timeframe}
-              </button>
-            ))}
-          </div>
         </CardHeader>
-        <CardContent className="min-h-0 flex-1 p-0 pl-2">
+        <CardContent className="min-h-0 flex-1 p-0">
           {loading && data.length === 0 ? (
             <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
               <LoaderCircle className="mr-2 h-4 w-4 animate-spin text-primary" />
@@ -112,7 +112,7 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
               S&amp;P 500 data is unavailable.
             </div>
           ) : (
-            <SP500Chart data={data} className="h-full min-h-[150px] w-full" />
+            <SP500Chart data={data} className="h-full min-h-0 w-full" />
           )}
         </CardContent>
       </Card>

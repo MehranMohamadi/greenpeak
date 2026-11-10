@@ -3,6 +3,7 @@ import PremiumAnalysisGate from "@/components/analytics/premium-analysis-gate"
 import { useAuth } from "@/components/auth/auth-context"
 
 import { useEffect, useState } from "react"
+import useReducedAnalysisHeight, { INDICATOR_PANEL_REDUCTION } from "@/hooks/useReducedAnalysisHeight"
 import { endpoints } from "@/api/api"
 import { matchingNarrative, monetaryNarrativeIds } from "@/lib/monetary-narrative"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,6 +21,7 @@ export function IndicatorNarrativeAnalysis(props) {
 
 function IndicatorNarrativeContent({ indicatorId, revision = 0, note, compact = false }) {
   const { accessToken } = useAuth()
+  const { panelRef, bodyRef, bodyHeight } = useReducedAnalysisHeight(compact ? 200 : 224, { contentSized: true, reduction: compact ? INDICATOR_PANEL_REDUCTION : 0.1 })
   const [result, setResult] = useState(null)
   useEffect(() => {
     const controller = new AbortController()
@@ -42,9 +44,9 @@ function IndicatorNarrativeContent({ indicatorId, revision = 0, note, compact = 
   const current = result?.indicatorId === indicatorId ? result : null
   const analysis = current?.analysis
   const analysisDate = analysis?.analysis_generated_at?.slice(0, 10)
-  return <Card dir="rtl" className="flex min-h-0 flex-col lg:absolute lg:inset-0">
+  return <Card ref={panelRef} dir="rtl" style={{ "--analysis-body-height": `${bodyHeight}px` }} className="flex min-h-0 flex-col lg:absolute lg:inset-0">
     <CardHeader className={`flex-row flex-wrap items-center justify-between gap-2 space-y-0 shrink-0 ${compact ? "pb-2 !pt-2.5" : ""}`}><CardTitle className="text-base">تحلیل شاخص</CardTitle>{analysisDate && <time dateTime={analysisDate} dir="ltr" className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">{analysisDate}</time>}</CardHeader>
-    <CardContent className={compact ? "max-h-[12.5rem] min-h-0 space-y-3 overflow-y-auto pb-2 text-right lg:max-h-none lg:flex-1" : "max-h-[14rem] space-y-4 overflow-y-auto text-right"}>
+    <CardContent ref={bodyRef} className={compact ? "max-h-[var(--analysis-body-height)] min-h-0 space-y-3 overflow-y-auto pb-2 text-right lg:max-h-none lg:flex-1" : "max-h-[var(--analysis-body-height)] space-y-4 overflow-y-auto text-right"}>
       {note && <p className="text-xs leading-6 text-muted-foreground">{note}</p>}
       {!current && <p role="status" className="text-sm">در حال دریافت تحلیل…</p>}
       {current?.missing && <p className="text-sm">هنوز تحلیلی برای این شاخص ثبت نشده است.</p>}

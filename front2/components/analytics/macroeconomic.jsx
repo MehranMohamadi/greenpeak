@@ -11,9 +11,10 @@ import { BriefcaseBusiness, Building2, Gauge, LineChart, ShoppingCart, Users, Ma
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import useMacroEcoData from "@/hooks/useMacroEcoData"
-import { AnalysisFactorCard, AnalysisPageHeader, AnalysisPageShell, AnalysisState } from "./analysis-page"
+import useReducedAnalysisHeight, { INDICATOR_PANEL_REDUCTION } from "@/hooks/useReducedAnalysisHeight"
+import { AnalysisFactorCard, AnalysisPageHeader, AnalysisPageShell, AnalysisState, compactTimeframeButtonClass } from "./analysis-page"
 
 const MultiLineChart = dynamic(() => import("../charts/multi-line-chart"), { ssr: false })
 
@@ -53,6 +54,7 @@ export default function Macroeconomic() {
   const { resolvedTheme } = useTheme()
   const chartTextColor = resolvedTheme === "light" ? "#475569" : "#e0e0e0"
   const chartRef = useRef(null)
+  const { panelRef: chartPanelRef, bodyRef: chartBodyRef, bodyHeight: chartHeight } = useReducedAnalysisHeight(200, { reduction: INDICATOR_PANEL_REDUCTION })
   const [isFullScreen, setIsFullScreen] = useState(false)
   const [revision, setRevision] = useState(0)
   const [selectedId, setSelectedId] = useState(FACTORS[0].id)
@@ -66,27 +68,25 @@ export default function Macroeconomic() {
   const observationDate = selectedMetadata?.observation_date || selectedMetadata?.latest_date || selectedData.at(-1)?.date || "N/A"
   const unit = selected.format === "percent" ? "%" : selected.format === "millions" ? "USD millions" : selected.format === "payroll" ? "Thousands of persons" : "Index"
   const sourceLine = <>{selectedMetadata?.source || "Source unavailable"} · {observationDate} · {unit}{(selectedMetadata?.source_series_id || selectedMetadata?.fred_series) && <> · {selectedMetadata.source_series_id || selectedMetadata.fred_series}</>}{selectedMetadata?.latest_observation_status && <> · {selectedMetadata.latest_observation_status}</>}{selectedMetadata?.quality_status === "stale" && <span className="ml-2 text-amber-700 dark:text-amber-400">Data is outdated</span>}</>
-  const periodControls = <div className="flex flex-wrap gap-1">{PERIODS.map((item) => <Button key={item} size="sm" variant={period === item ? "default" : "outline"} onClick={() => setPeriod(item)}>{item}</Button>)}</div>
+  const renderPeriodControls = (compact = false) => <div className="flex flex-wrap gap-1">{PERIODS.map((item) => <Button key={item} size="sm" className={compact ? compactTimeframeButtonClass : undefined} variant={period === item ? "default" : "outline"} onClick={() => setPeriod(item)}>{item}</Button>)}</div>
 
   return (
     <AnalysisPageShell>
       <AnalysisPageHeader page="macroeconomic" title="Growth, Inflation & Labor" showDescription={false} />
-      <Card dir="rtl">
+      <Card dir="rtl" data-analysis-group-card>
         <CardContent className="px-4 pb-4 !pt-2.5"><DomainUnderstandingPanel domainId="growth_inflation_labor" simple onUpdated={() => setRevision((value) => value + 1)} /></CardContent>
       </Card>
       {error && <AnalysisState tone="neutral" title="Macroeconomic service unavailable" description={error} />}
       <div dir="ltr" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
-        <Card ref={chartRef} className="min-w-0 lg:col-start-1 lg:row-start-1">
-          <CardHeader className="space-y-3">
-            <CardTitle className="flex items-start justify-between gap-3 text-base"><span className="flex min-w-0 items-center gap-2"><span className="min-w-0 break-words">{selected.title}</span><IndicatorGuide indicatorId={(selected.indicatorId || selected.id)} title={selected.title} /></span><Button variant="outline" size="icon" title="Expand chart" aria-label="Expand chart" disabled={!chartData.length} onClick={() => setIsFullScreen(true)}><Maximize2 className="h-4 w-4" /></Button></CardTitle>
-            <CardDescription className="text-xs">{sourceLine}</CardDescription>
-            <p className="text-xs leading-5 text-muted-foreground">{selected.detail}</p>
-            {periodControls}
+        <Card ref={node => { chartRef.current = node; chartPanelRef.current = node }} className="min-w-0 lg:col-start-1 lg:row-start-1">
+          <CardHeader className="space-y-1.5">
+            <CardTitle className="flex items-start justify-between gap-3 text-base"><span className="flex min-w-0 items-center gap-2"><span className="min-w-0 break-words">{selected.title}</span><IndicatorGuide indicatorId={(selected.indicatorId || selected.id)} title={selected.title} chartDescription={selected.detail} chartSource={sourceLine} /></span><Button variant="outline" size="icon" title="Expand chart" aria-label="Expand chart" disabled={!chartData.length} onClick={() => setIsFullScreen(true)}><Maximize2 className="h-4 w-4" /></Button></CardTitle>
+            {renderPeriodControls(true)}
           </CardHeader>
           <CardContent>
             {loading && <AnalysisState tone="neutral" title="Loading observations" />}
             {!loading && chartData.length === 0 && <AnalysisState tone="neutral" title="No verified observations" description={errors[selected.key] || selectedMetadata?.quality_reason || "No observations were returned."} />}
-            {!loading && chartData.length > 0 && <div className="h-[200px] w-full overflow-hidden"><MultiLineChart dataSets={[chartData]} height={200} textColor={chartTextColor} /></div>}
+            {!loading && chartData.length > 0 && <div ref={chartBodyRef} style={{ height: chartHeight }} className="w-full overflow-hidden"><MultiLineChart dataSets={[chartData]} height={chartHeight} textColor={chartTextColor} /></div>}
           </CardContent>
         </Card>
         <div className="min-w-0 [overflow-wrap:anywhere] relative min-h-0 lg:col-start-2 lg:row-start-1">
@@ -119,8 +119,8 @@ export default function Macroeconomic() {
       </section>
       <Dialog open={isFullScreen} onOpenChange={setIsFullScreen}>
         <DialogContent className="w-[95vw] max-w-6xl">
-          <DialogHeader><DialogTitle className="flex items-center gap-2">{selected.title}<IndicatorGuide indicatorId={(selected.indicatorId || selected.id)} title={selected.title} /></DialogTitle><DialogDescription>{sourceLine}</DialogDescription></DialogHeader>
-          {periodControls}
+          <DialogHeader><DialogTitle className="flex items-center gap-2">{selected.title}<IndicatorGuide indicatorId={(selected.indicatorId || selected.id)} title={selected.title} chartDescription={selected.detail} chartSource={sourceLine} /></DialogTitle><DialogDescription className="sr-only">Expanded chart</DialogDescription></DialogHeader>
+          {renderPeriodControls()}
           {isFullScreen && <MultiLineChart dataSets={[chartData]} height={440} textColor={chartTextColor} />}
         </DialogContent>
       </Dialog>

@@ -114,14 +114,15 @@ def run_llm_pipeline(
     as_of: date,
     force: bool = False,
     horizontal_evidence: dict[str, Any] | None = None,
+    market_only: bool = False,
 ) -> dict:
-    """Run indicator -> domain -> market analysis from persisted upstream snapshots only."""
+    """Run the full pipeline, or refresh the market using validated stored domains."""
     domains, _, indicators = load_registry()
     narrative_repository.ensure_indexes()
     run_id = str(uuid4())
     results: dict[str, Any] = {"run_id": run_id, "as_of_date": as_of.isoformat(), "indicator": [], "domain": [], "market": None, "errors": []}
     indicator_outputs = {}
-    for indicator_id, config in indicators.items():
+    for indicator_id, config in (() if market_only else indicators.items()):
         if not config.enabled or not config.llm.enabled:
             continue
         feature = feature_repository.snapshot_for_as_of(indicator_id, as_of)
@@ -140,6 +141,17 @@ def run_llm_pipeline(
 
     domain_outputs = {}
     for domain in domains.domains:
+        if market_only:
+            try:
+                stored = narrative_repository.latest("domain", domain.id)
+                if stored:
+                    value = _validate_stored("domain", stored)
+                    if value.as_of_date <= as_of:
+                        domain_outputs[domain.id] = value
+                        results["domain"].append({"subject_id": domain.id, "status": "reused"})
+            except (ValidationError, ValueError, TypeError):
+                results["errors"].append(f"{domain.id}:stored_domain_invalid")
+            continue
         configured = domain_indicator_ids(domain.id, indicators)
         available = [indicator_outputs[item] for item in configured if item in indicator_outputs]
         if not available:
@@ -158,6 +170,8 @@ def run_llm_pipeline(
         except Exception as exc:
             results["errors"].append(f"{domain.id}:{type(exc).__name__}")
 
+    if market_only and not domain_outputs:
+        results["errors"].append("market:domain_narratives_missing")
     if domain_outputs:
         ratio = len(domain_outputs) / len(domains.domains)
         coverage = {"status": "full" if ratio == 1 else "provisional", "ratio": ratio, "configured_count": len(domains.domains), "available_count": len(domain_outputs), "missing_inputs": sorted({item.id for item in domains.domains} - set(domain_outputs))}
@@ -169,7 +183,8 @@ def run_llm_pipeline(
                 "upcoming_us_events": [],
                 "warnings": ["horizontal_evidence_unavailable"],
             },
-            "versions": {"domain_config_version": domains.config_version},
+            "versions": {"domain_config_version": domains.config_version,
+                         **({"market_schedule_slot": "market-evening"} if market_only else {})},
         }
         try:
             evidence["previous_market_factors"] = previous_market_factors(narrative_repository, as_of)

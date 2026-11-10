@@ -106,10 +106,12 @@ export function AnalysisChartCard({ title, description, actions, children, foote
   )
 }
 
-export function TimeframeSelector({ periods, value, onChange, accentClass = "bg-primary text-primary-foreground" }) {
+export const compactTimeframeButtonClass = "h-[1.8rem] px-[0.6rem] text-[0.7rem]"
+
+export function TimeframeSelector({ periods, value, onChange, accentClass = "bg-primary text-primary-foreground", compact = false }) {
   return <div className="flex max-w-full gap-1 overflow-x-auto pb-1">{periods.map((period) => (
     <Button key={period} variant={value === period ? "default" : "outline"} size="sm" onClick={() => onChange(period)}
-      className={cn("h-8 min-w-10 px-2 text-xs", value === period && accentClass)}>{period}</Button>
+      className={cn(compact ? "h-[1.6rem] min-w-8 px-[0.4rem] text-[0.6rem]" : "h-8 min-w-10 px-2 text-xs", value === period && accentClass)}>{period}</Button>
   ))}</div>
 }
 
