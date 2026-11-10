@@ -336,13 +336,12 @@ export default function LastTrades({ snapshots = [], actions }) {
         <CardTitle className="flex items-center gap-2 text-base text-gray-900 dark:text-white">
           <Activity className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
           معاملات و سفارش‌ها
-          <Badge variant="secondary">{visible.length}</Badge>
+          <DialogTrigger asChild>
+            <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" aria-label="باز کردن معاملات و سفارش‌ها در پنجره بزرگ‌تر" title="نمایش معاملات در پنجره بزرگ‌تر">
+              <Maximize2 className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </DialogTrigger>
         </CardTitle>
-        <DialogTrigger asChild>
-          <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" aria-label="باز کردن معاملات و سفارش‌ها در پنجره بزرگ‌تر" title="نمایش معاملات در پنجره بزرگ‌تر">
-            <Maximize2 className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        </DialogTrigger>
         {actions}
         <TradeFilters filter={filter} groups={groups} onFilterChange={setFilter} />
       </CardHeader>
@@ -355,7 +354,6 @@ export default function LastTrades({ snapshots = [], actions }) {
         <DialogTitle className="flex items-center gap-2 text-base">
           <Activity className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
           معاملات و سفارش‌ها
-          <Badge variant="secondary">{visible.length}</Badge>
         </DialogTitle>
         <DialogDescription className="sr-only">نمایش معاملات باز، سفارش‌های در انتظار و معاملات بسته‌شده با فضای بیشتر و جزئیات هر ردیف</DialogDescription>
       </DialogHeader>

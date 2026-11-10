@@ -7,7 +7,7 @@ import { useAuth } from "@/components/auth/auth-context"
 export default function AuthWrapper({ children }) {
   const pathname = usePathname()
   const { isAdmin, isLoading } = useAuth()
-  const adminOnly = pathname === "/admin" || pathname.startsWith("/admin/") || pathname === "/learn" || pathname.startsWith("/learn/") || [
+  const adminOnly = pathname === "/admin" || pathname.startsWith("/admin/") || [
     "/analytics/feature-pipeline-debug", "/analytics/mt5-snapshots", "/architecture/ai-market-analysis",
   ].includes(pathname)
   
