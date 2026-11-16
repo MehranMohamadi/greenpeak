@@ -7,6 +7,7 @@ import { CalendarDays, Clock3, Info, Link2, LoaderCircle, Newspaper, RefreshCw, 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import SP500Dashboard from "@/components/analytics/SP500Dashboard"
 import MarketStatusCards from "@/components/analytics/market-status-cards"
 import { marketFactorGroups } from "@/lib/market-factors"
@@ -16,6 +17,9 @@ const reportTitles = {
   weekly: "چشم‌انداز هفته", daily: "نبض روز و مسیر نزدیک",
   session: "نبض جلسه", weekend: "نبض تعطیلات",
 }
+
+const analysisTabClass = "h-full w-full px-1.5 py-0 text-xs leading-none sm:px-3 sm:text-sm"
+const analysisPanelClass = "mt-0 min-h-0 flex-1 overflow-y-auto overscroll-contain"
 
 const statusLabels = {
   favorable: "مساعد", mixed: "ترکیبی", challenging: "پرچالش", unknown: "نامشخص",
@@ -466,30 +470,41 @@ export default function MarketIntelligenceSections({ market, onRefresh, loading 
     <section className="space-y-3">
       <div className="grid items-start gap-4 lg:grid-cols-[1.35fr_0.65fr]">
         <Card className="flex h-64 min-h-0 min-w-0 flex-col overflow-hidden border-border bg-card">
-          <CardHeader className="shrink-0 space-y-3 pb-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2"><CardTitle className="text-base">نبض بازار</CardTitle><Badge variant="outline">{reportTitles[market.report_kind] || "آخرین گزارش"}</Badge></div>
+          <Tabs defaultValue="current" dir="rtl" className="flex h-full min-h-0 flex-col">
+          <CardHeader className="shrink-0 flex-row flex-wrap items-center gap-x-3 gap-y-2 space-y-0 pb-3">
+            <TabsList aria-label="تحلیل بازار" className="grid h-12 min-w-0 max-w-full flex-auto grid-cols-3 items-stretch p-1.5">
+              <TabsTrigger value="current" className={analysisTabClass}>نبض بازار</TabsTrigger>
+              <TabsTrigger value="short-term" className={analysisTabClass}>کوتاه‌مدت</TabsTrigger>
+              <TabsTrigger value="medium-term" className={analysisTabClass}>میان‌مدت</TabsTrigger>
+            </TabsList>
+            <div className="ms-auto flex shrink-0 items-center justify-end gap-2">
               {onRefresh && <button type="button" disabled={loading} onClick={onRefresh} aria-label="دریافت آخرین تحلیل ذخیره‌شده" className="rounded-md p-1.5 text-primary hover:bg-muted disabled:opacity-50"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></button>}
             </div>
+          </CardHeader>
+          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pb-6">
+            <TabsContent value="current" className={`${analysisPanelClass} space-y-3`}>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] leading-5 text-muted-foreground">
+              <Badge variant="outline">{reportTitles[market.report_kind] || "آخرین گزارش"}</Badge>
               <time dateTime={market.analysis_generated_at}>گزارش: {formatTime(market.analysis_generated_at)} تهران</time>
               {market.coverage?.status === "provisional" && <span className="text-amber-600 dark:text-amber-400">پوشش شواهد ناقص</span>}
             </div>
-          </CardHeader>
-          <CardContent tabIndex={0} role="region" aria-label="متن نبض بازار" className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary">
             {market.analysis_freshness?.is_stale && <p role="status" className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs leading-6 text-amber-700 dark:text-amber-400">{market.analysis_freshness.status === "overdue" ? "گزارش نوبت تازه هنوز دریافت نشده؛ متن زیر مربوط به زمان درج‌شده است." : "تازگی گزارش تأیید نشده؛ تاریخ گزارش را در نظر بگیرید."}</p>}
             {currentHeadline && <h3 className="text-base font-semibold leading-7">{currentHeadline}</h3>}
             <p className={`whitespace-pre-line leading-7 ${currentHeadline ? "text-sm" : "text-base font-semibold"}`}>{currentMoveSummary}</p>
             <p className="whitespace-pre-line text-sm leading-8 text-muted-foreground">{market.current_analysis_fa || market.systemic_synthesis_fa || market.narrative_fa}</p>
             {market.watch_next_fa?.[0] && <p className="border-r-2 border-primary pr-3 text-sm leading-7"><span className="font-medium text-primary">زیر نظر: </span>{market.watch_next_fa[0]}</p>}
             <p className="border-t border-border pt-3 text-[11px] leading-5 text-muted-foreground">نوبت بعدی: {nextAnalysisLabel} · زمان‌ها به وقت تهران</p>
+            </TabsContent>
+            <TabsContent value="short-term" className={analysisPanelClass}>
+              <MarketOutlookCard embedded title="مسیر هفته‌های پیش‌رو" horizon="چند روز تا چند هفته" view={market.short_term_view} legacyText={market.short_term_outlook_fa} assessedAt={market.short_term_assessed_at || (!market.report_kind ? market.analysis_generated_at : null)} weeklyFocus={market.weekly_focus_fa} weeklyEvents={market.weekly_events_fa} weeklyAssessedAt={market.weekly_assessed_at} />
+            </TabsContent>
+            <TabsContent value="medium-term" className={analysisPanelClass}>
+              <MarketOutlookCard embedded title="تصویر ۶ تا ۱۲ ماهه" horizon="میان‌مدت" view={market.medium_term_view} legacyText={market.medium_term_outlook_fa} assessedAt={market.medium_term_assessed_at || (!market.report_kind ? market.analysis_generated_at : null)} />
+            </TabsContent>
           </CardContent>
+          </Tabs>
         </Card>
         <SP500Dashboard compact />
-      </div>
-      <div className="grid items-start gap-4 md:grid-cols-2">
-        <MarketOutlookCard title="مسیر هفته‌های پیش‌رو" horizon="چند روز تا چند هفته" view={market.short_term_view} legacyText={market.short_term_outlook_fa} assessedAt={market.short_term_assessed_at || (!market.report_kind ? market.analysis_generated_at : null)} weeklyFocus={market.weekly_focus_fa} weeklyEvents={market.weekly_events_fa} weeklyAssessedAt={market.weekly_assessed_at} />
-        <MarketOutlookCard title="تصویر ۶ تا ۱۲ ماهه" horizon="میان‌مدت" view={market.medium_term_view} legacyText={market.medium_term_outlook_fa} assessedAt={market.medium_term_assessed_at || (!market.report_kind ? market.analysis_generated_at : null)} />
       </div>
       <MarketStatusCards />
     </section>

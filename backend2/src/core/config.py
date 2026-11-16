@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     telegram_message_thread_id: int | None = None
     # Task forum topic only. Never fall back to the market-report topic/General.
     telegram_task_message_thread_id: int | None = None
+    # Daily Learning Hub posts share the bot/group, with their own topic and ledger.
+    telegram_learning_message_thread_id: int | None = 10
+    greenpeak_learning_enabled: bool = False
+    greenpeak_learning_hour: int = Field(default=7, ge=0, le=23)
+    greenpeak_learning_minute: int = Field(default=0, ge=0, le=59)
+    greenpeak_learning_catchup_minutes: int = Field(default=120, ge=1, le=720)
+    greenpeak_learning_db_path: Path = Path(__file__).parent.parent.parent / "instance" / "learning" / "deliveries.db"
 
     @field_validator("telegram_task_message_thread_id", mode="before")
     @classmethod
@@ -53,6 +60,11 @@ class Settings(BaseSettings):
         except (TypeError, ValueError):
             return None
         return identifier if identifier > 1 else None
+
+    @field_validator("telegram_learning_message_thread_id", mode="before")
+    @classmethod
+    def learning_topic_or_disabled(cls, value):
+        return cls.task_topic_or_disabled(value)
 
     # Comma-separated dedicated MT5 ingestion tokens. Empty disables ingestion.
     greenpeak_mt5_api_tokens: str = ""

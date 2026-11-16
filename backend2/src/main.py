@@ -11,6 +11,7 @@ from .services.news.scheduler import create_news_scheduler
 from .services.official_sentiment_scheduler import create_official_sentiment_scheduler
 from .services.work_task_notifications import create_work_task_notification_scheduler
 from .services.support_notifications import create_support_notification_scheduler
+from .services.learning_daily import create_learning_daily_scheduler
 from .api.v1.endpoints import chat_router, llm_admin_router
 from .api.v1.endpoints.market_comparison import router as market_comparison_router
 from .api.v1.endpoints.workplace import router as workplace_router
@@ -23,7 +24,7 @@ def create_app() -> FastAPI:
     
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        schedulers = [item for item in (create_daily_analysis_scheduler(), create_news_scheduler(), create_official_sentiment_scheduler(), create_work_task_notification_scheduler(), create_support_notification_scheduler()) if item is not None]
+        schedulers = [item for item in (create_daily_analysis_scheduler(), create_news_scheduler(), create_official_sentiment_scheduler(), create_work_task_notification_scheduler(), create_support_notification_scheduler(), create_learning_daily_scheduler()) if item is not None]
         for scheduler in schedulers: scheduler.start()
         try:
             yield

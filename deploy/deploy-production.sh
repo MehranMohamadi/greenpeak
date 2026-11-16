@@ -123,6 +123,10 @@ ln -s "$legacy_root/backend2/instance/chat" "$release_root/backend2/instance/cha
 mkdir -p "$legacy_root/backend2/instance/llm"
 ln -s "$legacy_root/backend2/instance/llm" "$release_root/backend2/instance/llm"
 
+# Daily lesson receipts and sequence must survive deployments and rollbacks.
+mkdir -p "$legacy_root/backend2/instance/learning"
+ln -s "$legacy_root/backend2/instance/learning" "$release_root/backend2/instance/learning"
+
 prepare_backend_environment "$previous_target" "$release_root"
 
 # Apply the requested account rename once, before switching the active release.

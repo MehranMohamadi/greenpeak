@@ -1,0 +1,452 @@
+{
+  "schema_version": "1.0",
+  "content_version": "risk-daily-1",
+  "language": "fa",
+  "researched_on": "2026-11-16",
+  "editorial_status": "source_checked_draft",
+  "course_content_version": "risk-1",
+  "course_path": "/learn/risk-management",
+  "presentation": {
+    "visible_fields": ["question_fa"],
+    "spoiler_fields": ["answer_fa", "explanation_fa", "takeaway_fa"],
+    "button_label_fa": "مطالعهٔ درس مدیریت ریسک",
+    "button_path": "/learn/risk-management",
+    "source_links_outside_spoiler": true
+  },
+  "editorial_rules_fa": [
+    "پرسش‌ها و مثال‌ها تألیفی‌اند؛ سؤال رسمی یا ترجمهٔ تمرین منابع نیستند.",
+    "تمام اعداد مثال‌ها فرضی‌اند و داده، نرخ جاری یا پیش‌بینی بازار نیستند.",
+    "در محاسبات بازده، کارمزد و مالیات صفرند مگر خلاف آن ذکر شود.",
+    "مفاهیم مدل‌محور با فرض‌ها و محدودیت‌هایشان بیان می‌شوند.",
+    "شناسهٔ درس برای دسته‌بندی است؛ پیوند فعلی صفحهٔ دوره را باز می‌کند.",
+    "این نسخه بررسی منبع و محاسبه دارد؛ بازبینی مستقل انسانی ثبت نشده است."
+  ],
+  "lessons": [
+    {"id": "foundations", "title_fa": "ریسک و بازده مورد انتظار"},
+    {"id": "types", "title_fa": "شناخت انواع ریسک"},
+    {"id": "measurement", "title_fa": "واریانس و انحراف معیار"},
+    {"id": "diversification", "title_fa": "همبستگی و تنوع‌بخشی"},
+    {"id": "beta", "title_fa": "ریسک سیستماتیک، بتا و CAPM"},
+    {"id": "response", "title_fa": "انتخاب روش مواجهه با ریسک"}
+  ],
+  "sources": {
+    "sec_risk": {
+      "publisher": "SEC / Investor.gov", "title": "What is Risk?",
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/what-risk",
+      "sections": ["Introduction", "Volatility Risk"], "checked_on": "2026-11-16"
+    },
+    "os_probability": {
+      "publisher": "OpenStax", "title": "Principles of Finance — 13.5 Probability Distributions",
+      "url": "https://openstax.org/books/principles-finance/pages/13-5-probability-distributions",
+      "sections": ["Calculate and Interpret Expected Values"], "checked_on": "2026-11-16"
+    },
+    "os_asset": {
+      "publisher": "OpenStax", "title": "Principles of Finance — 15.1 Risk and Return to an Individual Asset",
+      "url": "https://openstax.org/books/principles-finance/pages/15-1-risk-and-return-to-an-individual-asset",
+      "sections": ["Individual Investment Realized Return", "Measuring Historical Returns"], "checked_on": "2026-11-16"
+    },
+    "sec_allocation": {
+      "publisher": "SEC / Investor.gov", "title": "Asset Allocation and Diversification",
+      "url": "https://www.investor.gov/introduction-investing/getting-started/asset-allocation",
+      "sections": ["Time Horizon", "Risk Tolerance", "Rebalancing"], "checked_on": "2026-11-16"
+    },
+    "sec_rates": {
+      "publisher": "SEC / Investor.gov", "title": "Fixed Income Investments — When Interest Rates Go Up, Prices of Fixed-Rate Bonds Fall",
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-86",
+      "sections": ["The Effect of Market Interest Rates on Bond Prices and Yield"], "checked_on": "2026-11-16"
+    },
+    "sec_credit": {
+      "publisher": "SEC / Investor.gov", "title": "Corporate Bonds",
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/bonds-or-fixed-income-products",
+      "sections": ["Introduction", "What are the basic types of corporate bonds?"], "checked_on": "2026-11-16"
+    },
+    "sec_bonds": {
+      "publisher": "SEC / Investor.gov", "title": "Bonds — FAQs",
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/bonds-or-fixed-income-products/bonds",
+      "sections": ["What are the benefits and risks of bonds? — Liquidity risk"], "checked_on": "2026-11-16"
+    },
+    "bis_operational": {
+      "publisher": "BIS / Basel Committee", "title": "Operational risk — ORR 10",
+      "url": "https://www.bis.org/committees/bcbs/basel-consolidated-guidelines/module/orr/10",
+      "sections": ["Key terms — 10.3(1)"], "checked_on": "2026-11-16",
+      "scope_note_fa": "تعریف در متن نظارت بانکی است؛ مثال سامانهٔ معامله، کاربرد آموزشی همین مفهوم است."
+    },
+    "sec_international": {
+      "publisher": "SEC / Investor.gov", "title": "International Investing",
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins/international-investing",
+      "sections": ["Changes in currency exchange rates and currency controls"], "checked_on": "2026-11-16"
+    },
+    "nist_scale": {
+      "publisher": "NIST", "title": "Engineering Statistics Handbook — 1.3.5.6 Measures of Scale",
+      "url": "https://www.itl.nist.gov/div898/handbook/eda/section3/eda356.htm",
+      "sections": ["Definitions of Variability — variance and standard deviation"], "checked_on": "2026-11-16"
+    },
+    "os_spread": {
+      "publisher": "OpenStax", "title": "Principles of Finance — 13.2 Measures of Spread",
+      "url": "https://openstax.org/books/principles-finance/pages/13-2-measures-of-spread",
+      "sections": ["Standard Deviation", "Variance — sample versus population"], "checked_on": "2026-11-16"
+    },
+    "nist_normal": {
+      "publisher": "NIST", "title": "Engineering Statistics Handbook — 1.3.6.6.1 Normal Distribution",
+      "url": "https://www.itl.nist.gov/div898/handbook/eda/section3/eda3661.htm",
+      "sections": ["Probability Density Function", "Comments — assumptions"], "checked_on": "2026-11-16"
+    },
+    "finra_concentration": {
+      "publisher": "FINRA", "title": "Concentrate on Concentration Risk",
+      "url": "https://www.finra.org/investors/insights/concentration-risk",
+      "sections": ["Concentration due to correlated assets", "Tips to Manage Concentration Risk — 3"], "checked_on": "2026-11-16"
+    },
+    "os_portfolio": {
+      "publisher": "OpenStax", "title": "Principles of Finance — 15.2 Risk and Return to Multiple Assets",
+      "url": "https://openstax.org/books/principles-finance/pages/15-2-risk-and-return-to-multiple-assets",
+      "sections": ["Diversification", "Firm-Specific Risk versus Systematic Risk"], "checked_on": "2026-11-16"
+    },
+    "cfa_math": {
+      "publisher": "CFA Institute", "title": "2026 Portfolio Mathematics",
+      "url": "https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/portfolio-mathematics",
+      "sections": ["Introduction", "Learning Outcomes"], "checked_on": "2026-11-16",
+      "scope_note_fa": "فقط متن عمومی مقدمه و اهداف آموزشی بررسی شده است؛ دسترسی به متن پولی ادعا نمی‌شود."
+    },
+    "cfa_portfolio1": {
+      "publisher": "CFA Institute", "title": "2026 Portfolio Risk and Return: Part I",
+      "url": "https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/portfolio-risk-return-part-1",
+      "sections": ["Learning Outcomes", "Summary — two-asset portfolio and correlation"], "checked_on": "2026-11-16"
+    },
+    "os_capm": {
+      "publisher": "OpenStax", "title": "Principles of Finance — 15.3 The Capital Asset Pricing Model (CAPM)",
+      "url": "https://openstax.org/books/principles-finance/pages/15-3-the-capital-asset-pricing-model-capm",
+      "sections": ["Interpreting Beta", "Calculating Betas", "CAPM Equation"], "checked_on": "2026-11-16"
+    },
+    "cfa_portfolio2": {
+      "publisher": "CFA Institute", "title": "2026 Portfolio Risk and Return: Part II",
+      "url": "https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/portfolio-risk-return-part-2",
+      "sections": ["Learning Outcomes — beta", "Summary — systematic and nonsystematic risk"], "checked_on": "2026-11-16"
+    },
+    "cfa_framework": {
+      "publisher": "CFA Institute", "title": "2026 Introduction to Risk Management",
+      "url": "https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/introduction-risk-management",
+      "sections": ["Summary — tolerance, monitoring, prevention, transfer and diversification"], "checked_on": "2026-11-16"
+    },
+    "cme_hedgers": {
+      "publisher": "CME Group", "title": "Understanding the Role of Hedgers",
+      "url": "https://www.cmegroup.com/education/courses/introduction-to-futures/understanding-the-role-of-hedgers",
+      "sections": ["What is a Hedger?", "Corn Hedger Example"], "checked_on": "2026-11-16"
+    },
+    "cme_glossary": {
+      "publisher": "CME Group", "title": "Education Glossary",
+      "url": "https://www.cmegroup.com/education/glossary",
+      "sections": ["Basis", "Basis Risk"], "checked_on": "2026-11-16"
+    },
+    "sec_stops": {
+      "publisher": "SEC / Investor.gov", "title": "Stop, Stop-Limit, and Trailing Stop Orders — Investor Bulletin",
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-15",
+      "sections": ["Stop Order", "Stop-Limit Order"], "checked_on": "2026-11-16"
+    },
+    "sec_margin": {
+      "publisher": "SEC / Investor.gov", "title": "Investor Bulletin: Understanding Margin Accounts",
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-29",
+      "sections": ["Understand How Margin Works", "Recognize the Risks"], "checked_on": "2026-11-16"
+    },
+    "cfa_beta_note": {
+      "publisher": "CFA Institute", "title": "Deborah Kidd — Measures of Risk-Adjusted Return: Let's Not Forget Treynor and Jensen (2011)",
+      "url": "https://rpc.cfainstitute.org/-/media/documents/code/gips/measures-risk-adjusted-return.pdf",
+      "sections": ["Page 1 — beta definition and idiosyncratic risk"], "checked_on": "2026-11-16"
+    },
+    "iso_statistics": {
+      "publisher": "ISO / JCGM", "title": "GUM — Annex C: Basic statistical terms and concepts",
+      "url": "https://www.iso.org/sites/JCGM/GUM/JCGM100/C045315e-html/C045315e_FILES/MAIN_C045315e/AC_e.html",
+      "sections": ["C.2.20 — variance; Note 1", "C.2.21 — standard deviation; Note"], "checked_on": "2026-11-16"
+    },
+    "cfa_market_risk": {
+      "publisher": "CFA Institute", "title": "2026 Measuring and Managing Market Risk",
+      "url": "https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/measuring-managing-market-risk",
+      "sections": ["Summary — normality assumptions and model limitations"], "checked_on": "2026-11-16"
+    }
+  },
+  "items": [
+    {
+      "id": "risk-001", "sequence": 1, "lesson_id": "foundations", "scope": "course_core", "difficulty": "basic", "kind": "concept",
+      "title_fa": "ریسک بیشتر، سود حتمی؟",
+      "question_fa": "اگر سرمایه‌گذاری پرریسک‌تری انتخاب کنیم، حتماً سود بیشتری می‌گیریم؟",
+      "answer_fa": "خیر؛ بازده بیشتر تضمین نمی‌شود.",
+      "explanation_fa": "سرمایه‌گذار معمولاً برای پذیرش ریسک بیشتر، بازده بالاتری مطالبه می‌کند؛ اما نتیجهٔ واقعی می‌تواند زیان باشد. انتظار بازده با نتیجهٔ قطعی فرق دارد.",
+      "takeaway_fa": "ریسک بیشتر را با سود بیشترِ قطعی اشتباه نگیریم.",
+      "source_refs": [{"source_id": "sec_risk", "supports_fa": "عدم قطعیت، احتمال زیان و مطالبهٔ بازده در برابر ریسک"}], "calculation": null
+    },
+    {
+      "id": "risk-002", "sequence": 2, "lesson_id": "foundations", "scope": "course_core", "difficulty": "basic", "kind": "calculation",
+      "title_fa": "میانگینی که شاید رخ ندهد",
+      "question_fa": "در یک مثال فرضی، احتمال سود ۲۰٪ و زیان ۱۰٪ هرکدام نصف است. بازده مورد انتظار چقدر است؟",
+      "answer_fa": "۵٪؛ اما این عدد قولِ سود نیست.",
+      "explanation_fa": "میانگین وزنی برابر است با نصفِ ۲۰٪ به‌علاوهٔ نصفِ منفی ۱۰٪. در همین مثال، نتیجهٔ واقعی فقط یکی از دو سناریوست و حتی ممکن است هرگز دقیقاً ۵٪ نباشد.",
+      "takeaway_fa": "احتمال سناریوها وزن محاسبه است.",
+      "source_refs": [{"source_id": "os_probability", "supports_fa": "امید ریاضی به‌عنوان میانگین وزنی احتمالات"}],
+      "calculation": {"method": "expected_return", "inputs": {"returns": [0.2, -0.1], "probabilities": [0.5, 0.5]}, "expected": {"return": 0.05}, "display_checks": ["۵٪"]}
+    },
+    {
+      "id": "risk-003", "sequence": 3, "lesson_id": "foundations", "scope": "course_core", "difficulty": "basic", "kind": "calculation",
+      "title_fa": "قیمت، همهٔ بازده نیست",
+      "question_fa": "فرض کن سهمی را ۱۰۰ بخریم، آخر دوره ۱۰۶ بفروشیم و ۴ واحد سود نقدی بگیریم. بدون هزینه و مالیات، بازده چقدر است؟",
+      "answer_fa": "۱۰٪؛ نه فقط ۶٪ رشد قیمت.",
+      "explanation_fa": "بازده کل از تغییر قیمت و وجه نقد دریافتی به دست می‌آید: (۱۰۶ − ۱۰۰ + ۴) ÷ ۱۰۰ = ۱۰٪. در این مثال، سود نقدی دوباره سرمایه‌گذاری نشده است.",
+      "takeaway_fa": "برای مقایسهٔ بازده، جریان نقدی را هم حساب کنیم.",
+      "source_refs": [{"source_id": "os_asset", "supports_fa": "فرمول بازده کل یک دوره با سود نقدی"}],
+      "calculation": {"method": "holding_return", "inputs": {"start": 100, "end": 106, "distribution": 4}, "expected": {"return": 0.1}, "display_checks": ["۱۰٪"]}
+    },
+    {
+      "id": "risk-004", "sequence": 4, "lesson_id": "foundations", "scope": "course_extension", "difficulty": "intermediate", "kind": "calculation",
+      "title_fa": "مثبت و منفی مساوی، نتیجهٔ صفر؟",
+      "question_fa": "در مثال فرضی، سرمایه یک دوره ۲۰٪ رشد و دورهٔ بعد ۲۰٪ افت می‌کند. آیا به مبلغ اول برمی‌گردد؟",
+      "answer_fa": "خیر؛ بازده تجمعی منفی ۴٪ است.",
+      "explanation_fa": "بدون واریز، برداشت و هزینه، سرمایهٔ ۱۰۰ ابتدا ۱۲۰ و سپس ۹۶ می‌شود. میانگین حسابیِ دو درصد صفر است، ولی رشد سرمایه با ضربِ ضریب‌های بازده محاسبه می‌شود.",
+      "takeaway_fa": "جمع درصدها، بازده تجمعی را نشان نمی‌دهد.",
+      "source_refs": [{"source_id": "os_asset", "supports_fa": "تفاوت میانگین حسابی با رشد مرکب سرمایه"}],
+      "calculation": {"method": "compound_return", "inputs": {"returns": [0.2, -0.2]}, "expected": {"return": -0.04}, "display_checks": ["منفی ۴٪", "۹۶"]}
+    },
+    {
+      "id": "risk-005", "sequence": 5, "lesson_id": "foundations", "scope": "course_extension", "difficulty": "basic", "kind": "scenario",
+      "title_fa": "یک سبد برای دو نفر؟",
+      "question_fa": "دو نفر سرمایهٔ یکسان دارند؛ یکی سه ماه دیگر به پولش نیاز دارد و دیگری ده سال بعد. آیا سبد مناسبشان الزاماً یکسان است؟",
+      "answer_fa": "خیر؛ مبلغ سرمایه به‌تنهایی کافی نیست.",
+      "explanation_fa": "افق زمانی و توان و تمایل تحمل زیان، در انتخاب ترکیب دارایی مؤثرند. نیاز نزدیک به وجه نقد می‌تواند تحمل نوسان را محدود کند؛ حتی اگر فرد از نظر روحی ریسک‌پذیر باشد.",
+      "takeaway_fa": "هدف و زمان نیاز به پول را پیش از انتخاب دارایی روشن کنیم.",
+      "source_refs": [{"source_id": "sec_allocation", "supports_fa": "نقش افق زمانی و توان و تمایل پذیرش زیان در تخصیص دارایی"}], "calculation": null
+    },
+    {
+      "id": "risk-006", "sequence": 6, "lesson_id": "types", "scope": "course_core", "difficulty": "basic", "kind": "scenario",
+      "title_fa": "اوراق دولتی هم افت می‌کند؟",
+      "question_fa": "اگر نرخ بهرهٔ بازار بالا برود، قیمت یک اوراق خزانهٔ نرخ‌ثابتِ موجود می‌تواند پایین بیاید؟",
+      "answer_fa": "بله؛ این ریسک نرخ بهره است.",
+      "explanation_fa": "با ثابت‌بودن سایر عوامل، اوراق قدیمی با کوپن ثابت در برابر اوراق جدیدِ پربازده‌تر جذابیت کمتری دارد و قیمتش پایین می‌آید. پایین‌بودن ریسک نکول، نوسان قیمت پیش از سررسید را حذف نمی‌کند.",
+      "takeaway_fa": "ریسک نکول و ریسک قیمت، دو موضوع متفاوت‌اند.",
+      "source_refs": [{"source_id": "sec_rates", "supports_fa": "رابطهٔ معکوس نرخ بازار و قیمت اوراق نرخ‌ثابت، حتی اوراق خزانه"}], "calculation": null
+    },
+    {
+      "id": "risk-007", "sequence": 7, "lesson_id": "types", "scope": "course_core", "difficulty": "basic", "kind": "scenario",
+      "title_fa": "کوپن بالاتر چه چیزی می‌گوید؟",
+      "question_fa": "اوراق شرکتی با سود اسمی بالاتر می‌بینیم. آیا همین عدد برای نتیجه‌گیری دربارهٔ بهتر بودنش کافی است؟",
+      "answer_fa": "خیر؛ توان بازپرداخت ناشر هم باید بررسی شود.",
+      "explanation_fa": "بهرهٔ بالاتر می‌تواند جبران ریسک نکول بیشتر باشد. نکول یعنی ناشر پرداخت سود یا اصل بدهی را به‌موقع انجام ندهد. سررسید و سایر ویژگی‌های اوراق هم در مقایسه مهم‌اند.",
+      "takeaway_fa": "وعدهٔ پرداخت بیشتر، جای بررسی ریسک اعتباری را نمی‌گیرد.",
+      "source_refs": [{"source_id": "sec_credit", "supports_fa": "تعریف نکول و رابطهٔ ریسک اعتباری با بهرهٔ اوراق شرکتی"}], "calculation": null
+    },
+    {
+      "id": "risk-008", "sequence": 8, "lesson_id": "types", "scope": "course_core", "difficulty": "basic", "kind": "scenario",
+      "title_fa": "قیمت هست؛ خریدار چطور؟",
+      "question_fa": "قیمت اوراق در حسابمان ثبت شده، اما هنگام نیاز فوری خریدار پیدا نمی‌شود. کدام ریسک آشکار شده است؟",
+      "answer_fa": "ریسک نقدشوندگی.",
+      "explanation_fa": "ارزش نمایش‌داده‌شده، امکان فروش سریع را تضمین نمی‌کند. ممکن است فروش زمان ببرد یا فقط با تخفیف قابل‌توجه ممکن باشد. این مشکل با ناتوانی ناشر در بازپرداخت بدهی یکسان نیست.",
+      "takeaway_fa": "قابلیت خروج را جدا از قیمت دارایی بررسی کنیم.",
+      "source_refs": [{"source_id": "sec_bonds", "supports_fa": "ریسک نبود بازار برای خرید یا فروش در زمان دلخواه"}, {"source_id": "finra_concentration", "supports_fa": "دشواری فروش سریع برخی سرمایه‌گذاری‌ها در قیمت مناسب"}], "calculation": null
+    },
+    {
+      "id": "risk-009", "sequence": 9, "lesson_id": "types", "scope": "course_core", "difficulty": "basic", "kind": "scenario",
+      "title_fa": "تحلیل درست، اجرای اشتباه",
+      "question_fa": "تحلیل درست بوده، اما سفارش به علت خطای ثبت یا خرابی سامانه اشتباه اجرا شده است. منشأ مستقیم این زیان چیست؟",
+      "answer_fa": "ریسک عملیاتی.",
+      "explanation_fa": "خطای افراد، فرایند ناقص یا شکست سامانه می‌تواند زیان بسازد؛ حتی بدون اشتباه در پیش‌بینی بازار. تعریف بازل این دسته را از منشأ فرایند، افراد، سامانه و رویداد بیرونی توضیح می‌دهد.",
+      "takeaway_fa": "کیفیت اجرا هم بخشی از مدیریت ریسک است.",
+      "source_refs": [{"source_id": "bis_operational", "supports_fa": "تعریف ریسک عملیاتی؛ سناریوی معامله تألیفی است"}], "calculation": null
+    },
+    {
+      "id": "risk-010", "sequence": 10, "lesson_id": "types", "scope": "course_core", "difficulty": "intermediate", "kind": "calculation",
+      "title_fa": "سود دلاری، زیان در ارز مبنا؟",
+      "question_fa": "در مثال فرضی، دارایی دلاری ۱۰٪ رشد می‌کند ولی ارزش هر دلار در ارز مبنای ما ۱۵٪ کم می‌شود. بازده در ارز مبنا مثبت است؟",
+      "answer_fa": "خیر؛ با فرض نبود پوشش و هزینه، منفی ۶٫۵٪ است.",
+      "explanation_fa": "ارزش نهایی با ضریب ۱٫۱۰ × ۰٫۸۵ = ۰٫۹۳۵ محاسبه می‌شود. سودِ خود دارایی می‌تواند با تغییر نرخ تبدیل ارز خنثی یا معکوس شود.",
+      "takeaway_fa": "بازده را در ارزِ هدف مالی خودمان هم بسنجیم.",
+      "source_refs": [{"source_id": "sec_international", "supports_fa": "امکان کاهش یا معکوس‌شدن بازده با تغییر نرخ تبدیل؛ محاسبه تألیفی است"}],
+      "calculation": {"method": "currency_return", "inputs": {"asset_return": 0.1, "currency_return": -0.15}, "expected": {"return": -0.065}, "display_checks": ["منفی ۶٫۵٪", "۰٫۹۳۵"]}
+    },
+    {
+      "id": "risk-011", "sequence": 11, "lesson_id": "measurement", "scope": "course_core", "difficulty": "basic", "kind": "calculation",
+      "title_fa": "واریانس یا انحراف معیار؟",
+      "question_fa": "اگر بازده به‌صورت اعشاری نوشته شود و واریانس آن ۰٫۰۰۹ باشد، آیا انحراف معیار ۰٫۹٪ است؟",
+      "answer_fa": "خیر؛ تقریباً ۹٫۴۹٪ است.",
+      "explanation_fa": "انحراف معیار، ریشهٔ دوم واریانس است: ریشهٔ ۰٫۰۰۹ تقریباً ۰٫۰۹۴۹ است. واریانس واحدِ مربع‌شده دارد؛ انحراف معیار به واحد اصلی بازده برمی‌گردد.",
+      "takeaway_fa": "واریانس را مستقیماً درصد نخوانیم.",
+      "source_refs": [{"source_id": "nist_scale", "supports_fa": "ریشهٔ واریانس و تفاوت واحد واریانس و انحراف معیار"}],
+      "calculation": {"method": "sqrt_variance", "inputs": {"variance": 0.009}, "expected": {"sd": 0.09486832980505137}, "display_checks": ["۹٫۴۹٪"]}
+    },
+    {
+      "id": "risk-012", "sequence": 12, "lesson_id": "measurement", "scope": "course_core", "difficulty": "intermediate", "kind": "calculation",
+      "title_fa": "اندازه‌گیری نوسان یک سناریو",
+      "question_fa": "فقط دو نتیجهٔ فرضی داریم: بازده صفر و ۲۰٪، هرکدام با احتمال نصف. انحراف معیار این توزیع چقدر است؟",
+      "answer_fa": "۱۰ واحد درصد؛ یعنی انحراف معیار بازده ۱۰٪.",
+      "explanation_fa": "میانگین ۱۰٪ است. فاصلهٔ هر نتیجه از میانگین ۱۰ واحد درصد و واریانس در مقیاس اعشاری ۰٫۰۱ است. این توزیعِ کاملِ فرض‌شده است؛ فرمول نمونه با مخرج n−1 را به آن تحمیل نمی‌کنیم.",
+      "takeaway_fa": "نوع داده را قبل از انتخاب فرمول مشخص کنیم.",
+      "source_refs": [{"source_id": "os_spread", "supports_fa": "تفاوت واریانس جامعه و نمونه"}, {"source_id": "os_probability", "supports_fa": "وزن احتمالات در میانگین سناریوها"}],
+      "calculation": {"method": "distribution_moments", "inputs": {"returns": [0, 0.2], "probabilities": [0.5, 0.5]}, "expected": {"mean": 0.1, "variance": 0.01, "sd": 0.1}, "display_checks": ["۱۰٪", "۰٫۰۱"]}
+    },
+    {
+      "id": "risk-013", "sequence": 13, "lesson_id": "measurement", "scope": "course_core", "difficulty": "intermediate", "kind": "concept",
+      "title_fa": "چرا گاهی n−1؟",
+      "question_fa": "برای برآورد واریانس جامعه از چند مشاهدهٔ نمونه، مجموع مربع فاصله‌ها از میانگین نمونه را بر n تقسیم می‌کنیم یا n−1؟",
+      "answer_fa": "در برآورد متعارف واریانس نمونه، بر n−1.",
+      "explanation_fa": "وقتی میانگین هم از همان نمونه برآورد شده، این تصحیح در شرایط استاندارد نمونه‌گیری، برآورد واریانس را بی‌تورش می‌کند. این ویژگی مستقیماً به ریشهٔ آن، یعنی انحراف معیار نمونه، منتقل نمی‌شود.",
+      "takeaway_fa": "واریانس نمونه و واریانس توزیع احتمالی یک فرمول یکسان ندارند.",
+      "source_refs": [{"source_id": "nist_scale", "supports_fa": "فرمول واریانس و انحراف معیار نمونه"}, {"source_id": "os_spread", "supports_fa": "تفکیک فرمول نمونه از جامعه"}, {"source_id": "iso_statistics", "supports_fa": "بی‌تورش‌بودن واریانس نمونه و بی‌تورش‌نبودن ریشهٔ آن"}], "calculation": null
+    },
+    {
+      "id": "risk-014", "sequence": 14, "lesson_id": "measurement", "scope": "course_core", "difficulty": "intermediate", "kind": "calculation",
+      "title_fa": "نوسان یکسان، احتمال زیان یکسان؟",
+      "question_fa": "در مثال فرضی، الف با احتمال برابر منفی ۱۰٪ یا مثبت ۱۰٪ می‌دهد؛ ب مثبت ۱۰٪ یا مثبت ۳۰٪. آیا نوسان یکسان یعنی احتمال زیان یکسان؟",
+      "answer_fa": "خیر؛ انحراف معیار هر دو ۱۰٪ است، ولی احتمال زیانشان فرق دارد.",
+      "explanation_fa": "در همین سناریوها، احتمال بازده منفیِ الف ۵۰٪ و ب صفر است. میانگین‌هایشان هم متفاوت است. انحراف معیار، پراکندگی حول میانگین را می‌سنجد؛ نه به‌تنهایی احتمال زیان را.",
+      "takeaway_fa": "نوسان را همراه میانگین و سناریوهای زیان بخوانیم.",
+      "source_refs": [{"source_id": "cfa_math", "supports_fa": "تفکیک معیار واریانس از ریسک بازده کمتر از آستانه؛ مقایسه و استنتاج تألیفی است"}],
+      "calculation": {"method": "compare_distributions", "inputs": {"a": [-0.1, 0.1], "b": [0.1, 0.3], "probabilities": [0.5, 0.5]}, "expected": {"a_sd": 0.1, "b_sd": 0.1, "a_loss_probability": 0.5, "b_loss_probability": 0}, "display_checks": ["۱۰٪", "۵۰٪"]}
+    },
+    {
+      "id": "risk-015", "sequence": 15, "lesson_id": "measurement", "scope": "course_extension", "difficulty": "intermediate", "kind": "concept",
+      "title_fa": "قانون ۹۵٪ همیشه برقرار است؟",
+      "question_fa": "آیا برای هر نوع بازدهی می‌توان گفت حدود ۹۵٪ نتایج در فاصلهٔ دو انحراف معیار از میانگین قرار می‌گیرند؟",
+      "answer_fa": "خیر؛ این تقریب به شکل توزیع وابسته است.",
+      "explanation_fa": "برای توزیع نرمال، این سهم حدود ۹۵٫۴۵٪ است. تعمیم آن به هر بازده مالی، بدون بررسی شکل توزیع و اعتبار پارامترها، درست نیست؛ رخدادهای شدید ممکن است بیشتر باشند.",
+      "takeaway_fa": "عدد دقیقِ مدل جای بررسی فرض‌های آن را نمی‌گیرد.",
+      "source_refs": [{"source_id": "nist_normal", "supports_fa": "توزیع نرمال و تابع احتمال؛ درصد با انتگرال مستقل محاسبه شده است"}, {"source_id": "cfa_market_risk", "supports_fa": "محدودیت مدل‌های ریسک هنگام نرمال‌نبودن بازده"}],
+      "calculation": {"method": "normal_coverage", "inputs": {"standard_deviations": 2}, "expected": {"probability": 0.9544997361036416}, "display_checks": ["۹۵٫۴۵٪"]}
+    },
+    {
+      "id": "risk-016", "sequence": 16, "lesson_id": "diversification", "scope": "course_core", "difficulty": "basic", "kind": "scenario",
+      "title_fa": "سه صندوق، یک ریسک؟",
+      "question_fa": "سه صندوق مختلف خریده‌ایم، اما دارایی‌های اصلی هر سه همان چند شرکت فناوری‌اند. آیا تعداد صندوق‌ها تنوع کافی را ثابت می‌کند؟",
+      "answer_fa": "خیر؛ ممکن است همچنان تمرکز زیادی داشته باشیم.",
+      "explanation_fa": "نام‌های متفاوت می‌توانند دارایی‌های مشابهی را پنهان کنند. هم‌پوشانی سهم‌ها و وزن یک صنعت باید در کل سبد بررسی شود.",
+      "takeaway_fa": "تنوع را از روی دارایی‌های زیرین بسنجیم، نه تعداد نام‌ها.",
+      "source_refs": [{"source_id": "finra_concentration", "supports_fa": "هم‌پوشانی صندوق‌ها و تمرکز در دارایی‌های همبسته"}], "calculation": null
+    },
+    {
+      "id": "risk-017", "sequence": 17, "lesson_id": "diversification", "scope": "course_core", "difficulty": "basic", "kind": "concept",
+      "title_fa": "تنوع، همهٔ ریسک را حذف می‌کند؟",
+      "question_fa": "اگر سهام شرکت‌های زیادی از صنایع مختلف داشته باشیم، آیا دیگر از افت عمومی بازار زیان نمی‌بینیم؟",
+      "answer_fa": "خیر؛ ریسک عمومی بازار باقی می‌ماند.",
+      "explanation_fa": "تنوع می‌تواند اثر مشکلاتِ مختص یک شرکت را کم کند، اما شوک‌های فراگیر اقتصاد و بازار ممکن است هم‌زمان بر بخش بزرگی از سبد اثر بگذارند. کاهش ریسک با حذف کامل آن فرق دارد.",
+      "takeaway_fa": "تنوع‌بخشی، تضمینِ نبودِ زیان نیست.",
+      "source_refs": [{"source_id": "os_portfolio", "supports_fa": "تمایز ریسک خاص شرکت و ریسک سیستماتیک"}], "calculation": null
+    },
+    {
+      "id": "risk-018", "sequence": 18, "lesson_id": "diversification", "scope": "course_core", "difficulty": "intermediate", "kind": "calculation",
+      "title_fa": "وزنِ پول مهم است",
+      "question_fa": "در مثال فرضی، ۶۰٪ ارزش سبد در دارایی با بازده مورد انتظار ۸٪ و ۴۰٪ در دارایی با بازده مورد انتظار ۳٪ است. انتظار بازده سبد چقدر است؟",
+      "answer_fa": "۶٪ برای همان دوره.",
+      "explanation_fa": "با وزن‌های ابتدای دوره و بدون هزینه، ۰٫۶ × ۸٪ + ۰٫۴ × ۳٪ = ۶٪. وزن بر اساس ارزش سرمایه است، نه تعداد سهم‌ها. این خروجی همچنان یک انتظار است.",
+      "takeaway_fa": "میانگین ساده فقط وقتی درست است که وزن‌ها برابر باشند.",
+      "source_refs": [{"source_id": "cfa_math", "supports_fa": "بازده مورد انتظار سبد، میانگین موزون بازده اجزاست"}],
+      "calculation": {"method": "portfolio_return", "inputs": {"returns": [0.08, 0.03], "weights": [0.6, 0.4]}, "expected": {"return": 0.06}, "display_checks": ["۶٪"]}
+    },
+    {
+      "id": "risk-019", "sequence": 19, "lesson_id": "diversification", "scope": "course_core", "difficulty": "intermediate", "kind": "calculation",
+      "title_fa": "چرا نوسان سبد میانگین ساده نیست؟",
+      "question_fa": "دو دارایی فرضی، هرکدام انحراف معیار ۱۰٪ و همبستگی صفر دارند. در سبد نصف‌نصف، انحراف معیار باز هم ۱۰٪ است؟",
+      "answer_fa": "خیر؛ تقریباً ۷٫۰۷٪ است.",
+      "explanation_fa": "برای همین دوره و وزن‌ها، واریانس سبد برابر ۰٫۵² × ۰٫۱² + ۰٫۵² × ۰٫۱² = ۰٫۰۰۵ است. ریشهٔ آن تقریباً ۷٫۰۷٪ می‌شود. همبستگی صفر فرض این مثال است، نه تضمین آینده.",
+      "takeaway_fa": "ریسک سبد به همبستگی هم وابسته است.",
+      "source_refs": [{"source_id": "cfa_portfolio1", "supports_fa": "وابستگی نوسان سبد دو دارایی به وزن، نوسان و همبستگی"}],
+      "calculation": {"method": "two_asset_sd", "inputs": {"weights": [0.5, 0.5], "sds": [0.1, 0.1], "correlation": 0}, "expected": {"variance": 0.005, "sd": 0.07071067811865477}, "display_checks": ["۷٫۰۷٪", "۰٫۰۰۵"]}
+    },
+    {
+      "id": "risk-020", "sequence": 20, "lesson_id": "diversification", "scope": "course_extension", "difficulty": "basic", "kind": "calculation",
+      "title_fa": "سبد بدون معامله هم عوض می‌شود",
+      "question_fa": "در مثال فرضی، سبدی ۶۰۰ واحد سهام و ۴۰۰ واحد نقد دارد. سهام دو برابر می‌شود و نقد ثابت می‌ماند. آیا وزن سهام هنوز ۶۰٪ است؟",
+      "answer_fa": "خیر؛ به ۷۵٪ رسیده است.",
+      "explanation_fa": "ارزش سهام ۱۲۰۰ و کل سبد ۱۶۰۰ شده است. بدون هیچ معامله‌ای، ترکیب و ریسک سبد تغییر کرده‌اند. بازتنظیم وزن‌ها باید با هدف و هزینه‌های معامله سنجیده شود.",
+      "takeaway_fa": "رشد دارایی‌ها می‌تواند سبد را از برنامهٔ اولیه دور کند.",
+      "source_refs": [{"source_id": "sec_allocation", "supports_fa": "تغییر وزن و ریسک بر اثر رشد نامتوازن دارایی‌ها و مفهوم بازتنظیم"}],
+      "calculation": {"method": "weight_drift", "inputs": {"risky_start": 600, "cash": 400, "risky_return": 1}, "expected": {"risky_weight": 0.75}, "display_checks": ["۷۵٪", "۱۶۰۰"]}
+    },
+    {
+      "id": "risk-021", "sequence": 21, "lesson_id": "beta", "scope": "course_core", "difficulty": "basic", "kind": "concept",
+      "title_fa": "بتای یک یعنی نسخهٔ شاخص؟",
+      "question_fa": "اگر بتای سهمی نسبت به S&P 500 برابر یک باشد، آیا نوسان کل آن حتماً با شاخص برابر است؟",
+      "answer_fa": "خیر؛ بتا و نوسان کل یکی نیستند.",
+      "explanation_fa": "بتا حساسیت بازده به حرکت شاخص مبنا را توصیف می‌کند. سهم می‌تواند علاوه بر آن، نوسان مختص شرکت داشته باشد؛ بنابراین بتای یک، رفتار کاملاً مشابه شاخص را ثابت نمی‌کند.",
+      "takeaway_fa": "بتا را جای انحراف معیار نگذاریم.",
+      "source_refs": [{"source_id": "cfa_beta_note", "supports_fa": "بتا به‌عنوان حساسیت به شاخص، با وجود ریسک خاص و تفاوت بازده"}], "calculation": null
+    },
+    {
+      "id": "risk-022", "sequence": 22, "lesson_id": "beta", "scope": "course_core", "difficulty": "basic", "kind": "scenario",
+      "title_fa": "بتا، ماشین پیش‌گویی روزانه؟",
+      "question_fa": "بتای سهمی ۱٫۵ است. اگر شاخص امروز ۲٪ رشد کند، آیا رشد ۳٪ سهم قطعی است؟",
+      "answer_fa": "خیر؛ بتا ضریب قطعیِ بازده هر روز نیست.",
+      "explanation_fa": "بتا از رابطهٔ آماری بازده سهم با شاخص برآورد می‌شود. خبر مختص شرکت و عوامل دیگر هم اثر دارند. انتخاب شاخص، بازهٔ زمانی و تناوب داده‌ها می‌تواند بتای گزارش‌شده را تغییر دهد.",
+      "takeaway_fa": "بتا را همراه مبنای محاسبه بخوانیم.",
+      "source_refs": [{"source_id": "os_capm", "supports_fa": "بتا به‌عنوان شیب رگرسیون و تفاوت برآورد با بازه، تناوب و شاخص"}], "calculation": null
+    },
+    {
+      "id": "risk-023", "sequence": 23, "lesson_id": "beta", "scope": "course_core", "difficulty": "intermediate", "kind": "calculation",
+      "title_fa": "بتا چطور حساب می‌شود؟",
+      "question_fa": "در مثال فرضی، کوواریانس بازده سهم و بازار ۰٫۰۱۸ و واریانس بازده بازار ۰٫۰۱۲ است. با داده‌های هم‌دوره و اعشاری، بتا چقدر است؟",
+      "answer_fa": "۱٫۵ و بدون واحد.",
+      "explanation_fa": "بتا برابر کوواریانس با بازار تقسیم بر واریانس بازار است: ۰٫۰۱۸ ÷ ۰٫۰۱۲ = ۱٫۵. تقسیم بر انحراف معیار بازار، فرمول بتا نیست.",
+      "takeaway_fa": "در مخرج فرمول بتا، واریانس بازار قرار دارد.",
+      "source_refs": [{"source_id": "cfa_beta_note", "supports_fa": "تعریف صریح بتا به‌صورت کوواریانس تقسیم بر واریانس شاخص مبنا"}],
+      "calculation": {"method": "beta", "inputs": {"covariance": 0.018, "market_variance": 0.012}, "expected": {"beta": 1.5}, "display_checks": ["۱٫۵"]}
+    },
+    {
+      "id": "risk-024", "sequence": 24, "lesson_id": "beta", "scope": "course_core", "difficulty": "intermediate", "kind": "calculation",
+      "title_fa": "بتا در کدام عدد ضرب می‌شود؟",
+      "question_fa": "در مثال فرضیِ CAPM، نرخ بدون ریسک ۳٪، بازده مورد انتظار بازار ۸٪ و بتا ۱٫۲ است. خروجی مدل چقدر است؟",
+      "answer_fa": "۹٪؛ با فرض نرخ‌های مربوط به یک دوره.",
+      "explanation_fa": "ابتدا صرف ریسک بازار: ۸٪ − ۳٪ = ۵ واحد درصد. سپس ۳٪ + ۱٫۲ × ۵٪ = ۹٪. این بازده مورد انتظارِ مدل است و سود واقعی را تضمین نمی‌کند.",
+      "takeaway_fa": "بتا در صرف ریسک بازار ضرب می‌شود، نه کل بازده بازار.",
+      "source_refs": [{"source_id": "os_capm", "supports_fa": "فرمول CAPM و تعریف صرف ریسک بازار"}],
+      "calculation": {"method": "capm", "inputs": {"risk_free": 0.03, "market_return": 0.08, "beta": 1.2}, "expected": {"premium": 0.05, "return": 0.09}, "display_checks": ["۹٪"]}
+    },
+    {
+      "id": "risk-025", "sequence": 25, "lesson_id": "beta", "scope": "course_core", "difficulty": "intermediate", "kind": "concept",
+      "title_fa": "آیا تمرکز، پاداش تضمینی دارد؟",
+      "question_fa": "طبق CAPM، اگر تمام پول را در یک شرکت بگذاریم و ریسک خاص آن را بپذیریم، آیا بابت همین ریسک بازده مورد انتظار بیشتری می‌گیریم؟",
+      "answer_fa": "در چارچوب مدل، پاداش مستقلی برای ریسک قابل‌تنوع‌بخشی منظور نمی‌شود.",
+      "explanation_fa": "CAPM صرف بازده را به ریسک سیستماتیک پیوند می‌دهد. ریسک خاص شرکت را می‌توان با تنوع کاهش داد؛ پس صرفِ متمرکزشدن، دلیل افزایش بازده مورد انتظار در این مدل نیست.",
+      "takeaway_fa": "هر ریسکی در مدل مالی پاداش ندارد.",
+      "source_refs": [{"source_id": "cfa_portfolio2", "supports_fa": "قیمت‌گذاری ریسک سیستماتیک در برابر ریسک غیرسیستماتیک در CAPM"}], "calculation": null
+    },
+    {
+      "id": "risk-026", "sequence": 26, "lesson_id": "response", "scope": "course_core", "difficulty": "basic", "kind": "scenario",
+      "title_fa": "اول ابزار یا اول هدف؟",
+      "question_fa": "می‌خواهیم ریسک را مدیریت کنیم. اول ابزار پوشش بخریم یا مشخص کنیم کدام هدف و چه میزان زیان برایمان قابل تحمل است؟",
+      "answer_fa": "ابتدا هدف، محدودیت‌ها و میزان ریسک قابل تحمل را روشن کنیم.",
+      "explanation_fa": "پس از شناخت مواجهه، روش مناسب را با توجه به هزینه و اثرش انتخاب می‌کنیم. مدیریت ریسک با خرید ابزار تمام نمی‌شود؛ تغییر مواجهه و نتیجهٔ تصمیم باید پایش شوند.",
+      "takeaway_fa": "ابزار باید در خدمت هدف مشخص باشد.",
+      "source_refs": [{"source_id": "cfa_framework", "supports_fa": "هم‌راستایی هدف و تحمل ریسک، سنجش هزینه و منفعت، و پایش مستمر"}], "calculation": null
+    },
+    {
+      "id": "risk-027", "sequence": 27, "lesson_id": "response", "scope": "course_core", "difficulty": "basic", "kind": "scenario",
+      "title_fa": "کاهش با انتقال فرق دارد؟",
+      "question_fa": "در یک مثال فرضی، سرمایه‌گذار حجم موقعیت را کمتر می‌کند؛ فرد دیگری برای یک خطرِ قابل‌بیمه، بیمه می‌خرد. روش مواجههٔ هرکدام چیست؟",
+      "answer_fa": "اولی کاهش مواجهه؛ دومی انتقال بخشی از پیامد طبق قرارداد بیمه.",
+      "explanation_fa": "واردنشدن به فعالیت، اجتناب است. نگه‌داشتن آگاهانهٔ ریسک در حد قابل تحمل، پذیرش است. هیچ‌کدام را نباید با حذف خودکار همهٔ پیامدها یکی دانست.",
+      "takeaway_fa": "روش مواجهه را از روی اثر واقعی تصمیم تشخیص دهیم.",
+      "source_refs": [{"source_id": "cfa_framework", "supports_fa": "پیشگیری و اجتناب، انتقال با بیمه و تعدیل مواجهه؛ طبقه‌بندی مثال تألیفی است"}], "calculation": null
+    },
+    {
+      "id": "risk-028", "sequence": 28, "lesson_id": "response", "scope": "course_core", "difficulty": "intermediate", "kind": "scenario",
+      "title_fa": "پوشش یعنی حذف همهٔ ریسک‌ها؟",
+      "question_fa": "شرکتی برای کم‌کردن ریسک قیمت کالای موردنیازش قرارداد آتی می‌گیرد. آیا حالا تمام ریسک قیمت حذف شده است؟",
+      "answer_fa": "الزاماً نه؛ ممکن است ریسک مبنا باقی بماند.",
+      "explanation_fa": "هدف پوشش، تعدیل یک مواجههٔ موجود است. اگر فاصلهٔ قیمت نقدیِ کالای شرکت و قرارداد آتی تغییر کند، پوشش دقیقاً جبران‌کننده نخواهد بود؛ به این عدم قطعیت ریسک مبنا می‌گویند.",
+      "takeaway_fa": "تناسب ابزار پوشش با مواجهه را بررسی کنیم.",
+      "source_refs": [{"source_id": "cme_hedgers", "supports_fa": "هدف پوشش در برابر پذیرش ریسک برای سود"}, {"source_id": "cme_glossary", "supports_fa": "تعریف مبنا و ریسک مبنا"}], "calculation": null
+    },
+    {
+      "id": "risk-029", "sequence": 29, "lesson_id": "response", "scope": "course_extension", "difficulty": "basic", "kind": "scenario",
+      "title_fa": "حد ضرر، قیمت تضمینی؟",
+      "question_fa": "در مثال فرضی، برای سهم حد ضررِ معمولی روی ۹۵ گذاشته‌ایم. اگر قیمت با شکاف به ۹۰ برسد، فروش حتماً روی ۹۵ انجام می‌شود؟",
+      "answer_fa": "خیر؛ قیمت فعال‌سازی، قیمت تضمین‌شدهٔ اجرا نیست.",
+      "explanation_fa": "سفارش Stop پس از فعال‌شدن به سفارش بازار تبدیل می‌شود و ممکن است در قیمت پایین‌تری اجرا شود. Stop-Limit قیمت را محدود می‌کند، اما ممکن است اصلاً اجرا نشود. قواعد کارگزار هم مهم‌اند.",
+      "takeaway_fa": "کنترل قیمت و اطمینان از اجرا، دو مسئلهٔ جدا هستند.",
+      "source_refs": [{"source_id": "sec_stops", "supports_fa": "ریسک قیمت اجرای Stop و ریسک عدم اجرای Stop-Limit برای سهام"}], "calculation": null
+    },
+    {
+      "id": "risk-030", "sequence": 30, "lesson_id": "response", "scope": "course_extension", "difficulty": "intermediate", "kind": "calculation",
+      "title_fa": "افت کوچک‌تر دارایی، زیان بزرگ‌تر سرمایه؟",
+      "question_fa": "فرض کن با ۱۰۰ واحد پول خودمان و ۱۰۰ واحد وام، ۲۰۰ واحد سهم خریده‌ایم. افت ۱۰٪ سهم، پیش از بهره و هزینه، چند درصد از سرمایهٔ خودمان را کم می‌کند؟",
+      "answer_fa": "۲۰٪؛ دو برابر افت قیمت سهم.",
+      "explanation_fa": "ارزش سهم ۱۸۰ و بدهی همچنان ۱۰۰ است؛ خالص سرمایه به ۸۰ می‌رسد. اهرم زیان را تشدید می‌کند و ممکن است اخطار تأمین وجه یا فروش اجباری ایجاد شود؛ زیان حتی می‌تواند از سرمایهٔ اولیه بیشتر شود.",
+      "takeaway_fa": "ریسک را نسبت به سرمایهٔ خودمان بسنجیم، نه فقط ارزش دارایی.",
+      "source_refs": [{"source_id": "sec_margin", "supports_fa": "اثر وام خرید سهام بر بازده سرمایهٔ شخصی، فروش اجباری و زیان بیش از سرمایه"}],
+      "calculation": {"method": "leveraged_return", "inputs": {"equity": 100, "debt": 100, "asset_return": -0.1}, "expected": {"end_assets": 180, "end_equity": 80, "equity_return": -0.2}, "display_checks": ["۲۰٪", "۸۰"]}
+    }
+  ]
+}

@@ -48,9 +48,10 @@ Weekend reports describe the news atmosphere and conditional reopening relevance
 
 ## Website and Telegram
 
-The website shows a visible pulse next to the chart, followed by independently
-dated short- and medium-term cards. Each card exposes its summary and change
-condition, with expandable reasons and comparison. Monday's focus/events are
+The website groups pulse, short-term and medium-term analysis into three tabs
+inside the fixed-height box next to the chart. Each tab scrolls independently.
+Outlooks retain their independent assessment dates, summaries and change
+conditions, with expandable reasons and comparison. Monday's focus/events are
 retained with their weekly assessment time. Legacy prose is available in details;
 it is not relabelled as a newly assessed structured outlook. Existing premium
 access restrictions apply to all new outlook fields and weekly analysis.

@@ -4,16 +4,19 @@ import PremiumAnalysisGate from "@/components/analytics/premium-analysis-gate"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatGregorianTehranDateTime } from "@/lib/date-format"
 
-export default function MarketOutlookCard({ title, horizon, view, legacyText, assessedAt, weeklyFocus, weeklyEvents = [], weeklyAssessedAt }) {
+export default function MarketOutlookCard({ title, horizon, view, legacyText, assessedAt, weeklyFocus, weeklyEvents = [], weeklyAssessedAt, embedded = false }) {
   const assessmentTime = view?.assessed_at || assessedAt
-  return <Card className="min-w-0 border-border bg-card">
-    <CardHeader className="space-y-2 pb-3">
+  const Container = embedded ? "section" : Card
+  const Header = embedded ? "header" : CardHeader
+  const Content = embedded ? "div" : CardContent
+  return <Container className={embedded ? "min-w-0 space-y-3" : "min-w-0 border-border bg-card"}>
+    <Header className={embedded ? "space-y-2" : "space-y-2 pb-3"}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-base">{title}</CardTitle>
         <span className="text-xs text-muted-foreground">{horizon}</span>
       </div>
-    </CardHeader>
-    <CardContent>
+    </Header>
+    <Content>
       <PremiumAnalysisGate>
         {view || legacyText ? <div className="space-y-3">
           <p className="text-sm font-medium leading-7">{view?.summary_fa || "آخرین چشم‌انداز ثبت‌شده در جزئیات قابل مطالعه است."}</p>
@@ -34,6 +37,6 @@ export default function MarketOutlookCard({ title, horizon, view, legacyText, as
           </details>
         </div> : <p className="text-sm leading-7 text-muted-foreground">هنوز ارزیابی مستقلی برای این افق ثبت نشده است.</p>}
       </PremiumAnalysisGate>
-    </CardContent>
-  </Card>
+    </Content>
+  </Container>
 }

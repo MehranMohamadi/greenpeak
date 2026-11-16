@@ -1,4 +1,5 @@
 import html
+import json
 import logging
 import re
 from dataclasses import dataclass
@@ -35,7 +36,7 @@ class TelegramDeliveryResult:
     retry_after: int | None = None
 
 
-def send_telegram_message(text, message_thread_id, *, settings=None, require_topic=False):
+def send_telegram_message(text, message_thread_id, *, settings=None, require_topic=False, reply_markup=None):
     """Shared bot/recipient transport; never log response bodies, URLs or exceptions.
 
     Only failures known to precede delivery are retryable. A lost response may
@@ -51,6 +52,8 @@ def send_telegram_message(text, message_thread_id, *, settings=None, require_top
                "disable_web_page_preview": "true"}
     if message_thread_id is not None:
         payload["message_thread_id"] = str(message_thread_id)
+    if reply_markup is not None:
+        payload["reply_markup"] = json.dumps(reply_markup, ensure_ascii=False)
     try:
         response = httpx.post(f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage",
                               data=payload, timeout=15)
