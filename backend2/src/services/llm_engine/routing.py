@@ -100,6 +100,29 @@ def is_quota_error(response):
         return False
 
 
+def is_context_limit_error(response):
+    """Recognize model capacity errors without hiding other bad requests."""
+    if response.status_code != 400:
+        return False
+    try:
+        body = response.json()
+    except (ValueError, TypeError):
+        return False
+    if not isinstance(body, dict):
+        return False
+    error = body.get("error")
+    if isinstance(error, dict) and error.get("code") == "context_length_exceeded":
+        return True
+    errors = body.get("errors", [])
+    if not isinstance(errors, list):
+        return False
+    # Workers AI wraps model errors in code 8007. That code alone also
+    # represents unrelated failures, so require the context-capacity message.
+    return any(isinstance(item, dict) and item.get("code") == 8007
+               and "maximum context length" in str(item.get("message", "")).lower()
+               for item in errors)
+
+
 class ProviderRouter:
     def __init__(self, providers, db_path, control_store=None):
         self.providers = providers
@@ -183,7 +206,7 @@ class ProviderRouter:
                 continue
             except httpx.HTTPStatusError as exc:
                 status = exc.response.status_code
-                if status == 413:
+                if status == 413 or is_context_limit_error(exc.response):
                     # Payload limits differ by provider; smaller requests may
                     # still work here, so do not set a global cooldown.
                     last_error = exc

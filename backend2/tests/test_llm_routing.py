@@ -92,6 +92,46 @@ def test_oversized_request_switches_without_cooling_down_smaller_requests(tmp_pa
     assert len(calls) == 3
 
 
+@pytest.mark.parametrize("body", [
+    {"error": {"code": "context_length_exceeded"}},
+    {"errors": [{"code": 8007, "message": "This model's maximum context length is 32768 tokens."}]},
+])
+def test_context_limit_switches_without_cooling_down_smaller_requests(body, tmp_path, monkeypatch):
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(url)
+        return reply(url, 400, body) if len(calls) == 1 else reply(url)
+
+    monkeypatch.setattr(httpx, "post", post)
+    provider = routing.create_llm_provider(configuration(tmp_path))
+    assert provider.generate_json("system", {"large": True}) == {"answer": "ok"}
+    assert provider.provider_id == "mistral"
+    assert provider.generate_json("system", {}) == {"answer": "ok"}
+    assert provider.provider_id == "gemini"
+    assert len(calls) == 3
+
+
+@pytest.mark.parametrize("body", [
+    {"errors": [{"code": 8007, "message": "Invalid response format"}]},
+    {"errors": [{"code": 3003, "message": "Request is missing headers or body"}]},
+    {"errors": None},
+    {"error": "context_length_exceeded"},
+    [],
+])
+def test_unrelated_or_malformed_400_errors_still_stop(body, tmp_path, monkeypatch):
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(url)
+        return reply(url, 400, body)
+
+    monkeypatch.setattr(httpx, "post", post)
+    with pytest.raises(httpx.HTTPStatusError):
+        routing.create_llm_provider(configuration(tmp_path)).generate_json("system", {})
+    assert len(calls) == 1
+
+
 @pytest.mark.parametrize("provider_id,expected", [("cloudflare", 8192), ("gemini", None)])
 def test_cloudflare_reserves_enough_output_for_analysis_json(provider_id, expected, monkeypatch):
     from src.services.llm_engine.provider import OpenAICompatibleProvider
