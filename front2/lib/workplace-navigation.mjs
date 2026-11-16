@@ -3,6 +3,7 @@ export const workplaceTabs = [
   { id: "attendance", label: "حضور و غیاب" },
   { id: "users", label: "کاربران و دسترسی‌ها", adminOnly: true },
   { id: "llm", label: "مدل‌های هوش مصنوعی", adminOnly: true },
+  { id: "quality", label: "کیفیت تحلیل‌ها", adminOnly: true },
   { id: "tools", label: "تنظیمات و ابزارها", adminOnly: true },
 ]
 

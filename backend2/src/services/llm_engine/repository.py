@@ -27,3 +27,13 @@ class MongoNarrativeRepository:
 
     def save_run(self, document: dict):
         self.db.gp_llm_runs.insert_one(document)
+
+    def quality_context(self, kind, at, evidence):
+        from ..analysis_quality.service import analysis_context
+        headlines = " ".join(str(item.get("title", "")) for item in
+                             (evidence.get("horizontal_evidence") or {}).get("recent_market_news", []))
+        return analysis_context(kind, at, headlines, evidence.get("retained_factor_evidence"))
+
+    def record_quality(self, report, request, prompt, previous):
+        from ..analysis_quality.service import capture_safely
+        capture_safely(report, request, prompt, previous)

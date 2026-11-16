@@ -294,7 +294,7 @@ def factor_evidence_references(evidence: dict) -> list[str]:
     horizontal = evidence.get("horizontal_evidence") or {}
     if isinstance(horizontal, dict):
         candidates.append("/horizontal_evidence/sp500_session_move")
-        for name in ("recent_market_news", "today_market_news", "upcoming_us_events", "observed_indicators", "sentiment_observations"):
+        for name in ("recent_market_news", "today_market_news", "upcoming_us_events", "observed_indicators", "sentiment_observations", "research_sources"):
             add_list(f"/horizontal_evidence/{name}", horizontal.get(name))
         context = horizontal.get("current_market_context") or {}
         if isinstance(context, dict):
@@ -317,7 +317,7 @@ def resolve_factor_evidence(evidence: dict, reference: str) -> dict | None:
         return None
     if tokens[0] == "horizontal_evidence" and not (
         tokens[1] == "sp500_session_move"
-        or tokens[1] in {"recent_market_news", "today_market_news", "upcoming_us_events", "observed_indicators", "sentiment_observations"} and len(tokens) >= 3
+        or tokens[1] in {"recent_market_news", "today_market_news", "upcoming_us_events", "observed_indicators", "sentiment_observations", "research_sources"} and len(tokens) >= 3
         or tokens[1] == "current_market_context" and len(tokens) >= 4 and tokens[2] == "released_us_events"
     ):
         return None

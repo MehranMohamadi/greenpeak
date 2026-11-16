@@ -40,6 +40,24 @@ def input_hash(level: str, subject_id: str, as_of: date, evidence: dict, prompt_
     return "sha256:" + sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
+def validate_generation(level, generated, metadata, evidence, kind=None, previous=None):
+    """The same contract validates production output and isolated replay trials."""
+    generated = {key: value for key, value in generated.items() if key in MODELS[level].model_fields}
+    if kind:
+        try:
+            generated = compose_edition(generated, previous, kind, metadata, MarketNarrative.model_json_schema(), evidence)
+        except ValueError as exc:
+            raise ValidationError.from_exception_data("MarketEdition", [
+                {"type": "value_error", "loc": ("report_kind",), "input": None, "ctx": {"error": exc}},
+            ]) from None
+    if level == "market" and kind not in {"session", "weekend"}:
+        generated["factor_source_evidence"] = {}
+    return MODELS[level].model_validate(
+        {**generated, **metadata},
+        context={"validate_market_factors": level == "market" and kind not in {"session", "weekend"}, "evidence": evidence},
+    )
+
+
 def _analyze(repository, provider, level: str, subject_id: str, as_of: date, evidence: dict[str, Any], coverage: dict, data_as_of: date | None, force: bool):
     prompt = load_prompt(level)
     generated_at = datetime.now(UTC)
@@ -47,12 +65,28 @@ def _analyze(repository, provider, level: str, subject_id: str, as_of: date, evi
     previous = None
     prompt_content = prompt.content
     prompt_hash = prompt.hash
+    quality_enabled = level == "market" and callable(getattr(repository, "quality_context", None))
+    if quality_enabled:
+        from ..analysis_quality.service import QUALITY_INSTRUCTIONS, QUALITY_VERSION
+        from zoneinfo import ZoneInfo
+        # Historical replay never fetches today's documents or lessons.
+        context = repository.quality_context(kind, generated_at, evidence) if as_of == generated_at.astimezone(ZoneInfo("Asia/Tehran")).date() else {}
+        evidence = deepcopy(evidence)
+        evidence.setdefault("horizontal_evidence", {})["research_sources"] = context.get("research_sources", [])
+        evidence["hypothesis_memory"] = context.get("hypothesis_memory", [])
+        evidence["reviewed_examples"] = context.get("reviewed_examples", [])
+        if "retained_factor_evidence" in context:
+            evidence["retained_factor_evidence"] = context["retained_factor_evidence"]
+        evidence.setdefault("versions", {})["quality_context_version"] = QUALITY_VERSION
     if kind:
         previous = repository.latest("market", "sp500")
         if previous and str(previous.get("as_of_date", ""))[:10] > as_of.isoformat():
             previous = None
         evidence = scope_market_news({**evidence, "previous_report": previous_report(previous)}, kind, as_of, generated_at)
         prompt_content += "\n\n" + edition_instructions(kind)
+        prompt_hash = "sha256:" + sha256(prompt_content.encode("utf-8")).hexdigest()
+    if quality_enabled:
+        prompt_content += "\n\n" + QUALITY_INSTRUCTIONS
         prompt_hash = "sha256:" + sha256(prompt_content.encode("utf-8")).hexdigest()
     versions = evidence.get("versions", {})
     digest = input_hash(level, subject_id, as_of, evidence, prompt_hash, provider, versions)
@@ -62,7 +96,7 @@ def _analyze(repository, provider, level: str, subject_id: str, as_of: date, evi
             return _validate_stored(level, existing), "reused"
     metadata = {
         "level": level, "subject_id": subject_id, "as_of_date": as_of, "data_as_of": data_as_of,
-        "analysis_version": "0.6.0" if kind else ANALYSIS_VERSION, "analysis_generated_at": generated_at, "coverage": coverage,
+        "analysis_version": "0.7.0" if quality_enabled else "0.6.0" if kind else ANALYSIS_VERSION, "analysis_generated_at": generated_at, "coverage": coverage,
         "provenance": {"prompt_version": prompt.version + ("+editions.1.0.0" if kind else ""), "prompt_hash": prompt_hash, "model": provider.model_id, "provider": provider.provider_id, "input_hash": digest, "code_version": code_version()},
         "revision_id": str(uuid4()),
     }
@@ -73,24 +107,7 @@ def _analyze(repository, provider, level: str, subject_id: str, as_of: date, evi
         request["valid_factor_evidence_refs"] = factor_evidence_references(evidence)
 
     def validate(generated):
-        allowed_fields = MODELS[level].model_fields
-        generated = {key: value for key, value in generated.items() if key in allowed_fields}
-        if kind:
-            try:
-                generated = compose_edition(generated, previous, kind, metadata, MarketNarrative.model_json_schema(), evidence)
-            except ValueError as exc:
-                raise ValidationError.from_exception_data("MarketEdition", [
-                    {"type": "value_error", "loc": ("report_kind",), "input": None, "ctx": {"error": exc}},
-                ]) from None
-        if level == "market":
-            # Source excerpts are copied from actual input by Python, never
-            # accepted from the model as purported source material.
-            if kind not in {"session", "weekend"}:
-                generated["factor_source_evidence"] = {}
-        return MODELS[level].model_validate(
-            {**generated, **metadata},
-            context={"validate_market_factors": level == "market" and kind not in {"session", "weekend"}, "evidence": evidence},
-        )
+        return validate_generation(level, generated, metadata, evidence, kind, previous)
 
     try:
         # Repair once within each provider before failing over, so shared
@@ -113,6 +130,8 @@ def _analyze(repository, provider, level: str, subject_id: str, as_of: date, evi
                 source_id = sha256(json.dumps(source, sort_keys=True, default=str, ensure_ascii=False).encode("utf-8")).hexdigest()
                 value.factor_source_evidence[source_id] = deepcopy(source)
     repository.save(level, value.model_dump(mode="json"))
+    if quality_enabled:
+        repository.record_quality(value.model_dump(mode="json"), request, prompt_content, previous)
     return value, "generated"
 
 

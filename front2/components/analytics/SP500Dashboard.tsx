@@ -120,8 +120,8 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
           )}
         </CardContent>
         <div dir="rtl" className="flex flex-wrap justify-between gap-x-3 border-t border-border px-3 py-1.5 text-[10px] text-muted-foreground">
-          <span>{observationLabel ? `آخرین کندل: ${observationLabel} تهران` : "زمان مشاهده در دسترس نیست"}</span>
-          {lastUpdatedLabel && <span>دریافت: {lastUpdatedLabel} تهران</span>}
+          <span>{observationLabel ? `آخرین کندل: ${observationLabel}` : "زمان مشاهده در دسترس نیست"}</span>
+          {lastUpdatedLabel && <span>دریافت: {lastUpdatedLabel}</span>}
         </div>
       </Card>
     )

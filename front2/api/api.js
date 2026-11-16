@@ -9,6 +9,7 @@ export { API_BASE };
 
 export const endpoints = {
     llmAdmin: `${API_BASE}/admin/llm`,
+    analysisQuality: `${API_BASE}/admin/analysis-quality`,
     llmConnectionTest: id => `${API_BASE}/admin/llm/${encodeURIComponent(id)}/test`,
     llmPrompts: `${API_BASE}/admin/llm/prompts`,
     llmPrompt: id => `${API_BASE}/admin/llm/prompts/${encodeURIComponent(id)}`,
