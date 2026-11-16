@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import MarketIntelligenceSections from "@/components/analytics/market-intelligence-sections"
 import USMarketPageHeader from "@/components/analytics/us-market-page-header"
-import MarketStatusCards from "@/components/analytics/market-status-cards"
+import MarketStatusIndicators, { useMarketStatus } from "@/components/analytics/market-status-indicators"
 import { useAuth } from "@/components/auth/auth-context"
 
 function ReportFrame({ children }) {
@@ -19,6 +19,7 @@ export default function MarketIntelligenceReport() {
 }
 
 function MarketIntelligenceContent({ accessToken }) {
+  const status = useMarketStatus()
   const [market, setMarket] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -70,7 +71,7 @@ function MarketIntelligenceContent({ accessToken }) {
 
   if (loading && !market) return <ReportFrame><div className="flex min-h-[420px] items-center justify-center bg-background text-muted-foreground" dir="rtl"><LoaderCircle className="ml-2 h-5 w-5 animate-spin text-primary" />در حال دریافت آخرین تحلیل بازار…</div></ReportFrame>
 
-  if (!market) return <ReportFrame><div className="mx-3 md:mx-4"><MarketStatusCards /></div><Card className="mx-3 border-amber-500/30 md:mx-4" dir="rtl"><CardHeader><CardTitle className="flex items-center gap-2"><AlertCircle className="h-5 w-5 text-amber-500" />تحلیل بازار در دسترس نیست</CardTitle></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{error}</p><Button type="button" variant="outline" onClick={reload} className="gap-2"><RefreshCw className="h-4 w-4" />تلاش دوباره</Button></CardContent></Card></ReportFrame>
+  if (!market) return <ReportFrame><Card className="mx-3 border-amber-500/30 md:mx-4" dir="rtl"><CardHeader><CardTitle className="flex items-center gap-2"><AlertCircle className="h-5 w-5 text-amber-500" />تحلیل بازار در دسترس نیست</CardTitle></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{error}</p><MarketStatusIndicators status={status} /><Button type="button" variant="outline" onClick={reload} className="gap-2"><RefreshCw className="h-4 w-4" />تلاش دوباره</Button></CardContent></Card></ReportFrame>
 
-  return <ReportFrame>{error && <div role="status" dir="rtl" className="mx-3 flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm md:mx-4"><span>{error}</span><Button type="button" variant="outline" size="sm" onClick={reload}>تلاش دوباره</Button></div>}<MarketIntelligenceSections market={market} onRefresh={reload} loading={loading} /></ReportFrame>
+  return <ReportFrame>{error && <div role="status" dir="rtl" className="mx-3 flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm md:mx-4"><span>{error}</span><Button type="button" variant="outline" size="sm" onClick={reload}>تلاش دوباره</Button></div>}<MarketIntelligenceSections market={market} status={status} onRefresh={reload} loading={loading} /></ReportFrame>
 }

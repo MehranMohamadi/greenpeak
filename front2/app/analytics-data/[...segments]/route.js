@@ -7,6 +7,7 @@ const ALLOWED_PATHS = new Set([
   "news/highlights/cnbc",
   "news/calendar/upcoming",
   "news/calendar/released",
+  "news/calendar/timeline",
 ])
 
 const isAllowedPath = (path) =>

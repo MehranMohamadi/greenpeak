@@ -67,6 +67,7 @@ export const endpoints = {
         feedback: `${API_BASE}/support/feedback`,
     },
     news: {
+        calendarTimeline: `${API_BASE}/news/calendar/timeline`,
         cnbcHighlights: `${API_BASE}/news/highlights/cnbc`,
         accessReview: `${API_BASE}/news/access-review`,
         bootstrap: `${API_BASE}/news/bootstrap`,

@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import httpx
+
+from ..models.economic_calendar import ImportantCalendarData
 
 TRADAYS_CONTENT_URL = "https://www.tradays.com/en/economic-calendar/widget/content"
 TRADAYS_BASE_URL = "https://www.tradays.com"
@@ -336,4 +339,50 @@ def fetch_recent_us_events(
         limit=limit,
         timeout=timeout,
         released=True,
+    )
+
+
+def fetch_important_us_timeline(
+    *, now: datetime | None = None, days_before: int = 7,
+    days_after: int = 7, timeout: float = 8,
+) -> ImportantCalendarData:
+    """All high-importance US events in a bounded calendar window, without a top-N cut.
+
+    Unlike the released-data feed, past scheduled events without an actual value
+    remain visible. A missing actual is never taken to mean the event is future.
+    """
+    if not 1 <= days_before <= 14 or not 1 <= days_after <= 14:
+        raise ValueError("Calendar window must be between one and fourteen days")
+    anchor = (now or datetime.now(UTC)).astimezone(UTC)
+    local_day = anchor.astimezone(ZoneInfo("Asia/Tehran")).replace(hour=0, minute=0, second=0, microsecond=0)
+    start = (local_day - timedelta(days=days_before)).astimezone(UTC)
+    end = (local_day + timedelta(days=days_after + 1)).astimezone(UTC)
+    events = []
+    source, source_url = "Tradays / MQL5", TRADAYS_BASE_URL
+    try:
+        rows = _fetch_calendar_rows(start, end, timeout)
+        for row in rows:
+            if not isinstance(row, dict) or not _is_high_importance_us_event(row):
+                continue
+            release = _release_at(row)
+            if release is not None and start <= release < end:
+                events.append(_calendar_event(row, release))
+    except (httpx.HTTPError, ValueError):
+        events = []
+    if not events:
+        source, source_url = "TradingView Economic Calendar", TRADINGVIEW_BASE_URL
+        for row in _fetch_tradingview_rows(start, end, timeout):
+            if not isinstance(row, dict) or not _is_high_importance_us_tradingview_event(row):
+                continue
+            release = _tradingview_release_at(row)
+            if release is not None and start <= release < end:
+                events.append(_tradingview_event(row, release))
+    unique = {(item["event_id"], item["release_at"]): item for item in events}
+    ordered = sorted(unique.values(), key=lambda item: (item["release_at"], item["event_id"]))
+    for item in ordered:
+        if datetime.fromisoformat(item["release_at"]) > anchor:
+            item["actual"] = None
+    return ImportantCalendarData(
+        items=ordered, count=len(ordered), window_start=start, window_end=end,
+        generated_at=anchor, source=source, source_url=source_url,
     )

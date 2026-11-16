@@ -1,15 +1,17 @@
 "use client"
 import MarketOutlookCard from "@/components/analytics/market-outlook-card"
+import MarketPulseAnalysis from "@/components/analytics/market-pulse-analysis"
 
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
-import { CalendarDays, Clock3, Info, Link2, LoaderCircle, Newspaper, RefreshCw, ShieldAlert, TrendingUp, Triangle } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { ChevronDown, Clock3, Info, LoaderCircle, Newspaper, RefreshCw, ShieldAlert, TrendingUp, Triangle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import SP500Dashboard from "@/components/analytics/SP500Dashboard"
-import MarketStatusCards from "@/components/analytics/market-status-cards"
+import MarketStatusIndicators from "@/components/analytics/market-status-indicators"
+import MarketEventTimeline from "@/components/analytics/market-event-timeline"
+import { enrichCalendarEvent, MARKET_CALENDAR_DAYS } from "@/lib/market-event-timeline.mjs"
 import { marketFactorGroups } from "@/lib/market-factors"
 import { formatGregorianDate, formatGregorianTehranDateTime, GREGORIAN_PERSIAN_LOCALE, TEHRAN_TIME_ZONE } from "@/lib/date-format"
 
@@ -24,10 +26,6 @@ const statusLabels = {
   new: "جدید", ongoing: "همچنان مؤثر", changed: "تغییر شواهد",
   active: "فعال", watch: "تحت نظر", inactive: "غیرفعال",
 }
-
-const factorTitle = (item) => typeof item === "string"
-  ? item
-  : item?.title_fa || item?.title || item?.driver || item?.risk || item?.conflict || item?.fact || ""
 
 const formatTime = (value) => {
   return formatGregorianTehranDateTime(value)
@@ -49,16 +47,6 @@ const formatTehranClock = (value) => {
 const displayValue = (value) => value === null || value === undefined || value === "" ? "—" : value
 
 const hasValue = (value) => value !== null && value !== undefined && value !== ""
-
-const tehranDateKey = (value) => {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? "unknown" : new Intl.DateTimeFormat("en-CA", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    timeZone: "Asia/Tehran",
-  }).format(date)
-}
 
 const FINLOGIX_EARNINGS_URL = "https://apieconomic.finlogix.com/v1/earnings"
 const MEGA_CAP_EARNINGS_THRESHOLD_USD = 300_000_000_000
@@ -143,6 +131,7 @@ const earningsCalendarEvents = (rows, now = new Date()) => {
       title_fa: title,
       release_at: releaseAt,
       calendar_date: date,
+      time_precision: "day",
       release_time_label_fa: releaseTimeLabels[marketRelease] || "زمان انتشار در تقویم مشخص نشده",
       actual,
       forecast: earnings.forecast,
@@ -162,31 +151,6 @@ const earningsCalendarEvents = (rows, now = new Date()) => {
 
   return Array.from(eventsByCompanyAndDate.values())
 }
-
-const groupEventsByDate = (items, newestFirst = false) => Array.from(items.reduce((groups, item) => {
-  const key = item.calendar_date || tehranDateKey(item.release_at)
-  const label = item.calendar_date
-    ? formatTehranDate(`${item.calendar_date}T12:00:00Z`)
-    : formatTehranDate(item.release_at)
-  if (!groups.has(key)) groups.set(key, { key, label, items: [] })
-  groups.get(key).items.push(item)
-  return groups
-}, new Map()).values()).sort((left, right) => newestFirst
-  ? right.key.localeCompare(left.key)
-  : left.key.localeCompare(right.key))
-
-const enrichCalendarEvent = (event, drivers) => {
-  const comparable = (value) => String(value ?? "").trim().toLocaleLowerCase("fa")
-  const title = comparable(event.title_fa)
-  const analysis = drivers.find(item => comparable(item.title_fa) === title) || drivers.find(item => {
-    const actualMatches = hasValue(event.actual) && comparable(item.current) === comparable(event.actual)
-    const forecastMatches = hasValue(event.forecast) && comparable(item.forecast) === comparable(event.forecast)
-    const previousMatches = hasValue(event.previous) && comparable(item.previous) === comparable(event.previous)
-    return actualMatches && (forecastMatches || previousMatches)
-  })
-  return analysis ? { ...analysis, ...event, current: event.actual ?? analysis.current } : { ...event, current: event.actual }
-}
-
 
 function HelpDialog({ title, item, children, factorDetails = false }) {
   const rows = [
@@ -260,26 +224,17 @@ function InfoDialog({ title, description }) {
 }
 
 function FactorSection({ title, subtitle, items, positive, emptyText }) {
-  return <section className="flex h-72 min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
-    <div className="shrink-0 px-6 pb-3 pt-5">
-      <div className="flex items-center gap-2">
-        <h3 className={`flex items-center gap-2 text-base font-semibold ${positive ? "text-primary" : "text-destructive"}`}>
-          {positive ? <TrendingUp className="h-5 w-5" /> : <ShieldAlert className="h-5 w-5" />}{title}
-        </h3>
-        <InfoDialog title={title} description={subtitle} />
-      </div>
-    </div>
-    <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-5"><DialogAnalysisList items={items} emptyText={emptyText} /></div>
-  </section>
-}
-
-function CardConnector({ label }) {
-  return <div className="relative z-20 -my-1 flex h-6 items-center justify-center lg:pointer-events-none lg:absolute lg:inset-y-0 lg:left-1/2 lg:my-0 lg:h-auto lg:-translate-x-1/2" role="img" aria-label={label}>
-    <span
-      aria-hidden="true"
-      className="flex h-6 w-9 select-none items-center justify-center rounded-full border border-border bg-card text-foreground/75 ring-[3px] ring-background shadow-[0_3px_10px_hsl(var(--foreground)/0.10)]"
-    ><Link2 className="h-4 w-4" strokeWidth={2.4} /></span>
-  </div>
+  const values = (items || []).filter(Boolean)
+  const changes = values.filter(item => ["new", "changed"].includes(item.change_status)).length
+  return <details className="group border-b border-border last:border-b-0">
+    <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 py-4 text-sm font-medium [&::-webkit-details-marker]:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      {positive ? <TrendingUp className="h-4 w-4 shrink-0 text-primary" /> : <ShieldAlert className="h-4 w-4 shrink-0 text-destructive" />}
+      <span>{title}</span><span className="text-xs text-muted-foreground">{new Intl.NumberFormat("fa-IR").format(values.length)}</span>
+      {changes > 0 && <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">{new Intl.NumberFormat("fa-IR").format(changes)} جدید یا تغییرکرده</span>}
+      <ChevronDown className="ms-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+    </summary>
+    <div className="pb-4"><div className="mb-1 flex justify-end"><InfoDialog title={title} description={subtitle} /></div><DialogAnalysisList items={values} emptyText={emptyText} /></div>
+  </details>
 }
 
 function CalendarContentState({ isLoading, error, emptyText, onRetry }) {
@@ -307,29 +262,27 @@ function DialogAnalysisList({ items, emptyText }) {
   })
   return values.length ? <div>{values.map(item => <HelpDialog key={item.key} title={item.title} item={item.dialogItem} factorDetails>
     <button type="button" aria-label={`نمایش جزئیات ${item.title}`} className="flex w-full items-center justify-between gap-3 border-b border-border py-3 text-right text-sm font-medium leading-6 text-foreground transition last:border-b-0 hover:text-foreground/80">
-      <span className="min-w-0"><span className="block">{item.title}</span>{(item.dialogItem.detail_fa || item.dialogItem.why_active_fa) && <span className="mt-1 block text-xs font-normal leading-6 text-muted-foreground">{item.dialogItem.detail_fa || item.dialogItem.why_active_fa}</span>}</span>
+      <span className="min-w-0">{item.title}</span>
+      {statusLabels[item.dialogItem.change_status] && <span className={`ms-auto shrink-0 text-xs font-normal ${item.dialogItem.change_status === "ongoing" ? "text-muted-foreground" : "text-primary"}`}>{statusLabels[item.dialogItem.change_status]}</span>}
       <DisclosureTriangle className="opacity-75" />
     </button>
   </HelpDialog>)}</div> : <p className="text-sm text-muted-foreground">{emptyText}</p>
 }
 
-export default function MarketIntelligenceSections({ market, onRefresh, loading = false }) {
+export default function MarketIntelligenceSections({ market, status, onRefresh, loading = false }) {
   const [analysisTab, setAnalysisTab] = useState("current")
   const [news, setNews] = useState([])
   const [newsState, setNewsState] = useState({ loading: true, error: "", stale: false })
   const [newsReloadKey, setNewsReloadKey] = useState(0)
   const [selectedNews, setSelectedNews] = useState(null)
+  const newsTrigger = useRef(null)
   const [newsAnalyses, setNewsAnalyses] = useState({})
   const [newsAnalysisLoading, setNewsAnalysisLoading] = useState(null)
   const [newsAnalysisErrors, setNewsAnalysisErrors] = useState({})
-  const [upcomingEvents, setUpcomingEvents] = useState([])
-  const [releasedEvents, setReleasedEvents] = useState([])
+  const [calendarEvents, setCalendarEvents] = useState([])
   const [earningsEvents, setEarningsEvents] = useState([])
   const [calendarReloadKey, setCalendarReloadKey] = useState(0)
-  const [calendarState, setCalendarState] = useState({
-    upcoming: { loading: true, error: "" },
-    released: { loading: true, error: "" },
-  })
+  const [calendarState, setCalendarState] = useState({ loading: true, error: "", earningsError: "" })
   useEffect(() => {
     const controller = new AbortController()
     const loadNews = async () => {
@@ -341,7 +294,7 @@ export default function MarketIntelligenceSections({ market, onRefresh, loading 
         if (controller.signal.aborted) return
         const items = payload.data.items.filter(item => item.source === "cnbc_rss").slice(0, 4)
         setNews(items)
-        setSelectedNews(current => items.find(item => item.item_id === current?.item_id) || items[0] || null)
+        setSelectedNews(current => current ? items.find(item => item.item_id === current.item_id) || current : null)
         setNewsState({ loading: false, error: "", stale: Boolean(payload.data.stale) })
       } catch {
         if (!controller.signal.aborted) setNewsState(current => ({ ...current, loading: false, error: "دریافت اخبار CNBC ناموفق بود." }))
@@ -352,53 +305,51 @@ export default function MarketIntelligenceSections({ market, onRefresh, loading 
   }, [newsReloadKey])
 
   useEffect(() => {
-    const controller = new AbortController()
-    const requestItems = async (path) => {
-      let lastError = null
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        try {
-          const response = await fetch(path, { cache: "no-store", signal: controller.signal })
-          const payload = await response.json().catch(() => null)
-          if (!response.ok || !Array.isArray(payload?.data?.items)) throw new Error("Invalid calendar response")
-          return payload.data.items
-        } catch (error) {
-          if (controller.signal.aborted) throw error
-          lastError = error
-        }
-      }
-      throw lastError || new Error("Calendar request failed")
-    }
-    const loadCalendar = async (kind, path, setItems, errorMessage) => {
-      setCalendarState(current => ({ ...current, [kind]: { loading: true, error: "" } }))
-      try {
-        const items = await requestItems(path)
-        if (!controller.signal.aborted) setItems(items)
-      } catch (error) {
-        if (!controller.signal.aborted) setCalendarState(current => ({ ...current, [kind]: { loading: false, error: errorMessage } }))
-      } finally {
-        if (!controller.signal.aborted) setCalendarState(current => ({ ...current, [kind]: { ...current[kind], loading: false } }))
-      }
-    }
-    const loadEarningsCalendar = async () => {
+    let stopped = false
+    let active = null
+    const load = async () => {
+      if (active || stopped) return
+      const controller = new AbortController()
+      active = controller
+      const timeout = setTimeout(() => controller.abort(), 25000)
       const today = tehranCalendarDate()
-      const url = new URL(FINLOGIX_EARNINGS_URL)
-      url.searchParams.set("countries", "US")
-      url.searchParams.set("start", `${shiftCalendarDate(today, -14)}T00:00:00`)
-      url.searchParams.set("end", `${shiftCalendarDate(today, 14)}T23:59:59`)
-      try {
+      const earningsUrl = new URL(FINLOGIX_EARNINGS_URL)
+      earningsUrl.searchParams.set("countries", "US")
+      earningsUrl.searchParams.set("start", `${shiftCalendarDate(today, -MARKET_CALENDAR_DAYS)}T00:00:00`)
+      earningsUrl.searchParams.set("end", `${shiftCalendarDate(today, MARKET_CALENDAR_DAYS)}T23:59:59`)
+      const read = async url => {
         const response = await fetch(url, { cache: "no-store", signal: controller.signal })
-        if (!response.ok) throw new Error("Finlogix earnings request failed")
-        const payload = await response.json()
-        if (!Array.isArray(payload)) throw new Error("Finlogix earnings response is invalid")
-        if (!controller.signal.aborted) setEarningsEvents(earningsCalendarEvents(payload))
-      } catch {
-        if (!controller.signal.aborted) setEarningsEvents([])
+        if (!response.ok) throw new Error("Calendar source unavailable")
+        return response.json()
       }
+      const results = await Promise.allSettled([
+        read(`/analytics-data/news/calendar/timeline?days_before=${MARKET_CALENDAR_DAYS}&days_after=${MARKET_CALENDAR_DAYS}`),
+        read(earningsUrl),
+      ])
+      clearTimeout(timeout)
+      active = null
+      if (stopped) return
+      const [calendar, earnings] = results
+      const calendarReady = calendar.status === "fulfilled" && Array.isArray(calendar.value?.data?.items)
+      const earningsReady = earnings.status === "fulfilled" && Array.isArray(earnings.value)
+      // Failed refreshes never leave an old schedule looking freshly confirmed.
+      setCalendarEvents(calendarReady ? calendar.value.data.items : [])
+      setEarningsEvents(earningsReady ? earningsCalendarEvents(earnings.value) : [])
+      setCalendarState({ loading: false,
+        error: calendarReady ? "" : "دریافت رویدادهای اقتصادی ناموفق بود.",
+        earningsError: earningsReady ? "" : "تقویم سود شرکت‌ها در دسترس نیست.",
+      })
     }
-    void loadCalendar("upcoming", "/analytics-data/news/calendar/upcoming?limit=6", setUpcomingEvents, "دریافت داده های مهم پیش رو ناموفق بود.")
-    void loadCalendar("released", "/analytics-data/news/calendar/released?limit=6", setReleasedEvents, "دریافت داده‌های مهم منتشرشده ناموفق بود.")
-    void loadEarningsCalendar()
-    return () => controller.abort()
+    void load()
+    const visible = () => { if (!document.hidden) void load() }
+    const timer = window.setInterval(visible, 300000)
+    document.addEventListener("visibilitychange", visible)
+    return () => {
+      stopped = true
+      active?.abort()
+      window.clearInterval(timer)
+      document.removeEventListener("visibilitychange", visible)
+    }
   }, [calendarReloadKey])
 
   useEffect(() => {
@@ -427,26 +378,10 @@ export default function MarketIntelligenceSections({ market, onRefresh, loading 
   const factorGroups = useMemo(() => marketFactorGroups(market), [market])
   const positive = factorGroups.supportive
   const negative = factorGroups.challenging
-  const fallbackReleasedData = structuredDrivers
-    .filter(item => item.current !== null && item.current !== undefined && (item.previous !== null && item.previous !== undefined || item.forecast !== null && item.forecast !== undefined))
-    .slice(0, 5)
-    .map(item => ({
-      ...item,
-      event_id: item.metric,
-      actual: item.current,
-      release_at: item.release_at || market.data_as_of || market.as_of_date,
-      source_url: item.source_url || "/analytics/events",
-    }))
-  const publishedEvents = [
-    ...(releasedEvents.length ? releasedEvents.map(item => enrichCalendarEvent(item, structuredDrivers)) : fallbackReleasedData),
-    ...earningsEvents.filter(item => item._is_released),
-  ]
-  const publishedEventGroups = groupEventsByDate(publishedEvents, true)
-  const upcomingMarketEvents = [
-    ...upcomingEvents.map(item => enrichCalendarEvent(item, structuredDrivers)),
-    ...earningsEvents.filter(item => !item._is_released),
-  ]
-  const upcomingEventGroups = groupEventsByDate(upcomingMarketEvents)
+  const importantEvents = useMemo(() => [
+    ...calendarEvents.map(item => enrichCalendarEvent(item, structuredDrivers)),
+    ...earningsEvents,
+  ], [calendarEvents, earningsEvents, market.market_drivers])
   const potentialItems = factorGroups.potentials
   const riskItems = factorGroups.risks
   const selectedNewsAnalysis = selectedNews ? newsAnalyses[selectedNews.item_id] : null
@@ -458,9 +393,6 @@ export default function MarketIntelligenceSections({ market, onRefresh, loading 
     : market.next_analysis_at
       ? formatTehranTime(market.next_analysis_at)
       : "زمان‌بندی فعال نیست"
-  const currentMoveLines = (market.current_market_move_fa || market.what_changed_fa || market.market_story_fa || "").split("\n").map(line => line.trim()).filter(Boolean)
-  const currentHeadline = currentMoveLines.length > 1 ? currentMoveLines[0] : null
-  const currentMoveSummary = currentHeadline ? currentMoveLines.slice(1).join("\n") : currentMoveLines.join("\n")
   const legacyAssessmentTime = !market.report_kind ? market.analysis_generated_at : null
   const analysisTimes = {
     current: market.analysis_generated_at,
@@ -490,11 +422,7 @@ export default function MarketIntelligenceSections({ market, onRefresh, loading 
           </CardHeader>
           <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pb-6">
             <TabsContent value="current" className={`${analysisPanelClass} space-y-3`}>
-            {currentHeadline && <h3 className="text-base font-semibold leading-7">{currentHeadline}</h3>}
-            <p className={`whitespace-pre-line leading-7 ${currentHeadline ? "text-sm" : "text-base font-semibold"}`}>{currentMoveSummary}</p>
-            <p className="whitespace-pre-line text-sm leading-8 text-muted-foreground">{market.current_analysis_fa || market.systemic_synthesis_fa || market.narrative_fa}</p>
-            {market.watch_next_fa?.[0] && <p className="border-r-2 border-primary pr-3 text-sm leading-7"><span className="font-medium text-primary">زیر نظر: </span>{market.watch_next_fa[0]}</p>}
-            <p className="border-t border-border pt-3 text-[11px] leading-5 text-muted-foreground">نوبت بعدی: {nextAnalysisLabel}</p>
+              <MarketPulseAnalysis market={market} />
             </TabsContent>
             <TabsContent value="short-term" className={analysisPanelClass}>
               <MarketOutlookCard embedded title="مسیر هفته‌های پیش‌رو" horizon="چند روز تا چند هفته" view={market.short_term_view} legacyText={market.short_term_outlook_fa} assessedAt={market.short_term_assessed_at || (!market.report_kind ? market.analysis_generated_at : null)} weeklyFocus={market.weekly_focus_fa} weeklyEvents={market.weekly_events_fa} weeklyAssessedAt={market.weekly_assessed_at} />
@@ -503,85 +431,62 @@ export default function MarketIntelligenceSections({ market, onRefresh, loading 
               <MarketOutlookCard embedded title="تصویر ۶ تا ۱۲ ماهه" horizon="میان‌مدت" view={market.medium_term_view} legacyText={market.medium_term_outlook_fa} assessedAt={market.medium_term_assessed_at || (!market.report_kind ? market.analysis_generated_at : null)} />
             </TabsContent>
           </CardContent>
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-6 py-1.5">
+            <MarketStatusIndicators status={status} />
+            <InfoDialog title="زمان‌بندی تحلیل" description={`نوبت بعدی: ${nextAnalysisLabel}`} />
+          </div>
           </Tabs>
         </Card>
-        <SP500Dashboard compact />
+        <SP500Dashboard compact status={status} />
       </div>
-      <MarketStatusCards />
     </section>
 
-    <Card className="overflow-hidden border-border bg-muted/15">
-      <CardHeader className="pb-4"><CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-primary" />اخبار و رویدادها</CardTitle></CardHeader>
-      <CardContent className="space-y-4">
-    <section className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-4">
-      <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-border">
-        <CardHeader className="shrink-0 pb-3"><div className="flex items-center justify-between"><CardTitle className="flex items-center gap-2"><Newspaper className="h-5 w-5 text-primary" />اخبار منتخب CNBC</CardTitle><Link href="/analytics/events" className="text-xs text-primary">مشاهده همه</Link></div><p className="text-xs leading-5 text-muted-foreground">چهار خبر منتخب گرین‌پیک بر اساس ارتباط با بازار آمریکا و تازگی خبر</p></CardHeader>
-        <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto">
-        {newsState.error && <div role="alert" className="flex items-center justify-between gap-2 text-xs text-amber-600 dark:text-amber-400"><span>{newsState.error}</span><button type="button" disabled={newsState.loading} onClick={() => setNewsReloadKey(current => current + 1)} className="shrink-0 rounded px-2 py-1 text-primary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">تلاش دوباره</button></div>}
-        {newsState.stale && news.length > 0 && <p className="text-xs leading-5 text-amber-600 dark:text-amber-400">تازه‌ترین خبر موجود بیش از ۴۸ ساعت قدمت دارد.</p>}
-        {news.length ? news.map(item => {
-          const translatedTitle = newsAnalyses[item.item_id]?.title_fa || item.title_fa
-          const itemTitle = translatedTitle || item.title
-          const isSelected = selectedNews?.item_id === item.item_id
-          return <button key={item.item_id} type="button" aria-pressed={isSelected} onClick={() => setSelectedNews(item)} className={`w-full rounded-lg border border-border p-3 text-right transition ${isSelected ? "bg-primary/15" : "bg-muted/25 hover:bg-muted/40"}`}><div className="flex items-center justify-between gap-2"><Badge variant="outline">CNBC · {item.selection_rank}</Badge><time className="text-[11px] text-muted-foreground">{formatTime(item.published_at)}</time></div><p className="mt-2 line-clamp-2 text-right text-sm font-medium leading-6" dir={translatedTitle ? "rtl" : "ltr"}>{itemTitle}</p><p className="mt-1 text-[11px] leading-5 text-muted-foreground">{item.selection_reason_fa}</p></button>
-        }) : newsState.loading ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="h-4 w-4 animate-spin" />در حال دریافت اخبار CNBC…</p> : !newsState.error && <p className="text-sm text-muted-foreground">خبر تازه‌ای از CNBC در دسترس نیست.</p>}</CardContent>
+    <section aria-label="رویدادها و اخبار مهم" className="grid items-stretch gap-4 lg:grid-cols-2">
+      <Card className="flex h-[26rem] min-h-0 min-w-0 flex-col overflow-hidden border-border">
+        <CardHeader className="shrink-0 pb-2"><div className="flex items-center gap-2"><CardTitle>رویدادهای مهم</CardTitle><InfoDialog title="رویدادهای مهم" description="همهٔ رویدادهای اقتصادی آمریکا با اهمیت بالا و گزارش سود شرکت‌های با ارزش بازار بیش از ۳۰۰ میلیارد دلار، در هفت روز گذشته و هفت روز آینده. خط اکنون مرز زمانی رویدادهای دارای ساعت مشخص است؛ زمان گذشته به‌تنهایی به معنای انتشار نتیجه نیست." /></div></CardHeader>
+        {(calendarState.error || calendarState.earningsError) && <div role="status" className="space-y-1 px-5 pb-2 text-xs text-amber-600 dark:text-amber-400"><p>{[calendarState.error, calendarState.earningsError].filter(Boolean).join(" ")}</p><button type="button" onClick={() => setCalendarReloadKey(current => current + 1)} className="rounded px-2 py-1 text-primary hover:bg-muted">تلاش دوباره</button></div>}
+        {calendarState.loading ? <CardContent><CalendarContentState isLoading /></CardContent> : importantEvents.length || !calendarState.error ? <MarketEventTimeline events={importantEvents} loading={calendarState.loading} renderEvent={item => <MarketEventRow item={item} />} /> : <CardContent><CalendarContentState error={calendarState.error} onRetry={() => setCalendarReloadKey(current => current + 1)} /></CardContent>}
       </Card>
 
-      <CardConnector label="ارتباط خبر انتخاب‌شده با تحلیل همان خبر" />
-
-      <Card className="flex h-72 min-h-0 flex-col overflow-hidden border-border">
-        <CardHeader className="shrink-0 pb-3"><div className="flex items-center gap-2"><CardTitle>{selectedNews?.analysis_available ? "تحلیل خبر منتخب" : "خلاصه خبر منتخب"}</CardTitle><InfoDialog title="خبر منتخب CNBC" description="خلاصهٔ خبر و لینک اصلی CNBC نمایش داده می‌شود. برای خبرهای موجود در آرشیو، در صورت آماده‌بودن سرویس تحلیل، ترجمه و تفسیر فارسی همان خبر نیز دریافت می‌شود." /></div></CardHeader>
-        <CardContent className="min-h-0 flex-1 overflow-y-auto" aria-live="polite">{selectedNews ? <div className="space-y-3">
-          {newsAnalysisLoading === selectedNews.item_id && !selectedNewsAnalysis && <div className="flex items-center gap-2 text-xs font-medium text-primary">
-            <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-            <span>در حال تحلیل این خبر</span>
-          </div>}
-          <a href={selectedNewsAnalysis?.source_url || selectedNews.url} target="_blank" rel="noreferrer" className="block font-medium leading-7 text-primary transition hover:text-primary/80 hover:underline" dir={selectedNewsAnalysis?.title_fa || selectedNews.title_fa ? "rtl" : "ltr"}>{selectedNewsTitle}</a>
-          {selectedNewsBody ? <p dir="auto" className="text-sm leading-8 text-muted-foreground">{selectedNewsBody}</p> : <p className="text-sm text-muted-foreground">خلاصهٔ خبر در خوراک CNBC موجود نیست؛ متن خبر را از لینک بالا بخوانید.</p>}
-          {selectedNewsAnalysisError && <p className="text-xs leading-6 text-amber-400">{selectedNewsAnalysisError}</p>}
-          <div className="flex flex-wrap gap-2"><Badge variant="outline">منبع: CNBC</Badge>{selectedNewsAnalysis && <Badge variant="outline">مبنای تحلیل: {selectedNewsAnalysis.evidence_type === "source_page" ? "متن صفحهٔ منبع" : "خلاصهٔ منبع"}</Badge>}</div>
-        </div> : <p className="text-sm text-muted-foreground">یک خبر را انتخاب کنید.</p>}</CardContent>
+      <Card className="min-w-0 border-border">
+        <CardHeader className="pb-3"><div className="flex items-center justify-between gap-2"><CardTitle className="flex items-center gap-2"><Newspaper className="h-4 w-4 text-primary" />اخبار منتخب</CardTitle><Link href="/analytics/events" className="text-xs text-primary">مشاهده همه</Link></div></CardHeader>
+        <CardContent>
+          {newsState.error && <div role="alert" className="flex items-center justify-between gap-2 text-xs text-amber-600 dark:text-amber-400"><span>{newsState.error}</span><button type="button" disabled={newsState.loading} onClick={() => setNewsReloadKey(current => current + 1)} className="shrink-0 rounded px-2 py-1 text-primary hover:bg-muted">تلاش دوباره</button></div>}
+          {newsState.stale && news.length > 0 && <p className="pb-2 text-xs leading-5 text-amber-600 dark:text-amber-400">تازه‌ترین خبر موجود بیش از ۴۸ ساعت قدمت دارد.</p>}
+          {news.length ? news.map(item => {
+            const translatedTitle = newsAnalyses[item.item_id]?.title_fa || item.title_fa
+            return <button key={item.item_id} type="button" aria-haspopup="dialog" onClick={event => { newsTrigger.current = event.currentTarget; setSelectedNews(item) }} className="flex w-full items-center gap-3 border-b border-border py-3 text-right transition last:border-b-0 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <span className="min-w-0 flex-1"><span className="block text-sm font-medium leading-6" dir={translatedTitle ? "rtl" : "ltr"}>{translatedTitle || item.title}</span><span className="mt-1 block text-[11px] text-muted-foreground">CNBC · {formatTime(item.published_at)}</span></span><DisclosureTriangle className="text-primary" />
+            </button>
+          }) : newsState.loading ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="h-4 w-4 animate-spin" />در حال دریافت اخبار…</p> : !newsState.error && <p className="text-sm text-muted-foreground">خبر تازه‌ای در دسترس نیست.</p>}
+        </CardContent>
       </Card>
     </section>
 
-    <section className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-4">
-      <Card className="flex h-80 min-h-0 flex-col overflow-hidden border-border">
-        <CardHeader className="shrink-0 pb-3"><div className="flex items-center gap-2"><CardTitle>داده‌های مهم منتشرشده</CardTitle><InfoDialog title="داده‌های مهم منتشرشده" description="رویدادهای مهم منتشرشده همراه با تاریخ، ساعت تهران و مقادیر واقعی، پیش‌بینی و قبلی نمایش داده می‌شوند." /></div></CardHeader>
-        <CardContent className="min-h-0 flex-1 overflow-y-auto">{publishedEventGroups.length ? <div className="space-y-4">{publishedEventGroups.map(group => <section key={group.key}>
-          <h3 className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-card pb-2 text-xs font-medium text-primary"><CalendarDays className="h-3.5 w-3.5" />{group.label}</h3>
-          <div>{group.items.map(item => <MarketEventRow key={item.event_id || item.metric} item={item} />)}</div>
-        </section>)}</div> : <CalendarContentState isLoading={calendarState.released.loading} error={calendarState.released.error} emptyText="دادهٔ منتشرشدهٔ مهمی از تقویم دریافت نشد." onRetry={() => setCalendarReloadKey(current => current + 1)} />}</CardContent>
-      </Card>
-
-      <CardConnector label="ارتباط داده‌های مهم منتشرشده با داده های مهم پیش رو" />
-
-      <Card className="flex h-80 min-h-0 flex-col overflow-hidden border-border">
-        <CardHeader className="shrink-0 pb-3"><div className="flex items-center gap-2"><CardTitle>داده‌های مهم پیش‌رو</CardTitle><InfoDialog title="داده‌های مهم پیش‌رو" description="داده‌های آینده با اهمیت بالا همراه با تاریخ، ساعت تهران و مقادیر پیش‌بینی و قبلی نمایش داده می‌شوند. مقدار واقعی تا زمان انتشار خالی می‌ماند." /></div></CardHeader>
-        <CardContent className="min-h-0 flex-1 overflow-y-auto">{upcomingEventGroups.length ? <div className="space-y-4">{upcomingEventGroups.map(group => <section key={group.key}>
-          <h3 className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-card pb-2 text-xs font-medium text-primary"><CalendarDays className="h-3.5 w-3.5" />{group.label}</h3>
-          <div>{group.items.map(item => <MarketEventRow key={item.event_id || item.metric} item={item} />)}</div>
-        </section>)}</div> : <CalendarContentState isLoading={calendarState.upcoming.loading} error={calendarState.upcoming.error} emptyText="دادهٔ مهم آینده‌ای از تقویم دریافت نشد." onRetry={() => setCalendarReloadKey(current => current + 1)} />}</CardContent>
-      </Card>
-    </section>
-      </CardContent>
-    </Card>
+    <Dialog open={Boolean(selectedNews)} onOpenChange={open => { if (!open) setSelectedNews(null) }}>
+      <DialogContent dir="rtl" onCloseAutoFocus={event => { event.preventDefault(); newsTrigger.current?.focus() }} className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader className="text-right"><DialogTitle className="leading-8">{selectedNewsTitle || "خبر منتخب"}</DialogTitle><DialogDescription>{selectedNews?.analysis_available ? "تحلیل خبر منتخب" : "خلاصه خبر منتخب"}</DialogDescription></DialogHeader>
+        {selectedNews && <div className="space-y-3">
+          {newsAnalysisLoading === selectedNews.item_id && !selectedNewsAnalysis && <p className="flex items-center gap-2 text-xs text-primary"><LoaderCircle className="h-3.5 w-3.5 animate-spin" />در حال دریافت تحلیل خبر</p>}
+          {selectedNewsBody ? <p dir="auto" className="whitespace-pre-line text-sm leading-8">{selectedNewsBody}</p> : !newsAnalysisLoading && <p className="text-sm text-muted-foreground">خلاصهٔ خبر در خوراک منبع موجود نیست.</p>}
+          {selectedNewsAnalysisError && <p className="text-xs leading-6 text-amber-600 dark:text-amber-400">{selectedNewsAnalysisError}</p>}
+          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground"><span>CNBC · {formatTime(selectedNews.published_at)}</span>{selectedNewsAnalysis && <span>مبنای تحلیل: {selectedNewsAnalysis.evidence_type === "source_page" ? "متن صفحهٔ منبع" : "خلاصهٔ منبع"}</span>}</div>
+          {selectedNews.selection_reason_fa && <p className="text-xs leading-6 text-muted-foreground">{selectedNews.selection_reason_fa}</p>}
+          <a href={selectedNewsAnalysis?.source_url || selectedNews.url} target="_blank" rel="noreferrer" className="inline-block text-sm text-primary hover:underline">مشاهده خبر در منبع</a>
+        </div>}
+      </DialogContent>
+    </Dialog>
 
     <Card className="overflow-hidden border-border bg-muted/15">
       <CardHeader className="pb-4">
         <CardTitle>عوامل اثرگذار بر بازار</CardTitle>
         {(market.factors_assessed_at || (!market.report_kind && market.analysis_generated_at)) && <time className="block text-[11px] leading-5 text-muted-foreground">آخرین ارزیابی عوامل: {formatTime(market.factors_assessed_at || market.analysis_generated_at)}</time>}
       </CardHeader>
-      <CardContent className="space-y-4" dir="rtl">
-        <div className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-4">
+      <CardContent dir="rtl">
           <FactorSection title="عوامل حمایتی" subtitle="عوامل مثبتِ جدید یا همچنان مؤثر · افق هر عامل مشخص است" items={positive} positive emptyText={emptyFactorReasons.supportive || "عامل حمایتی با شواهد کافی در تحلیل موجود ثبت نشده است."} />
-          <CardConnector label="ارتباط عوامل حمایتی و چالش‌زا" />
           <FactorSection title="عوامل چالش‌زا" subtitle="فشارهای جاری بر بازار آمریکا · افق هر عامل مشخص است" items={negative} emptyText={emptyFactorReasons.challenging || "عامل چالش‌زا با شواهد کافی در تحلیل موجود ثبت نشده است."} />
-        </div>
-        <div className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-4">
           <FactorSection title="پتانسیل‌های بازار" subtitle="فرصت‌های چندماهه و ساختاری · با شرایط تحقق" items={potentialItems} positive emptyText={emptyFactorReasons.potentials || "پتانسیل با شواهد کافی در تحلیل موجود ثبت نشده است."} />
-          <CardConnector label="ارتباط پتانسیل‌ها و ریسک‌های حاکم بر بازار" />
           <FactorSection title="ریسک‌های حاکم بر بازار" subtitle="ریسک‌های فعال یا تحت نظر · با افق زمانی مشخص" items={riskItems} emptyText={emptyFactorReasons.risks || "ریسک با شواهد کافی در تحلیل موجود ثبت نشده است."} />
-        </div>
       </CardContent>
     </Card>
   </div>

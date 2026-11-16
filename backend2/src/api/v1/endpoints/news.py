@@ -8,7 +8,8 @@ from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
 from ....core.config import get_settings
-from ....services.economic_calendar import TRADAYS_BASE_URL, fetch_recent_us_events, fetch_upcoming_us_events
+from ....models.economic_calendar import ImportantCalendarResponse
+from ....services.economic_calendar import TRADAYS_BASE_URL, fetch_important_us_timeline, fetch_recent_us_events, fetch_upcoming_us_events
 from ....services.llm_engine.routing import create_llm_provider, llm_is_configured
 from ....services.llm_engine.prompts import default_prompt, load_text_prompt
 from ....services.news.article_analysis import NEWS_ANALYSIS_VERSION, analyze_news_document
@@ -128,6 +129,20 @@ def news_item_analysis(item_id: str = Path(pattern=r"^[a-zA-Z0-9_-]{1,80}$")):
         raise HTTPException(502, detail={"code": "NEWS_ANALYSIS_UNAVAILABLE", "message": "The source article could not be analyzed."})
     finally:
         client.close()
+
+
+@router.get("/calendar/timeline", response_model=ImportantCalendarResponse)
+def important_calendar_timeline(
+    days_before: int = Query(default=7, ge=1, le=14),
+    days_after: int = Query(default=7, ge=1, le=14),
+):
+    try:
+        return ImportantCalendarResponse(data=fetch_important_us_timeline(days_before=days_before, days_after=days_after))
+    except (httpx.HTTPError, ValueError):
+        raise HTTPException(503, detail={
+            "code": "CALENDAR_SOURCE_UNAVAILABLE",
+            "message": "Economic calendar is temporarily unavailable.",
+        })
 
 
 @router.get("/calendar/upcoming")

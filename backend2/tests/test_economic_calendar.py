@@ -1,7 +1,9 @@
 import os
 from datetime import UTC, datetime
+from datetime import timedelta
 
 import httpx
+import pytest
 
 os.environ["DEBUG"] = "false"
 
@@ -189,3 +191,82 @@ def test_recent_calendar_falls_back_to_tradingview_with_actual_values(monkeypatc
     assert events[0]["actual"] == "0.4%"
     assert events[0]["forecast"] == "0.2%"
     assert events[0]["previous"] == "-0.1%"
+
+
+def timeline_row(identifier, release, **changes):
+    return {"Id": identifier, "Url": "/en/economic-calendar/widget/united-states/retail-sales-mm",
+            "Importance": "high", "CurrencyCode": "USD", "Country": 840,
+            "ReleaseDate": int(release.timestamp() * 1000), **changes}
+
+
+def test_timeline_has_no_top_n_cut_and_keeps_pending_past_events(monkeypatch):
+    anchor = datetime(2026, 11, 16, 12, tzinfo=UTC)
+    rows = [timeline_row(index, anchor - timedelta(minutes=index + 1)) for index in range(35)]
+    rows += [rows[0], timeline_row("future", anchor + timedelta(hours=1), ActualValue="must not leak"),
+             timeline_row("outside", anchor - timedelta(days=9)),
+             timeline_row("low", anchor, Importance="medium"), None]
+    captured = {}
+
+    def fetch(start, end, timeout):
+        captured.update(start=start, end=end)
+        return rows
+
+    monkeypatch.setattr(economic_calendar, "_fetch_calendar_rows", fetch)
+    result = economic_calendar.fetch_important_us_timeline(now=anchor)
+    assert result.count == 36
+    assert len(result.items) == 36
+    assert result.items[0].event_id == "34"
+    assert result.items[-1].event_id == "future"
+    assert all(item.actual is None for item in result.items)
+    assert captured["start"] == datetime(2026, 11, 8, 20, 30, tzinfo=UTC)
+    assert captured["end"] == datetime(2026, 11, 23, 20, 30, tzinfo=UTC)
+
+
+def test_timeline_fallback_keeps_past_events_without_actual_and_filters_window(monkeypatch):
+    anchor = datetime(2026, 11, 16, 21, tzinfo=UTC)  # Next calendar day in Tehran.
+    def unavailable(*args):
+        raise httpx.ConnectError("private upstream details")
+    monkeypatch.setattr(economic_calendar, "_fetch_calendar_rows", unavailable)
+    monkeypatch.setattr(economic_calendar, "_fetch_tradingview_rows", lambda *args: [
+        {"id": name, "title": "Initial Jobless Claims", "date": date, "country": "US", "currency": "USD", "importance": 1}
+        for name, date in [("past", "2026-11-16T12:30:00Z"), ("future", "2026-11-18T12:30:00Z"), ("outside", "2026-10-01T12:00:00Z")]
+    ])
+    result = economic_calendar.fetch_important_us_timeline(now=anchor)
+    assert [item.event_id for item in result.items] == ["tradingview-past", "tradingview-future"]
+    assert result.window_start == datetime(2026, 11, 9, 20, 30, tzinfo=UTC)
+    assert result.source == "TradingView Economic Calendar"
+
+
+def test_timeline_endpoint_and_health_without_network_or_database(monkeypatch):
+    from fastapi.testclient import TestClient
+    from src.main import app
+    from src.api.v1.endpoints import news
+    from src.models.economic_calendar import ImportantCalendarData
+
+    anchor = datetime(2026, 11, 16, tzinfo=UTC)
+    captured = {}
+    def fetch(**kwargs):
+        captured.update(kwargs)
+        return ImportantCalendarData(items=[], count=0, window_start=anchor, window_end=anchor + timedelta(days=2), generated_at=anchor, source="Tradays / MQL5", source_url=economic_calendar.TRADAYS_BASE_URL)
+    monkeypatch.setattr(news, "fetch_important_us_timeline", fetch)
+    client = TestClient(app)
+    response = client.get("/api/v1/news/calendar/timeline?days_before=7&days_after=8")
+    assert response.status_code == 200
+    assert response.json()["data"]["count"] == 0
+    assert captured == {"days_before": 7, "days_after": 8}
+    assert client.get("/health").status_code == 200
+    assert client.get("/api/v1/news/calendar/timeline?days_before=0").status_code == 422
+    assert client.get("/api/v1/news/calendar/timeline?days_after=15").status_code == 422
+
+    def unavailable(**kwargs):
+        raise httpx.ConnectError("private upstream details")
+    monkeypatch.setattr(news, "fetch_important_us_timeline", unavailable)
+    failed = client.get("/api/v1/news/calendar/timeline")
+    assert failed.status_code == 503
+    assert "private upstream" not in failed.text
+
+
+@pytest.mark.parametrize("before,after", [(0, 7), (7, 15)])
+def test_timeline_rejects_unbounded_windows(before, after):
+    with pytest.raises(ValueError):
+        economic_calendar.fetch_important_us_timeline(days_before=before, days_after=after)

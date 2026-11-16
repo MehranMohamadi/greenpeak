@@ -15,6 +15,7 @@ import Link from "next/link"
 import SP500Chart from "@/components/charts/sp500-chart"
 import IndicatorGuide from "@/components/analytics/indicator-guide"
 import USMarketPageHeader from "@/components/analytics/us-market-page-header"
+import MarketStatusIndicators from "@/components/analytics/market-status-indicators"
 import useSP500Data from "@/hooks/useSP500Data"
 import {
   Card,
@@ -46,7 +47,7 @@ const analysisLinks = [
 
 const chartTimeframes = ["1D", "5D", "1M", "6M", "YTD", "1Y", "5Y", "MAX"]
 
-export default function SP500Dashboard({ compact = false }: { compact?: boolean }) {
+export default function SP500Dashboard({ compact = false, status = null }: { compact?: boolean; status?: any }) {
   const [selectedTab, setSelectedTab] = useState("overview")
   const [selectedTimeframe, setSelectedTimeframe] = useState("5D")
   const { data, loading, refreshing, error, lastUpdated, refresh } =
@@ -120,6 +121,7 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
           )}
         </CardContent>
         <div dir="rtl" className="flex flex-wrap justify-between gap-x-3 border-t border-border px-3 py-1.5 text-[10px] text-muted-foreground">
+          {status && <MarketStatusIndicators status={status} keys={["change_intensity"]} />}
           <span>{observationLabel ? `آخرین کندل: ${observationLabel}` : "زمان مشاهده در دسترس نیست"}</span>
           {lastUpdatedLabel && <span>دریافت: {lastUpdatedLabel}</span>}
         </div>

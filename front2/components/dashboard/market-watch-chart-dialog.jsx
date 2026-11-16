@@ -37,7 +37,8 @@ export default function MarketWatchChartDialog({ item, onClose, triggerRef }) {
           </ResponsiveContainer>
         </div> : <p role="status" className="flex min-h-0 flex-1 items-center justify-center text-center text-sm text-muted-foreground">{item.error || "داده‌ای برای نمایش موجود نیست."}</p>}
         <div className="shrink-0 space-y-1 text-xs leading-6 text-muted-foreground">
-          <p>منبع: <bdi>{item.source || (item.id === "gold" ? "Twelve Data · XAU/USD" : "—")}</bdi></p>
+          <p>منبع: <bdi>{item.source || (item.id === "gold" ? "Yahoo Finance · COMEX (GC=F)" : "—")}</bdi></p>
+          {item.id === "gold" && <p>طلای آتی COMEX به دلار برای هر اونس تروا؛ با قیمت نقدی XAU/USD متفاوت است و تغییر قرارداد می‌تواند بر تغییر قیمت اثر بگذارد.</p>}
           {item.observationTimestamp && <p>آخرین مشاهده: <bdi>{dateLabel(item.observationTimestamp, intraday, true)}</bdi></p>}
           {item.id === "pe-ratio" && <p>منبع P/E دادهٔ ماهانه منتشر می‌کند؛ دادهٔ ۵ دقیقه‌ای برای آن ساخته نمی‌شود.</p>}
           {item.id === "treasury-10y" && <p>بازده ده‌سالهٔ Cboe با واحد درصد؛ متفاوت از سری روزانهٔ DGS10.</p>}

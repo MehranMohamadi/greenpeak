@@ -7,16 +7,15 @@ import ts from "typescript"
 
 const moduleUrl = source => `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`
 const sourceUrl = moduleUrl(await readFile(new URL("../lib/market-watch-source.js", import.meta.url), "utf8"))
-const { parseWatchGold, parseWatchYahoo, WATCH_INTRADAY_SERIES } = await import(sourceUrl)
+const { parseWatchYahoo, WATCH_INTRADAY_SERIES } = await import(sourceUrl)
 const watch = await import(moduleUrl(await readFile(new URL("../lib/market-watch.js", import.meta.url), "utf8")))
 const route = (await readFile(new URL("../app/api/market/watch/route.js", import.meta.url), "utf8")).replace('"@/lib/market-watch-source"', JSON.stringify(sourceUrl))
 const { GET } = await import(moduleUrl(route))
 const base = Date.parse("2025-11-03T12:00:00Z") / 1000
 const now = (base + 3600) * 1000
 const yahoo = (series, times = [base, base + 300], close = [4.25, 4.26], interval = "5m") => ({ chart: { result: [{
-  meta: { symbol: WATCH_INTRADAY_SERIES[series].symbol, dataGranularity: interval }, timestamp: times, indicators: { quote: [{ close }] },
+  meta: { symbol: WATCH_INTRADAY_SERIES[series].symbol, dataGranularity: interval, ...(series === "gold" ? { currency: "USD" } : {}) }, timestamp: times, indicators: { quote: [{ close }] },
 }] } })
-const gold = values => ({ meta: { symbol: "XAU/USD", interval: "5min" }, values })
 
 test("all five intraday cards request five-minute observations; P/E stays monthly", () => {
   assert.equal(watch.marketSeries.length, 6)
@@ -26,25 +25,24 @@ test("all five intraday cards request five-minute observations; P/E stays monthl
   }
 })
 
-test("five-minute gold retains UTC bar times, sorts/deduplicates and keeps spot-dollar units", () => {
-  const result = parseWatchGold(gold([
-    { datetime: "2025-11-03 12:05:00", close: "4001.25" },
-    { datetime: "2025-11-03 12:00:00", close: "4000.00" },
-    { datetime: "2025-11-03 12:05:00", close: "4002.25" },
-  ]), now)
+test("five-minute gold retains UTC bar times and explicitly identifies COMEX futures", () => {
+  const result = parseWatchYahoo(yahoo("gold", [base + 300, base, base + 300], [4001.25, 4000, 4002.25]), "gold", now)
   assert.deepEqual(result.data.map(p => [p.time, p.value]), [[base, 4000], [base + 300, 4002.25]])
-  assert.equal(result.metadata.source_provider, "Twelve Data")
-  assert.equal(result.metadata.source_series_id, "XAU/USD")
+  assert.equal(result.metadata.source_provider, "Yahoo Finance")
+  assert.equal(result.metadata.source_series_id, "GC=F")
+  assert.equal(result.metadata.instrument_type, "futures")
+  assert.equal(result.metadata.exchange, "COMEX")
   assert.equal(result.metadata.unit, "USD per troy ounce")
   assert.equal(result.metadata.interval, "5min")
 })
 
-test("invalid/future gold points and wrong symbols/intervals cannot become valid observations", () => {
-  for (const close of [null, "", " ", true, "NaN", 0, -1]) assert.throws(() => parseWatchGold(gold([{ datetime: "2025-11-03 12:00:00", close }]), now))
-  for (const datetime of ["2025-02-30 12:00:00", "2025-11-04 12:00:00", "bad"]) assert.throws(() => parseWatchGold(gold([{ datetime, close: "4000" }]), now))
-  const raw = gold([{ datetime: "2025-11-03 12:00:00", close: "4000" }])
-  for (const patch of [{ symbol: "GC=F" }, { interval: "1day" }, { exchange_timezone: "America/New_York" }]) assert.throws(() => parseWatchGold({ ...raw, meta: { ...raw.meta, ...patch } }, now))
-  assert.throws(() => parseWatchGold({ ...raw, status: "error" }, now))
+test("invalid/future gold, spot symbols, wrong units and daily bars cannot enter the futures chart", () => {
+  for (const close of [null, "", " ", true, "NaN", 0, -1]) assert.throws(() => parseWatchYahoo(yahoo("gold", [base], [close]), "gold", now))
+  for (const time of [0, -1, base + 9999, "bad"]) assert.throws(() => parseWatchYahoo(yahoo("gold", [time], [4000]), "gold", now))
+  for (const patch of [{ symbol: "XAU/USD" }, { symbol: "GLD" }, { dataGranularity: "1d" }, { currency: "EUR" }]) {
+    const raw = yahoo("gold"); Object.assign(raw.chart.result[0].meta, patch)
+    assert.throws(() => parseWatchYahoo(raw, "gold", now))
+  }
 })
 
 test("Yahoo parsers keep each intraday timestamp, actual symbol and unscaled Treasury percent", () => {
@@ -65,43 +63,35 @@ test("Yahoo invalid values are omitted without forward filling or invented zeros
   assert.deepEqual(result.data.map(p => p.value), [15])
 })
 
-test("gold route uses a server-only key and fixed spot symbol, UTC and 5min parameters", async () => {
+test("gold route needs no API key and fetches only five-minute GC futures", async () => {
   const original = globalThis.fetch
-  const originalKey = process.env.TWELVE_DATA_API_KEY
   try {
-    process.env.TWELVE_DATA_API_KEY = "test-only-secret"
     let requested, options
-    globalThis.fetch = async (url, init) => { requested = url; options = init; return Response.json(gold([{ datetime: "2025-11-03 12:00:00", close: "4000" }])) }
+    globalThis.fetch = async (url, init) => { requested = url; options = init; return Response.json(yahoo("gold", [base], [4000])) }
     const response = await GET(new Request("http://local/api/market/watch?series=gold&symbol=BAD&interval=1day"))
     assert.equal(response.status, 200)
-    assert.equal(requested.origin, "https://api.twelvedata.com")
-    assert.equal(requested.pathname, "/time_series")
-    for (const [key, value] of Object.entries({ symbol: "XAU/USD", interval: "5min", timezone: "UTC", apikey: "test-only-secret" })) assert.equal(requested.searchParams.get(key), value)
+    assert.equal(requested.origin, "https://query1.finance.yahoo.com")
+    assert.equal(decodeURIComponent(requested.pathname.split("/").at(-1)), "GC=F")
+    assert.equal(requested.searchParams.get("range"), "5d")
+    assert.equal(requested.searchParams.get("interval"), "5m")
+    assert.equal(requested.searchParams.get("apikey"), null)
     assert.equal(options.next.revalidate, 300)
-    assert.ok(!JSON.stringify(await response.json()).includes("test-only-secret"))
-  } finally { globalThis.fetch = original; if (originalKey === undefined) delete process.env.TWELVE_DATA_API_KEY; else process.env.TWELVE_DATA_API_KEY = originalKey }
+    const result = await response.json()
+    assert.equal(result.data.length, 1)
+    assert.equal(result.metadata.source_series_id, "GC=F")
+  } finally { globalThis.fetch = original }
 })
 
-test("missing keys, provider quota/errors and network exceptions never leak secrets or substitute gold futures", async () => {
+test("gold provider failures stay unavailable without leaking errors or substituting spot prices", async () => {
   const original = globalThis.fetch
-  const keys = [process.env.TWELVE_DATA_API_KEY, process.env.TWELVEDATA_API_KEY]
   try {
-    delete process.env.TWELVE_DATA_API_KEY; delete process.env.TWELVEDATA_API_KEY
-    let calls = 0
-    globalThis.fetch = async () => { calls++; throw new Error("SECRET") }
-    assert.equal((await GET(new Request("http://local/api/market/watch?series=gold"))).status, 503)
-    assert.equal(calls, 0)
-    process.env.TWELVEDATA_API_KEY = "SECRET"
-    for (const mock of [async () => { throw new Error("SECRET") }, async () => Response.json({ status: "error", message: "SECRET", code: 429 }), async () => new Response("SECRET", { status: 429 })]) {
+    for (const mock of [async () => { throw new Error("SECRET") }, async () => Response.json({ chart: { result: null, error: { description: "SECRET" } } }), async () => new Response("SECRET", { status: 429 })]) {
       globalThis.fetch = mock
       const response = await GET(new Request("http://local/api/market/watch?series=gold"))
       assert.equal(response.status, 502)
       assert.ok(!(await response.text()).includes("SECRET"))
     }
-  } finally {
-    globalThis.fetch = original
-    for (const [index, name] of ["TWELVE_DATA_API_KEY", "TWELVEDATA_API_KEY"].entries()) { if (keys[index] === undefined) delete process.env[name]; else process.env[name] = keys[index] }
-  }
+  } finally { globalThis.fetch = original }
 })
 
 test("watch route only fetches allowlisted Yahoo symbols at 5m and rejects arbitrary series", async () => {

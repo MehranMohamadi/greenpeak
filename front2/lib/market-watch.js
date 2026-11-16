@@ -42,7 +42,7 @@ export const marketSeries = [
   },
   {
     id: "gold",
-    symbol: "طلا",
+    symbol: "طلا · آتی COMEX",
     url: "/api/market/watch?series=gold",
     interval: "5min",
     prefix: "$",
