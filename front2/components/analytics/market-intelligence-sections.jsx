@@ -226,12 +226,12 @@ function InfoDialog({ title, description }) {
 
 function FactorCard({ title, subtitle, items, positive, emptyText }) {
   const values = (items || []).filter(Boolean)
-  const changes = values.filter(item => ["new", "changed"].includes(item.change_status)).length
+  const hasChanges = values.some(item => ["new", "changed"].includes(item.change_status))
   return <Card className="flex h-80 min-h-0 min-w-0 flex-col overflow-hidden border-border">
     <CardHeader className="shrink-0 pb-2"><div className="flex flex-wrap items-center gap-2">
       {positive ? <TrendingUp className="h-4 w-4 shrink-0 text-primary" /> : <ShieldAlert className="h-4 w-4 shrink-0 text-destructive" />}
-      <CardTitle>{title}</CardTitle><span className="text-xs text-muted-foreground">{new Intl.NumberFormat("fa-IR").format(values.length)}</span>
-      {changes > 0 && <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">{new Intl.NumberFormat("fa-IR").format(changes)} جدید یا تغییرکرده</span>}
+      <CardTitle>{title}</CardTitle>
+      {hasChanges && <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">جدید یا تغییرکرده</span>}
       <span className="ms-auto"><InfoDialog title={title} description={subtitle} /></span>
     </div></CardHeader>
     <CardContent tabIndex={0} className="min-h-0 flex-1 overflow-y-auto overscroll-contain"><DialogAnalysisList items={values} emptyText={emptyText} /></CardContent>
@@ -264,7 +264,7 @@ function DialogAnalysisList({ items, emptyText }) {
   return values.length ? <div>{values.map(item => <HelpDialog key={item.key} title={item.title} item={item.dialogItem} factorDetails>
     <button type="button" aria-label={`نمایش جزئیات ${item.title}`} className="flex w-full items-center justify-between gap-3 border-b border-border py-3 text-right text-sm font-medium leading-6 text-foreground transition last:border-b-0 hover:text-foreground/80">
       <span className="min-w-0">{item.title}</span>
-      {statusLabels[item.dialogItem.change_status] && <span className={`ms-auto shrink-0 text-xs font-normal ${item.dialogItem.change_status === "ongoing" ? "text-muted-foreground" : "text-primary"}`}>{statusLabels[item.dialogItem.change_status]}</span>}
+      {["new", "changed"].includes(item.dialogItem.change_status) && <span className="ms-auto shrink-0 text-xs font-normal text-primary">{statusLabels[item.dialogItem.change_status]}</span>}
       <DisclosureTriangle className="opacity-75" />
     </button>
   </HelpDialog>)}</div> : <p className="text-sm text-muted-foreground">{emptyText}</p>
@@ -454,7 +454,7 @@ export default function MarketIntelligenceSections({ market, status, onRefresh, 
           {news.length ? news.map(item => {
             const translatedTitle = newsAnalyses[item.item_id]?.title_fa || item.title_fa
             return <button key={item.item_id} type="button" aria-haspopup="dialog" onClick={event => { newsTrigger.current = event.currentTarget; setSelectedNews(item) }} className="flex w-full items-center gap-3 border-b border-border py-3 text-left transition last:border-b-0 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-              <span className="min-w-0 flex-1"><span className="block text-sm font-medium leading-6" dir={translatedTitle ? "rtl" : "ltr"}>{translatedTitle || item.title}</span><span className="mt-1 block text-[11px] text-muted-foreground">CNBC · {formatTime(item.published_at)}</span></span><DisclosureTriangle className="text-primary" />
+              <span className="min-w-0 flex-1"><span className="block text-sm font-medium leading-6" dir={translatedTitle ? "rtl" : "ltr"}>{translatedTitle || item.title}</span><span className="mt-1 block text-[11px] text-muted-foreground">{formatTime(item.published_at)}</span></span><DisclosureTriangle className="text-primary" />
             </button>
           }) : newsState.loading ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="h-4 w-4 animate-spin" />در حال دریافت اخبار…</p> : !newsState.error && <p className="text-sm text-muted-foreground">خبر تازه‌ای در دسترس نیست.</p>}
         </CardContent>

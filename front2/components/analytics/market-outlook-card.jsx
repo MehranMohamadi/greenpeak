@@ -13,16 +13,16 @@ export default function MarketOutlookCard({ title = "چشم‌انداز باز�
   const Container = embedded ? "section" : Card
   const Header = embedded ? "header" : CardHeader
   const Content = embedded ? "div" : CardContent
-  return <Container className={embedded ? "min-w-0 space-y-3" : "min-w-0 border-border bg-card"}>
+  return <Container className={embedded ? "min-w-0 space-y-2" : "min-w-0 border-border bg-card"}>
     {!embedded && <Header className="space-y-2 pb-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-base">{title}</CardTitle>
         <span className="text-xs text-muted-foreground">{horizon}</span>
       </div>
     </Header>}
-    <Content className="text-sm font-medium leading-7 text-black dark:text-white">
+    <Content className="text-[13px] font-medium leading-[26px] text-black dark:text-white">
       <PremiumAnalysisGate>
-        {view || legacyText ? <div className="space-y-3">
+        {view || legacyText ? <div className="space-y-2">
           <div className="flex items-start gap-2">
             <p className="min-w-0 flex-1 whitespace-pre-line">{summary}</p>
             {hasDetails && <AnalysisDetailsDialog title={title}>

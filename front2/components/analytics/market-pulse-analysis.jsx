@@ -6,7 +6,7 @@ export default function MarketPulseAnalysis({ market }) {
   // can be retained from an earlier report and must not become today's analysis.
   const explanation = market.current_analysis_fa || market.systemic_synthesis_fa || market.narrative_fa || ""
   const hasAdditionalAnalysis = Boolean(summary && explanation.trim() && explanation.trim() !== summary.trim())
-  return <section className="min-w-0 space-y-3 text-sm font-medium leading-7 text-black dark:text-white">
+  return <section className="min-w-0 space-y-2 text-[13px] font-medium leading-[26px] text-black dark:text-white">
     {headline && <h3>{headline}</h3>}
     <p className="whitespace-pre-line">{summary || explanation}</p>
     {hasAdditionalAnalysis && <p className="whitespace-pre-line">{explanation}</p>}
