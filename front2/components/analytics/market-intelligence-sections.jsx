@@ -465,8 +465,8 @@ export default function MarketIntelligenceSections({ market, onRefresh, loading 
   return <div className="space-y-5 bg-background p-3 text-foreground md:p-4" dir="rtl">
     <section className="space-y-3">
       <div className="grid items-start gap-4 lg:grid-cols-[1.35fr_0.65fr]">
-        <Card className="min-w-0 border-border bg-card">
-          <CardHeader className="space-y-3 pb-3">
+        <Card className="flex h-64 min-h-0 min-w-0 flex-col overflow-hidden border-border bg-card">
+          <CardHeader className="shrink-0 space-y-3 pb-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2"><CardTitle className="text-base">نبض بازار</CardTitle><Badge variant="outline">{reportTitles[market.report_kind] || "آخرین گزارش"}</Badge></div>
               {onRefresh && <button type="button" disabled={loading} onClick={onRefresh} aria-label="دریافت آخرین تحلیل ذخیره‌شده" className="rounded-md p-1.5 text-primary hover:bg-muted disabled:opacity-50"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></button>}
@@ -476,7 +476,7 @@ export default function MarketIntelligenceSections({ market, onRefresh, loading 
               {market.coverage?.status === "provisional" && <span className="text-amber-600 dark:text-amber-400">پوشش شواهد ناقص</span>}
             </div>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent tabIndex={0} role="region" aria-label="متن نبض بازار" className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary">
             {market.analysis_freshness?.is_stale && <p role="status" className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs leading-6 text-amber-700 dark:text-amber-400">{market.analysis_freshness.status === "overdue" ? "گزارش نوبت تازه هنوز دریافت نشده؛ متن زیر مربوط به زمان درج‌شده است." : "تازگی گزارش تأیید نشده؛ تاریخ گزارش را در نظر بگیرید."}</p>}
             {currentHeadline && <h3 className="text-base font-semibold leading-7">{currentHeadline}</h3>}
             <p className={`whitespace-pre-line leading-7 ${currentHeadline ? "text-sm" : "text-base font-semibold"}`}>{currentMoveSummary}</p>
