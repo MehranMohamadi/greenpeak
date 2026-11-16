@@ -13,18 +13,25 @@ from .rule_engine.engine import evaluate_rule_set
 from .rule_engine.repository import MongoRuleRepository
 
 
-def run_persisted_market_analysis(client, database: str, provider, as_of: date, force_llm: bool = True) -> dict:
+def run_persisted_market_analysis(client, database: str, provider, as_of: date, force_llm: bool = True,
+                                  report_kind: str | None = None) -> dict:
     """Refresh the market report with fresh context and validated stored domain narratives."""
+    report_kind = report_kind or ("weekend" if as_of.weekday() >= 5 else "session")
     result = run_llm_pipeline(
         None, MongoNarrativeRepository(client, database), provider, as_of,
         force=force_llm, market_only=True,
         horizontal_evidence=build_market_analysis_context(client, database, as_of),
+        report_kind=report_kind,
     )
     return {"as_of_date": as_of.isoformat(), "llm": result, "errors": result["errors"]}
 
 
-def run_persisted_analysis(client, database: str, provider, as_of: date, force_llm: bool = True) -> dict:
+def run_persisted_analysis(client, database: str, provider, as_of: date, force_llm: bool = True,
+                           report_kind: str | None = None) -> dict:
     """Run feature -> rule -> LLM stages against the shared server store."""
+    report_kind = report_kind or ("weekly" if as_of.weekday() == 0 else "weekend" if as_of.weekday() >= 5 else "daily")
+    if report_kind in {"session", "weekend"}:
+        return run_persisted_market_analysis(client, database, provider, as_of, force_llm, report_kind)
     feature_repository = MongoFeatureRepository(client, database)
     snapshots, feature_run = run_feature_job(feature_repository, list(DEFINITIONS), as_of, write=True)
     if feature_run.status == "failed":
@@ -64,6 +71,7 @@ def run_persisted_analysis(client, database: str, provider, as_of: date, force_l
         as_of,
         force=force_llm,
         horizontal_evidence=build_market_analysis_context(client, database, as_of),
+        report_kind=report_kind,
     )
     return {
         "as_of_date": as_of.isoformat(),

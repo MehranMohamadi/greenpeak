@@ -1,5 +1,6 @@
 from datetime import UTC, date, datetime
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pymongo import MongoClient
@@ -152,14 +153,16 @@ def _execute_manual_analysis(run_id: str, force_llm: bool) -> None:
             client,
             settings.mongodb_database,
             provider,
-            date.today(),
+            datetime.now(ZoneInfo("Asia/Tehran")).date(),
             force_llm=force_llm,
         )
         status = "partial" if result["errors"] else "success"
         notification = {"status": "unavailable", "error_code": "market_not_generated"}
         if market_analysis_completed(result):
             try:
-                market_data = build_telegram_market_report(client, settings.mongodb_database)
+                revision = result.get("llm", {}).get("market", {}).get("revision_id")
+                market_data = (build_telegram_market_report(client, settings.mongodb_database, revision_id=revision)
+                               if revision else build_telegram_market_report(client, settings.mongodb_database))
                 if market_data and send_telegram_market_report(market_data):
                     notification = {"status": "sent", "sent_at": datetime.now(UTC), "error_code": None}
                 else:

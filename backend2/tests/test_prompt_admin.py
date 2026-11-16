@@ -102,7 +102,8 @@ def test_catalog_distinguishes_default_configured_and_on_demand_schedules(store,
         assert "تهران" in schedule["default_summary_fa"]
         if prompt_id in ("core_system", "market"):
             assert "۲۱:۳۰" in schedule["default_summary_fa"]
-            assert "روزانه دو نوبت" in schedule["default_summary_fa"]
+            assert "دوشنبه تا جمعه دو نوبت" in schedule["default_summary_fa"]
+            assert "شنبه و یکشنبه فقط نوبت اول" in schedule["default_summary_fa"]
         if enabled:
             assert "۰۶:۳۰" in schedule["configured_summary_fa"]
             assert "UTC" in schedule["configured_summary_fa"]

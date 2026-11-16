@@ -13,6 +13,7 @@ from .economic_calendar import fetch_recent_us_events, fetch_upcoming_us_events
 from .news.article_analysis import NEWS_ANALYSIS_VERSION
 from .news.feed import build_source_feed
 from .news.repository import MongoNewsRepository
+from .official_sentiment import SOURCE_CONFIG, official_sentiment_service
 
 
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC"
@@ -175,6 +176,7 @@ def build_market_analysis_context(
         "generated_at": current.isoformat(),
         "sp500_session_move": None,
         "recent_market_news": [],
+        "sentiment_observations": [],
         "upcoming_us_events": [],
         "current_market_context": {"released_us_events": [], "warnings": []},
         "warnings": [],
@@ -182,6 +184,21 @@ def build_market_analysis_context(
     if as_of != current.astimezone(TEHRAN).date():
         context["warnings"].append("horizontal_evidence_skipped_for_historical_as_of")
         return context
+
+    # The existing collectors own refreshes. Daily/weekly survey and options
+    # observations retain their true dates; none is represented as a live tick.
+    for indicator_id in SOURCE_CONFIG:
+        cached = official_sentiment_service.cached_snapshot(indicator_id)
+        if cached:
+            observations = [item for item in cached.get("data", [])
+                            if str(item.get("date", ""))[:10] <= current.astimezone(NEW_YORK).date().isoformat()]
+            if observations:
+                context["sentiment_observations"].append({
+                    "indicator_id": indicator_id, "observations": observations[-3:],
+                    "metadata": {key: cached.get("metadata", {}).get(key) for key in
+                                 ("source", "source_url", "frequency", "unit", "observation_date", "quality_status", "retrieved_at")},
+                    "usage": "Dated background sentiment/positioning evidence; not a live sentiment reading or proof of a same-session cause",
+                })
 
     try:
         context["sp500_session_move"] = fetch_sp500_session_move(current)

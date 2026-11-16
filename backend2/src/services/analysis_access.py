@@ -11,6 +11,7 @@ def market_for_access(data, allowed):
     # Legacy prose duplicates the restricted outlook/summary. Keep the explicit
     # current-flow fields and all public factors/calendar/news/status fields.
     restricted = {"short_term_outlook_fa", "medium_term_outlook_fa", "summary_fa",
-                  "summary_points_fa", "narrative_fa", "systemic_synthesis_fa"}
+                  "summary_points_fa", "narrative_fa", "systemic_synthesis_fa",
+                  "short_term_view", "medium_term_view", "weekly_focus_fa", "weekly_events_fa"}
     return {**{key: value for key, value in data.items() if key not in restricted},
             "premium_analysis_locked": True}

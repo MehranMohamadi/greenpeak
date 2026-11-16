@@ -22,5 +22,8 @@ class MongoNarrativeRepository:
     def latest(self, level: str, subject_id: str):
         return self.db[COLLECTIONS[level]].find_one({"subject_id": subject_id}, {"_id": False}, sort=[("as_of_date", DESCENDING), ("analysis_generated_at", DESCENDING)])
 
+    def market_revision(self, revision_id: str):
+        return self.db[COLLECTIONS["market"]].find_one({"subject_id": "sp500", "revision_id": revision_id}, {"_id": False})
+
     def save_run(self, document: dict):
         self.db.gp_llm_runs.insert_one(document)

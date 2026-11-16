@@ -66,7 +66,7 @@ def test_daily_scheduler_uses_configured_time(monkeypatch):
     job = scheduler.get_job("greenpeak-daily-analysis")
     assert str(job.trigger) == "cron[hour='6', minute='30']"
     evening_job = scheduler.get_job("greenpeak-market-evening-analysis")
-    assert str(evening_job.trigger) == "cron[hour='21', minute='30']"
+    assert str(evening_job.trigger) == "cron[day_of_week='mon-fri', hour='21', minute='30']"
     assert str(evening_job.trigger.timezone) == "Asia/Tehran"
     assert evening_job.kwargs == {"slot_id": "market-evening"}
     retry_job = scheduler.get_job("greenpeak-daily-analysis-notification-retry")

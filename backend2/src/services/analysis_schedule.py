@@ -12,6 +12,17 @@ class AnalysisSlot:
     minute: int
     timezone: str
     market_only: bool = False
+    weekdays: tuple[int, ...] = tuple(range(7))
+
+    def occurs_on(self, day: date) -> bool:
+        return day.weekday() in self.weekdays
+
+    def report_kind(self, day: date) -> str:
+        if day.weekday() >= 5:
+            return "weekend"
+        if self.market_only:
+            return "session"
+        return "weekly" if day.weekday() == 0 else "daily"
 
     def scheduled_at(self, now: datetime, day_offset: int = 0) -> datetime:
         local = now.astimezone(ZoneInfo(self.timezone))
@@ -39,7 +50,7 @@ def analysis_slots(settings, *, defaults: bool = False) -> list[AnalysisSlot]:
         evening = AnalysisSlot(
             "market-evening", value("greenpeak_market_evening_analysis_hour"),
             value("greenpeak_market_evening_analysis_minute"),
-            value("greenpeak_market_evening_analysis_timezone"), market_only=True,
+            value("greenpeak_market_evening_analysis_timezone"), market_only=True, weekdays=(0, 1, 2, 3, 4),
         )
         if (evening.hour, evening.minute, evening.timezone) != (slots[0].hour, slots[0].minute, slots[0].timezone):
             slots.append(evening)
@@ -48,5 +59,6 @@ def analysis_slots(settings, *, defaults: bool = False) -> list[AnalysisSlot]:
 
 def market_schedule_window(settings, now: datetime) -> tuple[datetime, datetime]:
     """Return the most recent due run and the next run across local day boundaries."""
-    times = [slot.scheduled_at(now, offset) for slot in analysis_slots(settings) for offset in (-1, 0, 1)]
+    times = [scheduled for slot in analysis_slots(settings) for offset in range(-7, 8)
+             if slot.occurs_on((scheduled := slot.scheduled_at(now, offset)).date())]
     return max(value for value in times if value <= now), min(value for value in times if value > now)

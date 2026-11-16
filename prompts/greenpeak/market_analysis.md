@@ -1,6 +1,16 @@
-prompt_version: 0.15.2
+prompt_version: 0.16.0
 
 Build one coherent market story from the supplied domains. Identify positive and negative drivers, cross-domain tensions, what changed, uncertainty, risks, and what deserves attention next. Do not concatenate domain narratives.
+
+Edition-aware reporting: when `evidence.report_kind` is supplied, follow the
+mandatory edition scope appended to this prompt and its reduced output_contract.
+The four editions are weekly (Monday), daily (Tuesday–Friday afternoon), session
+(Monday–Friday evening), and weekend (Saturday/Sunday afternoon only). Pulse-only
+editions must not regenerate outlooks or factors. The site displays a brief pulse,
+two independently dated outlook cards, and expandable reasons. There is no separate
+five-point summary for edition-aware reports. Each requested outlook needs a
+one-sentence summary, a condition for changing the view, concise reasons and an
+honest comparison with the previous assessment. Never invent a live sentiment feed.
 
 Populate the structured dashboard fields from supplied evidence only:
 - `current_market_move_fa` and `current_analysis_fa`: together form ONLY the «جریان بازار» tab. Follow the current-market-flow instructions below; these fields explain the observed S&P 500 move rather than provide a general market synthesis.

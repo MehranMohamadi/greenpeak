@@ -39,8 +39,9 @@ def next_scheduled_analysis_at(now: datetime | None = None) -> datetime | None:
     try:
         current = now or datetime.now(UTC)
         candidates = [
-            slot.scheduled_at(current, offset)
-            for slot in analysis_slots(settings) for offset in (0, 1)
+            scheduled
+            for slot in analysis_slots(settings) for offset in range(8)
+            if slot.occurs_on((scheduled := slot.scheduled_at(current, offset)).date())
         ]
     except ZoneInfoNotFoundError:
         return None
@@ -83,7 +84,9 @@ def _deliver_daily_notification(client, runs, run_key: str, local_day: date) -> 
     settings = get_settings()
     outcome = {"notification.status": "failed", "notification.error_code": "telegram_send_failed"}
     try:
-        market_data = build_telegram_market_report(client, settings.mongodb_database)
+        revision = run.get("result", {}).get("llm", {}).get("market", {}).get("revision_id")
+        market_data = (build_telegram_market_report(client, settings.mongodb_database, revision_id=revision)
+                       if revision else build_telegram_market_report(client, settings.mongodb_database))
         if not market_data:
             outcome["notification.error_code"] = "market_report_missing"
         elif _market_report_date(market_data) != local_day.isoformat():
@@ -104,7 +107,8 @@ def retry_daily_notification() -> None:
     settings = get_settings()
     try:
         current = datetime.now(UTC)
-        slots = [(slot, slot.scheduled_at(current).date()) for slot in analysis_slots(settings)]
+        slots = [(slot, slot.scheduled_at(current).date()) for slot in analysis_slots(settings)
+                 if slot.occurs_on(slot.scheduled_at(current).date())]
     except ZoneInfoNotFoundError:
         logger.error("Daily analysis timezone is invalid; notification retry skipped")
         return
@@ -185,6 +189,8 @@ def run_daily_analysis(*, retry_failed: bool = False, slot_id: str = "daily") ->
         return
 
     local_day = datetime.now(timezone).date()
+    if not slot.occurs_on(local_day):
+        return
     run_key = slot.run_key(local_day)
     client = MongoClient(settings.mongodb_url, serverSelectionTimeoutMS=5000)
     runs = client[settings.mongodb_database][RUN_COLLECTION]
@@ -194,7 +200,8 @@ def run_daily_analysis(*, retry_failed: bool = False, slot_id: str = "daily") ->
             return
 
         provider = create_llm_provider(settings, timeout=180)
-        build = run_persisted_market_analysis if slot.market_only else run_persisted_analysis
+        report_kind = slot.report_kind(local_day)
+        build = run_persisted_market_analysis if report_kind in {"session", "weekend"} else run_persisted_analysis
         result = build(
             client,
             settings.mongodb_database,
@@ -203,6 +210,7 @@ def run_daily_analysis(*, retry_failed: bool = False, slot_id: str = "daily") ->
             # A recovery run can reuse today's successful indicator/domain
             # narratives and retry only the missing downstream work.
             force_llm=not retry_failed,
+            report_kind=report_kind,
         )
         status = "partial" if result["errors"] else "success"
         notification_status = "pending" if market_analysis_completed(result) else "unavailable"
@@ -239,7 +247,8 @@ def retry_daily_analysis() -> None:
     try:
         now = datetime.now(UTC)
         due_slots = sorted(
-            ((slot.scheduled_at(now), slot) for slot in analysis_slots(settings)),
+            ((slot.scheduled_at(now), slot) for slot in analysis_slots(settings)
+             if slot.occurs_on(slot.scheduled_at(now).date())),
             key=lambda item: item[0],
         )
     except ZoneInfoNotFoundError:
@@ -264,7 +273,8 @@ def create_daily_analysis_scheduler() -> BackgroundScheduler | None:
     for slot in analysis_slots(settings):
         scheduler.add_job(
             run_daily_analysis,
-            CronTrigger(hour=slot.hour, minute=slot.minute, timezone=ZoneInfo(slot.timezone)),
+            CronTrigger(hour=slot.hour, minute=slot.minute, timezone=ZoneInfo(slot.timezone),
+                        **({"day_of_week": "mon-fri"} if slot.market_only else {})),
             kwargs={"slot_id": slot.slot_id},
             id="greenpeak-daily-analysis" if slot.slot_id == "daily" else "greenpeak-market-evening-analysis",
             replace_existing=True,
@@ -290,7 +300,7 @@ def create_daily_analysis_scheduler() -> BackgroundScheduler | None:
     # Catch up due slots in order; separate shared run keys avoid duplicate work
     # across workers without allowing a successful afternoon run to block the evening.
     now = datetime.now(UTC)
-    if any(now >= slot.scheduled_at(now) for slot in analysis_slots(settings)):
+    if any(now >= slot.scheduled_at(now) and slot.occurs_on(slot.scheduled_at(now).date()) for slot in analysis_slots(settings)):
         scheduler.add_job(
             retry_daily_analysis,
             id="greenpeak-daily-analysis-catchup",

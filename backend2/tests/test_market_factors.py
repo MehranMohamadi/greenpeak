@@ -165,6 +165,12 @@ def test_local_refresh_writes_validated_cache_without_mongo_or_notification(tmp_
     from src.services.local_market_analysis import refresh_local_market
     from src.services.llm_engine.local_cache import LocalNarrativeCache
     settings = SimpleNamespace(environment="development", analysis_local_db_path=tmp_path / "cache.db")
+    for horizon in ("short", "medium"):
+        factors[f"{horizon}_term_view"] = {
+            "summary_fa": "برداشت آزمایشی", "change_condition_fa": "شرط آزمایشی",
+            "detail_fa": "دلایل آزمایشی", "change_summary_fa": "ارزیابی اولیه", "change_status": "initial",
+        }
+    factors["weekly_focus_fa"] = "موضوع آزمایشی هفته"
     provider = SimpleNamespace(provider_id="fake", model_id="fake", generate_json=Mock(return_value=factors))
     result = refresh_local_market(settings=settings, provider=provider, evidence=evidence, now=datetime(2026, 10, 19, 12, tzinfo=UTC))
     assert result["status"] == "generated"

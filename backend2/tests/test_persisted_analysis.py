@@ -32,8 +32,8 @@ def test_persisted_analysis_builds_current_features_before_llm(monkeypatch):
         calls["feature_job"] = {"ids": indicator_ids, "as_of": as_of, "write": write}
         return [{"indicator_id": "federal_funds_rate"}], FakeFeatureRun()
 
-    def fake_llm_pipeline(feature_repository, narrative_repository, provider, as_of, force, horizontal_evidence=None):
-        calls["llm"] = {"as_of": as_of, "force": force, "provider": provider, "horizontal_evidence": horizontal_evidence}
+    def fake_llm_pipeline(feature_repository, narrative_repository, provider, as_of, force, horizontal_evidence=None, report_kind=None):
+        calls["llm"] = {"as_of": as_of, "force": force, "provider": provider, "horizontal_evidence": horizontal_evidence, "report_kind": report_kind}
         return {"indicator": [], "domain": [], "market": None, "errors": []}
 
     monkeypatch.setattr(persisted_analysis, "MongoFeatureRepository", lambda client, database: object())
@@ -51,6 +51,6 @@ def test_persisted_analysis_builds_current_features_before_llm(monkeypatch):
     assert calls["feature_job"]["as_of"] == target
     assert calls["feature_job"]["write"] is True
     assert set(calls["feature_job"]["ids"]) == set(persisted_analysis.DEFINITIONS)
-    assert calls["llm"] == {"as_of": target, "force": True, "provider": provider, "horizontal_evidence": {"sample": True}}
+    assert calls["llm"] == {"as_of": target, "force": True, "provider": provider, "horizontal_evidence": {"sample": True}, "report_kind": "daily"}
     assert result["as_of_date"] == "2026-08-26"
     assert result["errors"] == []

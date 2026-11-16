@@ -2,11 +2,14 @@ import html
 import logging
 import re
 from dataclasses import dataclass
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import httpx
 
 from ..core.config import get_settings
 from ..services.llm_engine.repository import MongoNarrativeRepository
+from ..services.market_reports import REPORT_TITLES
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +80,9 @@ def send_telegram_message(text, message_thread_id, *, settings=None, require_top
         return TelegramDeliveryResult("uncertain", "telegram_delivery_outcome_unknown")
 
 
-def build_telegram_market_report(client, database: str) -> dict | None:
+def build_telegram_market_report(client, database: str, *, revision_id: str | None = None) -> dict | None:
     repository = MongoNarrativeRepository(client, database)
-    market = repository.latest("market", "sp500")
+    market = repository.market_revision(revision_id) if revision_id else repository.latest("market", "sp500")
     if not market:
         return None
     return {"market": market}
@@ -87,6 +90,9 @@ def build_telegram_market_report(client, database: str) -> dict | None:
 
 def _report_sections(report: dict) -> list[str]:
     market = report.get("market", report)
+    kind = market.get("report_kind")
+    if kind in REPORT_TITLES:
+        return _edition_sections(market, kind)
     current_move = market.get("current_market_move_fa") or market.get("what_changed_fa") or market.get("market_story_fa") or ""
     current_analysis = market.get("current_analysis_fa") or market.get("systemic_synthesis_fa") or market.get("narrative_fa") or ""
     current_content = "\n\n".join(
@@ -104,6 +110,42 @@ def _report_sections(report: dict) -> list[str]:
         f"<b>جریان بازار</b>\n{current_content}",
         f"<b>جمع‌بندی</b>\n{summary_content}",
     ]
+
+
+def _edition_sections(market, kind):
+    escape = lambda value: html.escape(str(value))
+    sections = [f"<b>{REPORT_TITLES[kind]}</b>"]
+    generated = market.get("analysis_generated_at")
+    if generated:
+        try:
+            timestamp = datetime.fromisoformat(str(generated).replace("Z", "+00:00"))
+            if timestamp.tzinfo is not None:
+                sections.append(escape(timestamp.astimezone(ZoneInfo("Asia/Tehran")).strftime("%Y-%m-%d · %H:%M") + " تهران"))
+        except ValueError:
+            pass
+    sections.extend(escape(market[key]) for key in ("current_market_move_fa", "current_analysis_fa") if market.get(key))
+    if kind == "weekly":
+        if market.get("weekly_focus_fa"):
+            sections.append("<b>موضوع هفته</b>\n" + escape(market["weekly_focus_fa"]))
+        events = market.get("weekly_events_fa", [])[:3]
+        if events:
+            sections.append("<b>رویدادهای تعیین‌کننده</b>\n" + "\n".join(f"• {escape(event)}" for event in events))
+    if kind in {"weekly", "daily"}:
+        horizons = ("short", "medium") if kind == "weekly" or market.get("medium_term_reassessed") else ("short",)
+        for horizon in horizons:
+            view = market.get(f"{horizon}_term_view") or {}
+            if not view:
+                continue
+            title = "مسیر هفته‌های پیش‌رو" if horizon == "short" else "بازنگری مهم میان‌مدت" if kind == "daily" else "تصویر ۶ تا ۱۲ ماهه"
+            # Daily delivery stays brief; the full rationale is available on-site.
+            keys = ("summary_fa", "change_condition_fa", "detail_fa") if kind == "weekly" else ("summary_fa", "change_condition_fa")
+            text = "\n".join(escape(view[key]) for key in keys if view.get(key))
+            if text:
+                sections.append(f"<b>{title}</b>\n{text}")
+    watch = market.get("watch_next_fa") or []
+    if watch:
+        sections.append("<b>زیر نظر</b>\n" + escape(watch[0]))
+    return sections
 
 
 def _split_oversized_section(section: str, limit: int) -> list[str]:

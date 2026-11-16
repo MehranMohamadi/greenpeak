@@ -2,6 +2,7 @@
 
 import argparse
 from datetime import UTC, date, datetime
+from zoneinfo import ZoneInfo
 import json
 
 from pymongo import MongoClient
@@ -30,7 +31,7 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--force-llm", action="store_true")
     args = parser.parse_args()
-    as_of = date.today() if args.as_of == "latest" else date.fromisoformat(args.as_of)
+    as_of = datetime.now(ZoneInfo("Asia/Tehran")).date() if args.as_of == "latest" else date.fromisoformat(args.as_of)
     settings = get_settings(); client = MongoClient(settings.mongodb_url, serverSelectionTimeoutMS=5000)
     feature_repository = MongoFeatureRepository(client, settings.mongodb_database)
     output = {"as_of_date": as_of.isoformat(), "dry_run": args.dry_run, "stages": {}, "errors": []}
@@ -67,6 +68,7 @@ def main() -> int:
                     as_of,
                     args.force_llm,
                     horizontal_evidence=build_market_analysis_context(client, settings.mongodb_database, as_of),
+                    report_kind="weekly" if as_of.weekday() == 0 else "weekend" if as_of.weekday() >= 5 else "daily",
                 )
         print(json.dumps(output, ensure_ascii=False, indent=2, default=str))
         return 1 if feature_run.status == "failed" else 2 if feature_run.status == "partial" or output["errors"] else 0

@@ -10,6 +10,7 @@ from uuid import uuid4
 from pydantic import ValidationError
 
 from ..greenpeak_config import load_registry
+from ..market_reports import compose_edition, edition_contract, edition_instructions, previous_report, scope_market_news
 from ..rate_features.job import code_version
 from .prompts import load_prompt
 from .routing import generate_validated_json
@@ -41,40 +42,62 @@ def input_hash(level: str, subject_id: str, as_of: date, evidence: dict, prompt_
 
 def _analyze(repository, provider, level: str, subject_id: str, as_of: date, evidence: dict[str, Any], coverage: dict, data_as_of: date | None, force: bool):
     prompt = load_prompt(level)
+    generated_at = datetime.now(UTC)
+    kind = evidence.get("report_kind") if level == "market" else None
+    previous = None
+    prompt_content = prompt.content
+    prompt_hash = prompt.hash
+    if kind:
+        previous = repository.latest("market", "sp500")
+        if previous and str(previous.get("as_of_date", ""))[:10] > as_of.isoformat():
+            previous = None
+        evidence = scope_market_news({**evidence, "previous_report": previous_report(previous)}, kind, as_of, generated_at)
+        prompt_content += "\n\n" + edition_instructions(kind)
+        prompt_hash = "sha256:" + sha256(prompt_content.encode("utf-8")).hexdigest()
     versions = evidence.get("versions", {})
-    digest = input_hash(level, subject_id, as_of, evidence, prompt.hash, provider, versions)
+    digest = input_hash(level, subject_id, as_of, evidence, prompt_hash, provider, versions)
     if not force:
         existing = repository.find_reusable(level, digest, provider.model_id)
         if existing:
             return _validate_stored(level, existing), "reused"
     metadata = {
         "level": level, "subject_id": subject_id, "as_of_date": as_of, "data_as_of": data_as_of,
-        "analysis_version": ANALYSIS_VERSION, "analysis_generated_at": datetime.now(UTC), "coverage": coverage,
-        "provenance": {"prompt_version": prompt.version, "prompt_hash": prompt.hash, "model": provider.model_id, "provider": provider.provider_id, "input_hash": digest, "code_version": code_version()},
+        "analysis_version": "0.6.0" if kind else ANALYSIS_VERSION, "analysis_generated_at": generated_at, "coverage": coverage,
+        "provenance": {"prompt_version": prompt.version + ("+editions.1.0.0" if kind else ""), "prompt_hash": prompt_hash, "model": provider.model_id, "provider": provider.provider_id, "input_hash": digest, "code_version": code_version()},
         "revision_id": str(uuid4()),
     }
     request = {"contract_level": level, "output_contract": MODELS[level].model_json_schema(), "evidence": evidence, "coverage": coverage}
+    if kind:
+        request["output_contract"] = edition_contract(kind, request["output_contract"])
     if level == "market":
         request["valid_factor_evidence_refs"] = factor_evidence_references(evidence)
 
     def validate(generated):
         allowed_fields = MODELS[level].model_fields
         generated = {key: value for key, value in generated.items() if key in allowed_fields}
+        if kind:
+            try:
+                generated = compose_edition(generated, previous, kind, metadata, MarketNarrative.model_json_schema(), evidence)
+            except ValueError as exc:
+                raise ValidationError.from_exception_data("MarketEdition", [
+                    {"type": "value_error", "loc": ("report_kind",), "input": None, "ctx": {"error": exc}},
+                ]) from None
         if level == "market":
             # Source excerpts are copied from actual input by Python, never
             # accepted from the model as purported source material.
-            generated["factor_source_evidence"] = {}
+            if kind not in {"session", "weekend"}:
+                generated["factor_source_evidence"] = {}
         return MODELS[level].model_validate(
             {**generated, **metadata},
-            context={"validate_market_factors": level == "market", "evidence": evidence},
+            context={"validate_market_factors": level == "market" and kind not in {"session", "weekend"}, "evidence": evidence},
         )
 
     try:
         # Repair once within each provider before failing over, so shared
         # cooldowns cannot hide a validation error or prevent its correction.
-        value = generate_validated_json(provider, prompt.content, request, validate, validation_attempts=2)
+        value = generate_validated_json(provider, prompt_content, request, validate, validation_attempts=2)
     except ValidationError:
-        digest = input_hash(level, subject_id, as_of, evidence, prompt.hash, provider, versions)
+        digest = input_hash(level, subject_id, as_of, evidence, prompt_hash, provider, versions)
         existing = repository.find_reusable(level, digest, provider.model_id)
         if existing:
             return _validate_stored(level, existing), "reused_after_validation_error"
@@ -82,8 +105,8 @@ def _analyze(repository, provider, level: str, subject_id: str, as_of: date, evi
     # The router selects the successful provider only after validation.
     value.provenance.model = provider.model_id
     value.provenance.provider = provider.provider_id
-    value.provenance.input_hash = input_hash(level, subject_id, as_of, evidence, prompt.hash, provider, versions)
-    if level == "market":
+    value.provenance.input_hash = input_hash(level, subject_id, as_of, evidence, prompt_hash, provider, versions)
+    if level == "market" and kind not in {"session", "weekend"}:
         for item in [*value.market_drivers, *value.market_potentials, *value.risk_monitor]:
             for reference in item.evidence_refs:
                 source = resolve_factor_evidence(evidence, reference)
@@ -115,8 +138,10 @@ def run_llm_pipeline(
     force: bool = False,
     horizontal_evidence: dict[str, Any] | None = None,
     market_only: bool = False,
+    report_kind: str | None = None,
 ) -> dict:
     """Run the full pipeline, or refresh the market using validated stored domains."""
+    market_only = market_only or report_kind in {"session", "weekend"}
     domains, _, indicators = load_registry()
     narrative_repository.ensure_indexes()
     run_id = str(uuid4())
@@ -170,9 +195,10 @@ def run_llm_pipeline(
         except Exception as exc:
             results["errors"].append(f"{domain.id}:{type(exc).__name__}")
 
-    if market_only and not domain_outputs:
+    pulse_only = report_kind in {"session", "weekend"}
+    if market_only and not domain_outputs and not pulse_only:
         results["errors"].append("market:domain_narratives_missing")
-    if domain_outputs:
+    if domain_outputs or pulse_only:
         ratio = len(domain_outputs) / len(domains.domains)
         coverage = {"status": "full" if ratio == 1 else "provisional", "ratio": ratio, "configured_count": len(domains.domains), "available_count": len(domain_outputs), "missing_inputs": sorted({item.id for item in domains.domains} - set(domain_outputs))}
         evidence = {
@@ -184,13 +210,17 @@ def run_llm_pipeline(
                 "warnings": ["horizontal_evidence_unavailable"],
             },
             "versions": {"domain_config_version": domains.config_version,
-                         **({"market_schedule_slot": "market-evening"} if market_only else {})},
+                         **({"market_schedule_slot": "daily" if report_kind == "weekend" else "market-evening"} if market_only else {})},
         }
+        if report_kind:
+            evidence["report_kind"] = report_kind
+            evidence["versions"]["market_edition_version"] = "1.0.0"
         try:
             evidence["previous_market_factors"] = previous_market_factors(narrative_repository, as_of)
             evidence["retained_factor_evidence"] = (evidence["previous_market_factors"] or {}).pop("source_evidence", {})
             value, status = _analyze(narrative_repository, provider, "market", "sp500", as_of, evidence, coverage, max((item.data_as_of for item in domain_outputs.values() if item.data_as_of), default=None), force)
-            results["market"] = {"subject_id": "sp500", "status": status}
+            results["market"] = {"subject_id": "sp500", "status": status,
+                                 **({"revision_id": value.revision_id} if report_kind else {})}
         except Exception as exc:
             results["errors"].append(f"sp500:{type(exc).__name__}")
     narrative_repository.save_run({**results, "created_at": datetime.now(UTC), "provider": provider.provider_id, "model": provider.model_id})

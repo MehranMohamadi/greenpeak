@@ -292,6 +292,18 @@ class OfficialSentimentService:
                 return self._decorate(envelope["payload"], fetched_at, True)
             raise OfficialSourceUnavailable(f"{indicator_id} source is unavailable") from exc
 
+    def cached_snapshot(self, indicator_id: str) -> dict[str, Any] | None:
+        """Read existing dated evidence without network requests or any writes."""
+        if indicator_id not in SOURCE_CONFIG:
+            raise KeyError(indicator_id)
+        envelope = self._read(indicator_id)
+        if not envelope:
+            return None
+        try:
+            return self._decorate(envelope["payload"], datetime.fromisoformat(envelope["fetched_at"]), False)
+        except (KeyError, TypeError, ValueError):
+            return None
+
     def refresh_all(self) -> None:
         for indicator_id in SOURCE_CONFIG:
             try:

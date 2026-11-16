@@ -116,15 +116,19 @@ def _update_schedules():
             clock = f"{slot.hour:02d}:{slot.minute:02d}".translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹"))
             zone = "تهران" if slot.timezone == "Asia/Tehran" else slot.timezone
             times.append(f"ساعت {clock} به وقت {zone}")
-        frequency = "روزانه دو نوبت" if len(slots) == 2 else "روزانه یک بار"
+        frequency = "دوشنبه تا جمعه دو نوبت؛ شنبه و یکشنبه فقط نوبت اول" if len(slots) == 2 else "روزانه یک نوبت"
         return f"{frequency}؛ شروع " + " و ".join(times)
 
     schedules["market"] = {
         "default_summary_fa": market_summary(defaults=True),
         "configured_summary_fa": market_summary(),
-        "details_fa": "نوبت اول در پایان چرخهٔ تحلیل شاخص‌ها و گروه‌ها تولید می‌شود. "
-                      "نوبت دوم فقط گزارش بازار را با خبرها و وضعیت تازهٔ شاخص و تحلیل‌های ذخیره‌شدهٔ گروه‌ها "
-                      "به‌روز می‌کند. این ساعت‌ها زمان شروع اجرا هستند؛ زمان پایان ثابت نیست.",
+        "details_fa": "دوشنبه نوبت اول: چشم‌انداز هفته و مرور ۶ تا ۱۲ ماهه. "
+                      "سه‌شنبه تا جمعه نوبت اول: نبض روز و ارزیابی کوتاه‌مدت. "
+                      "بازنگری میان‌مدت خارج از دوشنبه فقط با تغییر مهم و شواهد تازه انجام می‌شود. "
+                      "نوبت دوم دوشنبه تا جمعه: فقط نبض همان جلسه. "
+                      "شنبه و یکشنبه: فقط نبض اخبار تعطیلات در نوبت اول. "
+                      "هر چشم‌انداز تاریخ ارزیابی مستقل دارد؛ نوبت‌های نبض آن را بازنویسی نمی‌کنند. "
+                      "این ساعت‌ها زمان شروع اجرا هستند؛ زمان پایان ثابت نیست.",
     }
     schedules["core_system"]["default_summary_fa"] = schedules["market"]["default_summary_fa"]
     schedules["core_system"]["configured_summary_fa"] = schedules["market"]["configured_summary_fa"]
@@ -132,6 +136,11 @@ def _update_schedules():
         "اجرای مستقل ندارد؛ همراه تحلیل شاخص، گروه و بازار و نوبت دوم گزارش بازار استفاده می‌شود. "
         + schedules["market"]["details_fa"]
     )
+    for key in ("indicator", "domain"):
+        for label in ("default_summary_fa", "configured_summary_fa"):
+            if "غیرفعال" not in schedules[key][label]:
+                schedules[key][label] = schedules[key][label].replace("روزانه یک بار", "دوشنبه تا جمعه یک بار")
+        schedules[key]["details_fa"] += " در تعطیلات آخر هفته، گزارش نبض بدون اجرای مجدد شاخص‌ها و گروه‌ها ساخته می‌شود."
     for key, summary, details in (
         ("news", "با درخواست تحلیل خبر؛ بدون ساعت ثابت",
          "هنگام درخواست تحلیل یک خبر اجرا می‌شود. خروجی ذخیره‌شدهٔ سازگار دوباره استفاده می‌شود؛ "

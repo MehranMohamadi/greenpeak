@@ -1,5 +1,5 @@
 "use client"
-import PremiumAnalysisGate from "@/components/analytics/premium-analysis-gate"
+import MarketOutlookCard from "@/components/analytics/market-outlook-card"
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
@@ -7,13 +7,15 @@ import { CalendarDays, Clock3, Info, Link2, LoaderCircle, Newspaper, RefreshCw, 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import SP500Dashboard from "@/components/analytics/SP500Dashboard"
 import MarketStatusCards from "@/components/analytics/market-status-cards"
 import { marketFactorGroups } from "@/lib/market-factors"
 import { formatGregorianDate, formatGregorianTehranDateTime, GREGORIAN_PERSIAN_LOCALE, TEHRAN_TIME_ZONE } from "@/lib/date-format"
 
-const analysisTabClass = "h-full w-full px-1.5 py-0 text-xs leading-none sm:px-3 sm:text-sm"
+const reportTitles = {
+  weekly: "چشم‌انداز هفته", daily: "نبض روز و مسیر نزدیک",
+  session: "نبض جلسه", weekend: "نبض تعطیلات",
+}
 
 const statusLabels = {
   favorable: "مساعد", mixed: "ترکیبی", challenging: "پرچالش", unknown: "نامشخص",
@@ -186,21 +188,6 @@ const enrichCalendarEvent = (event, drivers) => {
   return analysis ? { ...analysis, ...event, current: event.actual ?? analysis.current } : { ...event, current: event.actual }
 }
 
-const fallbackNextAnalysisLabel = () => {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Tehran",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date())
-  const values = Object.fromEntries(parts.map(part => [part.type, part.value]))
-  const afterDailyRun = Number(values.hour) >= 16
-  const scheduled = new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day) + (afterDailyRun ? 1 : 0), 12, 30))
-  return formatGregorianTehranDateTime(scheduled)
-}
 
 function HelpDialog({ title, item, children, factorDetails = false }) {
   const rows = [
@@ -321,7 +308,7 @@ function DialogAnalysisList({ items, emptyText }) {
   })
   return values.length ? <div>{values.map(item => <HelpDialog key={item.key} title={item.title} item={item.dialogItem} factorDetails>
     <button type="button" aria-label={`نمایش جزئیات ${item.title}`} className="flex w-full items-center justify-between gap-3 border-b border-border py-3 text-right text-sm font-medium leading-6 text-foreground transition last:border-b-0 hover:text-foreground/80">
-      <span className="min-w-0">{item.title}</span>
+      <span className="min-w-0"><span className="block">{item.title}</span>{(item.dialogItem.detail_fa || item.dialogItem.why_active_fa) && <span className="mt-1 block text-xs font-normal leading-6 text-muted-foreground">{item.dialogItem.detail_fa || item.dialogItem.why_active_fa}</span>}</span>
       <DisclosureTriangle className="opacity-75" />
     </button>
   </HelpDialog>)}</div> : <p className="text-sm text-muted-foreground">{emptyText}</p>
@@ -467,82 +454,42 @@ export default function MarketIntelligenceSections({ market, onRefresh, loading 
   const selectedNewsTitle = selectedNews ? selectedNewsAnalysis?.title_fa || selectedNews.title_fa || selectedNews.title || selectedNews.analysis_title_fa : ""
   const selectedNewsBody = selectedNewsAnalysis?.interpretation_fa || selectedNews?.analysis_fa || selectedNews?.summary || ""
   const nextAnalysisLabel = market.next_analysis_at === undefined
-    ? fallbackNextAnalysisLabel()
+    ? "زمان بعدی اعلام نشده"
     : market.next_analysis_at
       ? formatTehranTime(market.next_analysis_at)
       : "زمان‌بندی فعال نیست"
-  const summaryPoints = market.summary_points_fa?.length
-    ? market.summary_points_fa.slice(0, 5)
-    : [market.market_story_fa].filter(Boolean)
   const currentMoveLines = (market.current_market_move_fa || market.what_changed_fa || market.market_story_fa || "").split("\n").map(line => line.trim()).filter(Boolean)
   const currentHeadline = currentMoveLines.length > 1 ? currentMoveLines[0] : null
   const currentMoveSummary = currentHeadline ? currentMoveLines.slice(1).join("\n") : currentMoveLines.join("\n")
 
   return <div className="space-y-5 bg-background p-3 text-foreground md:p-4" dir="rtl">
     <section className="space-y-3">
-      <div className="grid items-stretch gap-4 lg:h-64 lg:grid-cols-[1.35fr_0.65fr]">
-      <Card className="h-64 min-h-0 overflow-hidden border-border bg-card lg:h-full">
-        <Tabs defaultValue="current" dir="rtl" className="flex h-full min-h-0 flex-col">
-        <CardHeader className="shrink-0 flex-row flex-wrap items-center gap-x-3 gap-y-2 space-y-0 pb-3">
-          <TabsList className="grid h-12 min-w-0 max-w-full flex-auto grid-cols-4 items-stretch p-1.5">
-            <TabsTrigger value="current" className={analysisTabClass}>جریان بازار</TabsTrigger>
-            <TabsTrigger value="short-term" className={analysisTabClass}>کوتاه‌مدت</TabsTrigger>
-            <TabsTrigger value="medium-term" className={analysisTabClass}>میان‌مدت</TabsTrigger>
-            <TabsTrigger value="summary" className={analysisTabClass}>جمع‌بندی</TabsTrigger>
-          </TabsList>
-          <div className="ms-auto flex shrink-0 items-center justify-end gap-2">
-            {onRefresh && <button type="button" disabled={loading} onClick={onRefresh} aria-label="دریافت آخرین تحلیل ذخیره‌شده" title="دریافت آخرین تحلیل" className="rounded-md p-1.5 text-primary hover:bg-muted disabled:opacity-50"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></button>}
-            <div className="flex min-w-0 items-center gap-2">
-              <time dateTime={market.analysis_generated_at} dir="ltr" className="truncate text-left text-xs tabular-nums text-muted-foreground">
-                {formatTime(market.analysis_generated_at)}
-              </time>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <button type="button" aria-label="راهنمای تحلیل بازار" className="shrink-0 rounded-full text-primary hover:text-primary/80">
-                    <Info className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                </DialogTrigger>
-                <DialogContent dir="rtl">
-                  <DialogHeader className="text-right">
-                    <DialogTitle>راهنمای تحلیل بازار</DialogTitle>
-                    <DialogDescription className="space-y-3 leading-7 text-muted-foreground">
-                      <span className="block">این تب‌ها آخرین تحلیل ذخیره‌شدهٔ هوش مصنوعی را در جریان بازار، افق کوتاه‌مدت، میان‌مدت و جمع‌بندی پنج‌خطی نمایش می‌دهند.</span>
-                      {market.analysis_freshness?.status === "overdue" && <span className="block text-amber-700 dark:text-amber-400">زمان انتشار تحلیل امروز گذشته است و هنوز خروجی تازه‌ای دریافت نشده است.</span>}
-                      <span className="block text-primary">زمان‌بندی روزانه بعدی: {nextAnalysisLabel} به وقت تهران</span>
-                    </DialogDescription>
-                  </DialogHeader>
-                </DialogContent>
-              </Dialog>
+      <div className="grid items-start gap-4 lg:grid-cols-[1.35fr_0.65fr]">
+        <Card className="min-w-0 border-border bg-card">
+          <CardHeader className="space-y-3 pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2"><CardTitle className="text-base">نبض بازار</CardTitle><Badge variant="outline">{reportTitles[market.report_kind] || "آخرین گزارش"}</Badge></div>
+              {onRefresh && <button type="button" disabled={loading} onClick={onRefresh} aria-label="دریافت آخرین تحلیل ذخیره‌شده" className="rounded-md p-1.5 text-primary hover:bg-muted disabled:opacity-50"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></button>}
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
-          <TabsContent value="current" className="mt-0 space-y-3">
-            {currentHeadline && <h3 className="text-sm font-semibold leading-7 text-foreground md:text-base">{currentHeadline}</h3>}
-            <p className="whitespace-pre-line text-sm leading-7 text-foreground md:text-base">{currentMoveSummary}</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] leading-5 text-muted-foreground">
+              <time dateTime={market.analysis_generated_at}>گزارش: {formatTime(market.analysis_generated_at)} تهران</time>
+              {market.coverage?.status === "provisional" && <span className="text-amber-600 dark:text-amber-400">پوشش شواهد ناقص</span>}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {market.analysis_freshness?.is_stale && <p role="status" className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs leading-6 text-amber-700 dark:text-amber-400">{market.analysis_freshness.status === "overdue" ? "گزارش نوبت تازه هنوز دریافت نشده؛ متن زیر مربوط به زمان درج‌شده است." : "تازگی گزارش تأیید نشده؛ تاریخ گزارش را در نظر بگیرید."}</p>}
+            {currentHeadline && <h3 className="text-base font-semibold leading-7">{currentHeadline}</h3>}
+            <p className={`whitespace-pre-line leading-7 ${currentHeadline ? "text-sm" : "text-base font-semibold"}`}>{currentMoveSummary}</p>
             <p className="whitespace-pre-line text-sm leading-8 text-muted-foreground">{market.current_analysis_fa || market.systemic_synthesis_fa || market.narrative_fa}</p>
-          </TabsContent>
-          <TabsContent value="short-term" className="mt-0">
-            <PremiumAnalysisGate>
-            <p className="whitespace-pre-line text-sm leading-8 text-muted-foreground">{market.short_term_outlook_fa || market.narrative_fa}</p>
-            </PremiumAnalysisGate>
-          </TabsContent>
-          <TabsContent value="medium-term" className="mt-0">
-            <PremiumAnalysisGate>
-            <p className="whitespace-pre-line text-sm leading-8 text-muted-foreground">{market.medium_term_outlook_fa || market.systemic_synthesis_fa || market.narrative_fa}</p>
-            </PremiumAnalysisGate>
-          </TabsContent>
-          <TabsContent value="summary" className="mt-0">
-            <PremiumAnalysisGate>
-            <ol className="space-y-2 text-sm leading-7 text-muted-foreground">
-              {summaryPoints.map((item, index) => <li key={`${index}-${item}`} className="flex gap-2"><span className="text-primary">{index + 1}.</span><span>{item}</span></li>)}
-            </ol>
-            </PremiumAnalysisGate>
-          </TabsContent>
-        </CardContent>
-        </Tabs>
-      </Card>
-      <SP500Dashboard compact />
+            {market.watch_next_fa?.[0] && <p className="border-r-2 border-primary pr-3 text-sm leading-7"><span className="font-medium text-primary">زیر نظر: </span>{market.watch_next_fa[0]}</p>}
+            <p className="border-t border-border pt-3 text-[11px] leading-5 text-muted-foreground">نوبت بعدی: {nextAnalysisLabel} · زمان‌ها به وقت تهران</p>
+          </CardContent>
+        </Card>
+        <SP500Dashboard compact />
+      </div>
+      <div className="grid items-start gap-4 md:grid-cols-2">
+        <MarketOutlookCard title="مسیر هفته‌های پیش‌رو" horizon="چند روز تا چند هفته" view={market.short_term_view} legacyText={market.short_term_outlook_fa} assessedAt={market.short_term_assessed_at || (!market.report_kind ? market.analysis_generated_at : null)} weeklyFocus={market.weekly_focus_fa} weeklyEvents={market.weekly_events_fa} weeklyAssessedAt={market.weekly_assessed_at} />
+        <MarketOutlookCard title="تصویر ۶ تا ۱۲ ماهه" horizon="میان‌مدت" view={market.medium_term_view} legacyText={market.medium_term_outlook_fa} assessedAt={market.medium_term_assessed_at || (!market.report_kind ? market.analysis_generated_at : null)} />
       </div>
       <MarketStatusCards />
     </section>
@@ -606,6 +553,7 @@ export default function MarketIntelligenceSections({ market, onRefresh, loading 
     <Card className="overflow-hidden border-border bg-muted/15">
       <CardHeader className="pb-4">
         <CardTitle>عوامل اثرگذار بر بازار</CardTitle>
+        {(market.factors_assessed_at || (!market.report_kind && market.analysis_generated_at)) && <time className="block text-[11px] leading-5 text-muted-foreground">آخرین ارزیابی عوامل: {formatTime(market.factors_assessed_at || market.analysis_generated_at)} تهران</time>}
       </CardHeader>
       <CardContent className="space-y-4" dir="rtl">
         <div className="relative grid items-stretch gap-0 lg:grid-cols-2 lg:gap-4">

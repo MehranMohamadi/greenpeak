@@ -64,6 +64,6 @@ def test_persisted_evening_run_fetches_fresh_context_and_never_rebuilds_raw_feat
 
     monkeypatch.setattr(persisted_analysis, "run_llm_pipeline", pipeline)
     result = persisted_analysis.run_persisted_market_analysis(object(), "test", object(), date(2026, 11, 9))
-    assert calls == [(None, "narratives", {"force": True, "market_only": True, "horizontal_evidence": {"fresh": True}})]
+    assert calls == [(None, "narratives", {"force": True, "market_only": True, "horizontal_evidence": {"fresh": True}, "report_kind": "session"})]
     assert result["errors"] == []
     assert result["llm"]["market"]["status"] == "generated"

@@ -31,6 +31,9 @@ class _LocalRepository:
     def save(self, level, value):
         self.cache.save(level, "sp500", value)
 
+    def latest(self, level, subject_id):
+        return self.cache.latest(level, subject_id)
+
 
 def collect_local_evidence(settings, now=None):
     current = now or datetime.now(UTC)
@@ -81,6 +84,10 @@ def refresh_local_market(*, settings=None, provider=None, evidence=None, now=Non
     day = current.astimezone(ZoneInfo("Asia/Tehran")).date()
     cache = LocalNarrativeCache(settings.analysis_local_db_path)
     inputs = evidence if evidence is not None else collect_local_evidence(settings, current)
+    local = current.astimezone(ZoneInfo("Asia/Tehran"))
+    kind = ("weekend" if day.weekday() >= 5 else "session" if (local.hour, local.minute) >= (21, 30)
+            else "weekly" if day.weekday() == 0 else "daily")
+    inputs = {**inputs, "report_kind": kind}
     previous = cache.latest("market", "sp500")
     if previous:
         inputs = {**inputs, "retained_factor_evidence": previous.get("factor_source_evidence", {}),

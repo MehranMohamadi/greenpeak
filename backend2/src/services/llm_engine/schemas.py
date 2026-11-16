@@ -149,6 +149,25 @@ class MarketGlanceSummary(StrictModel):
     regime_shifters_fa: list[str] = Field(default_factory=list)
 
 
+class MarketOutlook(StrictModel):
+    summary_fa: str = Field(min_length=1, max_length=350)
+    change_condition_fa: str = Field(min_length=1, max_length=350)
+    detail_fa: str = Field(min_length=1, max_length=3000)
+    change_summary_fa: str = Field(min_length=1, max_length=450)
+    change_status: Literal["initial", "changed", "unchanged"]
+    assessed_at: datetime | None = None
+    data_as_of: date | None = None
+    material_change: bool = False
+    evidence_refs: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def require_meaningful_text(self):
+        if any(not getattr(self, key).strip() for key in
+               ("summary_fa", "change_condition_fa", "detail_fa", "change_summary_fa")):
+            raise ValueError("Outlook explanations must not be blank")
+        return self
+
+
 class MarketNarrative(NarrativeBase):
     level: Literal["market"] = "market"
     market_story_fa: str
@@ -174,6 +193,28 @@ class MarketNarrative(NarrativeBase):
     factor_classification_version: Literal["1.0.0"] | None = None
     factor_empty_reasons: dict[Literal["supportive", "challenging", "potentials", "risks"], str] = Field(default_factory=dict)
     factor_source_evidence: dict[str, Any] = Field(default_factory=dict)
+    report_kind: Literal["weekly", "daily", "session", "weekend"] | None = None
+    short_term_view: MarketOutlook | None = None
+    medium_term_view: MarketOutlook | None = None
+    weekly_focus_fa: str = ""
+    weekly_events_fa: list[str] = Field(default_factory=list, max_length=3)
+    weekly_assessed_at: datetime | None = None
+    factors_assessed_at: datetime | None = None
+    short_term_assessed_at: datetime | None = None
+    medium_term_assessed_at: datetime | None = None
+    medium_term_reassessed: bool = False
+
+    @model_validator(mode="after")
+    def require_edition_content(self):
+        if self.analysis_version != "0.6.0":
+            return self
+        if not self.report_kind or not self.current_market_move_fa.strip() or not self.current_analysis_fa.strip():
+            raise ValueError("Edition kind and pulse are required")
+        if self.report_kind in {"weekly", "daily"} and not self.short_term_view:
+            raise ValueError("This edition requires a short-term assessment")
+        if self.report_kind == "weekly" and (not self.medium_term_view or not self.weekly_focus_fa.strip()):
+            raise ValueError("Weekly edition requires medium-term assessment and weekly focus")
+        return self
 
     @model_validator(mode="after")
     def validate_generated_market_factors(self, info: ValidationInfo):
@@ -253,7 +294,7 @@ def factor_evidence_references(evidence: dict) -> list[str]:
     horizontal = evidence.get("horizontal_evidence") or {}
     if isinstance(horizontal, dict):
         candidates.append("/horizontal_evidence/sp500_session_move")
-        for name in ("recent_market_news", "upcoming_us_events", "observed_indicators"):
+        for name in ("recent_market_news", "today_market_news", "upcoming_us_events", "observed_indicators", "sentiment_observations"):
             add_list(f"/horizontal_evidence/{name}", horizontal.get(name))
         context = horizontal.get("current_market_context") or {}
         if isinstance(context, dict):
@@ -276,7 +317,7 @@ def resolve_factor_evidence(evidence: dict, reference: str) -> dict | None:
         return None
     if tokens[0] == "horizontal_evidence" and not (
         tokens[1] == "sp500_session_move"
-        or tokens[1] in {"recent_market_news", "upcoming_us_events", "observed_indicators"} and len(tokens) >= 3
+        or tokens[1] in {"recent_market_news", "today_market_news", "upcoming_us_events", "observed_indicators", "sentiment_observations"} and len(tokens) >= 3
         or tokens[1] == "current_market_context" and len(tokens) >= 4 and tokens[2] == "released_us_events"
     ):
         return None

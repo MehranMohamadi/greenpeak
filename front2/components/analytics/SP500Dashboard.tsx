@@ -59,6 +59,10 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
         timeZone: "Asia/Tehran",
       }).format(lastUpdated)
     : null
+  const latestCandleTime = data.length ? data[data.length - 1]?.time : null
+  const observationLabel = typeof latestCandleTime === "number"
+    ? new Intl.DateTimeFormat("fa-IR-u-ca-gregory", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tehran" }).format(new Date(latestCandleTime * 1000))
+    : null
 
   if (compact) {
     return (
@@ -115,6 +119,10 @@ export default function SP500Dashboard({ compact = false }: { compact?: boolean 
             <SP500Chart data={data} className="h-full min-h-0 w-full" />
           )}
         </CardContent>
+        <div dir="rtl" className="flex flex-wrap justify-between gap-x-3 border-t border-border px-3 py-1.5 text-[10px] text-muted-foreground">
+          <span>{observationLabel ? `آخرین کندل: ${observationLabel} تهران` : "زمان مشاهده در دسترس نیست"}</span>
+          {lastUpdatedLabel && <span>دریافت: {lastUpdatedLabel} تهران</span>}
+        </div>
       </Card>
     )
   }
