@@ -12,7 +12,7 @@ export default function AnalysisDetailsDialog({ title, children }) {
     </DialogTrigger>
     <DialogContent dir="rtl" className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
       <DialogHeader className="text-right"><DialogTitle>{title}</DialogTitle><DialogDescription>دلایل و سناریوها</DialogDescription></DialogHeader>
-      <div className="space-y-3 text-sm leading-8 text-muted-foreground">{children}</div>
+      <div className="space-y-3 text-sm font-medium leading-7 text-black dark:text-white">{children}</div>
     </DialogContent>
   </Dialog>
 }

@@ -1,5 +1,10 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import { readFile } from "node:fs/promises"
+import { createRequire } from "node:module"
+import React from "react"
+import { renderToStaticMarkup } from "react-dom/server"
+import ts from "typescript"
 import { calendarDate, enrichCalendarEvent, marketEventTimeline } from "../lib/market-event-timeline.mjs"
 
 const now = "2026-11-16T12:00:00Z"
@@ -63,4 +68,36 @@ test("same-release details are retained without replacing the calendar's actual 
   assert.equal(result.current, 0)
   assert.equal(result.forecast, "1%")
   assert.equal(result.why_it_matters_fa, "Same release")
+})
+
+const require = createRequire(import.meta.url)
+const timelineSource = await readFile(new URL("../components/analytics/market-event-timeline.jsx", import.meta.url), "utf8")
+const timelineCode = ts.transpileModule(timelineSource, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
+const timelineExports = {}
+new Function("require", "exports", timelineCode)(name => {
+  if (name === "react") return { ...React, useState: () => [new Date(now), () => {}] }
+  if (name.endsWith("market-event-timeline.mjs")) return { marketEventTimeline }
+  if (name.endsWith("date-format")) return { GREGORIAN_PERSIAN_LOCALE: "fa-IR-u-ca-gregory", TEHRAN_TIME_ZONE: "Asia/Tehran" }
+  return require(name)
+}, timelineExports)
+const renderTimeline = events => renderToStaticMarkup(React.createElement(timelineExports.default, {
+  events, loading: false, renderEvent: item => React.createElement("p", null, item.event_id),
+}))
+
+test("empty dates have no visible heading, including an empty today, but the now line remains", () => {
+  const html = renderTimeline([event("eleven", "2026-11-11T12:00:00Z"), event("thirteen", "2026-11-13T12:00:00Z")])
+  assert.equal((html.match(/<h3\b/g) || []).length, 2)
+  assert.ok(html.includes('aria-label="2026-11-11"') && html.includes('aria-label="2026-11-13"'))
+  assert.ok(!html.includes('aria-label="2026-11-12"') && !html.includes('aria-label="2026-11-16"'))
+  assert.match(html, /role="separator"[^>]*><\/div>/)
+  const visible = html.replace(/<[^>]*>/g, "")
+  assert.ok(!visible.includes("اکنون") && !visible.includes("ثبت نشده"))
+  assert.ok(!html.includes("<button"), "navigation is now beside the box title")
+})
+
+test("the unlabelled now line still separates today's past and future events", () => {
+  const html = renderTimeline([event("past-event", "2026-11-16T10:00:00Z"), event("future-event", "2026-11-16T14:00:00Z")])
+  const marker = html.indexOf('role="separator"')
+  assert.ok(html.indexOf("past-event") < marker && marker < html.indexOf("future-event"))
+  assert.match(html, /role="separator"[^>]*><\/div>/)
 })

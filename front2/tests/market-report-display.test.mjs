@@ -87,22 +87,23 @@ test("no empty popup is offered when there are no supplemental explanations", ()
   assert.ok(weekly.dialogs[0].body.includes("رویداد آزمایشی"))
 })
 
-test("pulse keeps its summary and shows only this pulse's explanation in the popup", () => {
+test("pulse shows its summary and full current analysis inline without a popup", () => {
   const render = loadCard(true, "market-pulse-analysis")
   const market = { current_market_move_fa: "تیتر آزمایشی\nبرداشت روز", current_analysis_fa: "متن اصلی نبض", watch_next_fa: ["محرک بعدی"],
     glance_summary: { supportive_fa: ["دلیل حمایتی آزمایشی"], regime_shifters_fa: ["شرط تغییر آزمایشی"] } }
   const { html, dialogs } = render({ market })
-  for (const text of ["تیتر آزمایشی", "برداشت روز", "محرک بعدی"]) assert.ok(html.includes(text))
-  assert.ok(!html.includes("متن اصلی نبض"))
+  for (const text of ["تیتر آزمایشی", "برداشت روز", "متن اصلی نبض", "محرک بعدی"]) assert.ok(html.includes(text))
   assert.ok(!html.includes("دلیل حمایتی آزمایشی"))
-  assert.doesNotMatch(html, /<details|<summary/)
-  assert.equal(dialogs[0].title, "نبض بازار")
-  assert.ok(dialogs[0].body.includes("متن اصلی نبض"))
-  assert.ok(!dialogs[0].body.includes("دلیل حمایتی آزمایشی"), "retained factor evidence must not become current pulse reasons")
+  assert.doesNotMatch(html, /<details|<summary|aria-haspopup="dialog"/)
+  assert.equal(dialogs.length, 0)
+  assert.ok(html.indexOf("برداشت روز") < html.indexOf("متن اصلی نبض"))
+  assert.ok(html.indexOf("متن اصلی نبض") < html.indexOf("محرک بعدی"))
   assert.equal(render({ market: { ...market, current_analysis_fa: "" } }).dialogs.length, 0)
   const legacy = render({ market: { narrative_fa: "تنها متن قدیمی موجود" } })
   assert.ok(legacy.html.includes("تنها متن قدیمی موجود"))
   assert.equal(legacy.dialogs.length, 0)
+  const duplicate = render({ market: { current_market_move_fa: "متن تکراری", current_analysis_fa: "متن تکراری" } })
+  assert.equal(duplicate.html.split("متن تکراری").length - 1, 1)
 })
 
 test("the real dialog trigger is accessible and its explanations stay absent while closed", () => {
