@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     greenpeak_llm_provider: str = "openai-compatible"
     greenpeak_llm_model: str = "gpt-6-luna"
     greenpeak_llm_api_key: str = ""
-    greenpeak_llm_base_url: str = "https://api.gapgpt.app/v1"
+    greenpeak_llm_base_url: str = "https://api.gapgpt.ir/v1"
     # Ordered direct providers; when set, the legacy single provider is unused.
     greenpeak_llm_providers: list[LLMEndpointSettings] = []
     greenpeak_llm_router_db_path: Path = Path(__file__).parent.parent.parent / "instance" / "llm" / "llm_router.db"
